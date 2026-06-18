@@ -15,7 +15,7 @@ jobs:
     name: Pre-publish leak scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run pre-publish leak scan
         # Fails the job (and the required check) if any leak is found.
