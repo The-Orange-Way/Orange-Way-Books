@@ -1,0 +1,81 @@
+{
+  "contractVersion": 1,
+  "source": {
+    "name": "wave",
+    "version": "0.1.0",
+    "exportedAt": "2026-05-19T19:00:00.000Z"
+  },
+  "orgHint": {
+    "name": "HomeSweetHome.rentals",
+    "currency": "CAD"
+  },
+  "manifest": {
+    "files": [
+      { "name": "accounts.json", "sizeBytes": 327513, "sha256": "71f5e30061" },
+      { "name": "customers.json", "sizeBytes": 3811, "sha256": "adecf645dc" }
+    ]
+  },
+  "summary": {
+    "accounts": 3,
+    "contacts": 2,
+    "journalEntries": 0,
+    "journalLines": 0,
+    "warnings": [],
+    "errors": []
+  },
+  "staged": {
+    "accounts": [
+      {
+        "name": "Test Cash on Hand",
+        "code": "T-1010",
+        "type": "ASSET",
+        "subtype": "Cash",
+        "normal_balance": "DEBIT",
+        "category": "",
+        "description": ""
+      },
+      {
+        "name": "Test Rental Income",
+        "code": "T-4000",
+        "type": "INCOME",
+        "subtype": "",
+        "normal_balance": "CREDIT",
+        "category": "",
+        "description": ""
+      },
+      {
+        "name": "Test Bank Loan",
+        "code": "T-2100",
+        "type": "LIABILITY",
+        "subtype": "Loan",
+        "normal_balance": "CREDIT",
+        "category": "",
+        "description": ""
+      }
+    ],
+    "contacts": [
+      {
+        "name": "Test Tenant A",
+        "type": "Customer",
+        "email": "tenant.a@example.com",
+        "phone": "",
+        "street": "",
+        "city": "",
+        "state": "",
+        "country": "",
+        "zip": ""
+      },
+      {
+        "name": "Test Utility Co",
+        "type": "Vendor",
+        "email": "",
+        "phone": "555-0100",
+        "street": "",
+        "city": "",
+        "state": "",
+        "country": "",
+        "zip": ""
+      }
+    ]
+  }
+}

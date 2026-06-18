@@ -1,0 +1,84 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [dev, prod]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimum required permissions. The deploy uses Cloudflare API tokens via
+# secrets; no GitHub state needs to be written.
+permissions:
+  contents: read
+
+# Opt into Node 24 for GitHub's JS-action runtime — silences the Node 20
+# deprecation banner on every run.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+        env:
+          VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_ORBI_SUPABASE_URL: ${{ vars.VITE_ORBI_SUPABASE_URL }}
+          VITE_ORBI_SUPABASE_ANON_KEY: ${{ vars.VITE_ORBI_SUPABASE_ANON_KEY }}
+
+      - name: Pick Pages project for this branch
+        id: target
+        run: |
+          if [ "${{ github.ref_name }}" = "prod" ]; then
+            echo "project=owb-prod" >> "$GITHUB_OUTPUT"
+            echo "verify_url=https://books.orangeway.app" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "dev" ]; then
+            echo "project=owb-dev" >> "$GITHUB_OUTPUT"
+            echo "verify_url=https://dev.books.orangeway.app" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unknown branch ${{ github.ref_name }} — skipping deploy"
+            exit 0
+          fi
+
+      - name: Deploy to ${{ steps.target.outputs.project }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          bunx wrangler@4.92.0 pages deploy dist \
+            --project-name=${{ steps.target.outputs.project }} \
+            --branch=${{ github.ref_name }} \
+            --commit-dirty=true
+
+      - name: Verify deploy
+        run: |
+          sleep 8
+          ROUTES=$(curl -s ${{ steps.target.outputs.verify_url }} | grep -oE '/assets/routes-[^"]*\.js' | head -1 || true)
+          if [ -z "$ROUTES" ]; then
+            echo "::warning::Could not find routes chunk on ${{ steps.target.outputs.verify_url }} — custom domain may not be wired yet"
+            exit 0
+          fi
+          curl -s "${{ steps.target.outputs.verify_url }}${ROUTES}" >/dev/null
+          echo "✓ ${{ steps.target.outputs.verify_url }} routes chunk fetched OK"

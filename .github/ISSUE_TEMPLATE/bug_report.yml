@@ -1,0 +1,70 @@
+name: Bug report
+description: Something broke or behaves wrong. Use this for reproducible problems.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more specific you are, the faster we can fix it.
+
+        **Security issues:** do NOT file here. Use the private advisory flow linked in `SECURITY.md`.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what did you see? Plain language is fine.
+      placeholder: "I unlocked the vault, clicked Payments, and..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A numbered list. Be specific about the org, the data shape, and anything that looks unusual.
+      placeholder: |
+        1. Go to `/payments`
+        2. Change Status filter to `Paid`
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "Chrome 130, Safari 17, Firefox 125"
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit SHA or preview URL
+      description: Helps us pin down exactly what you were running.
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors or screenshot (if any)
+      description: Paste text (preferred) or attach a screenshot.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this isn't already filed.
+          required: true
+        - label: This is not a security vulnerability (those go through the private advisory flow).
+          required: true

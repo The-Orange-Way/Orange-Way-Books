@@ -1,0 +1,115 @@
+project_id = "dvobnnkuyztabapttapc"
+
+# Edge Function configuration.
+#
+# All functions verify the Supabase JWT at the code level (see each
+# function's Authorization header check). We also require the Supabase
+# gateway to verify it as an extra layer of defense. Setting verify_jwt =
+# true here prevents a deploy with `--no-verify-jwt` from silently
+# exposing the function to anonymous traffic.
+
+# [functions.legacy-proxy] block removed 2026-06-11 — the legacy-proxy edge
+# function was physically deleted in the legacy-ledger removal. Leaving
+# the config block in place caused `supabase functions deploy` runs to
+# attempt to push a non-existent function.
+
+[functions.or-proxy]
+# Proxy to OrangeRails. Does its own JWT check + org membership lookup
+# in code; platform-level JWT gate disabled because the sb_publishable_*
+# anon key + ES256 user JWT combo regresses on the platform gate.
+# (Predecessors bb-or-proxy and vault-bridge were removed 2026-05-19
+# along with their cloud deploys — see audit H6.)
+verify_jwt = false
+
+[functions.exchange-rate-fetch]
+# Exchange rates are public data (BTC/USD, EUR/USD, etc.). The function reads
+# and writes a shared (non-user-scoped) exchange_rates cache using the service
+# role key. Requiring a session JWT at the gateway caused spurious 401s when
+# the browser's session was stale or not yet hydrated, even though the data
+# returned is identical for every caller. Rate-limit abuse is still mitigated
+# inside the handler (per-user when authed, per-IP otherwise).
+verify_jwt = false
+
+[functions.invite-org-member]
+verify_jwt = true
+
+[functions.lookup-user-profiles]
+verify_jwt = true
+
+[functions.admin-update-user]
+verify_jwt = true
+
+# legacy-create-account and legacy-create-transaction were removed 2026-05-19
+# (audit C1/C2). They duplicated legacy-proxy.CreateAccount / .PostTransaction
+# but skipped the org-membership + role checks, allowing any authenticated
+# user to write into any other org's legacy ledger backend ledger. Frontend never called them
+# (everything routes through legacy-proxy via src/lib/legacy-ledger.ts).
+
+# ──────────────────────────────────────────────────────────────────────
+# H5 (2026-05-19 audit) — every function must declare its auth model
+# explicitly. Previously these 13 inherited the Supabase platform default
+# (currently true, but flips over time). Each line below is a deliberate
+# choice based on the function's actual auth check.
+# ──────────────────────────────────────────────────────────────────────
+
+# User-JWT authed — platform gate + in-function getUser() (defense in depth).
+[functions.abort-rekey]
+verify_jwt = true
+
+[functions.complete-invite-wrap]
+verify_jwt = true
+
+[functions.finalize-rekey]
+verify_jwt = true
+
+[functions.flash-oauth-callback]
+verify_jwt = true
+
+[functions.flash-status]
+verify_jwt = true
+
+[functions.create-flash-payment]
+verify_jwt = true
+
+[functions.mint-org-signing-key]
+verify_jwt = true
+
+[functions.queue-admin-email]
+verify_jwt = true
+
+[functions.rekey-batch]
+verify_jwt = true
+
+[functions.start-rekey-job]
+verify_jwt = true
+
+# Cron / webhook authed — NO user JWT; rely on shared secret or HMAC sig.
+[functions.flash-webhook]
+# HMAC-authed via FLASH_WEBHOOK_SECRET; flash signs the raw body.
+verify_jwt = false
+
+[functions.or-webhook-receiver]
+# HMAC-authed via OR_WEBHOOK_SECRET; OR signs the raw body. PUBLIC endpoint
+# (no Supabase JWT) because OR cannot mint user JWTs. Authentication is the
+# HMAC signature alone, verified by the vendored @orangerails/webhooks SDK.
+verify_jwt = false
+
+[functions.subscription-lifecycle]
+# Cron-authed via X-Cron-Secret header (env CRON_SECRET).
+verify_jwt = false
+
+[functions.sweep-expired-roles]
+# Cron-authed via x-cron-secret header (env CRON_SWEEP_SECRET).
+verify_jwt = false
+
+[functions.drain-email-outbox]
+# Cron-authed via X-Cron-Secret header (env CRON_SECRET) or service-role
+# bearer. Platform JWT gate disabled so pg_cron and external schedulers
+# can hit the URL with the shared secret instead.
+verify_jwt = false
+
+[functions.send-invoice-email]
+# Caller-authed: the function does its own auth.getUser() check against
+# the org's invoice ownership. Platform JWT gate stays on as defence in
+# depth.
+verify_jwt = true

@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+
+# npm lockfile — the project uses Bun. package-lock.json would go stale
+# every time the build system adds a dep (it only updates bun.lockb), breaking CI.
+# bun.lockb is the single source of truth.
+package-lock.json
+dist-ssr
+*.local
+
+# Playwright e2e — keep the spec + screenshots in git, ignore run artifacts.
+tests/e2e/__artifacts__/
+tests/e2e/__report__/
+playwright-report/
+test-results/
+
+# Rust (vendored vendored ledger fork)
+legacy/**/target/
+
+# Environment / secrets
+# `.env` is never committed — only the `.env.example` template lives in git.
+# Real values (Supabase anon key is public-by-design, but future secrets
+# like LEDGER_API_KEY / OXR_APP_ID would leak) must come from the host env.
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+tsconfig.*.tsbuildinfo
+supabase/.temp/

@@ -1,0 +1,23 @@
+# Cloudflare Pages edge headers — apply to every response, including
+# JSON / asset responses that don't carry the <meta> CSP tag.
+#
+# M13 (2026-05-19 audit). The <meta http-equiv="Content-Security-Policy">
+# in index.html only applies to HTML responses; it cannot set HSTS at all.
+# These edge headers fill those gaps and survive infra changes that touch
+# only the build — they live in-repo.
+
+/*
+  # Force HTTPS for two years on this host + all subdomains, with preload.
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # CSP mirroring the in-document policy. Edge copy applies to non-HTML
+  # responses (the in-document <meta> is the authority for HTML).
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://eu-assets.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://hcaptcha.com https://*.hcaptcha.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://eu.i.posthog.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com; frame-src https://hcaptcha.com https://*.hcaptcha.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+  # Defense in depth — older browsers + non-CSP-aware clients.
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Block geolocation / camera / microphone / payment unless explicitly used.
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()

@@ -1,0 +1,15 @@
+# Pin legacy-ledger migration SQL files to CRLF line endings.
+#
+# Why: sqlx records a SHA-384 checksum of each migration file's raw bytes in
+# the _sqlx_migrations table when first applied. Our production legacy DB
+# (bb-vault-legacy-db) was populated by the original blind4 build (2026-04-16),
+# which was checked out with CRLF line endings on the build host. If a later
+# build checks out the same files with LF endings, sqlx computes a different
+# checksum and refuses to start with:
+#   "migration 20231208110808 was previously applied but has been modified"
+#
+# Forcing CRLF on these files keeps every future build byte-identical to what
+# the live DB recorded. Do not relax this without also re-stamping the
+# _sqlx_migrations.checksum column on every legacy DB in existence.
+legacy/the-ledger/migrations/*.sql text eol=crlf
+legacy/examples/rust/migrations/*.sql text eol=crlf

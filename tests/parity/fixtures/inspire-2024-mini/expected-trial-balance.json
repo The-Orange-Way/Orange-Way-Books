@@ -1,0 +1,18 @@
+{
+  "description": "Expected Trial Balance for the inspire-2024-mini synthetic fixture, as of 2024-12-31. Computed by hand from journal-lines.json. Asset+Expense are debit-normal; Liability+Equity+Revenue are credit-normal.",
+  "asOfDate": "2024-12-31",
+  "totalDebits": 16000.00,
+  "totalCredits": 16000.00,
+  "isBalanced": true,
+  "rowsByAccountCode": {
+    "1110": { "accountName": "Cash CAD", "debit": 15587.90, "credit": 0 },
+    "1200": { "accountName": "Accounts Receivable", "debit": 0, "credit": 0 },
+    "2110": { "accountName": "VISA 4020", "debit": 0, "credit": 0 },
+    "3100": { "accountName": "Retained Earnings", "debit": 0, "credit": 5000.00 },
+    "4100": { "accountName": "Consulting Revenue", "debit": 0, "credit": 11000.00 },
+    "5210": { "accountName": "Software — Zoom", "debit": 19.99, "credit": 0 },
+    "5211": { "accountName": "Software — NameCheap", "debit": 14.66, "credit": 0 },
+    "5310": { "accountName": "Marketing — Vistaprint", "debit": 287.50, "credit": 0 },
+    "5410": { "accountName": "Professional Fees — Tax Software", "debit": 89.95, "credit": 0 }
+  }
+}

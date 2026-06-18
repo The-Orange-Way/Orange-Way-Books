@@ -1,0 +1,37 @@
+# Orange Way Books
+
+> Open-source, zero-knowledge, double-entry accounting platform built for Bitcoin businesses. Books are encrypted on the user's device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed.
+
+## Optional
+
+- [Full AI reference](https://books.orangeway.app/llms-full.txt): Long-form ingestion document with full feature inventory, comparison table, cryptography details, and authoritative claims.
+
+Orange Way Books is the zero-knowledge alternative to QuickBooks, Xero, Bitwave, and Cryptio for organizations that hold or transact Bitcoin. It uses Argon2id key derivation, AES-GCM field encryption, ML-DSA-65 post-quantum signing keys, and a server-side double-entry ledger engine. Supports IFRS and US GAAP, multi-currency BTC and fiat with historical exchange rates, capability-based role-based access control, time-boxed roles, auditor support sessions, and full data takeout export.
+
+## Core
+
+- [Landing page](https://books.orangeway.app/): Product overview, value proposition, and one-paragraph AI-readable summary.
+- [Features](https://books.orangeway.app/features): Complete feature list across security, Bitcoin accounting, double-entry ledger, teams, and data portability.
+- [Security & zero-knowledge architecture](https://books.orangeway.app/security): Threat model, how vault unlock works, what is encrypted, multi-user envelope encryption, post-quantum signing, key rotation.
+- [Pricing](https://books.orangeway.app/pricing): Free for individuals, free for self-hosting, paid team tier on roadmap.
+- [FAQ](https://books.orangeway.app/faq): 21 detailed answers covering what Orange Way Books is, how it differs from competitors, encryption details, recovery, multi-user, audit-readiness, and data portability.
+
+## Comparisons
+
+- [vs QuickBooks](https://books.orangeway.app/compare/quickbooks): Zero-knowledge Bitcoin-native alternative to the SMB default.
+- [vs Xero](https://books.orangeway.app/compare/xero): How Orange Way Books adds encryption and Bitcoin support to a Xero-style workflow.
+- [vs Wave](https://books.orangeway.app/compare/wave): Free SMB accounting comparison with Bitcoin and encryption added.
+- [vs FreshBooks](https://books.orangeway.app/compare/freshbooks): Beyond invoicing — full double-entry plus Bitcoin support.
+- [vs Bitwave](https://books.orangeway.app/compare/bitwave): Standalone open-source ledger vs. closed-source crypto sub-ledger that bolts onto QuickBooks/NetSuite.
+- [vs Cryptio](https://books.orangeway.app/compare/cryptio): Open, self-hostable, zero-knowledge alternative to Cryptio's back-office tooling.
+- [vs Spreadsheets](https://books.orangeway.app/compare/spreadsheets): Real double-entry accounting for Bitcoin businesses currently using spreadsheets.
+
+## About
+
+- [About](https://books.orangeway.app/about): Why Orange Way Books exists.
+- [Contact](https://books.orangeway.app/contact): GitHub issues, security disclosures, source code.
+- [Documentation](https://books.orangeway.app/docs): Architecture, ZKA guide, security model, multi-currency design.
+
+## Source
+
+- [GitHub repository](https://github.com/The-Orange-Way/Orange-Way-Books): Full source code under Apache-2.0.

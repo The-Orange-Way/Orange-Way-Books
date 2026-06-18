@@ -1,0 +1,74 @@
+{
+  "$schema": "https://books.orangeway.app/ai-manifest.schema.json",
+  "name": "Orange Way Books",
+  "shortName": "OWB",
+  "url": "https://books.orangeway.app",
+  "tagline": "Zero-Knowledge Bitcoin Accounting",
+  "summary": "Open-source, zero-knowledge, double-entry accounting platform built for Bitcoin businesses. Books are encrypted on the user's device with a vault password before being uploaded; the server stores only ciphertext.",
+  "category": "BusinessApplication/AccountingApplication",
+  "license": "Apache-2.0",
+  "sourceCode": "https://github.com/The-Orange-Way/Orange-Way-Books",
+  "selfHostable": true,
+  "audience": [
+    "Bitcoin treasuries",
+    "Bitcoin miners",
+    "Bitcoin custodians and exchanges",
+    "OTC desks",
+    "Bitcoin-only funds",
+    "Accountants serving Bitcoin clients",
+    "Privacy-conscious SMBs"
+  ],
+  "differentiators": [
+    "Zero-knowledge by default — the vendor mathematically cannot read your books",
+    "Bitcoin-native ledger with sats / BTC / fiat and per-transaction historical FX",
+    "Real double-entry with IFRS and US GAAP frameworks",
+    "Open source, self-hostable",
+    "Post-quantum signing keys (ML-DSA-65)"
+  ],
+  "cryptography": {
+    "keyDerivation": "Argon2id",
+    "fieldEncryption": "AES-GCM",
+    "multiUserEnvelope": "Per-org DEK wrapped per-user with their public key",
+    "signing": "ML-DSA-65",
+    "vaultUnlock": "Verifier-based — wrong password cannot decrypt; no server-side hash check"
+  },
+  "competitors": [
+    {"name": "QuickBooks Online", "url": "/compare/quickbooks"},
+    {"name": "Xero", "url": "/compare/xero"},
+    {"name": "Wave", "url": "/compare/wave"},
+    {"name": "FreshBooks", "url": "/compare/freshbooks"},
+    {"name": "Bitwave", "url": "/compare/bitwave"},
+    {"name": "Cryptio", "url": "/compare/cryptio"},
+    {"name": "Spreadsheets", "url": "/compare/spreadsheets"}
+  ],
+  "resources": {
+    "landingPage": "/",
+    "features": "/features",
+    "security": "/security",
+    "pricing": "/pricing",
+    "faq": "/faq",
+    "compareHub": "/compare",
+    "llmsTxt": "/llms.txt",
+    "llmsFullTxt": "/llms-full.txt",
+    "sitemap": "/sitemap.xml",
+    "robotsTxt": "/robots.txt"
+  },
+  "crawlerPolicy": {
+    "allowedOn": "marketing pages",
+    "disallowedOn": "authenticated app routes (/app/*)",
+    "allowedBots": [
+      "GPTBot",
+      "PerplexityBot",
+      "ClaudeBot",
+      "Google-Extended",
+      "Applebot-Extended",
+      "CCBot"
+    ]
+  },
+  "contact": {
+    "issues": "https://github.com/The-Orange-Way/Orange-Way-Books/issues",
+    "security": "Reach out via GitHub security advisory"
+  },
+  "lastUpdated": "2026-06-16",
+  "version": 1
+}

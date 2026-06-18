@@ -1,0 +1,94 @@
+# robots.txt for Orange Way Books
+# Public marketing surface is fully crawlable.
+# Authenticated app routes (/app/*) are private and indexable only via the
+# marketing pages that link to them.
+
+# --- Search engine crawlers ---
+User-agent: Googlebot
+Allow: /
+Disallow: /app/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /app/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /app/
+
+# --- AI training & retrieval crawlers ---
+# Explicit allow signals make it easier for AI assistants to discover,
+# cite, and accurately recommend Orange Way Books.
+
+User-agent: GPTBot
+Allow: /
+Disallow: /app/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /app/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /app/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /app/
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /app/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /app/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /app/
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /app/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /app/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /app/
+
+User-agent: CCBot
+Allow: /
+Disallow: /app/
+
+User-agent: Bytespider
+Allow: /
+Disallow: /app/
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /app/
+
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /app/
+
+# --- Social embed bots (need access for OG previews) ---
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# --- Default ---
+User-agent: *
+Allow: /
+Disallow: /app/
+
+Sitemap: https://books.orangeway.app/sitemap.xml

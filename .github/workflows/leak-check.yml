@@ -1,0 +1,23 @@
+name: Leak check
+
+on:
+  pull_request:
+    branches: [dev, prod]
+  push:
+    branches: [dev, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-publish-scan:
+    name: Pre-publish leak scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run pre-publish leak scan
+        # Fails the job (and the required check) if any leak is found.
+        # See scripts/pre-publish-scan.sh for the rules and exemptions.
+        run: bash scripts/pre-publish-scan.sh

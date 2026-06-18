@@ -1,0 +1,29 @@
+# CODEOWNERS — who gets auto-requested as a reviewer for each area.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Format: <pattern>  <owner> [<owner> ...]
+# Match precedence: LAST matching line wins. Catch-all goes first.
+
+# Default owner — every path, unless overridden below.
+*                               @MorningRevolution
+
+# Cryptography and vault primitives — require a crypto-aware reviewer.
+/src/lib/vault.ts               @MorningRevolution
+/src/lib/crypto-fields.ts       @MorningRevolution
+/src/context/VaultContext.tsx   @MorningRevolution
+
+# Supabase schema + RLS — migrations are the source of truth.
+/supabase/migrations/           @MorningRevolution
+/supabase/functions/            @MorningRevolution
+
+# vendored ledger fork (Rust) — changes here affect ledger semantics.
+/legacy/                          @MorningRevolution
+
+# Docs — narrative surface of the project.
+/README.md                      @MorningRevolution
+/docs/                          @MorningRevolution
+/SECURITY.md                    @MorningRevolution
+/CODE_OF_CONDUCT.md             @MorningRevolution
+
+# GitHub workflows + community health files.
+/.github/                       @MorningRevolution

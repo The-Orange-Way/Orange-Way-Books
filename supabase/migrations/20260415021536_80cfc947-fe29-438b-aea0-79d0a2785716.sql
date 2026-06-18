@@ -1,0 +1,1 @@
+ALTER TABLE public.org_settings ADD COLUMN vault_verifier text;

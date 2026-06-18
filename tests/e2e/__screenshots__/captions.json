@@ -1,0 +1,26 @@
+[
+  {
+    "name": "01-signup",
+    "file": "01-signup.png",
+    "caption": "Authenticated Orange Way Books user lands on the Insights dashboard. Sidebar shows the active org. Vault Unlocked badge confirms the in-browser MEK is live and only the user can decrypt the data the dashboard renders.",
+    "status": "captured"
+  },
+  {
+    "name": "02-billing-page-trialing",
+    "file": "02-billing-page-trialing.png",
+    "caption": "Billing page during the 45-day free trial. Subscription card shows the plan, trial badge, days remaining, and a Pay button. No payment is required yet — customer can pay early if they choose, but the button is informational during the trial window.",
+    "status": "captured"
+  },
+  {
+    "name": "03-admin-flash-empty",
+    "file": "03-admin-flash-empty.png",
+    "caption": "Admin Pay-with-Flash page before connecting Orange Way Books' merchant Flash account. 'Connect Flash' button is the only action available.",
+    "status": "captured"
+  },
+  {
+    "name": "04-admin-flash-redirect",
+    "file": "04-admin-flash-redirect.png",
+    "caption": "Clicking Connect Flash redirects the user to Flash for OAuth authorization. The button-click handler stores a CSRF `state` token in `flash_oauth_state` and sends the user to `/oauth/authorize?client_id=…&redirect_uri=…&state=…&scope=read_write`. This shot captures the button focus without navigating off so the rest of the narrative remains usable.",
+    "status": "captured"
+  }
+]
