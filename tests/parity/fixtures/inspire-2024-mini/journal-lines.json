@@ -1,0 +1,190 @@
+[
+  {
+    "date": "2024-01-01",
+    "accountId": "acct-cash-cad",
+    "accountName": "Cash CAD",
+    "accountCode": "1110",
+    "debit": 5000.00,
+    "credit": 0,
+    "description": "Opening balance",
+    "journalEntryId": "je-opening"
+  },
+  {
+    "date": "2024-01-01",
+    "accountId": "acct-retained-earnings",
+    "accountName": "Retained Earnings",
+    "accountCode": "3100",
+    "debit": 0,
+    "credit": 5000.00,
+    "description": "Opening balance",
+    "journalEntryId": "je-opening"
+  },
+
+  {
+    "date": "2024-01-15",
+    "accountId": "acct-cash-cad",
+    "accountName": "Cash CAD",
+    "accountCode": "1110",
+    "debit": 2500.00,
+    "credit": 0,
+    "description": "Client A retainer",
+    "journalEntryId": "je-jan-1"
+  },
+  {
+    "date": "2024-01-15",
+    "accountId": "acct-consulting-rev",
+    "accountName": "Consulting Revenue",
+    "accountCode": "4100",
+    "debit": 0,
+    "credit": 2500.00,
+    "description": "Client A retainer",
+    "journalEntryId": "je-jan-1"
+  },
+
+  {
+    "date": "2024-02-05",
+    "accountId": "acct-zoom",
+    "accountName": "Software — Zoom",
+    "accountCode": "5210",
+    "debit": 19.99,
+    "credit": 0,
+    "description": "Zoom monthly",
+    "journalEntryId": "je-feb-1"
+  },
+  {
+    "date": "2024-02-05",
+    "accountId": "acct-visa-4020",
+    "accountName": "VISA 4020",
+    "accountCode": "2110",
+    "debit": 0,
+    "credit": 19.99,
+    "description": "Zoom monthly",
+    "journalEntryId": "je-feb-1"
+  },
+
+  {
+    "date": "2024-03-10",
+    "accountId": "acct-namecheap",
+    "accountName": "Software — NameCheap",
+    "accountCode": "5211",
+    "debit": 14.66,
+    "credit": 0,
+    "description": "Domain renewal",
+    "journalEntryId": "je-mar-1"
+  },
+  {
+    "date": "2024-03-10",
+    "accountId": "acct-visa-4020",
+    "accountName": "VISA 4020",
+    "accountCode": "2110",
+    "debit": 0,
+    "credit": 14.66,
+    "description": "Domain renewal",
+    "journalEntryId": "je-mar-1"
+  },
+
+  {
+    "date": "2024-04-20",
+    "accountId": "acct-vistaprint",
+    "accountName": "Marketing — Vistaprint",
+    "accountCode": "5310",
+    "debit": 287.50,
+    "credit": 0,
+    "description": "Business cards",
+    "journalEntryId": "je-apr-1"
+  },
+  {
+    "date": "2024-04-20",
+    "accountId": "acct-cash-cad",
+    "accountName": "Cash CAD",
+    "accountCode": "1110",
+    "debit": 0,
+    "credit": 287.50,
+    "description": "Business cards",
+    "journalEntryId": "je-apr-1"
+  },
+
+  {
+    "date": "2024-06-15",
+    "accountId": "acct-ar",
+    "accountName": "Accounts Receivable",
+    "accountCode": "1200",
+    "debit": 8500.00,
+    "credit": 0,
+    "description": "Invoice INV-2024-005",
+    "journalEntryId": "je-jun-1"
+  },
+  {
+    "date": "2024-06-15",
+    "accountId": "acct-consulting-rev",
+    "accountName": "Consulting Revenue",
+    "accountCode": "4100",
+    "debit": 0,
+    "credit": 8500.00,
+    "description": "Invoice INV-2024-005",
+    "journalEntryId": "je-jun-1"
+  },
+
+  {
+    "date": "2024-06-30",
+    "accountId": "acct-cash-cad",
+    "accountName": "Cash CAD",
+    "accountCode": "1110",
+    "debit": 8500.00,
+    "credit": 0,
+    "description": "Invoice INV-2024-005 payment",
+    "journalEntryId": "je-jun-2"
+  },
+  {
+    "date": "2024-06-30",
+    "accountId": "acct-ar",
+    "accountName": "Accounts Receivable",
+    "accountCode": "1200",
+    "debit": 0,
+    "credit": 8500.00,
+    "description": "Invoice INV-2024-005 payment",
+    "journalEntryId": "je-jun-2"
+  },
+
+  {
+    "date": "2024-09-15",
+    "accountId": "acct-tax-software",
+    "accountName": "Professional Fees — Tax Software",
+    "accountCode": "5410",
+    "debit": 89.95,
+    "credit": 0,
+    "description": "Tax filing software",
+    "journalEntryId": "je-sep-1"
+  },
+  {
+    "date": "2024-09-15",
+    "accountId": "acct-visa-4020",
+    "accountName": "VISA 4020",
+    "accountCode": "2110",
+    "debit": 0,
+    "credit": 89.95,
+    "description": "Tax filing software",
+    "journalEntryId": "je-sep-1"
+  },
+
+  {
+    "date": "2024-11-01",
+    "accountId": "acct-visa-4020",
+    "accountName": "VISA 4020",
+    "accountCode": "2110",
+    "debit": 124.60,
+    "credit": 0,
+    "description": "VISA payoff",
+    "journalEntryId": "je-nov-1"
+  },
+  {
+    "date": "2024-11-01",
+    "accountId": "acct-cash-cad",
+    "accountName": "Cash CAD",
+    "accountCode": "1110",
+    "debit": 0,
+    "credit": 124.60,
+    "description": "VISA payoff",
+    "journalEntryId": "je-nov-1"
+  }
+]

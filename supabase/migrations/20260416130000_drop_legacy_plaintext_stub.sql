@@ -1,0 +1,48 @@
+-- PENDING: Drop legacy plaintext columns once all rows have encrypted equivalents.
+-- This migration is intentionally a NO-OP stub. DO NOT uncomment until:
+--   1. A data-migration script has populated encrypted_metadata for every existing row
+--   2. All page code paths read from encrypted_metadata
+--   3. A full integration test pass succeeds against a DB with these columns dropped
+--
+-- To activate, uncomment the relevant ALTER statements below and re-run migrations.
+
+-- ALTER TABLE public.payment_requests DROP COLUMN IF EXISTS ref_number;
+-- ALTER TABLE public.payment_requests DROP COLUMN IF EXISTS vendor_ref;
+-- ALTER TABLE public.payment_requests DROP COLUMN IF EXISTS payment_address;
+-- ALTER TABLE public.payment_requests DROP COLUMN IF EXISTS currency;
+-- ALTER TABLE public.payment_requests DROP COLUMN IF EXISTS request_type;
+--
+-- ALTER TABLE public.connectors DROP COLUMN IF EXISTS label;
+-- ALTER TABLE public.connectors DROP COLUMN IF EXISTS connector_type;
+--
+-- ALTER TABLE public.journal_entries DROP COLUMN IF EXISTS memo;
+-- ALTER TABLE public.journal_entries DROP COLUMN IF EXISTS ref_number;
+-- ALTER TABLE public.journal_entries DROP COLUMN IF EXISTS currency;
+-- ALTER TABLE public.journal_entries DROP COLUMN IF EXISTS source_type;
+--
+-- ALTER TABLE public.accounts DROP COLUMN IF EXISTS asset;
+-- ALTER TABLE public.accounts DROP COLUMN IF EXISTS account_type;
+-- ALTER TABLE public.accounts DROP COLUMN IF EXISTS connection_type;
+-- ALTER TABLE public.accounts DROP COLUMN IF EXISTS initial_balance;
+-- ALTER TABLE public.accounts DROP COLUMN IF EXISTS legacy_account_code;
+--
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS memo;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS type;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS asset;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS cleared_status;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS amount;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS exchange_rate;
+-- ALTER TABLE public.transactions DROP COLUMN IF EXISTS usd_value;
+--
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS account_name;
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS account_code;
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS description;
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS debit;
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS credit;
+-- ALTER TABLE public.journal_entry_lines DROP COLUMN IF EXISTS book_value;
+--
+-- ALTER TABLE public.legacy_account_map DROP COLUMN IF EXISTS account_type;
+-- ALTER TABLE public.legacy_account_map DROP COLUMN IF EXISTS account_group;
+-- ALTER TABLE public.legacy_account_map DROP COLUMN IF EXISTS account_category;
+
+DO $$ BEGIN RAISE NOTICE 'drop_legacy_plaintext_stub migration applied (NO-OP)'; END $$;

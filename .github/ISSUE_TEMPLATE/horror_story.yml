@@ -1,0 +1,44 @@
+name: SaaS accounting horror story
+description: Tell us your worst experience with cloud accounting software. These sharpen the roadmap.
+title: "[horror] "
+labels: ["horror-story", "roadmap-input"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The README invites your worst SaaS accounting story. We mean it — this is one of the best ways to show us where the mission actually bites.
+
+        You can be anonymous about companies. We care about the **shape** of the problem.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Breach, data loss, vendor lock-in, privacy surprise, audit nightmare — tell the story.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What did it cost you?
+      description: Time, money, trust, a customer — anything.
+
+  - type: textarea
+    id: wish
+    attributes:
+      label: What would Orange Way Books have had to do differently to prevent this?
+      description: This is the part that feeds the roadmap.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ok-to-share
+    attributes:
+      label: Can we quote this (anonymized) in blog posts / talks?
+      options:
+        - Yes, quote me with my GitHub handle
+        - Yes, anonymized only
+        - No, internal use only
+    validations:
+      required: true

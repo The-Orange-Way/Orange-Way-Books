@@ -1,0 +1,6 @@
+Publish trigger file.
+
+This file exists solely to force any CD system watching the repo
+to detect a source-code diff and produce a fresh production build. Updating
+the timestamp below bumps the bundle hash so the next deploy will re-resolve
+VITE_* env vars at build time.

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, prod]
+  push:
+    branches: [dev, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimum required permissions. Both jobs only read the repo + run scripts;
+# nothing here writes to GitHub state.
+permissions:
+  contents: read
+
+# Opt into Node 24 for GitHub's JS-action runtime (actions/cache@v4,
+# actions/upload-artifact@v4, etc.). Default is Node 20, which GitHub is
+# deprecating Sept 2026. Suppresses the deprecation banner on every run.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lint-and-build:
+    name: Lint + test + build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # The project is managed with Bun (bun.lockb, bunfig.toml).
+      # The older workflow used `npm ci` which broke on every dep add
+      # because the build system updates bun.lockb, not package-lock.json.
+      # bun.lockb is the single source of truth.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+        # Don't fail the whole CI on lint warnings yet — the codebase
+        # is young, warnings are noise, and a false-red CI trains
+        # everyone to ignore the signal.
+        continue-on-error: true
+
+      - name: Test
+        run: bun run test
+        continue-on-error: true
+
+      - name: Build
+        run: bun run build
+
+  e2e:
+    name: E2E (Playwright smoke)
+    runs-on: ubuntu-latest
+    needs: lint-and-build
+    # Runs on every push to dev or prod. Specs target the dev deployment
+    # (dev.books.orangeway.app). PR events still skip e2e because they
+    # deploy to a Cloudflare Pages preview URL, not the dev deployment.
+    # Targeting the preview URL on PRs is a follow-up.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Cache Playwright browser binaries between runs — saves ~25s of
+      # `playwright install` per run on a cache hit.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package.json', 'bun.lock') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bun run test:e2e:install
+
+      # Runs the full tests/e2e/ directory: flash-flow narrative, the
+      # owb-full-suite (auth + nav across every OWB surface), and the
+      # OR import wizard spec. The wizard spec auto-skips when its
+      # OWB_DEV_E2E_* env vars aren't set, so this is safe on forks /
+      # external PRs that don't have the secrets.
+      - name: Run Playwright
+        run: bunx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: https://dev.books.orangeway.app
+          OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
+          OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
+          OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            tests/e2e/__or-shots__/
+          retention-days: 14

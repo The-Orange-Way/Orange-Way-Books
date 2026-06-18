@@ -1,0 +1,74 @@
+[
+  {
+    "id": "acct-cash-cad",
+    "name": "Cash CAD",
+    "code": "1110",
+    "accountType": "Asset",
+    "accountGroup": "Cash",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-ar",
+    "name": "Accounts Receivable",
+    "code": "1200",
+    "accountType": "Asset",
+    "accountGroup": "Receivable",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-visa-4020",
+    "name": "VISA 4020",
+    "code": "2110",
+    "accountType": "Liability",
+    "accountGroup": "Credit Card",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-retained-earnings",
+    "name": "Retained Earnings",
+    "code": "3100",
+    "accountType": "Equity",
+    "accountGroup": "Equity",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-consulting-rev",
+    "name": "Consulting Revenue",
+    "code": "4100",
+    "accountType": "Revenue",
+    "accountGroup": "Sales",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-zoom",
+    "name": "Software — Zoom",
+    "code": "5210",
+    "accountType": "Expense",
+    "accountGroup": "Software",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-namecheap",
+    "name": "Software — NameCheap",
+    "code": "5211",
+    "accountType": "Expense",
+    "accountGroup": "Software",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-vistaprint",
+    "name": "Marketing — Vistaprint",
+    "code": "5310",
+    "accountType": "Expense",
+    "accountGroup": "Marketing",
+    "accountCategory": null
+  },
+  {
+    "id": "acct-tax-software",
+    "name": "Professional Fees — Tax Software",
+    "code": "5410",
+    "accountType": "Expense",
+    "accountGroup": "Professional Fees",
+    "accountCategory": null
+  }
+]

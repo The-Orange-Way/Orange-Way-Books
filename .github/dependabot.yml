@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # Frontend dependencies (React + Vite + Supabase SDK).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+    groups:
+      patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+      major-updates:
+        update-types:
+          - "major"
+
+  # GitHub Actions versions.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # vendored ledger fork (Rust). Disabled by default because the fork is pinned to a
+  # specific legacy ledger backend upstream and ad-hoc cargo bumps can break `sqlx` offline
+  # data. Re-enable when a legacy ledger backend upgrade track is owned.
+  # - package-ecosystem: "cargo"
+  #   directory: "/legacy/legacy-server-minimal"
+  #   schedule:
+  #     interval: "monthly"
+  #   labels:
+  #     - "dependencies"
+  #     - "rust"
