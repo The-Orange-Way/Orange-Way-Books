@@ -114,7 +114,7 @@ async function resolveAssetToBtcRate(assetCode: string): Promise<number | null> 
   try {
     const result = await resolvePinnedRate({ source: assetCode, target: 'BTC' });
     if (result.pending) return null;
-    if (!Number.isFinite(result.rate) | result.rate <= 0) return null;
+    if (!Number.isFinite(result.rate) || result.rate <= 0) return null;
     return result.rate;
   } catch (err) {
     console.warn(`[DestinationAccountPicker] rate resolve failed for ${assetCode}→BTC`, err);
@@ -280,7 +280,7 @@ export function DestinationAccountPicker({
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">
-                        {w.label | w.currency} wallet
+                        {w.label || w.currency} wallet
                       </div>
                       <div className="text-xs text-muted-foreground font-mono truncate">
                         {w.currency}
@@ -294,7 +294,7 @@ export function DestinationAccountPicker({
                         onValueChange={(v) =>
                           setPicked((prev) => ({ ...prev, [w.external_wallet_id]: v }))
                         }
-                        disabled={loadingWallets | submitting}
+                        disabled={loadingWallets || submitting}
                       >
                         <SelectTrigger>
                           <SelectValue
@@ -385,8 +385,8 @@ export function DestinationAccountPicker({
       {createOpenForWallet && creatingForWallet && (
         <CreateWalletInlineDialog
           orgId={orgId}
-          defaultName={`${creatingForWallet.label | creatingForWallet.currency} wallet`}
-          defaultAsset={creatingForWallet.currency | 'BTC'}
+          defaultName={`${creatingForWallet.label || creatingForWallet.currency} wallet`}
+          defaultAsset={creatingForWallet.currency || 'BTC'}
           onCancel={() => setCreateOpenForWallet(null)}
           onCreated={(newId) => handleCreated(createOpenForWallet, newId)}
         />
@@ -628,7 +628,7 @@ function CreateWalletInlineDialog({
           <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={submitting | !name.trim()}>
+          <Button type="button" onClick={handleSave} disabled={submitting || !name.trim()}>
             {submitting ? (
               <>
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />

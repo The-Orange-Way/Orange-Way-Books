@@ -83,7 +83,7 @@ export default function ImportFromOr() {
   };
 
   const handleCommit = async () => {
-    if (!orgId | !parsedPayload) return;
+    if (!orgId || !parsedPayload) return;
     setCommitting(true);
     setResult(null);
     try {
@@ -227,7 +227,7 @@ export default function ImportFromOr() {
             <Button
               type="button"
               onClick={handleCommit}
-              disabled={committing | parsedPayload.summary.journalEntries === 0}
+              disabled={committing || parsedPayload.summary.journalEntries === 0}
             >
               {committing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Commit {parsedPayload.summary.journalEntries} journal entries

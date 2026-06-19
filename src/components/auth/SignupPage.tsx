@@ -45,7 +45,7 @@ export default function SignupPage() {
         'is_email_in_beta_allowlist' as never,
         { p_email: email } as never,
       );
-      if (rpcError | !allowed) {
+      if (rpcError || !allowed) {
         setLoading(false);
         captchaRef.current?.resetCaptcha();
         setCaptchaToken(null);
@@ -135,7 +135,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-              disabled={loading | (!!HCAPTCHA_SITE_KEY && !captchaToken)}
+              disabled={loading || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
             >
               {loading ? 'Creating account…' : 'Create Account'}
             </Button>

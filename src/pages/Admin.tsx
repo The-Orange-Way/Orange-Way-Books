@@ -359,7 +359,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         .select('id')
         .single();
 
-      if (orgError | !newOrg) {
+      if (orgError || !newOrg) {
         toast.error(`Failed to create org: ${orgError?.message | 'Unknown error'}`);
         setAddSaving(false);
         return;
@@ -402,7 +402,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
   };
 
   const handleEditSave = async () => {
-    if (!editOrg | !editName.trim()) return;
+    if (!editOrg || !editName.trim()) return;
     setEditSaving(true);
     try {
       const enc = await encryptOrganization({ name: editName.trim() }, encryptText);
@@ -526,7 +526,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
 
       {/* ── Settings for Active Org ── */}
       <div className="border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground mb-4">Settings — {orgName | 'Active Organization'}</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-4">Settings — {orgName || 'Active Organization'}</h2>
       </div>
 
       <div className="max-w-2xl space-y-8">
@@ -562,7 +562,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         {/* Secondary Currency */}
         <div className="space-y-2">
           <Label className="font-semibold">Secondary Reporting Currency</Label>
-          <Select value={settings.secondary_currency | 'none'} onValueChange={v => setSettings(p => ({ ...p, secondary_currency: v === 'none' ? null : v }))}>
+          <Select value={settings.secondary_currency || 'none'} onValueChange={v => setSettings(p => ({ ...p, secondary_currency: v === 'none' ? null : v }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
@@ -626,7 +626,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
               className="flex-1"
             />
             <Select
-              value={settings.approval_threshold_currency | 'USD'}
+              value={settings.approval_threshold_currency || 'USD'}
               onValueChange={v => setSettings(p => ({ ...p, approval_threshold_currency: v }))}
             >
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
@@ -746,7 +746,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!addName.trim() | addSaving} onClick={handleAddOrg}>
+            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!addName.trim() || addSaving} onClick={handleAddOrg}>
               {addSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Creating...</> : 'Create Organization'}
             </Button>
           </DialogFooter>
@@ -776,7 +776,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditOpen(false); setEditOrg(null); }}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!editName.trim() | editSaving} onClick={handleEditSave}>
+            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!editName.trim() || editSaving} onClick={handleEditSave}>
               {editSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -791,7 +791,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
           <Input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} placeholder="Organization name" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteModal(false)}>Cancel</Button>
-            <Button variant="destructive" disabled={deleteConfirm !== orgName | saving} onClick={async () => {
+            <Button variant="destructive" disabled={deleteConfirm !== orgName || saving} onClick={async () => {
               if (!orgId) return;
               setSaving(true);
               const { error } = await supabase.from('organizations').delete().eq('id', orgId);
@@ -989,7 +989,7 @@ function UsersTab({
     if (!orgId) return;
     setLoading(true);
     const { data: rawMembers } = await supabase.from('org_members').select('*').eq('org_id', orgId);
-    if (!rawMembers | rawMembers.length === 0) {
+    if (!rawMembers || rawMembers.length === 0) {
       setMembers([]);
       setLoading(false);
       return;
@@ -1135,7 +1135,7 @@ function UsersTab({
   }, [selectedPresetIsAuditor]);
 
   const handleAddUser = async () => {
-    if (!orgId | !addEmail.trim()) return;
+    if (!orgId || !addEmail.trim()) return;
     if (!selectedPreset) {
       toast.error('Pick a role first');
       return;
@@ -1235,7 +1235,7 @@ function UsersTab({
       toast.error((res as { ok: false; message: string }).message);
       return;
     }
-    toast.success(`${target.name | target.email | 'User'} removed from organization`);
+    toast.success(`${target.name || target.email || 'User'} removed from organization`);
     setRevokeTarget(null);
     // If the Edit dialog was open on this user, close it too.
     if (editMember?.user_id === target.user_id) {
@@ -1380,7 +1380,7 @@ function UsersTab({
 
   // ── Phase 4.4 extend expiry ───────────────────────────────────────
   const executeExtendExpiry = async () => {
-    if (!extendTarget | !orgId | !extendNewDate) return;
+    if (!extendTarget || !orgId || !extendNewDate) return;
     const parsed = new Date(`${extendNewDate}T23:59:59`);
     if (Number.isNaN(parsed.getTime()) | parsed.getTime() <= Date.now()) {
       toast.error('The new access end date must be in the future.');
@@ -1501,7 +1501,7 @@ function UsersTab({
   };
 
   const executeEndSupport = async () => {
-    if (!orgId | !activeSupportSession) return;
+    if (!orgId || !activeSupportSession) return;
     setEndingSupport(true);
     try {
       const { error } = await supabase.functions.invoke('admin-update-user', {
@@ -1786,8 +1786,8 @@ function UsersTab({
               };
               return (
                 <tr key={m.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${tier === 'expired' ? 'opacity-60' : ''}`}>
-                  <td className="px-4 py-3 font-medium">{m.name | m.email?.split('@')[0] | m.user_id.slice(0, 8) + '...'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.email | '\u2014'}</td>
+                  <td className="px-4 py-3 font-medium">{m.name || m.email?.split('@')[0] || m.user_id.slice(0, 8) + '...'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{m.email || '\u2014'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
@@ -1945,7 +1945,7 @@ function UsersTab({
             <div className="space-y-3 text-sm">
               <p>
                 Change the access end date for{' '}
-                <strong>{extendTarget.member.name | extendTarget.member.email | 'this user'}</strong>.
+                <strong>{extendTarget.member.name || extendTarget.member.email || 'this user'}</strong>.
                 {extendTarget.grant.expiresAt && (
                   <> Current end date: {formatExpiryDate(extendTarget.grant.expiresAt)}.</>
                 )}
@@ -1973,7 +1973,7 @@ function UsersTab({
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               onClick={executeExtendExpiry}
-              disabled={extendSaving | !extendNewDate}
+              disabled={extendSaving || !extendNewDate}
             >
               {extendSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Saving…</> : 'Extend access'}
             </Button>
@@ -2029,7 +2029,7 @@ function UsersTab({
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               onClick={executeGrantSupport}
-              disabled={supportGrantSaving | !supportEmail.trim()}
+              disabled={supportGrantSaving || !supportEmail.trim()}
             >
               {supportGrantSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Granting…</> : 'Give access'}
             </Button>
@@ -2193,7 +2193,7 @@ function UsersTab({
           {revokeTarget && (
             <div className="space-y-3 text-sm">
               <p>
-                Remove <strong>{revokeTarget.name | revokeTarget.email | 'this user'}</strong>{' '}
+                Remove <strong>{revokeTarget.name || revokeTarget.email || 'this user'}</strong>{' '}
                 from this organization? They will lose access to future data in this org.
               </p>
               <p className="text-muted-foreground">
@@ -2210,7 +2210,7 @@ function UsersTab({
             </Button>
             <Button
               variant="destructive"
-              disabled={revokeSaving | !revokeTarget}
+              disabled={revokeSaving || !revokeTarget}
               onClick={() => { if (revokeTarget) void executeSoftRevoke(revokeTarget); }}
             >
               {revokeSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
@@ -2231,7 +2231,7 @@ function UsersTab({
           {rekeyPromptFor && (
             <div className="space-y-3 text-sm">
               <p>
-                <strong>{rekeyPromptFor.name | rekeyPromptFor.email | 'This person'}</strong> has been
+                <strong>{rekeyPromptFor.name || rekeyPromptFor.email || 'This person'}</strong> has been
                 removed. They can still read any data they've already opened on their device.
               </p>
               <p className="text-muted-foreground">
@@ -2305,7 +2305,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
   };
 
   const handleAdd = async () => {
-    if (!orgId | !addName.trim()) return;
+    if (!orgId || !addName.trim()) return;
     const enc = await encryptChartOfAccount({
       account_name: addName.trim(),
       account_code: null,
@@ -2326,7 +2326,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
 
   const handleEditSave = async () => {
     if (!editAccount) return;
-    if (!editType | !editGroup) {
+    if (!editType || !editGroup) {
       toast.error('Pick a type and group before saving.');
       return;
     }
@@ -2655,7 +2655,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
   const endIdx = Math.min((page + 1) * perPage, filtered.length);
 
   const handleSave = async () => {
-    if (!orgId | !form.name.trim()) return;
+    if (!orgId || !form.name.trim()) return;
     const encrypted = await encryptContact({
       name: form.name,
       street: form.street | null,
@@ -2726,11 +2726,11 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
             ) : pageData.map(c => (
               <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                 <td className="px-4 py-3 font-medium">{c.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.street | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.city | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.state | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.zip | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.country | '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{c.street || '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{c.state || '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{c.zip || '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{c.country || '—'}</td>
                 <td className="px-4 py-3 flex gap-2">
                   {canWriteContacts && (
                     <button onClick={() => { setForm({ name: c.name, street: c.street | '', city: c.city | '', state: c.state | '', zip: c.zip | '', country: c.country | '', email: c.email | '', phone: c.phone | '', type: c.type | '' }); setEditId(c.id); setEditOpen(true); }} className="text-muted-foreground hover:text-foreground" data-testid="contacts-edit"><Pencil className="w-4 h-4" /></button>
@@ -2765,7 +2765,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
       )}
 
       {/* Add/Edit Modal */}
-      <Dialog open={addOpen | editOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setEditOpen(false); } }}>
+      <Dialog open={addOpen || editOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setEditOpen(false); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editId ? 'Edit Contact' : 'Add To/From'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
@@ -2993,7 +2993,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
   const connectedTypes = new Set(connectors.map(c => c.connector_type));
 
   const handleConnect = async () => {
-    if (!orgId | !selectedType) return;
+    if (!orgId || !selectedType) return;
     setSaving(true);
 
     // Build config payload to encrypt
@@ -3207,7 +3207,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
             <Button variant="outline" onClick={() => { setConnectOpen(false); resetForm(); }}>Cancel</Button>
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
-              disabled={!formApiKey | saving}
+              disabled={!formApiKey || saving}
               onClick={handleConnect}
             >
               {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Connecting...</> : 'Connect'}
@@ -3261,7 +3261,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
     try {
       const text = await f.text();
       const parsed = JSON.parse(text) as TakeoutFile;
-      if (!parsed?._meta | !parsed?.data) throw new Error('Not a takeout file');
+      if (!parsed?._meta || !parsed?.data) throw new Error('Not a takeout file');
       setPendingFile(parsed);
     } catch (err: any) {
       toast.error(`Invalid file: ${err?.message ?? String(err)}`);
@@ -3348,7 +3348,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
   };
 
   const handleImport = async () => {
-    if (!orgId | !pendingFile) return;
+    if (!orgId || !pendingFile) return;
     setImporting(true);
     setImportPhase('Starting');
     setImportProgress({ done: 0, total: 0 });
@@ -3406,7 +3406,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           upload it to shared drives.
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleExport} disabled={!orgId | exporting}>
+          <Button onClick={handleExport} disabled={!orgId || exporting}>
             {exporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting…</> : 'Download export'}
           </Button>
           {exporting && exportPhase && (
@@ -3442,7 +3442,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleSeedMiner} disabled={!orgId | seeding | importing | wiping}>
+          <Button onClick={handleSeedMiner} disabled={!orgId || seeding || importing || wiping}>
             {seedingKind === 'miner' ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Seeding…</> : 'Load miner company'}
           </Button>
           {seedingKind === 'miner' && importPhase && (
@@ -3471,7 +3471,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleSeedCoffee} disabled={!orgId | seeding | importing | wiping}>
+          <Button onClick={handleSeedCoffee} disabled={!orgId || seeding || importing || wiping}>
             {seedingKind === 'coffee' ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Seeding…</> : 'Load coffee shop'}
           </Button>
           {seedingKind === 'coffee' && importPhase && (
@@ -3617,7 +3617,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           them. The organization itself stays so you can re-seed or re-import into it.
         </p>
         {!confirmWipe ? (
-          <Button variant="destructive" onClick={() => setConfirmWipe(true)} disabled={!orgId | wiping}>
+          <Button variant="destructive" onClick={() => setConfirmWipe(true)} disabled={!orgId || wiping}>
             Wipe all data…
           </Button>
         ) : (
@@ -3776,7 +3776,7 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
                     <TableCell><Badge variant="outline" className="text-[10px]">{r.action}</Badge></TableCell>
                     <TableCell className="text-xs">{r.entity_type}</TableCell>
                     <TableCell className="text-sm">{r.summary | <span className="text-muted-foreground">—</span>}</TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">{r.ip_address | ''}</TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">{r.ip_address || ''}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -3854,7 +3854,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
   }, [orgId, decryptText]);
 
   async function loadPreview() {
-    if (!lockDate | !orgId) return;
+    if (!lockDate || !orgId) return;
     const [{ count: jeCount }, { count: txCount }] = await Promise.all([
       supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lte('date', lockDate),
       supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lte('date', lockDate),
@@ -3863,7 +3863,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
   }
 
   async function handleClose() {
-    if (!lockDate | !orgId) return;
+    if (!lockDate || !orgId) return;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -3906,9 +3906,9 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
   }
 
   async function handleReopen(close: typeof closes[number]) {
-    if (!orgId | !hasUnlockCap) return;
+    if (!orgId || !hasUnlockCap) return;
     const reason = prompt('Reason for reopening this period? (required, audit-logged)');
-    if (!reason | !reason.trim()) return;
+    if (!reason || !reason.trim()) return;
     if (!confirm(`Open a 24-hour unlock session for the period through ${close.locked_through_date}? After 24h, the lock returns automatically.`)) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -3949,7 +3949,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" disabled={!lockDate} onClick={loadPreview}>Preview</Button>
-          <Button disabled={!preview | saving} onClick={handleClose}>
+          <Button disabled={!preview || saving} onClick={handleClose}>
             {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Lock className="w-4 h-4 mr-1" />}
             Confirm Close
           </Button>
@@ -3981,7 +3981,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-sm">{c.locked_through_date}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(c.closed_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-                    <TableCell className="text-sm">{c.note | '—'}</TableCell>
+                    <TableCell className="text-sm">{c.note || '—'}</TableCell>
                     <TableCell>
                       {hasUnlockCap && (
                         <Button variant="outline" size="sm" onClick={() => handleReopen(c)}>
@@ -4094,7 +4094,7 @@ function BetaAllowlistTab() {
           <Label>Note (optional)</Label>
           <Input placeholder="Why are they invited?" value={newNote} onChange={e => setNewNote(e.target.value)} />
         </div>
-        <Button disabled={adding | !newEmail.trim()} onClick={handleAdd}>
+        <Button disabled={adding || !newEmail.trim()} onClick={handleAdd}>
           {adding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           Add
         </Button>
@@ -4136,7 +4136,7 @@ function BetaAllowlistTab() {
                     <TableCell className="text-sm text-muted-foreground">{r.note ?? ''}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="outline" size="sm" disabled={invitingId === r.id | !!r.signed_up_at} onClick={() => handleInvite(r.id, r.email)}>
+                        <Button variant="outline" size="sm" disabled={invitingId === r.id || !!r.signed_up_at} onClick={() => handleInvite(r.id, r.email)}>
                           {invitingId === r.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
                           {r.invitation_sent_at ? 'Re-invite' : 'Invite'}
                         </Button>

@@ -32,7 +32,7 @@ export function computePrimaryCurrencyBoundaries(
   rangeStart: string,
   rangeEnd: string,
 ): PrimaryCurrencyBoundaryResult {
-  if (!history | history.length === 0) {
+  if (!history || history.length === 0) {
     return { hasBoundary: false, eras: [], boundariesInRange: [] };
   }
 

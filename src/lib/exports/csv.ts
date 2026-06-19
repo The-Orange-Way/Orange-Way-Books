@@ -16,7 +16,7 @@ export function exportToCsv(
       return '';
     }
     const str = typeof val === 'number' ? formatNumericForCsvCell(val) : String(val);
-    if (str.includes(',') | str.includes('"') | str.includes('\n')) {
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;

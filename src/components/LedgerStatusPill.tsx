@@ -13,10 +13,10 @@ export function LedgerStatusPill() {
   const { encryptText, isUnlocked } = useVault();
   const [retrying, setRetrying] = useState(false);
 
-  if (!status | status === 'ready') return null;
+  if (!status || status === 'ready') return null;
 
   const handleRetry = async () => {
-    if (!orgId | !isUnlocked | retrying) return;
+    if (!orgId || !isUnlocked || retrying) return;
     setRetrying(true);
     const tid = toast.loading('Retrying chart-of-accounts setup…', {
       description: 'Server only sees ciphertext.',
@@ -73,7 +73,7 @@ export function LedgerStatusPill() {
         <button
           type="button"
           onClick={handleRetry}
-          disabled={retrying | !isUnlocked}
+          disabled={retrying || !isUnlocked}
           data-testid="ledger-status-retry"
           className="inline-flex items-center gap-1 rounded-full bg-destructive/20 px-2 py-0.5 text-[11px] font-medium hover:bg-destructive/30 disabled:cursor-not-allowed disabled:opacity-60"
           title={isUnlocked ? 'Re-run chart of accounts seed' : 'Unlock your vault to retry'}

@@ -39,7 +39,7 @@ export function MultiSelect({ label, options, selected, onChange, className }: M
       : `${selected.length} selected`;
 
   return (
-    <div ref={containerRef} className={`relative ${className | ''}`}>
+    <div ref={containerRef} className={`relative ${className || ''}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

@@ -179,7 +179,7 @@ function parseAmount(raw: string): number | null {
 // values < 1e-6, which is normal for sat-sized BTC amounts and unreadable in
 // an editable input. Round-trip through toFixed(8) and strip trailing zeros.
 function formatAmountForInput(n: number): string {
-  if (!Number.isFinite(n) | n === 0) return '0';
+  if (!Number.isFinite(n) || n === 0) return '0';
   return n.toFixed(8).replace(/\.?0+$/, '') | '0';
 }
 
@@ -286,7 +286,7 @@ export default function TransactionModal({
               .select('id, account_id, amount, asset')
               .eq('id', editingTx.linked_transfer_id!)
               .maybeSingle();
-            if (linkedErr | !linkedRow | cancelled) {
+            if (linkedErr || !linkedRow || cancelled) {
               if (!cancelled) toast.warning(
                 "Couldn't load the other side of this transfer; saving will create a fresh entry.",
               );
@@ -320,7 +320,7 @@ export default function TransactionModal({
             .from('journal_entry_lines')
             .select('*')
             .eq('journal_entry_id', editingTx.journal_entry_id!);
-          if (linesErr | !linesRaw | cancelled) {
+          if (linesErr || !linesRaw || cancelled) {
             if (!cancelled) toast.warning(
               "Couldn't load split lines; saving will create a fresh entry.",
             );
@@ -493,7 +493,7 @@ export default function TransactionModal({
   const { rate: autoRate, loading: rateLoading } = useExchangeRate(rateBase, rateQuote, rateDate);
   const [rateOverride, setRateOverride] = useState(false);
   useEffect(() => {
-    if (!needsTransferRate | rateOverride) return;
+    if (!needsTransferRate || rateOverride) return;
     if (autoRate && sentAmount) {
       const sent = parseAmount(sentAmount);
       if (sent != null) setReceivedAmount((sent * autoRate).toFixed(8));
@@ -506,7 +506,7 @@ export default function TransactionModal({
     for (const f of Array.from(files)) {
       const nameErr = validateAttachmentName(f.name);
       const sizeErr = validateAttachmentSize(f.size);
-      if (nameErr | sizeErr) { toast.error(nameErr | sizeErr | 'Invalid file'); continue; }
+      if (nameErr || sizeErr) { toast.error(nameErr || sizeErr || 'Invalid file'); continue; }
       valid.push({ file: f, name: f.name, size: f.size });
     }
     setReceipts((prev) => [...prev, ...valid].slice(0, MAX_FILES_PER_ENTITY));
@@ -520,17 +520,17 @@ export default function TransactionModal({
 
     if (mode === 'standard') {
       const amt = parseAmount(amount);
-      if (!amt | amt <= 0) e.amount = 'Enter an amount greater than 0.';
+      if (!amt || amt <= 0) e.amount = 'Enter an amount greater than 0.';
       if (!accountId) e.account = 'Account is required.';
     } else if (mode === 'split') {
       const amt = parseAmount(amount);
-      if (!amt | amt <= 0) e.amount = 'Enter a total amount greater than 0.';
+      if (!amt || amt <= 0) e.amount = 'Enter a total amount greater than 0.';
       const valid = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
       if (valid.length < 2) e.split = 'Add at least two complete split lines.';
       for (const line of splitLines) {
-        if (line.accountId | line.amount.trim()) {
+        if (line.accountId || line.amount.trim()) {
           const lineAmt = parseAmount(line.amount);
-          if (!line.accountId | !lineAmt | lineAmt <= 0) {
+          if (!line.accountId || !lineAmt || lineAmt <= 0) {
             e.split = 'Each split line needs an account and a positive amount.';
             break;
           }
@@ -544,8 +544,8 @@ export default function TransactionModal({
       else if (counterpartyWalletId === walletId) e.counterparty = 'Destination must differ from source.';
       const sa = parseAmount(sentAmount);
       const ra = parseAmount(receivedAmount);
-      if (!sa | sa <= 0) e.sent = 'Enter the amount sent.';
-      if (!ra | ra <= 0) e.received = 'Enter the amount received.';
+      if (!sa || sa <= 0) e.sent = 'Enter the amount sent.';
+      if (!ra || ra <= 0) e.received = 'Enter the amount received.';
       // Fee validation: if the section is open AND a positive fee was entered,
       // require both fee side and fee expense account.
       const fa = parseAmount(feeAmount);
@@ -945,7 +945,7 @@ export default function TransactionModal({
   // so no data is lost; the fee posting is a follow-up.
   //
   async function handleSaveTransfer(dateStr: string) {
-    if (!selectedWallet | !counterpartyWallet) throw new Error('Both wallets required for transfer.');
+    if (!selectedWallet || !counterpartyWallet) throw new Error('Both wallets required for transfer.');
     const sa = parseAmount(sentAmount)!;
     const ra = parseAmount(receivedAmount)!;
     const fee = showFeeSection ? (parseAmount(feeAmount) ?? 0) : 0;
@@ -1439,7 +1439,7 @@ export default function TransactionModal({
                   <SelectContent>
                     {wallets.map((w) => (
                       <SelectItem key={w.id} value={w.id}>
-                        {w.encrypted_name | '[Encrypted]'} ({w.asset})
+                        {w.encrypted_name || '[Encrypted]'} ({w.asset})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1496,7 +1496,7 @@ export default function TransactionModal({
                         <SelectLabel>Accounts (Transfer)</SelectLabel>
                         {wallets.filter((w) => w.id !== walletId).map((w) => (
                           <SelectItem key={w.id} value={`wallet:${w.id}`}>
-                            {w.encrypted_name | '[Encrypted]'} ({w.asset})
+                            {w.encrypted_name || '[Encrypted]'} ({w.asset})
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -1506,7 +1506,7 @@ export default function TransactionModal({
               </div>
             </div>
             {(errors.wallet | errors.counterparty) && (
-              <div className="text-xs text-destructive">{errors.wallet | errors.counterparty}</div>
+              <div className="text-xs text-destructive">{errors.wallet || errors.counterparty}</div>
             )}
           </div>
 
@@ -1844,7 +1844,7 @@ export default function TransactionModal({
                       </div>
                       {(errors.feeSide | errors.feeAccount) && (
                         <div className="text-xs text-destructive">
-                          {errors.feeSide | errors.feeAccount}
+                          {errors.feeSide || errors.feeAccount}
                         </div>
                       )}
                     </div>
@@ -1867,9 +1867,9 @@ export default function TransactionModal({
 
           {/* Row 5 — Match to invoice (inflow only, existing tx only) */}
           {(() => {
-            if (!editingTx | direction !== 'IN') return null;
+            if (!editingTx || direction !== 'IN') return null;
             const parsed = parseAmount(amount);
-            if (!parsed | parsed <= 0) return null;
+            if (!parsed || parsed <= 0) return null;
             const walletAsset = wallets.find((w) => w.id === walletId)?.asset | editingTx ? wallets.find((w) => w.id === (editingTx?.account_id ?? walletId))?.asset : '';
             const currency = walletAsset | 'USD';
             const counterparty = contactId

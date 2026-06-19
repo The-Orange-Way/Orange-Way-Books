@@ -140,7 +140,7 @@ export function InvoiceMatchPanel({
   const handleApply = async (m: RankedMatch) => {
     const rawInput = amountInputs[m.candidate.id];
     const applied = Number(rawInput);
-    if (!Number.isFinite(applied) | applied <= 0) {
+    if (!Number.isFinite(applied) || applied <= 0) {
       toast.error('Amount must be positive');
       return;
     }
@@ -306,7 +306,7 @@ export function InvoiceMatchPanel({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {m.candidate.customer_name | '(no customer)'} · {m.candidate.amount} {m.candidate.currency}
+                    {m.candidate.customer_name || '(no customer)'} · {m.candidate.amount} {m.candidate.currency}
                     {m.candidate.due_date ? ` · due ${m.candidate.due_date}` : ''}
                   </p>
                 </div>
@@ -338,7 +338,7 @@ export function InvoiceMatchPanel({
                         size="sm"
                         variant={isPrimaryMerge ? 'default' : 'outline'}
                         onClick={() => handleMerge(m)}
-                        disabled={isMerging | isApplying}
+                        disabled={isMerging || isApplying}
                         data-testid={`invoice-match-merge-${m.candidate.invoice_number}`}
                         title={`Merge with existing payment record (${placeholder.amount_applied} applied on ${placeholder.applied_at?.slice(0, 10) ?? ''})`}
                       >
@@ -353,7 +353,7 @@ export function InvoiceMatchPanel({
                       size="sm"
                       variant="outline"
                       onClick={() => handleApply(m)}
-                      disabled={isApplying | isMerging | remaining <= 0.0001}
+                      disabled={isApplying || isMerging || remaining <= 0.0001}
                       data-testid={`invoice-match-apply-${m.candidate.invoice_number}`}
                     >
                       {isApplying

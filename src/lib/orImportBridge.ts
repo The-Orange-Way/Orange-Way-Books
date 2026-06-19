@@ -597,7 +597,7 @@ export async function findImportedOrTxIds(
   orExternalIds: string[],
 ): Promise<Set<string>> {
   const found = new Set<string>();
-  if (walletIds.length === 0 | orExternalIds.length === 0) return found;
+  if (walletIds.length === 0 || orExternalIds.length === 0) return found;
 
   // Two-stage server filter: first narrow by wallet_ids (cheap index), then
   // pull encrypted_metadata client-side and match the OR external ids. We

@@ -117,7 +117,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
 
   // Fetch + decrypt transactions whenever popup opens or refresh is requested
   useEffect(() => {
-    if (!open | !wallet) return;
+    if (!open || !wallet) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -265,7 +265,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, []);
 
   const handleCompleteReconciliation = useCallback(async () => {
-    if (!wallet | !isBalanced | reconciling) return;
+    if (!wallet || !isBalanced || reconciling) return;
     setReconciling(true);
     try {
       const ids = Array.from(checkedIds);
@@ -281,14 +281,14 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
           action: 'RECONCILE',
           entityType: 'wallet',
           entityId: wallet.id,
-          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate | 'today'} — statement balance ${reconcileBalanceNum}`,
+          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate || 'today'} — statement balance ${reconcileBalanceNum}`,
           after: { transactionIds: ids, statementBalance: reconcileBalanceNum, statementDate: reconcileDate },
           encrypt: encryptText,
         });
       }
       toast({
         title: 'Reconciled',
-        description: `${ids.length} transaction${ids.length === 1 ? '' : 's'} reconciled through ${reconcileDate | 'today'}.`,
+        description: `${ids.length} transaction${ids.length === 1 ? '' : 's'} reconciled through ${reconcileDate || 'today'}.`,
       });
       handleExitReconcile();
       setRefreshKey((k) => k + 1);
@@ -304,7 +304,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, [wallet, isBalanced, reconciling, checkedIds, encryptText, reconcileDate, reconcileBalanceNum, orgId, toast, handleExitReconcile]);
 
   const handleOpenUndoDialog = useCallback(async () => {
-    if (!wallet | undoing) return;
+    if (!wallet || undoing) return;
     if (!orgId) {
       toast({
         title: 'Cannot undo',
@@ -352,7 +352,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, [wallet, undoing, orgId, txs, toast]);
 
   const handleConfirmUndo = useCallback(async () => {
-    if (!wallet | !undoMode | !orgId) return;
+    if (!wallet || !undoMode || !orgId) return;
     setUndoing(true);
     try {
       const encCleared = await encryptText('CLEARED');
@@ -480,10 +480,10 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
         <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b">
           <div>
             <h2 className="text-xl font-semibold">
-              {wallet.encrypted_name | '[Encrypted]'} — {reconcileMode ? 'Reconcile' : 'Statement'}
+              {wallet.encrypted_name || '[Encrypted]'} — {reconcileMode ? 'Reconcile' : 'Statement'}
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              {wallet.asset} / {wallet.institution | 'N/A'} / {wallet.account_type | 'N/A'}
+              {wallet.asset} / {wallet.institution || 'N/A'} / {wallet.account_type || 'N/A'}
             </p>
           </div>
           <div className="flex items-center gap-2 pr-8">
@@ -652,7 +652,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
                           )}
                           <TableCell className="font-mono text-xs">{t.date}</TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground">{t.id.slice(0, 8)}</TableCell>
-                          <TableCell className="text-sm">{t.memo | t.type | '—'}</TableCell>
+                          <TableCell className="text-sm">{t.memo || t.type || '—'}</TableCell>
                           <TableCell className="text-right font-mono text-sm text-green-700">
                             {t.debit != null ? fmtAmt(t.debit) : ''}
                           </TableCell>
@@ -725,7 +725,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               </div>
             </div>
             <Button
-              disabled={!isBalanced | reconciling}
+              disabled={!isBalanced || reconciling}
               onClick={handleCompleteReconciliation}
             >
               {reconciling && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}

@@ -73,7 +73,7 @@ export type StagedImportPayload = {
 };
 
 export function assertStagedImportPayload(value: unknown): asserts value is StagedImportPayload {
-  if (!value | typeof value !== 'object') {
+  if (!value || typeof value !== 'object') {
     throw new Error('Staged import: payload is not an object.');
   }
   const v = value as Record<string, unknown>;
@@ -83,15 +83,15 @@ export function assertStagedImportPayload(value: unknown): asserts value is Stag
     );
   }
   const source = v.source as Record<string, unknown> | undefined;
-  if (!source | typeof source.name !== 'string' | typeof source.version !== 'string') {
+  if (!source || typeof source.name !== 'string' || typeof source.version !== 'string') {
     throw new Error('Staged import: source.name / source.version are required strings.');
   }
   const summary = v.summary as Record<string, unknown> | undefined;
-  if (!summary | typeof summary !== 'object') {
+  if (!summary || typeof summary !== 'object') {
     throw new Error('Staged import: summary section is required.');
   }
   const staged = v.staged as Record<string, unknown> | undefined;
-  if (!staged | typeof staged !== 'object') {
+  if (!staged || typeof staged !== 'object') {
     throw new Error('Staged import: staged section is required (may have empty arrays).');
   }
   for (const key of ['accounts', 'contacts', 'journalEntries'] as const) {

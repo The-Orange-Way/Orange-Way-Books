@@ -62,7 +62,7 @@ export function deriveSourceKind(base: string, quote: string): SourceKind {
   const b = base.toUpperCase();
   const q = quote.toUpperCase();
   if (b === q) return 'IDENTITY';
-  if ((b === 'SATS' && q === 'BTC') | (b === 'BTC' && q === 'SATS')) return 'FIXED';
+  if ((b === 'SATS' && q === 'BTC') || (b === 'BTC' && q === 'SATS')) return 'FIXED';
   const bCrypto = isCrypto(b);
   const qCrypto = isCrypto(q);
   if (bCrypto && qCrypto) return 'CRYPTO_CRYPTO';
@@ -235,7 +235,7 @@ export async function getSecondaryDisplayRate(params: {
   at?: string;
 }): Promise<PinnedRateResult | null> {
   const { primary, secondary, at } = params;
-  if (!secondary | primary.toUpperCase() === secondary.toUpperCase()) return null;
+  if (!secondary || primary.toUpperCase() === secondary.toUpperCase()) return null;
   return resolvePinnedRate({ source: primary, target: secondary, at });
 }
 

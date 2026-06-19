@@ -28,7 +28,7 @@ export default function VaultUnlockScreen() {
   // Check rate-limit on mount and after each failure.
   const refreshRateLimit = async () => {
     const { data, error: rpcErr } = await (supabase as any).rpc('check_vault_unlock_rate_limit');
-    if (rpcErr | !data | data.length === 0) {
+    if (rpcErr || !data || data.length === 0) {
       setRateLimit(null);
       return;
     }
@@ -39,7 +39,7 @@ export default function VaultUnlockScreen() {
 
   // Tick once a second while we're cooling down so the countdown updates.
   useEffect(() => {
-    if (!rateLimit | rateLimit.ok | !rateLimit.cooldown_until) return;
+    if (!rateLimit || rateLimit.ok || !rateLimit.cooldown_until) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [rateLimit]);
@@ -52,7 +52,7 @@ export default function VaultUnlockScreen() {
 
   // Auto-clear lockout once the timer hits zero.
   useEffect(() => {
-    if (lockedOut | !rateLimit | rateLimit.ok) return;
+    if (lockedOut || !rateLimit || rateLimit.ok) return;
     if (cooldownRemainingMs === 0) void refreshRateLimit();
   }, [cooldownRemainingMs, lockedOut, rateLimit]);
 
@@ -137,7 +137,7 @@ export default function VaultUnlockScreen() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoFocus
-                disabled={!!lockedOut | loading}
+                disabled={!!lockedOut || loading}
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -149,7 +149,7 @@ export default function VaultUnlockScreen() {
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-              disabled={loading | !!lockedOut}
+              disabled={loading || !!lockedOut}
             >
               {loading ? 'Unlocking…' : lockedOut ? `Locked — wait ${fmtCooldown()}` : 'Unlock Vault'}
             </Button>

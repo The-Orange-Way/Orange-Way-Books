@@ -83,7 +83,7 @@ export function buildAuditFooterRows(p: AuditFooterParams): string[][] {
     rows.push(['Note', 'This report spans a primary-currency change boundary. Split view shows each era separately.']);
   }
 
-  if (p.totalFxGain != null | p.totalFxLoss != null) {
+  if (p.totalFxGain != null || p.totalFxLoss != null) {
     rows.push([]);
     rows.push(['FX GAIN / LOSS RECONCILIATION', '']);
     if (p.totalFxGain != null) rows.push(['Unrealized FX Gain', String(p.totalFxGain)]);
@@ -110,7 +110,7 @@ export function buildAuditFooterRows(p: AuditFooterParams): string[][] {
 export function auditFooterCsv(params: AuditFooterParams): string {
   const rows = buildAuditFooterRows(params);
   const escape = (val: string): string => {
-    if (val.includes(',') | val.includes('"') | val.includes('\n')) {
+    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
       return `"${val.replace(/"/g, '""')}"`;
     }
     return val;

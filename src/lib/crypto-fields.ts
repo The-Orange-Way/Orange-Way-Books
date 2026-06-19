@@ -28,7 +28,7 @@ export const FIELD_KEY_VERSION = L2;
  * defaulted to 0 after the column was added).
  */
 function looksEncrypted(value: string | null | undefined): boolean {
-  if (!value | typeof value !== 'string') return false;
+  if (!value || typeof value !== 'string') return false;
   if (value.length < 24) return false;
   return /^[A-Za-z0-9+/]+={0,2}$/.test(value);
 }
@@ -716,12 +716,12 @@ export async function decryptPaymentRequest(
     }
   };
   const decryptTextField = async (cipher: string | null | undefined, active: boolean, field: string): Promise<string> => {
-    if (cipher == null | cipher === '') return '';
+    if (cipher == null || cipher === '') return '';
     if (!active) return String(cipher);
     return failingField(field, decrypt(cipher));
   };
   const decryptNullableField = async (cipher: string | null | undefined, active: boolean, field: string): Promise<string | null> => {
-    if (cipher == null | cipher === '') return null;
+    if (cipher == null || cipher === '') return null;
     if (!active) return cipher;
     return failingField(field, decrypt(cipher));
   };
@@ -906,7 +906,7 @@ export async function decryptInvoice(
     }
   };
   const decryptNullableField = async (cipher: string | null | undefined, field: string): Promise<string | null> => {
-    if (cipher == null | cipher === '') return null;
+    if (cipher == null || cipher === '') return null;
     return failingField(field, decrypt(cipher));
   };
 
@@ -1190,7 +1190,7 @@ export async function computeBlindIndex(
   value: string | null | undefined,
   hmacKey: CryptoKey,
 ): Promise<string | null> {
-  if (value == null | value === '') return null;
+  if (value == null || value === '') return null;
   const normalized = value.trim().toLowerCase();
   const sig = await window.crypto.subtle.sign(
     'HMAC',

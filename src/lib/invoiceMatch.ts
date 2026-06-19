@@ -67,12 +67,12 @@ function normalizeName(s: string): string {
 }
 
 function customerScore(counterparty: string | null, customer: string): number {
-  if (!counterparty | !customer) return 0;
+  if (!counterparty || !customer) return 0;
   const a = normalizeName(counterparty);
   const b = normalizeName(customer);
-  if (!a | !b) return 0;
+  if (!a || !b) return 0;
   if (a === b) return 1;
-  if (a.includes(b) | b.includes(a)) return 0.85;
+  if (a.includes(b) || b.includes(a)) return 0.85;
   const aw = new Set(a.split(' '));
   const bw = new Set(b.split(' '));
   let overlap = 0;
@@ -86,7 +86,7 @@ function dateScore(depositDate: string, candidate: InvoiceCandidate): number {
   if (!ref) return 0.3;                             // unknown — small bias
   const a = Date.parse(depositDate);
   const b = Date.parse(ref);
-  if (!Number.isFinite(a) | !Number.isFinite(b)) return 0.3;
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0.3;
   const days = Math.abs(a - b) / (1000 * 60 * 60 * 24);
   if (days <= 1) return 1;
   if (days <= 7) return 0.85;

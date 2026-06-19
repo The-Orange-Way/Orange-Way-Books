@@ -193,7 +193,7 @@ export default function PublicInvoice() {
               <tbody>
                 {payload.lines.map((l, i) => (
                   <tr key={i} className="border-b border-border/40">
-                    <td className="py-2.5">{l.description | '—'}</td>
+                    <td className="py-2.5">{l.description || '—'}</td>
                     <td className="py-2.5 text-right font-mono text-xs">{l.quantity != null ? l.quantity : ''}</td>
                     <td className="py-2.5 text-right font-mono text-xs">{l.unit_price != null ? formatAmount(l.unit_price, payload.currency) : ''}</td>
                     <td className="py-2.5 text-right font-mono">{formatAmount(l.amount, payload.currency)}</td>

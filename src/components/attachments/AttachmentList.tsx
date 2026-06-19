@@ -73,7 +73,7 @@ export function AttachmentList({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const reload = async () => {
-    if (!orgId | !entityId) return;
+    if (!orgId || !entityId) return;
     setLoading(true);
     try {
       const { data, error } = await supabase

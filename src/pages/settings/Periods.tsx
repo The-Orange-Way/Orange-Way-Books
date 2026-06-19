@@ -195,7 +195,7 @@ export default function Periods() {
   }, [rows]);
 
   const handleClose = async () => {
-    if (!orgId | !closeDate | !userId) return;
+    if (!orgId || !closeDate || !userId) return;
     setSubmitting(true);
     try {
       let encNote: string | null = null;
@@ -223,7 +223,7 @@ export default function Periods() {
   };
 
   const handleReopen = async () => {
-    if (!orgId | !unlockDate | !userId) return;
+    if (!orgId || !unlockDate || !userId) return;
     setUnlocking(true);
     try {
       let encReason: string | null = null;
@@ -362,7 +362,7 @@ export default function Periods() {
               <Button
                 type="button"
                 onClick={handleClose}
-                disabled={submitting | !closeDate}
+                disabled={submitting || !closeDate}
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Close period
@@ -427,7 +427,7 @@ export default function Periods() {
                 type="button"
                 variant="secondary"
                 onClick={handleReopen}
-                disabled={unlocking | !unlockDate}
+                disabled={unlocking || !unlockDate}
               >
                 {unlocking && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Unlock className="w-4 h-4 mr-2" />

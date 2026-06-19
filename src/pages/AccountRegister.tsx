@@ -60,7 +60,7 @@ export default function AccountRegister() {
   const [rows, setRows] = useState<RegisterRow[]>([]);
 
   useEffect(() => {
-    if (!accountId | !orgId) return;
+    if (!accountId || !orgId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -193,7 +193,7 @@ export default function AccountRegister() {
       <div>
         <h1 className="text-2xl font-bold">
           {accountCode && <span className="font-mono text-muted-foreground mr-2">{accountCode}</span>}
-          {accountName | '—'}
+          {accountName || '—'}
         </h1>
         <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
           {accountType && <Badge variant="outline">{accountType}</Badge>}

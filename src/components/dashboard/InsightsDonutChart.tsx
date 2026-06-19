@@ -28,7 +28,7 @@ export function buildDonutSliceViews(
 ): InsightsDonutSliceView[] {
   const positive = slices.filter((s) => s.value > 1e-9);
   const total = positive.reduce((sum, s) => sum + s.value, 0);
-  if (total <= 0 | positive.length === 0) return [];
+  if (total <= 0 || positive.length === 0) return [];
   const colors = assignDonutColors(positive.length);
   const rawPercents = positive.map((s) => (s.value / total) * 100);
   const rounded = rawPercents.map((p) => Math.round(p * 10) / 10);

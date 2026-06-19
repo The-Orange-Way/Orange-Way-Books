@@ -65,7 +65,7 @@ export default function ChangeVaultPassword() {
         .eq('org_id', storedOrg)
         .maybeSingle();
 
-      if (!settings | (settings as any).vault_key_version < 4 | !(settings as any).enc_mek_ciphertext) {
+      if (!settings || (settings as any).vault_key_version < 4 || !(settings as any).enc_mek_ciphertext) {
         setError('Password change is only supported for v4 vaults.');
         setLoading(false);
         return;
@@ -93,7 +93,7 @@ export default function ChangeVaultPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!orgSalt | !encMekCiphertext | !userId | !orgId) {
+    if (!orgSalt || !encMekCiphertext || !userId || !orgId) {
       setError('Vault metadata missing. Refresh the page.');
       return;
     }

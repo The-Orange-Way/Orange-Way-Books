@@ -48,7 +48,7 @@ const ALLOWED_SET: ReadonlySet<string> = new Set<string>(ALLOWED_EXTENSIONS);
  *  caller to distinguish "no extension" from "wrong extension". */
 function extractExtension(fileName: string): string {
   const dotIdx = fileName.lastIndexOf('.');
-  if (dotIdx <= 0 | dotIdx === fileName.length - 1) return '';
+  if (dotIdx <= 0 || dotIdx === fileName.length - 1) return '';
   return fileName.slice(dotIdx + 1).toLowerCase();
 }
 

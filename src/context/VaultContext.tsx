@@ -863,7 +863,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!orgId) return null;
     const cached = signingKeysRef.current.get(orgId);
     if (cached) return cached;
-    if (!mekRawRef.current | !orgSaltRef.current) {
+    if (!mekRawRef.current || !orgSaltRef.current) {
       // Locked vault or pre-v4 — no HKDF material available. Upstream
       // call sites skip signing in that case.
       return null;
@@ -896,7 +896,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       .select('encrypted_private_key')
       .eq('user_id', user.id)
       .maybeSingle();
-    if (keyErr | !keyRow?.encrypted_private_key) {
+    if (keyErr || !keyRow?.encrypted_private_key) {
       console.warn('[vault] loadOrgSigningKey: user_vault_keys missing', keyErr);
       return null;
     }

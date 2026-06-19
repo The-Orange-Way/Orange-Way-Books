@@ -115,7 +115,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       const orgSalt = (settings as any)?.vault_salt;
       const vaultKeyVersion = (settings as any)?.vault_key_version ?? 1;
 
-      if (!orgSalt | vaultKeyVersion < 4) {
+      if (!orgSalt || vaultKeyVersion < 4) {
         throw new Error('Recovery is not available for this vault (legacy version). Contact support.');
       }
 
@@ -135,7 +135,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           .eq('user_id', user.id)
           .eq('org_id', activeOrgId)
           .maybeSingle();
-        if (!master | !wrapRow) {
+        if (!master || !wrapRow) {
           throw new Error(
             'No master recovery code is set up for this organization. ' +
             'Use your per-org recovery code instead, or contact support.'
@@ -332,7 +332,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           {step === 'new-password' && (
             <>
               <Button type="button" variant="ghost" onClick={() => setStep('enter-code')} disabled={submitting}>Back</Button>
-              <Button type="button" onClick={handleSubmitNewPassword} disabled={!passwordOk | submitting}>
+              <Button type="button" onClick={handleSubmitNewPassword} disabled={!passwordOk || submitting}>
                 {submitting ? 'Recovering…' : 'Recover vault'}
               </Button>
             </>

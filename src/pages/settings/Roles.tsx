@@ -163,7 +163,7 @@ function CapabilityChecklist({
   };
 
   const save = async () => {
-    if (!selectedRole | !draft | !editable) return;
+    if (!selectedRole || !draft || !editable) return;
     setSaving(true);
 
     // Diff against the persisted set to emit minimal row changes.
@@ -233,7 +233,7 @@ function CapabilityChecklist({
           <Button
             size="sm"
             onClick={save}
-            disabled={!editable | !dirty | saving}
+            disabled={!editable || !dirty || saving}
           >
             <Save className="w-3 h-3" />
             {saving ? 'Saving…' : 'Save changes'}
@@ -619,7 +619,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
   const cloneEnabled = selectedRole != null && hasAdvancedTier && canManageRoles;
 
   const onClone = async () => {
-    if (!selectedRole | !orgId | !cloneEnabled) return;
+    if (!selectedRole || !orgId || !cloneEnabled) return;
     setCloneBusy(true);
     // Copy the role_definitions row as a new org-scoped custom role.
     const newName = `${selectedRole.name} (copy)`;
@@ -633,7 +633,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
       })
       .select('id')
       .single();
-    if (roleErr | !newRole) {
+    if (roleErr || !newRole) {
       setCloneBusy(false);
       toast.error(`Failed to clone: ${roleErr?.message ?? 'unknown error'}`);
       return;
@@ -712,7 +712,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
           <Button
             variant="outline"
             onClick={onClone}
-            disabled={!cloneEnabled | cloneBusy}
+            disabled={!cloneEnabled || cloneBusy}
             title={
               !hasAdvancedTier
                 ? 'Requires Advanced plan'

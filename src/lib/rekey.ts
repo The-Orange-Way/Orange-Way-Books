@@ -370,7 +370,7 @@ export async function runRekeyJob(
     .select('*')
     .eq('id', jobId)
     .maybeSingle();
-  if (jobErr | !jobRow) {
+  if (jobErr || !jobRow) {
     throw new Error(friendlyError(jobErr, 'Could not load the security refresh job.'));
   }
   const job = jobRow as RekeyJobRow;
@@ -635,7 +635,7 @@ export async function exportOrgBackup(
 }
 
 function csvEscape(value: unknown): string {
-  if (value === null | value === undefined) return '';
+  if (value === null || value === undefined) return '';
   const s = typeof value === 'string' ? value : JSON.stringify(value);
   if (/["\n,]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
@@ -961,7 +961,7 @@ async function advanceRotation(jobId: string, newStatus: string): Promise<void> 
 
 function friendlyError(err: unknown, fallback: string): string {
   if (!err) return fallback;
-  if (err instanceof Error) return err.message | fallback;
+  if (err instanceof Error) return err.message || fallback;
   if (typeof err === 'object' && err !== null) {
     const m = (err as { message?: string }).message;
     if (m) return m;
