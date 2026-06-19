@@ -215,7 +215,7 @@ function makeCall(over: Partial<Parameters<typeof recordPlaceholderPayment>[0]> 
     invoiceId: INV,
     amount: 100,
     walletId: WALLET,
-    walletlegacy ledger backendAccountId: 'legacy-wallet-1',
+    walletLegacyAccountId: 'legacy-wallet-1',
     asset: 'USD',
     appliedAt: '2026-05-21',
     memo: 'Cash payment',

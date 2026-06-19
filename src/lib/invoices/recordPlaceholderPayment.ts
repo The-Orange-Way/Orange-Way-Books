@@ -60,7 +60,7 @@ export interface RecordPlaceholderPaymentParams {
   /** Wallet that "received" the payment (drives JE Dr-account). */
   walletId: string;
   /** Wallet's external_account_id — used to label the synthetic tx. */
-  walletlegacy ledger backendAccountId: string | null;
+  walletLegacyAccountId: string | null;
   /** Currency / asset symbol (BTC, USD, ...). */
   asset: string;
   /** ISO date string (yyyy-MM-dd) the user recorded the payment for. */

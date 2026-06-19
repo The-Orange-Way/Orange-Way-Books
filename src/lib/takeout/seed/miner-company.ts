@@ -22,7 +22,7 @@ import {
   TAKEOUT_VERSION,
   type TakeoutFile,
   type TakeoutData,
-  type Takeoutlegacy ledger backendAccount,
+  type TakeoutLegacyAccount,
   type TakeoutContact,
   type TakeoutWallet,
   type TakeoutTransaction,
@@ -137,9 +137,9 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   const orgId = U();
 
   // ── Chart of accounts ────────────────────────────────────────────────
-  const accountMap = new Map<string, Takeoutlegacy ledger backendAccount>(); // code -> row
-  const chart_of_accounts: Takeoutlegacy ledger backendAccount[] = ACCOUNTS.map((a) => {
-    const row: Takeoutlegacy ledger backendAccount = {
+  const accountMap = new Map<string, TakeoutLegacyAccount>(); // code -> row
+  const chart_of_accounts: TakeoutLegacyAccount[] = ACCOUNTS.map((a) => {
+    const row: TakeoutLegacyAccount = {
       id: U(),
       legacy_account_id: U(),
       account_name: a.name,

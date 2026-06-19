@@ -28,7 +28,7 @@ export interface TakeoutData {
   readonly organizations: readonly TakeoutOrg[];
   readonly org_settings: readonly TakeoutOrgSettings[];
   readonly wallets: readonly TakeoutWallet[];
-  readonly chart_of_accounts: readonly Takeoutlegacy ledger backendAccount[];
+  readonly chart_of_accounts: readonly TakeoutLegacyAccount[];
   readonly contacts: readonly TakeoutContact[];
   readonly transactions: readonly TakeoutTransaction[];
   readonly journal_entries: readonly TakeoutJournalEntry[];
@@ -60,7 +60,7 @@ export interface TakeoutWallet {
   readonly legacy_account_code?: string | null;
 }
 
-export interface Takeoutlegacy ledger backendAccount {
+export interface TakeoutLegacyAccount {
   readonly id: string;
   readonly legacy_account_id: string;
   readonly account_name: string;

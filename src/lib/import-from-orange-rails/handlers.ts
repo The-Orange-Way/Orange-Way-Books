@@ -29,7 +29,7 @@ import {
   decryptOrgSettings,
 } from '@/lib/crypto-fields';
 // Phase 2 removal: legacy ledger account provisioning deleted.
-function humanizelegacy ledger backendClientError(err: unknown): string {
+function humanizeLegacyClientError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 import {

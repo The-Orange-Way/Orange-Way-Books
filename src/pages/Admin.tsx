@@ -36,7 +36,7 @@ import { generateMinerCompany } from '@/lib/takeout/seed/miner-company';
 import { generateCoffeeShop } from '@/lib/takeout/seed/coffee-shop';
 // Phase 2 removal: chart_of_accounts is Postgres-only. No more legacy ledger account
 // provisioning during CSV import of accounts.
-function humanizelegacy ledger backendClientError(err: unknown): string {
+function humanizeLegacyClientError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 import { RateTransparency } from '@/pages/admin/RateTransparency';
@@ -2607,7 +2607,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               }
             } catch (err: unknown) {
               failed++;
-              errors.push(`Row ${row.rowIndex + 1}: ${humanizelegacy ledger backendClientError(err)}`);
+              errors.push(`Row ${row.rowIndex + 1}: ${humanizeLegacyClientError(err)}`);
             }
           }
           return { created, skipped, failed, errors, warnings };
