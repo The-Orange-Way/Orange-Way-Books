@@ -4,6 +4,25 @@ Thank you for helping. This project uses GitHub as a **marketing and trust surfa
 
 ---
 
+## Install the pre-push gate
+
+**On a fresh clone, install the pre-push gate:**
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+That wires a `git pre-push` hook into `.git/hooks/pre-push`. Before every push the hook runs `scripts/pre-push-gate.sh`, which refuses the push if any of these fail:
+
+1. The `/pr-this` skill has not been recorded against the current `HEAD` (marker at `.git/.pr-this-ran`)
+2. The pre-publish leak scanner reports anything other than clean
+3. The commits being pushed contain private / internal-only URLs (wiki hostnames, infra hostnames, Tailscale IPs, etc.)
+4. `gitleaks` reports a secret-shaped string in the prepared commits
+
+If a push really must go through (true emergency only), the override is `PR_THIS_BYPASS=1 git push` and the gate emits a loud warning that this happened.
+
+---
+
 ## Ground rules
 
 1. **Never commit secrets** — no Supabase service keys, production URLs with embedded tokens, or SSH passwords. Use placeholders in docs and host/Supabase env for real values.

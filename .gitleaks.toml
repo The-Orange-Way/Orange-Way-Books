@@ -1,0 +1,21 @@
+# Gitleaks configuration for Orange Way Books.
+#
+# We extend the default rules and add an allowlist for confirmed false
+# positives so contributors and CI both see "0 leaks" on a clean tree.
+#
+# To re-scan: gitleaks detect --config .gitleaks.toml --no-banner
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Confirmed false positives — Orange Way Books"
+paths = [
+  # Test fixtures with intentionally-fake credentials live under
+  # /__tests__/ subdirs; add specific paths here if gitleaks flags
+  # any of them. Empty for now — extend on first false positive.
+]
+
+# Allowlist specific known-safe constants and public tokens.
+# Add patterns here as gitleaks flags them; document why each is safe.
+regexes = []

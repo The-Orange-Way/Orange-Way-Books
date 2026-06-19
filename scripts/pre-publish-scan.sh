@@ -78,6 +78,11 @@ EXEMPT_GENERIC=(
   ".github/PULL_REQUEST_TEMPLATE.md"
   ".github/workflows/leak-check.yml"
   "docs/CONTRIBUTING.md"
+  # Pre-push gate scripts: the gate's private-host regex enumerates
+  # exactly the strings the scanner is looking for; install-hooks.sh
+  # references the gate by path.
+  "scripts/pre-push-gate.sh"
+  "scripts/install-hooks.sh"
 )
 
 EXEMPT_BITBOOKS_LITERAL=(
