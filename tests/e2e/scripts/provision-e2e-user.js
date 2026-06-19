@@ -33,7 +33,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
 
 (async () => {
   const owb = JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
-  const BASE = 'https://dev.books.orangeway.app';
+  const BASE = 'https://books.orangeway.dev';
 
   // Refuse to run if owb.url targets anything outside the DEV allowlist.
   const ref = (() => {

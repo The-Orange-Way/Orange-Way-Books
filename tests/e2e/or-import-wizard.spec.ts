@@ -1,7 +1,7 @@
 /**
  * Import from Orange Rails — wizard end-to-end test.
  *
- * Real flow against the deployed dev.books.orangeway.app:
+ * Real flow against the deployed books.orangeway.dev:
  *
  *   1. Sign in with OWB_DEV_E2E_* credentials (account password)
  *   2. Unlock the vault (separate vault password)

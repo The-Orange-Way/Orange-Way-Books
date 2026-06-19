@@ -61,12 +61,12 @@ jobs:
     needs: lint-and-build
     # Bind to the dev environment scope so vars.VITE_SUPABASE_URL,
     # vars.VITE_SUPABASE_PROJECT_ID, etc. resolve to the dev values.
-    # The Playwright specs always hit dev.books.orangeway.app
+    # The Playwright specs always hit books.orangeway.dev
     # regardless of which branch triggered the workflow, so dev is
     # the right scope on prod pushes too.
     environment: dev
     # Runs on every push to dev or prod. Specs target the dev deployment
-    # (dev.books.orangeway.app). PR events still skip e2e because they
+    # (books.orangeway.dev). PR events still skip e2e because they
     # deploy to a Cloudflare Pages preview URL, not the dev deployment.
     # Targeting the preview URL on PRs is a follow-up.
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
@@ -103,7 +103,7 @@ jobs:
       - name: Run Playwright
         run: bunx playwright test
         env:
-          PLAYWRIGHT_BASE_URL: https://dev.books.orangeway.app
+          PLAYWRIGHT_BASE_URL: https://books.orangeway.dev
           OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
