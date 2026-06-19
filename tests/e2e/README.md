@@ -76,7 +76,7 @@ Output:
 
 ## Test credentials (CI + local sign-in flows)
 
-Specs that sign in to dev.books.orangeway.app use a dedicated, stable
+Specs that sign in to books.orangeway.dev use a dedicated, stable
 OWB DEV test user provisioned by `tests/e2e/scripts/provision-e2e-user.js`.
 
 Three values must exist in repo secrets for CI:
