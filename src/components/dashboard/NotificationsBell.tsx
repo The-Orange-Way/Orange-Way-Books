@@ -60,7 +60,7 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
         } else if (row.status) {
           status = row.status;
         }
-        if (!status | status.toUpperCase() === 'DRAFT') draftCount += 1;
+        if (!status || status.toUpperCase() === 'DRAFT') draftCount += 1;
       }
 
       const unmappedWallets = ((walletsRes.data as any[]) ?? []).filter(

@@ -388,7 +388,7 @@ export function ImportFromOrangeRailsWizard({
             {results.map((r) => (
               <div key={r.section} className="rounded border p-3 text-sm">
                 <div className="flex items-center gap-2 font-medium mb-1">
-                  {r.error | (r.result && r.result.failed > 0) ? (
+                  {r.error || (r.result && r.result.failed > 0) ? (
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                   ) : (
                     <CheckCircle2 className="h-4 w-4 text-green-600" />

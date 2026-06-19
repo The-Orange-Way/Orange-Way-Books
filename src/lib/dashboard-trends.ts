@@ -125,7 +125,7 @@ export function computeTrend(
   }
 
   let sentiment: Sentiment = 'neutral';
-  if (higherIsBetter === null | direction === 'flat') {
+  if (higherIsBetter === null || direction === 'flat') {
     sentiment = 'neutral';
   } else if (direction === 'up') {
     sentiment = higherIsBetter ? 'positive' : 'negative';

@@ -189,7 +189,7 @@ export default function CashFlowPage() {
             variant="outline"
             size="sm"
             className="ml-2"
-            disabled={loading | trailing6.length === 0}
+            disabled={loading || trailing6.length === 0}
             onClick={() => {
               const headers = ['Month', 'Revenue', 'Expenses', 'Net'];
               const rows = trailing6.map((m) => [

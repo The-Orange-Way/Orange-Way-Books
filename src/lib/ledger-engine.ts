@@ -229,13 +229,13 @@ export function computeWorkingCapital(balances: AccountBalance[]): WorkingCapita
     const g = b.accountGroup.toLowerCase();
 
     if (t === 'asset') {
-      if (g.includes('cash') | g.includes('bank')) {
+      if (g.includes('cash') || g.includes('bank')) {
         cash += b.balance;
       } else if (g.includes('receivable')) {
         receivables += b.balance;
       }
     } else if (t === 'liability') {
-      if (g.includes('current') | g.includes('payable') | g.includes('short-term') | g.includes('credit card')) {
+      if (g.includes('current') || g.includes('payable') || g.includes('short-term') || g.includes('credit card')) {
         currentLiabilities += b.balance;
       }
     }
@@ -303,7 +303,7 @@ export function computeWalletBalances(
   const primaryByWallet = new Map<string, number>();
   if (journalLines) {
     for (const line of journalLines) {
-      if (!line.accountId | line.amountPrimary == null | line.ratePending) continue;
+      if (!line.accountId || line.amountPrimary == null || line.ratePending) continue;
       const wId = accountToWallet.get(line.accountId);
       if (!wId) continue;
       primaryByWallet.set(wId, (primaryByWallet.get(wId) | 0) + line.amountPrimary);
@@ -554,7 +554,7 @@ export function classifyAccountForCashFlow(b: AccountBalance): CashFlowBucket | 
     return 'operating';
   }
   if (t === 'asset') {
-    if (g.includes('fixed') | g.includes('investment') | g.includes('long-term')) {
+    if (g.includes('fixed') || g.includes('investment') || g.includes('long-term')) {
       return 'investing';
     }
     if (!g.includes('cash') && !g.includes('bank')) {
@@ -563,7 +563,7 @@ export function classifyAccountForCashFlow(b: AccountBalance): CashFlowBucket | 
     return null;
   }
   if (t === 'liability') {
-    if (g.includes('long-term') | g.includes('loan') | g.includes('mortgage')) {
+    if (g.includes('long-term') || g.includes('loan') || g.includes('mortgage')) {
       return 'financing';
     }
     return 'operating';

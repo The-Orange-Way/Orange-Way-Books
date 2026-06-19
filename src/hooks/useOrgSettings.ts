@@ -66,7 +66,7 @@ export function useOrgSettings(): { settings: OrgFormattingSettings; loading: bo
         .select('*')
         .eq('org_id', orgId)
         .maybeSingle();
-      if (!data | !active) { if (active) setLoading(false); return; }
+      if (!data || !active) { if (active) setLoading(false); return; }
 
       const dec = await decryptOrgSettings(data, decryptText);
       if (!active) return;

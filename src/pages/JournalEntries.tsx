@@ -288,7 +288,7 @@ function cellDebitCredit(
   formatAmountValue: (amount: number, currency: string) => string,
   spreadsheetNumeric: boolean,
 ): string | number {
-  if (raw == null | raw === 0) return '';
+  if (raw == null || raw === 0) return '';
   return spreadsheetNumeric
     ? transactionAmountNumericForCsv(raw, currency, btcDisplay)
     : formatAmountValue(raw, currency);
@@ -630,7 +630,7 @@ export default function JournalEntries() {
       return;
     }
     const rows = buildJournalExportRows(sorted, lines, fmtAmount, btcDisplay, false);
-    const title = `${orgName | 'Organization'} — Journal entries — ${format(new Date(), 'yyyy-MM-dd')}`;
+    const title = `${orgName || 'Organization'} — Journal entries — ${format(new Date(), 'yyyy-MM-dd')}`;
     void printTable(title, [...(JOURNAL_CSV_HEADERS as readonly string[])], rows)
       .then((opened) => {
         if (opened) {
@@ -716,7 +716,7 @@ export default function JournalEntries() {
   }, [fDate, lockDate]);
 
   const lockMessage = useMemo(() => {
-    if (!isLocked | !lockDate) return null;
+    if (!isLocked || !lockDate) return null;
     return `Books are locked through ${lockDate}. Entry cannot be saved for this date.`;
   }, [isLocked, lockDate]);
 
@@ -728,7 +728,7 @@ export default function JournalEntries() {
   // Simple mode: convert +/- amount to debit/credit based on account type
   const resolveSimpleAmount = (accountName: string, amountStr: string): { debit: string; credit: string } => {
     const amount = parseFloat(amountStr);
-    if (!amountStr | isNaN(amount) | amount === 0) return { debit: '', credit: '' };
+    if (!amountStr || isNaN(amount) || amount === 0) return { debit: '', credit: '' };
     const acct = accountsByName.get(accountName.toLowerCase());
     const acctType = acct ? normalizeAccountType(acct.account_type) : null;
     // For debit-normal accounts (Asset, Expense): positive = debit, negative = credit
@@ -778,7 +778,7 @@ export default function JournalEntries() {
   };
 
   const handleSave = async (action: 'save_close' | 'save_new') => {
-    if (!orgId | !isBalanced) return;
+    if (!orgId || !isBalanced) return;
     // Lock date enforcement
     if (isLocked) return;
     setSaving(true);
@@ -910,7 +910,7 @@ export default function JournalEntries() {
       const encStatus = await encryptText('POSTED');
       for (const id of selected) {
         const e = entries.find(en => en.id === id);
-        if (!e | e.status !== 'DRAFT' | e.period_locked) continue;
+        if (!e || e.status !== 'DRAFT' || e.period_locked) continue;
         const { error } = await supabase
           .from('journal_entries')
           .update({ status: encStatus, key_version: 2 } as any)
@@ -938,7 +938,7 @@ export default function JournalEntries() {
     try {
       for (const id of selected) {
         const e = entries.find(en => en.id === id);
-        if (!e | e.status !== 'POSTED' | e.period_locked | e.source_type === 'VOID_REVERSAL') continue;
+        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'VOID_REVERSAL') continue;
         try {
           await reverseJournalEntry({
             journalEntryId: id, orgId: orgId!, date: today,
@@ -991,7 +991,7 @@ export default function JournalEntries() {
     return next;
   });
 
-  if (loading | orgLoading) {
+  if (loading || orgLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
 
@@ -1300,7 +1300,7 @@ export default function JournalEntries() {
                                 {entryLines.map(line => (
                                   <TableRow key={line.id}>
                                     <TableCell className="text-xs">
-                                      {line.account_code ? `${line.account_code} - ${line.account_name | ''}` : (line.account_name | '—')}
+                                      {line.account_code ? `${line.account_code} - ${line.account_name || ''}` : (line.account_name || '—')}
                                     </TableCell>
                                     <TableCell className="text-right font-mono text-xs">
                                       {Number(line.debit) > 0 ? fmtAmount(Number(line.debit), entry.currency) : ''}
@@ -1308,7 +1308,7 @@ export default function JournalEntries() {
                                     <TableCell className="text-right font-mono text-xs">
                                       {Number(line.credit) > 0 ? fmtAmount(Number(line.credit), entry.currency) : ''}
                                     </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">{line.description | '—'}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{line.description || '—'}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -1408,7 +1408,7 @@ export default function JournalEntries() {
                             <li key={line.id} className="text-xs flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="truncate">
-                                  {line.account_code ? `${line.account_code} — ${line.account_name | ''}` : (line.account_name | '—')}
+                                  {line.account_code ? `${line.account_code} — ${line.account_name || ''}` : (line.account_name || '—')}
                                 </div>
                                 {line.description && (
                                   <div className="text-muted-foreground truncate">{line.description}</div>
@@ -1645,11 +1645,11 @@ export default function JournalEntries() {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button onClick={() => handleSave('save_close')} disabled={saving | !isBalanced | isLocked}>
+            <Button onClick={() => handleSave('save_close')} disabled={saving || !isBalanced || isLocked}>
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Save & Close
             </Button>
             {!editingEntry && (
-              <Button variant="outline" onClick={() => handleSave('save_new')} disabled={saving | !isBalanced | isLocked}>Save & New</Button>
+              <Button variant="outline" onClick={() => handleSave('save_new')} disabled={saving || !isBalanced || isLocked}>Save & New</Button>
             )}
           </DialogFooter>
         </DialogContent>

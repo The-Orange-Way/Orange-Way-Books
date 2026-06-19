@@ -326,7 +326,7 @@ export default function Payments() {
         .select('*')
         .eq('payment_request_id', paymentRequestId)
         .order('sort_order', { ascending: true });
-      if (error | !lineRows | lineRows.length === 0) {
+      if (error || !lineRows || lineRows.length === 0) {
         setDialogLineItems(prev => ({ ...prev, [paymentRequestId]: [] }));
         return;
       }
@@ -397,7 +397,7 @@ export default function Payments() {
       const { data, error } = await supabase.storage
         .from('attachments')
         .download(att.storage_path);
-      if (error | !data) throw new Error(error?.message ?? 'No data returned');
+      if (error || !data) throw new Error(error?.message ?? 'No data returned');
       const decryptedBuf = await decryptBlob(data);
       const mime = att.mime_type | 'application/octet-stream';
       const blob = new Blob([decryptedBuf], { type: mime });
@@ -643,7 +643,7 @@ export default function Payments() {
       return;
     }
     const dataRows = buildExportRows(false);
-    const title = `${orgName | 'Organization'} — Payments — ${format(new Date(), 'yyyy-MM-dd')}`;
+    const title = `${orgName || 'Organization'} — Payments — ${format(new Date(), 'yyyy-MM-dd')}`;
     void printTable(title, [...PAYMENT_EXPORT_HEADERS], dataRows)
       .then((opened) => {
         if (opened) {
@@ -683,7 +683,7 @@ export default function Payments() {
       return;
     }
     const amt = hasLineItems ? lineItemsTotal : parseFloat(formAmount);
-    if (isNaN(amt) | amt <= 0) { toast.error('Valid amount is required'); return; }
+    if (isNaN(amt) || amt <= 0) { toast.error('Valid amount is required'); return; }
 
     setFormSaving(true);
     try {
@@ -717,7 +717,7 @@ export default function Payments() {
                 target: thresholdCurrency,
                 at: formDocDate ?? new Date(),
               });
-              if (rate.pending | !rate.rate) {
+              if (rate.pending || !rate.rate) {
                 thresholdRatePending = true;
               } else {
                 amtInThresholdCurrency = amt * rate.rate;
@@ -743,9 +743,9 @@ export default function Payments() {
       // try to auto-fetch from a contact whose decrypted name matches the
       // payee (case-insensitive). The snapshot is written-once: even if the
       // contact's email later changes, this request preserves the original.
-      let resolvedEmail = formPayeeEmail.trim() | null;
-      let resolvedPhone = formPayeePhone.trim() | null;
-      if (!resolvedEmail | !resolvedPhone) {
+      let resolvedEmail = formPayeeEmail.trim() || null;
+      let resolvedPhone = formPayeePhone.trim() || null;
+      if (!resolvedEmail || !resolvedPhone) {
         try {
           const { data: cRows } = await supabase
             .from('contacts')
@@ -912,13 +912,13 @@ export default function Payments() {
 
   // Lazy-load chart-of-accounts on first form-open (account picker for D-1).
   const ensureAccountOptionsLoaded = useCallback(async () => {
-    if (accountOptions.length > 0 | !orgId) return;
+    if (accountOptions.length > 0 || !orgId) return;
     const { data, error } = await supabase
       .from('chart_of_accounts')
       .select('id, encrypted_name, encrypted_code')
       .eq('org_id', orgId)
       .eq('is_archived', false);
-    if (error | !data) return;
+    if (error || !data) return;
     const opts: AccountOpt[] = await Promise.all(
       data.map(async (a: any) => {
         try {
@@ -1077,7 +1077,7 @@ export default function Payments() {
       const encStatus = await encryptText('APPROVED');
       for (const id of selected) {
         const r = rows.find(p => p.id === id);
-        if (!r | (r.status !== 'PENDING' && r.status !== 'ON_HOLD')) continue;
+        if (!r || (r.status !== 'PENDING' && r.status !== 'ON_HOLD')) continue;
         const { error } = await supabase.rpc('approve_payment_request' as never, {
           request_id: id, new_status_ciphertext: encStatus,
         } as never);
@@ -1098,7 +1098,7 @@ export default function Payments() {
       const paidAt = new Date().toISOString();
       for (const id of selected) {
         const r = rows.find(p => p.id === id);
-        if (!r | r.status !== 'APPROVED') continue;
+        if (!r || r.status !== 'APPROVED') continue;
         const { error } = await supabase.from('payment_requests').update({
           status: encStatus, paid_at: paidAt, key_version: 2,
         }).eq('id', id);
@@ -1119,7 +1119,7 @@ export default function Payments() {
       const encStatus = await encryptText('CANCELLED');
       for (const id of selected) {
         const r = rows.find(p => p.id === id);
-        if (!r | (r.status !== 'DRAFT' && r.status !== 'PENDING' && r.status !== 'ON_HOLD')) continue;
+        if (!r || (r.status !== 'DRAFT' && r.status !== 'PENDING' && r.status !== 'ON_HOLD')) continue;
         const { error } = await supabase.from('payment_requests').update({
           status: encStatus, key_version: 2,
         }).eq('id', id);
@@ -1154,7 +1154,7 @@ export default function Payments() {
         const payee = row.data.contact | '';
         const amtRaw = String(row.data.amount ?? '').replace(/,/g, '').trim();
         const amt = Number.parseFloat(amtRaw);
-        if (!payee | !Number.isFinite(amt) | amt <= 0) {
+        if (!payee || !Number.isFinite(amt) || amt <= 0) {
           failed++;
           errors.push(`Row ${row.rowIndex}: invalid payee or amount`);
           continue;
@@ -1193,7 +1193,7 @@ export default function Payments() {
 
   /* ───── render ───── */
 
-  if (orgLoading | loading) {
+  if (orgLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-gray-400)' }} />
@@ -1527,9 +1527,9 @@ export default function Payments() {
                       />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm font-mono">{requestDateLabel}</TableCell>
-                    <TableCell className="font-medium text-sm">{r.payee | '—'}</TableCell>
+                    <TableCell className="font-medium text-sm">{r.payee || '—'}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{fmtPaymentAmount(r.amount, r.currency)}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{r.vendor_ref | r.ref_number | '—'}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{r.vendor_ref || r.ref_number || '—'}</TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {r.due_date ? format(new Date(r.due_date), 'MM-dd-yyyy') : '—'}
                     </TableCell>
@@ -1704,7 +1704,7 @@ export default function Payments() {
                           onChange={e => updateLineItem(li.clientId, { amount: e.target.value })}
                         />
                         <Select
-                          value={li.accountId | ''}
+                          value={li.accountId || ''}
                           onValueChange={v => updateLineItem(li.clientId, { accountId: v })}
                         >
                           <SelectTrigger className="col-span-4">
@@ -1783,7 +1783,7 @@ export default function Payments() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-gray-500">Ref:</span> <span className="font-mono">{reviewRow.ref_number}</span></div>
                 <div><span className="text-gray-500">Type:</span> {reviewRow.request_type}</div>
-                <div><span className="text-gray-500">Payee:</span> <span className="font-medium">{reviewRow.payee | '—'}</span></div>
+                <div><span className="text-gray-500">Payee:</span> <span className="font-medium">{reviewRow.payee || '—'}</span></div>
                 <div><span className="text-gray-500">Amount:</span> <span className="font-mono">{fmtPaymentAmount(reviewRow.amount, reviewRow.currency)}</span></div>
                 {reviewRow.due_date && <div><span className="text-gray-500">Due:</span> {format(new Date(reviewRow.due_date), 'MMM d, yyyy')}</div>}
                 {reviewRow.vendor_ref && <div><span className="text-gray-500">Vendor Ref:</span> {reviewRow.vendor_ref}</div>}
@@ -1821,7 +1821,7 @@ export default function Payments() {
                       {dialogLineItems[reviewRow.id]?.map(li => (
                         <TableRow key={li.id}>
                           <TableCell className="py-1.5 text-xs">
-                            {li.description | '—'}
+                            {li.description || '—'}
                             {li.attachments.length > 0 && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -1894,12 +1894,12 @@ export default function Payments() {
               variant="outline"
               className="border-purple-300 text-purple-700 hover:bg-purple-50"
               onClick={() => reviewRow && void handleOnHold(reviewRow.id, rejectReason)}
-              disabled={reviewSaving | !rejectReason.trim()}
+              disabled={reviewSaving || !rejectReason.trim()}
               title="Pause the request (e.g. need more info). Reason required; reuses the rejection textarea."
             >
               <Clock className="w-4 h-4 mr-1" /> On Hold
             </Button>
-            <Button variant="destructive" onClick={() => reviewRow && void handleReject(reviewRow.id)} disabled={reviewSaving | !rejectReason.trim()}>
+            <Button variant="destructive" onClick={() => reviewRow && void handleReject(reviewRow.id)} disabled={reviewSaving || !rejectReason.trim()}>
               <XCircle className="w-4 h-4 mr-1" /> Reject
             </Button>
             <Button onClick={() => reviewRow && void handleApprove(reviewRow.id)} disabled={reviewSaving}>
@@ -1921,7 +1921,7 @@ export default function Payments() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-gray-500">Ref:</span> <span className="font-mono">{processRow.ref_number}</span></div>
                 <div><span className="text-gray-500">Status:</span> {statusBadge(processRow.status)}</div>
-                <div><span className="text-gray-500">Payee:</span> <span className="font-medium">{processRow.payee | '—'}</span></div>
+                <div><span className="text-gray-500">Payee:</span> <span className="font-medium">{processRow.payee || '—'}</span></div>
                 <div><span className="text-gray-500">Amount:</span> <span className="font-mono">{fmtPaymentAmount(processRow.amount, processRow.currency)}</span></div>
               </div>
               {(processRow.payee_email_snapshot | processRow.payee_phone_snapshot) && (
@@ -1951,7 +1951,7 @@ export default function Payments() {
                       {dialogLineItems[processRow.id]?.map(li => (
                         <TableRow key={li.id}>
                           <TableCell className="py-1.5 text-xs">
-                            {li.description | '—'}
+                            {li.description || '—'}
                             {li.attachments.length > 0 && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -2024,12 +2024,12 @@ export default function Payments() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-gray-500">Ref:</span> <span className="font-mono">{rejectionRow.ref_number}</span></div>
-                <div><span className="text-gray-500">Payee:</span> {rejectionRow.payee | '—'}</div>
+                <div><span className="text-gray-500">Payee:</span> {rejectionRow.payee || '—'}</div>
                 <div><span className="text-gray-500">Amount:</span> <span className="font-mono">{fmtPaymentAmount(rejectionRow.amount, rejectionRow.currency)}</span></div>
               </div>
               <div className="p-3 bg-red-50 rounded-md text-sm">
                 <span className="text-red-600 font-medium block mb-1">Rejection Reason:</span>
-                <span className="text-red-800">{rejectionRow.rejection_reason | 'No reason provided'}</span>
+                <span className="text-red-800">{rejectionRow.rejection_reason || 'No reason provided'}</span>
               </div>
             </div>
           )}

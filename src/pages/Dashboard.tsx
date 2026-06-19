@@ -97,7 +97,7 @@ export default function Dashboard() {
     let cancelled = false;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled | !user) return;
+      if (cancelled || !user) return;
       const serverMarker = (user.user_metadata as { owb_onboarding_completed_at?: string })?.owb_onboarding_completed_at;
       if (serverMarker) {
         localStorage.setItem('owb_welcome_dismissed', 'true');
@@ -261,11 +261,11 @@ export default function Dashboard() {
   // Closing-rate secondary display for KPI cards and working capital
   const { rate: secondaryDisplayRate } = useSecondaryDisplayRate(primaryCurrency, secondaryCurrency);
   const fmtSecondary = (primaryAmount: number | null): string | null => {
-    if (primaryAmount == null | secondaryDisplayRate == null | !secondaryCurrency) return null;
+    if (primaryAmount == null || secondaryDisplayRate == null || !secondaryCurrency) return null;
     return `≈${formatAmount(primaryAmount * secondaryDisplayRate, secondaryCurrency)}`;
   };
 
-  if (loading | orgLoading) {
+  if (loading || orgLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
 

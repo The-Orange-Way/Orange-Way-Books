@@ -237,7 +237,7 @@ export default function RecoveryCode() {
 
           <Button
             onClick={handleGenerate}
-            disabled={!confirmAck | submitting}
+            disabled={!confirmAck || submitting}
             data-testid="generate-recovery-code"
           >
             {submitting ? 'Generating…' : hasRecoveryCipher ? 'Generate a new recovery code' : 'Generate recovery code'}

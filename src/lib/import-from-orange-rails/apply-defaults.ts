@@ -55,7 +55,7 @@ export function applyDefaultMappings(
   if (!defaultAccount && !defaultContact) return payload;
 
   const journalEntries = payload.staged.journalEntries;
-  if (!journalEntries | journalEntries.length === 0) return payload;
+  if (!journalEntries || journalEntries.length === 0) return payload;
 
   const patched: V3StagedRow[] = journalEntries.map((row) => {
     let next: V3StagedRow | null = null;

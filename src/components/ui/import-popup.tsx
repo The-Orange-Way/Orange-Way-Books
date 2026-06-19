@@ -46,7 +46,7 @@ function friendlyImportCatchMessage(err: unknown): string {
   ) {
     return 'Could not read your saved wallets in the browser. Refresh the page, unlock your vault again, then try importing. If this keeps happening, contact support.';
   }
-  if (lower.includes('failed to fetch') | lower.includes('networkerror') | lower.includes('load failed')) {
+  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('load failed')) {
     return 'Could not reach the server. Check your internet connection and try again.';
   }
   if (raw.length > 280) {

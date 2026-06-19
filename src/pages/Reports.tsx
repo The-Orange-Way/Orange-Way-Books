@@ -419,7 +419,7 @@ function GeneralLedgerReport({ orgName, dateLabel, entries, currency }: { orgNam
               <TableRow key={`${e.journalEntryId}-${i}`} className="hover:bg-[#fafafa]">
                 <TableCell className="font-mono text-xs">{e.date}</TableCell>
                 <TableCell className="text-xs">{e.accountCode ? `${e.accountCode} — ` : ''}{e.accountName}</TableCell>
-                <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{e.description | '—'}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{e.description || '—'}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{e.debit ? fmtMoney(e.debit, currency) : ''}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{e.credit ? fmtMoney(e.credit, currency) : ''}</TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold">{fmtMoney(e.runningBalance, currency)}</TableCell>
@@ -651,7 +651,7 @@ function exportReportCsv(
       return '';
     }
     const str = typeof val === 'number' ? formatNumericForCsvCell(val) : String(val);
-    if (str.includes(',') | str.includes('"') | str.includes('\n')) {
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
@@ -1400,7 +1400,7 @@ export default function Reports() {
   }, [showPriorPeriod, priorPreset, priorFrom, priorTo]);
 
   const priorEngineDateRange: DateRange | undefined = useMemo(() => {
-    if (!priorDateRange | (!priorDateRange.from && !priorDateRange.to)) return undefined;
+    if (!priorDateRange || (!priorDateRange.from && !priorDateRange.to)) return undefined;
     return priorDateRange as DateRange;
   }, [priorDateRange]);
 
@@ -1428,7 +1428,7 @@ export default function Reports() {
 
   // Boundary detection — does the active date range cross a primary-currency change?
   const boundaryResult = useMemo(() => {
-    if (!engineDateRange?.from | !engineDateRange?.to | primaryCurrencyHistory.length <= 1) {
+    if (!engineDateRange?.from || !engineDateRange?.to || primaryCurrencyHistory.length <= 1) {
       return null;
     }
     const rangeStart = format(engineDateRange.from, 'yyyy-MM-dd');
@@ -1470,7 +1470,7 @@ export default function Reports() {
   }
 
   // Report view
-  const currentReport = REPORTS.find(r => r.id === activeReport) | REPORTS[0];
+  const currentReport = REPORTS.find(r => r.id === activeReport) || REPORTS[0];
 
   return (
     <div>
@@ -1578,7 +1578,7 @@ export default function Reports() {
                 {m.value === 'primary'
                   ? `Primary Currency (${primaryCurrency})`
                   : m.value === 'secondary'
-                    ? `Secondary Currency (${secondaryCurrency | 'N/A'})`
+                    ? `Secondary Currency (${secondaryCurrency || 'N/A'})`
                     : m.label}
               </button>
             ))}

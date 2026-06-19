@@ -122,7 +122,7 @@ export function WalletPickerStep({
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium">
-                      {w.label | w.currency} wallet
+                      {w.label || w.currency} wallet
                     </div>
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {w.currency} · {w.external_wallet_id.slice(0, 12)}…
@@ -153,7 +153,7 @@ export function WalletPickerStep({
           <Button
             type="button"
             onClick={handleConfirm}
-            disabled={submitting | discoveredWallets.length === 0}
+            disabled={submitting || discoveredWallets.length === 0}
           >
             {submitting ? (
               <>

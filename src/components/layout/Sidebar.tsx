@@ -95,7 +95,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           .from('org_members')
           .select('org_id')
           .eq('user_id', user.id);
-        if (error | !memberships?.length) { if (isActive) setLoading(false); return; }
+        if (error || !memberships?.length) { if (isActive) setLoading(false); return; }
 
         const orgIds = memberships.map(m => m.org_id);
 
@@ -188,7 +188,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
               border: '1px solid var(--color-border)',
               padding: '7px 10px',
             }}
-            value={activeOrgId | ''}
+            value={activeOrgId || ''}
             onChange={(e) => {
               const newOrgId = e.target.value;
               if (newOrgId && newOrgId !== activeOrgId) {
@@ -279,7 +279,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           </div>
           <div className="flex-1 text-left min-w-0">
             <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-gray-700)' }}>
-              {userName | 'User'}
+              {userName || 'User'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-gray-400)' }}>Member</div>
           </div>

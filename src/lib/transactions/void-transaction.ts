@@ -112,7 +112,7 @@ export async function voidTransaction(
     .select('*')
     .eq('journal_entry_id', origTx.journal_entry_id);
   if (linesErr) throw linesErr;
-  if (!origLines | origLines.length === 0) {
+  if (!origLines || origLines.length === 0) {
     throw new Error('Original journal entry has no lines to reverse.');
   }
 

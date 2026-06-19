@@ -62,7 +62,7 @@ export function ChangePrimaryCurrency({ orgId, currentPrimary, onChanged }: Chan
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orgId | !newCurrency | step !== 'preview') return;
+    if (!orgId || !newCurrency || step !== 'preview') return;
     // Count open A/R and A/P JE lines that would cross the boundary
     setOpenItemsLoading(true);
     supabase
@@ -84,7 +84,7 @@ export function ChangePrimaryCurrency({ orgId, currentPrimary, onChanged }: Chan
   }, [orgId, newCurrency, effectiveDate, step]);
 
   const handleCommit = useCallback(async () => {
-    if (!orgId | !newCurrency | !encryptText | !decryptText) return;
+    if (!orgId || !newCurrency || !encryptText || !decryptText) return;
     if (reason.length < 40) { setError('Reason must be at least 40 characters.'); return; }
     if (confirmText.trim().toUpperCase() !== currentPrimary.toUpperCase()) {
       setError(`Type "${currentPrimary}" to confirm the change.`);
@@ -237,7 +237,7 @@ export function ChangePrimaryCurrency({ orgId, currentPrimary, onChanged }: Chan
           )}
 
           <Button
-            disabled={!newCurrency | !effectiveDate}
+            disabled={!newCurrency || !effectiveDate}
             onClick={() => setStep('reason')}
             style={{ background: 'var(--color-brand-orange)', color: 'white' }}
           >
@@ -321,7 +321,7 @@ export function ChangePrimaryCurrency({ orgId, currentPrimary, onChanged }: Chan
             <Button variant="outline" onClick={() => setStep('reason')}>← Back</Button>
             <Button
               variant="destructive"
-              disabled={saving | confirmText.trim().toUpperCase() !== currentPrimary.toUpperCase()}
+              disabled={saving || confirmText.trim().toUpperCase() !== currentPrimary.toUpperCase()}
               onClick={handleCommit}
             >
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Changing…</> : `Change to ${newCurrency}`}

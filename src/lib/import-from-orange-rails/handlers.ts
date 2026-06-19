@@ -270,7 +270,7 @@ export async function commitJournalEntriesFromStaged(
 
   for (const g of groups) {
     const first = g[0];
-    const groupLabel = `Rows ${g[0].rowIndex}–${g[g.length - 1].rowIndex} (${first.data.je_date | 'no date'})`;
+    const groupLabel = `Rows ${g[0].rowIndex}–${g[g.length - 1].rowIndex} (${first.data.je_date || 'no date'})`;
     if (g.some((r) => r.error)) {
       failed += g.length;
       const parts = g.filter((r) => r.error).map((r) => `Row ${r.rowIndex}: ${r.error}`);

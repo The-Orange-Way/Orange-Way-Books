@@ -121,7 +121,7 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
       // may legitimately 200/[] or 401 depending on policy. Treat 4xx as
       // a finding but don't fail the test on them — they prove the
       // server refused the broad query, which is what we want.
-      if (resp.status === 401 | resp.status === 403) {
+      if (resp.status === 401 || resp.status === 403) {
         // Hard-deny — fine.
         continue;
       }

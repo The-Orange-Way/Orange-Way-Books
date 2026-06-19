@@ -436,7 +436,7 @@ async function commitContacts(
   for (const contact of contacts) {
     done += 1;
     const key = `${contact.kind}:${contact.name.trim().toLowerCase()}`;
-    if (existingNames.has(key) | seenThisBatch.has(key)) {
+    if (existingNames.has(key) || seenThisBatch.has(key)) {
       result.contactsSkipped += 1;
       onStep(done, total);
       continue;
@@ -616,7 +616,7 @@ async function commitJournalEntryBatch(
     .insert(encHeaders.map((h) => h.row) as never)
     .select('id, encrypted_metadata');
 
-  if (headerErr | !insertedHeaders) {
+  if (headerErr || !insertedHeaders) {
     // Fall back to per-entry retries so one bad row doesn't kill the batch.
     await commitJournalEntriesPerEntry(orgId, importId, batch, fallbacks, primaryCurrency, encrypt, result);
     return;

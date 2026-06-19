@@ -207,7 +207,7 @@ export default function Invoices() {
   // ── Data load ──
 
   const load = useCallback(async () => {
-    if (!orgId | !isUnlocked) return;
+    if (!orgId || !isUnlocked) return;
     setLoading(true);
     try {
       // Pull invoices
@@ -381,7 +381,7 @@ export default function Invoices() {
   const handleSave = async (asDraft: boolean) => {
     if (!orgId) return;
     if (!formCustomerName.trim()) { toast.error('Customer name is required'); return; }
-    if (formLines.length === 0 | formLines.every((l) => !l.description.trim() && !l.amount)) {
+    if (formLines.length === 0 || formLines.every((l) => !l.description.trim() && !l.amount)) {
       toast.error('Add at least one line item'); return;
     }
     setSaving(true);
@@ -732,9 +732,9 @@ export default function Invoices() {
   };
 
   const handleRecordPay = async () => {
-    if (!recordPayRow | !orgId) return;
+    if (!recordPayRow || !orgId) return;
     const amt = parseFloat(recordPayAmount);
-    if (!Number.isFinite(amt) | amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0) {
       toast.error('Amount must be a positive number');
       return;
     }
@@ -873,7 +873,7 @@ export default function Invoices() {
     try {
       for (const id of selected) {
         const row = invoices.find((r) => r.id === id);
-        if (!row | row.status !== 'DRAFT') continue;
+        if (!row || row.status !== 'DRAFT') continue;
         try {
           await handleSend(row);
           moved += 1;
@@ -1289,7 +1289,7 @@ export default function Invoices() {
 
       {/* Create / edit dialog */}
       <Dialog
-        open={createOpen | editOpen !== null}
+        open={createOpen || editOpen !== null}
         onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditOpen(null); resetForm(); } }}
       >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -1630,7 +1630,7 @@ export default function Invoices() {
                 <Button
                   size="sm"
                   onClick={handleSendEmail}
-                  disabled={emailSending | !emailTo.trim()}
+                  disabled={emailSending || !emailTo.trim()}
                   data-testid="invoice-email-send"
                 >
                   {emailSending ? (

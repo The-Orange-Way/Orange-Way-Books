@@ -339,7 +339,7 @@ export default function Transactions() {
       // any populated set restricts to its members. Txs without a wallet
       // never match a non-empty set.
       if (walletFilter.size > 0) {
-        if (!tx.account_id | !walletFilter.has(tx.account_id)) return false;
+        if (!tx.account_id || !walletFilter.has(tx.account_id)) return false;
       }
       // Amount range — compare absolute amounts so inflow/outflow symmetry
       // doesn't surprise the user. Blank min/max bypasses that side.
@@ -466,7 +466,7 @@ export default function Transactions() {
     const rows = buildTransactionExportRows();
     const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : 'start';
     const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : 'end';
-    const title = `${orgName | 'Organization'} — Transactions — ${from} to ${to}`;
+    const title = `${orgName || 'Organization'} — Transactions — ${from} to ${to}`;
     void printTable(title, [...TRANSACTION_EXPORT_HEADERS], rows)
       .then((opened) => {
         if (opened) {
@@ -739,7 +739,7 @@ export default function Transactions() {
   // (Inline contact creation + modal-side exchange-rate hook lived here in
   // the old inline modal; both are now owned by TransactionModal.)
 
-  if (loading | orgLoading) {
+  if (loading || orgLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
 
@@ -1075,7 +1075,7 @@ export default function Transactions() {
                           <><span>Transfer</span>{tx.linked_tx_id && <Badge variant="outline" className="ml-1 text-[9px]">Linked</Badge>}</>
                         ) : (tx.to_from | '—')}
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{tx.ref_number | '—'}</TableCell>
+                      <TableCell className="text-xs font-mono">{tx.ref_number || '—'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{tx.memo ? (tx.memo.length > 40 ? tx.memo.slice(0, 40) + '...' : tx.memo) : '—'}</TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex gap-1">
@@ -1403,7 +1403,7 @@ export default function Transactions() {
             </Button>
           )}
           <div className="w-px h-6 bg-border" />
-          <Button variant="outline" size="sm" disabled={selected.size !== 2 | bulkActing} onClick={handleLinkTransfer}>
+          <Button variant="outline" size="sm" disabled={selected.size !== 2 || bulkActing} onClick={handleLinkTransfer}>
             <Link2 className="w-4 h-4 mr-1" />Link as Transfer
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>

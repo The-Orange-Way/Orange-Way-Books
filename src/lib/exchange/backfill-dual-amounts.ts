@@ -92,7 +92,7 @@ export async function backfillDualAmounts(
     }
 
     const { data: rows, error } = await query;
-    if (error | !rows | rows.length === 0) break;
+    if (error || !rows || rows.length === 0) break;
 
     // Process each row
     const updates: Array<{

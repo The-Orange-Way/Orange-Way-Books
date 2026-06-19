@@ -54,7 +54,7 @@ export function LegacyVaultBanner({ orgId }: Props) {
     })();
   }, [orgId]);
 
-  if (!orgId | keyVersion === null | keyVersion >= LATEST | dismissed) return null;
+  if (!orgId || keyVersion === null || keyVersion >= LATEST || dismissed) return null;
 
   const handleDismiss = () => {
     localStorage.setItem(`${DISMISS_KEY_PREFIX}${orgId}`, '1');

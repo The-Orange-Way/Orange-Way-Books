@@ -90,7 +90,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
       password: USER_B_PASSWORD,
       email_confirm: true,
     });
-    if (cr.status === 200 | cr.status === 201) {
+    if (cr.status === 200 || cr.status === 201) {
       userBId = JSON.parse(cr.body).id;
     } else if (cr.status === 422) {
       // Already exists — look up
@@ -202,7 +202,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
       if (r.status === 200) {
         const rows: unknown[] = JSON.parse(r.body);
         expect(rows.length, `user A must get 0 rows from ${table} filtered by B's org_id`).toBe(0);
-      } else if (r.status === 401 | r.status === 403) {
+      } else if (r.status === 401 || r.status === 403) {
         // Hard deny — fine
       } else {
         throw new Error(`${table} unexpected status ${r.status}: ${r.body.slice(0, 120)}`);

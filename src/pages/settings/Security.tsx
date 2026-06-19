@@ -129,7 +129,7 @@ export default function Security() {
     );
   }
 
-  if (loading | !orgId) {
+  if (loading || !orgId) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />

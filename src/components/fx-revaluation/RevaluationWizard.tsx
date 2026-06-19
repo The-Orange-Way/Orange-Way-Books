@@ -89,7 +89,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
 
   // Fetch and decrypt all data needed for the preview
   const handleComputePreview = useCallback(async () => {
-    if (!orgId | !decryptText | !primaryCurrency) return;
+    if (!orgId || !decryptText || !primaryCurrency) return;
     setLoading(true);
     setError(null);
     try {
@@ -174,7 +174,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
 
   // Post the revaluation run and create JEs
   const handleConfirm = useCallback(async () => {
-    if (!preview | !orgId | !userId | !encryptText | !decryptText) return;
+    if (!preview || !orgId || !userId || !encryptText || !decryptText) return;
     setLoading(true);
     setError(null);
     try {
@@ -201,7 +201,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         .insert({ org_id: orgId, date: jeDate, ...encEntry } as any)
         .select()
         .single();
-      if (jeErr | !je) throw new Error(`Failed to create JE: ${jeErr?.message}`);
+      if (jeErr || !je) throw new Error(`Failed to create JE: ${jeErr?.message}`);
 
       const jeId = (je as any).id;
 
@@ -281,7 +281,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         .insert({ org_id: orgId, date: reverseDate, ...encReverseEntry } as any)
         .select()
         .single();
-      if (revErr | !reverseJe) throw new Error(`Failed to create reversal JE: ${revErr?.message}`);
+      if (revErr || !reverseJe) throw new Error(`Failed to create reversal JE: ${revErr?.message}`);
 
       const reverseJeId = (reverseJe as any).id;
 
@@ -399,7 +399,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           </div>
           <Button
             onClick={handleComputePreview}
-            disabled={loading | !periodEnd | !orgId}
+            disabled={loading || !periodEnd || !orgId}
             style={{ background: 'var(--color-brand-orange)', color: 'white' }}
           >
             {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Computing…</> : <>Compute Preview <ArrowRight className="w-4 h-4 ml-2" /></>}

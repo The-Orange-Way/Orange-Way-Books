@@ -90,7 +90,7 @@ function collectAllowedIds(
     let cursor = closure.get(id)?.parentId ?? null;
     while (cursor) {
       const parent = closure.get(cursor);
-      if (!parent | !includeRow(parent)) {
+      if (!parent || !includeRow(parent)) {
         break;
       }
       allowedIds.add(parent.id);
@@ -135,7 +135,7 @@ export function buildReportHierarchyRoots(
     list.sort((a, b) => {
       const ra = closure.get(a);
       const rb = closure.get(b);
-      if (!ra | !rb) {
+      if (!ra || !rb) {
         return 0;
       }
       return cmpClosureRow(ra, rb);
@@ -161,7 +161,7 @@ export function buildReportHierarchyRoots(
 
     let rollupPrevPrimary: number | undefined;
     const childPrevPieces = children.map((c) => c.rollupPrevPrimaryAmount);
-    if (ownPrevPrimary !== undefined | childPrevPieces.some((v) => v !== undefined)) {
+    if (ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined)) {
       rollupPrevPrimary =
         (ownPrevPrimary ?? 0) +
         childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
@@ -207,7 +207,7 @@ export function buildReportHierarchyRoots(
   rootIds.sort((a, b) => {
     const ra = closure.get(a);
     const rb = closure.get(b);
-    if (!ra | !rb) {
+    if (!ra || !rb) {
       return 0;
     }
     return cmpClosureRow(ra, rb);

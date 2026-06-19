@@ -458,7 +458,7 @@ export async function importTakeoutFile(
   for (let i = 0; i < attachments.length; i++) {
     const att = attachments[i];
     progress('Receipts', i, attachments.length);
-    if (!att.content_base64 | !opts.encryptBlob) {
+    if (!att.content_base64 || !opts.encryptBlob) {
       // No bytes captured, or no blob-encrypt available — skip without failing the whole import.
       attachmentsFailed++;
       continue;

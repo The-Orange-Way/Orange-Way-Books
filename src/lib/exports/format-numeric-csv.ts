@@ -15,7 +15,7 @@ export function formatNumericForCsvCell(n: number): string {
   const factor = 10 ** CSV_NUMERIC_DECIMAL_PLACES;
   const rounded = Math.round(n * factor) / factor;
   let s = String(rounded);
-  if (s.includes('e') | s.includes('E')) {
+  if (s.includes('e') || s.includes('E')) {
     s = rounded.toFixed(CSV_NUMERIC_DECIMAL_PLACES).replace(/\.?0+$/, '');
   }
   return s;
