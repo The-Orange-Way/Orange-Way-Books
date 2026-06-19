@@ -753,7 +753,7 @@ export default function Invoices() {
         invoiceId: recordPayRow.id,
         amount: amt,
         walletId: wallet.id,
-        walletlegacy ledger backendAccountId: wallet.external_account_id,
+        walletLegacyAccountId: wallet.external_account_id,
         asset: wallet.asset | recordPayRow.currency,
         appliedAt: format(recordPayDate, 'yyyy-MM-dd'),
         memo: recordPayMemo.trim() | null,

@@ -245,7 +245,7 @@ describe('record + merge integration', () => {
     // 1. Mark paid creates the placeholder.
     const recorded = await recordPlaceholderPayment({
       invoiceId: INV, amount: 100, walletId: WALLET,
-      walletlegacy ledger backendAccountId: 'legacy-w-1', asset: 'USD',
+      walletLegacyAccountId: 'legacy-w-1', asset: 'USD',
       appliedAt: '2026-05-20', memo: 'Customer confirmed by email',
       orgId: ORG, invoiceAmount: 100, invoiceNumber: 'INV-001',
       encryptText: ctx.encryptText, decryptText: ctx.decryptText,

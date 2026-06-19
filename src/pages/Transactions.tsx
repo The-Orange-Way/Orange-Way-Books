@@ -148,7 +148,7 @@ export default function Transactions() {
   const [orgName, setOrgName] = useState('');
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [wallets, setWallets] = useState<WalletOption[]>([]);
-  const [legacyJournalId, setlegacy ledger backendJournalId] = useState<string | null>(null);
+  const [legacyJournalId, setLegacyJournalId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [lockedDialogOpen, setLockedDialogOpen] = useState(false);
@@ -194,7 +194,7 @@ export default function Transactions() {
       supabase.from('organizations').select('external_journal_id, name, key_version').eq('id', orgId).maybeSingle(),
     ]);
     const orgData = orgRes.data as { external_journal_id?: string | null; name?: string | null; key_version?: number | null } | null;
-    setlegacy ledger backendJournalId(orgData?.external_journal_id | null);
+    setLegacyJournalId(orgData?.external_journal_id | null);
     if (orgData) {
       const decOrg = await decryptOrganization({ name: orgData.name | '', key_version: orgData.key_version ?? null } as any, decryptText);
       setOrgName((decOrg.name ?? '').trim());

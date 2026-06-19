@@ -166,12 +166,12 @@ const ORG = 'org-1';
 const CALA_JOURNAL = 'legacy-journal-1';
 
 function seedWalletAndAccount() {
-  const walletlegacy ledger backendId = 'legacy-wallet-source';
-  const accountlegacy ledger backendId = 'legacy-account-sales';
+  const walletLegacyId = 'legacy-wallet-source';
+  const accountLegacyId = 'legacy-account-sales';
   store.wallets.push({
     id: 'wallet-1',
     org_id: ORG,
-    external_account_id: walletlegacy ledger backendId,
+    external_account_id: walletLegacyId,
     encrypted_name: 'enc(Checking)',
     asset: 'enc(USD)',
     key_version: 2,
@@ -183,7 +183,7 @@ function seedWalletAndAccount() {
   store.chart_of_accounts.push({
     id: 'acct-row-1',
     org_id: ORG,
-    external_account_id: accountlegacy ledger backendId,
+    external_account_id: accountLegacyId,
     encrypted_name: 'enc(Sales Revenue)',
     account_name: crypto.randomUUID(),
     account_code: crypto.randomUUID(),
@@ -195,11 +195,11 @@ function seedWalletAndAccount() {
     key_version: 2,
     parent_id: null,
   });
-  return { walletlegacy ledger backendId, accountlegacy ledger backendId };
+  return { walletLegacyId, accountLegacyId };
 }
 
 function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
-  const { walletlegacy ledger backendId, accountlegacy ledger backendId } = seedWalletAndAccount();
+  const { walletLegacyId, accountLegacyId } = seedWalletAndAccount();
   store.transactions.push({
     id: 'tx-1',
     org_id: ORG,
@@ -285,7 +285,7 @@ function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
     manual_rate_source: null,
     legacy_transaction_id: opts.withlegacy ledger backend ? 'legacy-original-1' : null,
   });
-  return { walletlegacy ledger backendId, accountlegacy ledger backendId };
+  return { walletLegacyId, accountLegacyId };
 }
 
 const loadOrgSigningKey = vi.fn(async (_orgId: string) => ({}));

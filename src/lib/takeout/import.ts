@@ -12,10 +12,10 @@ import {
   encryptAttachment,
 } from '@/lib/crypto-fields';
 // Phase 2 removal: takeout/import no longer provisions legacy ledger backend. Data restore
-// writes Postgres-only. The replaylegacy ledger backendTemplates and legacy ledger backend-account creation
+// writes Postgres-only. The replayLegacyTemplates and legacy ledger backend-account creation
 // blocks below are stubbed; chart_of_accounts insert path needs follow-up
 // rewiring for the new schema (tracked as Phase 2.5 cleanup).
-import { TAKEOUT_VERSION, type TakeoutFile, type Takeoutlegacy ledger backendAccount } from './schema';
+import { TAKEOUT_VERSION, type TakeoutFile, type TakeoutLegacyAccount } from './schema';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type EncryptBlobFn = (plaintext: ArrayBuffer | Uint8Array) => Promise<Blob>;
@@ -27,7 +27,7 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-function inferNormalBalance(acct: Takeoutlegacy ledger backendAccount): 'DEBIT' | 'CREDIT' {
+function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
   if (acct.normal_balance === 'DEBIT' | acct.normal_balance === 'CREDIT') return acct.normal_balance;
   const t = acct.account_type.toUpperCase();
   if (t === 'ASSET' | t === 'EXPENSE') return 'DEBIT';
@@ -103,10 +103,10 @@ const ZKA_TEMPLATE_CODES = [
   'ZKA_LIGHTNING_OUT',
 ];
 
-// Phase 2 (legacy-ledger removal): replaylegacy ledger backendTemplates is a no-op. No server-side
+// Phase 2 (legacy-ledger removal): replayLegacyTemplates is a no-op. No server-side
 // legacy ledger backend templates exist anymore. The ZKA_TEMPLATE_CODES list is kept for
 // reference but unused.
-async function replaylegacy ledger backendTemplates(): Promise<void> {
+async function replayLegacyTemplates(): Promise<void> {
   // intentionally empty
 }
 
@@ -253,11 +253,11 @@ export async function importTakeoutFile(
       },
       encryptText,
     );
-    const newlegacy ledger backendAccountId = w.legacy_account_id ? legacyAccountIdMap.get(w.legacy_account_id) ?? null : null;
+    const newLegacyAccountId = w.legacy_account_id ? legacyAccountIdMap.get(w.legacy_account_id) ?? null : null;
     const { error } = await supabase.from('accounts').insert({
       id: walletIdMap.get(w.id),
       org_id: targetOrgId,
-      external_account_id: newlegacy ledger backendAccountId,
+      external_account_id: newLegacyAccountId,
       ...enc,
     } as any);
     if (error) throw new Error(`Insert wallet failed: ${error.message}`);
@@ -269,7 +269,7 @@ export async function importTakeoutFile(
   let accountsInserted = 0;
   for (let i = 0; i < data.chart_of_accounts.length; i++) {
     const a = data.chart_of_accounts[i];
-    const newlegacy ledger backendId = legacyAccountIdMap.get(a.legacy_account_id)!;
+    const newLegacyId = legacyAccountIdMap.get(a.legacy_account_id)!;
     const normalBalance = inferNormalBalance(a);
     // Phase 2 (legacy-ledger removal): legacy ledger backend createAccount deleted. Account row inserted
     // directly into chart_of_accounts below (TODO follow-up: rewire this
