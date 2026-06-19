@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
   // App is mounted at /app/*; all sidebar paths must be absolute under /app.
   // Path /app/wallets is retained for URL stability — the visible label is "Accounts".
   { title: 'Insights', path: '/app', icon: Home, exact: true },
-  { title: 'Accounts', path: '/app/accounts', icon: Account, exact: false },
+  { title: 'Accounts', path: '/app/accounts', icon: Wallet, exact: false },
   {
     title: 'Transactions',
     path: '/app/transactions',
