@@ -101,6 +101,11 @@ jobs:
           OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
+          # Project-ref values that the e2e specs need to hit the live
+          # dev Supabase project. Sourced from the same dev env-vars the
+          # frontend build uses, so there is one place to rotate them.
+          OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
 
       - name: Upload Playwright artifacts
         if: always()
