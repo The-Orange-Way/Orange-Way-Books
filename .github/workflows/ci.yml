@@ -59,6 +59,12 @@ jobs:
     name: E2E (Playwright smoke)
     runs-on: ubuntu-latest
     needs: lint-and-build
+    # Bind to the dev environment scope so vars.VITE_SUPABASE_URL,
+    # vars.VITE_SUPABASE_PROJECT_ID, etc. resolve to the dev values.
+    # The Playwright specs always hit dev.books.orangeway.app
+    # regardless of which branch triggered the workflow, so dev is
+    # the right scope on prod pushes too.
+    environment: dev
     # Runs on every push to dev or prod. Specs target the dev deployment
     # (dev.books.orangeway.app). PR events still skip e2e because they
     # deploy to a Cloudflare Pages preview URL, not the dev deployment.
