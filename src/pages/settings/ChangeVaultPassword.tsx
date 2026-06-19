@@ -65,8 +65,8 @@ export default function ChangeVaultPassword() {
         .eq('org_id', storedOrg)
         .maybeSingle();
 
-      if (!settings || (settings as any).vault_key_version < 4 || !(settings as any).enc_mek_ciphertext) {
-        setError('Password change is only supported for v4 vaults.');
+      if (!settings || !(settings as any).vault_salt || !(settings as any).enc_mek_ciphertext) {
+        setError('Vault is not set up; password change unavailable.');
         setLoading(false);
         return;
       }
