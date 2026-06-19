@@ -339,7 +339,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
 
   // ── Commit ──
   const handleCommit = useCallback(async () => {
-    if (!orgId | !parsed | !classifications) return;
+    if (!orgId || !parsed || !classifications) return;
     setStep('committing');
     setProgress({ stage: 'preparing', done: 0, total: 1 });
     setCommitError(null);
@@ -470,7 +470,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
               <Button
                 onClick={continueToReview}
-                disabled={parsing | files.length === 0}
+                disabled={parsing || files.length === 0}
                 className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               >
                 {parsing ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Reading…</> : 'Continue to review'}
@@ -564,7 +564,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               <Button variant="outline" onClick={() => setStep('upload')}>← Back</Button>
               <Button
                 onClick={handleCommit}
-                disabled={!allAmbiguousResolved | (parsed.trialBalanceAccounts.length + parsed.contacts.length + parsed.journalEntries.length === 0)}
+                disabled={!allAmbiguousResolved || (parsed.trialBalanceAccounts.length + parsed.contacts.length + parsed.journalEntries.length === 0)}
                 className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               >
                 {importLabel}

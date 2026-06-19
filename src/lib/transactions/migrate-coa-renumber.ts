@@ -125,7 +125,7 @@ async function loadDecodedRows(orgId: string, decryptText: DecryptFn): Promise<D
     .select('*')
     .eq('org_id', orgId);
   if (error) throw error;
-  if (!rows | rows.length === 0) return [];
+  if (!rows || rows.length === 0) return [];
 
   const decoded: DecodedRow[] = [];
   for (const row of rows as any[]) {

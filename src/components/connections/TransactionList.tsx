@@ -139,7 +139,7 @@ export function TransactionList({
   // unrelated wallet histories.
   useEffect(() => {
     let cancelled = false;
-    if (!orConnectionId | !resolveDestinationWalletId | !rows | rows.length === 0) {
+    if (!orConnectionId || !resolveDestinationWalletId || !rows || rows.length === 0) {
       setImportedIds(new Set());
       return;
     }
@@ -151,7 +151,7 @@ export function TransactionList({
       const destId = resolveDestinationWalletId(r.payload.source_wallet_id);
       if (destId) walletIdSet.add(destId);
     }
-    if (walletIdSet.size === 0 | orExternalIds.length === 0) {
+    if (walletIdSet.size === 0 || orExternalIds.length === 0) {
       setImportedIds(new Set());
       return;
     }
@@ -188,7 +188,7 @@ export function TransactionList({
     );
   }
 
-  if (!rows | rows.length === 0) {
+  if (!rows || rows.length === 0) {
     return (
       <div className="text-xs text-muted-foreground py-2">
         No transactions yet — click Sync to fetch the latest from your provider.

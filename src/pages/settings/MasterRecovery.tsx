@@ -124,7 +124,7 @@ export default function MasterRecovery() {
 
   // ── Setup: brand-new master recovery ───────────────────────────────
   const handleSetup = async () => {
-    if (!userId | !activeOrgId) return;
+    if (!userId || !activeOrgId) return;
     setSubmitting(true);
     try {
       const out = await setupMasterRecoveryCode();
@@ -160,7 +160,7 @@ export default function MasterRecovery() {
 
   // ── Enroll the active org into existing master recovery ────────────
   const handleEnrollActiveOrg = async () => {
-    if (!userId | !activeOrgId) return;
+    if (!userId || !activeOrgId) return;
     setSubmitting(true);
     try {
       const { data: master } = await (supabase as any)
@@ -282,7 +282,7 @@ export default function MasterRecovery() {
               I will save my master recovery code immediately and store it offline.
             </Label>
           </div>
-          <Button onClick={handleSetup} disabled={!confirmAck | submitting} data-testid="generate-master-code">
+          <Button onClick={handleSetup} disabled={!confirmAck || submitting} data-testid="generate-master-code">
             {submitting ? 'Generating…' : 'Generate master recovery code'}
           </Button>
         </section>
@@ -316,7 +316,7 @@ export default function MasterRecovery() {
                     onChange={(e) => setEnrollCode(e.target.value)}
                     className="font-mono"
                   />
-                  <Button onClick={handleEnrollActiveOrg} disabled={submitting | enrollCode.trim().split(/\s+/).length !== 12}>
+                  <Button onClick={handleEnrollActiveOrg} disabled={submitting || enrollCode.trim().split(/\s+/).length !== 12}>
                     Enroll this organization
                   </Button>
                 </>

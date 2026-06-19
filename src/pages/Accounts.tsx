@@ -239,7 +239,7 @@ export default function Accounts() {
   };
 
   const handleSave = async () => {
-    if (!orgId | !name.trim()) return;
+    if (!orgId || !name.trim()) return;
     setSaving(true);
     try {
       if (editing) {
@@ -461,7 +461,7 @@ export default function Accounts() {
     try {
       const result = await resolvePinnedRate({ source: assetCode, target: 'BTC' });
       if (result.pending) return null;
-      if (!Number.isFinite(result.rate) | result.rate <= 0) return null;
+      if (!Number.isFinite(result.rate) || result.rate <= 0) return null;
       return result.rate;
     } catch (err) {
       console.warn(`[Accounts] rate resolve failed for ${assetCode}→BTC`, err);
@@ -476,7 +476,7 @@ export default function Accounts() {
   };
 
   const handleRefreshAll = async () => {
-    if (!orgId | refreshing) return;
+    if (!orgId || refreshing) return;
     setRefreshing(true);
     // a) Optimistically mark every visible wallet as SYNCING
     setWallets(prev => prev.map(w => ({ ...w, sync_status: 'SYNCING' })));
@@ -545,7 +545,7 @@ export default function Accounts() {
     return () => window.removeEventListener('keydown', handler);
   }, [modalOpen, dirty]);
 
-  if (loading | orgLoading) {
+  if (loading || orgLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
 
@@ -638,9 +638,9 @@ export default function Accounts() {
                     className={cn('cursor-pointer hover:bg-muted/40', w.archived && 'opacity-50')}
                     onClick={() => setStatementWallet(w)}
                   >
-                    <TableCell className="font-medium text-[13px]">{w.encrypted_name | '[Encrypted]'}</TableCell>
-                    <TableCell className="text-xs">{w.account_type | '—'}</TableCell>
-                    <TableCell className="text-xs">{w.institution | '—'}</TableCell>
+                    <TableCell className="font-medium text-[13px]">{w.encrypted_name || '[Encrypted]'}</TableCell>
+                    <TableCell className="text-xs">{w.account_type || '—'}</TableCell>
+                    <TableCell className="text-xs">{w.institution || '—'}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{formatBalance(w.initial_balance ?? 0, w.asset)}</TableCell>
                     <TableCell>
                       <Badge variant={w.asset === 'BTC' ? 'default' : 'secondary'} className="text-[10px]">{w.asset}</Badge>
@@ -658,7 +658,7 @@ export default function Accounts() {
                           : '—';
                       return (
                         <>
-                          <TableCell className="text-xs">{w.issuer | '—'}</TableCell>
+                          <TableCell className="text-xs">{w.issuer || '—'}</TableCell>
                           <TableCell className="text-right font-mono text-xs">{rateLabel}</TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {btcBalance !== null ? formatBalance(btcBalance, 'BTC') : '—'}
@@ -701,7 +701,7 @@ export default function Accounts() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 text-[13px] font-medium">
-                        <span className="truncate">{w.encrypted_name | '[Encrypted]'}</span>
+                        <span className="truncate">{w.encrypted_name || '[Encrypted]'}</span>
                         <Badge variant={w.asset === 'BTC' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
                           {w.asset}
                         </Badge>
@@ -846,7 +846,7 @@ export default function Accounts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => tryCloseModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving | !name.trim()}>
+            <Button onClick={handleSave} disabled={saving || !name.trim()}>
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Account'}
             </Button>

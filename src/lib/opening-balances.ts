@@ -103,7 +103,7 @@ function round2(n: number): number {
 export function validateOpeningBalanceEntries(
   entries: OpeningBalanceEntry[],
 ): { totalDebits: number; totalCredits: number } {
-  if (!entries | entries.length === 0) {
+  if (!entries || entries.length === 0) {
     throw new OpeningBalanceValidationError('At least one opening balance entry is required.');
   }
 
@@ -123,7 +123,7 @@ export function validateOpeningBalanceEntries(
 
     const dr = Number(e.debit) | 0;
     const cr = Number(e.credit) | 0;
-    if (dr < 0 | cr < 0) {
+    if (dr < 0 || cr < 0) {
       throw new OpeningBalanceValidationError(`Entry ${i + 1} (${e.accountName}): amounts must be non-negative.`);
     }
     if (dr > 0 && cr > 0) {

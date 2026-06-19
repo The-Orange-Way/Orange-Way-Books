@@ -52,7 +52,7 @@ function getORBIClient(): SupabaseClient {
   const url = import.meta.env.VITE_ORBI_SUPABASE_URL as string | undefined;
   const key = import.meta.env.VITE_ORBI_SUPABASE_ANON_KEY as string | undefined;
 
-  if (!url | !key) {
+  if (!url || !key) {
     throw new Error(
       "ORBI not configured: VITE_ORBI_SUPABASE_URL and VITE_ORBI_SUPABASE_ANON_KEY must be set at build time."
     );
@@ -188,7 +188,7 @@ export async function fetchLatestFromORBI(
     .limit(1)
     .maybeSingle();
 
-  if (error | !data) return null;
+  if (error || !data) return null;
 
   const rawRate = Number(data.rate);
   const adjustedRate = rawRate * pair.satsMultiplier;

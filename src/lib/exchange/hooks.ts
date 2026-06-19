@@ -34,7 +34,7 @@ export function useExchangeRate(
   const abortRef = useRef(0);
 
   useEffect(() => {
-    if (!base | !quote) {
+    if (!base || !quote) {
       setRate(null); setLoading(false); setStale(false);
       setPending(false); setAsOf(null); setProvider(null); setError(null);
       return;
@@ -100,7 +100,7 @@ export function useSecondaryDisplayRate(
   const abortRef = useRef(0);
 
   useEffect(() => {
-    if (!primary | !secondary | primary.toUpperCase() === secondary.toUpperCase()) {
+    if (!primary || !secondary || primary.toUpperCase() === secondary.toUpperCase()) {
       setRate(null); setLoading(false); setStale(false); setPending(false); setError(null);
       return;
     }

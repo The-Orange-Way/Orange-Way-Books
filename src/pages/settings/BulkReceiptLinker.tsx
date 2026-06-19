@@ -62,7 +62,7 @@ function parseMappingCsv(text: string): { rows: MappingRow[]; errors: string[] }
   const fIdx = header.indexOf('filename');
   const sIdx = header.indexOf('source');
   const eIdx = header.indexOf('external_id');
-  if (fIdx < 0 | sIdx < 0 | eIdx < 0) {
+  if (fIdx < 0 || sIdx < 0 || eIdx < 0) {
     errors.push('CSV header must include: filename, source, external_id');
     return { rows: [], errors };
   }
@@ -73,7 +73,7 @@ function parseMappingCsv(text: string): { rows: MappingRow[]; errors: string[] }
     const filename = cols[fIdx] | '';
     const sourceRaw = (cols[sIdx] | '').toLowerCase();
     const externalId = cols[eIdx] | '';
-    if (!filename | !sourceRaw | !externalId) {
+    if (!filename || !sourceRaw || !externalId) {
       errors.push(`Row ${i + 1}: filename, source, external_id all required`);
       continue;
     }
@@ -280,7 +280,7 @@ export default function BulkReceiptLinker() {
         <Button
           type="button"
           onClick={handleRun}
-          disabled={running | matchedFiles.length === 0}
+          disabled={running || matchedFiles.length === 0}
         >
           {running && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Link {matchedFiles.length} receipt(s)
@@ -312,7 +312,7 @@ export default function BulkReceiptLinker() {
                     {r.status === 'error' && <Badge variant="destructive">Error</Badge>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {r.error | (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '—')}
+                    {r.error || (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '—')}
                   </TableCell>
                 </TableRow>
               ))}

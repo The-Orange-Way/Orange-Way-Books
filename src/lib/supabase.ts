@@ -11,7 +11,7 @@ import type { Database } from '@/integrations/supabase/types';
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
-if (!envUrl | !envKey) {
+if (!envUrl || !envKey) {
   throw new Error(
     'Supabase client misconfigured: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must both be set at build time. ' +
     'For local dev, copy .env.example to .env and fill them in. ' +

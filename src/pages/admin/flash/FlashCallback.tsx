@@ -30,7 +30,7 @@ export default function FlashCallback() {
       setErrorMsg(params.get('error_description') ?? errorParam);
       return;
     }
-    if (!code | !stateParam) {
+    if (!code || !stateParam) {
       setState('error');
       setErrorMsg('Missing code or state in callback URL.');
       return;

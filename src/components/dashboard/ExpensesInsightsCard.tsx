@@ -93,10 +93,10 @@ export function ExpensesInsightsCard({
     for (const line of journalLines) {
       if (!line.accountId) continue;
       if (!expenseAccountIds.has(line.accountId)) continue;
-      if (line.date < range.start | line.date > range.end) continue;
+      if (line.date < range.start || line.date > range.end) continue;
       const amount = (line.debit | 0) - (line.credit | 0);
       if (amount <= 0) continue;
-      const name = accountNameById.get(line.accountId) | 'Unknown';
+      const name = accountNameById.get(line.accountId) || 'Unknown';
       totals.set(name, (totals.get(name) | 0) + amount);
     }
     const entries = [...totals.entries()]

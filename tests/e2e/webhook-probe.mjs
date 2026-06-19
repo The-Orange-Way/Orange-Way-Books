@@ -20,11 +20,11 @@
 
 import { createHmac } from 'node:crypto';
 
-const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL | process.env.SUPABASE_URL;
-const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY | process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
+const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 const SECRET        = process.env.FLASH_WEBHOOK_SECRET;
 
-if (!SUPABASE_URL | !ANON_KEY | !SECRET) {
+if (!SUPABASE_URL || !ANON_KEY || !SECRET) {
   console.error('Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_ANON_KEY, FLASH_WEBHOOK_SECRET.');
   process.exit(2);
 }

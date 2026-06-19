@@ -62,7 +62,7 @@ export function SecurityTab({ orgId }: SecurityTabProps) {
     }
   };
 
-  if (loading | keyVersion === null) {
+  if (loading || keyVersion === null) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />
@@ -139,7 +139,7 @@ export function SecurityTab({ orgId }: SecurityTabProps) {
 
       <Button
         onClick={handleUpgrade}
-        disabled={running | password.length === 0}
+        disabled={running || password.length === 0}
         className="w-full sm:w-auto"
       >
         {running ? (

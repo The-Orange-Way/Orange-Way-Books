@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { signIn, unlockVaultIfNeeded, signInAndUnlock } from './lib/auth';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RUN_ID = process.env.E2E_RUN_ID | new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const RUN_ID = process.env.E2E_RUN_ID || new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const SHOTS = path.join(HERE, '__artifacts__', `owb-full-suite-${RUN_ID}`);
 
 let stepIdx = 0;

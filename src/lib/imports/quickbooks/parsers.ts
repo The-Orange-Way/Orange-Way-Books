@@ -46,7 +46,7 @@ function refToken(value: string | null | undefined, fallback: string): string {
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return token | fallback;
+  return token || fallback;
 }
 
 function buildJournalRefNum(args: {

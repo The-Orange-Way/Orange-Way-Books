@@ -79,7 +79,7 @@ export async function previewRevaluation(
     if (classifyMonetary(account, override) !== 'monetary') continue;
 
     const walletCurrency = walletCurrencies.get(account.id);
-    if (!walletCurrency | walletCurrency.toUpperCase() === primaryCurrency.toUpperCase()) continue;
+    if (!walletCurrency || walletCurrency.toUpperCase() === primaryCurrency.toUpperCase()) continue;
 
     const balance = balanceByAccount.get(account.id);
     if (!balance) continue;
@@ -182,7 +182,7 @@ export async function postRevaluation(
     .select('id')
     .single();
 
-  if (runErr | !run) {
+  if (runErr || !run) {
     throw new Error(`Failed to create revaluation run: ${runErr?.message}`);
   }
 

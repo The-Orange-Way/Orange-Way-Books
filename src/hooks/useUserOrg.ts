@@ -16,7 +16,7 @@ export function useUserOrg() {
     let active = true;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user | !active) { setLoading(false); return; }
+      if (!user || !active) { setLoading(false); return; }
 
       const { data } = await supabase
         .from('org_members')

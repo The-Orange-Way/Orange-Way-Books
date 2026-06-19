@@ -41,7 +41,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
   const [pendingRevalCount, setPendingRevalCount] = useState(0);
 
   const load = useCallback(async () => {
-    if (!orgId | !decryptText) return;
+    if (!orgId || !decryptText) return;
     setLoading(true);
     try {
       const [jeRes, acctRes, ratesRes, pendingRes] = await Promise.all([

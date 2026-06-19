@@ -260,7 +260,7 @@ export default function ImportJobs() {
                   <TableCell>
                     <span className="text-xs font-mono">{r.source_type}</span>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate" title={r.file_name | ''}>
+                  <TableCell className="max-w-xs truncate" title={r.file_name || ''}>
                     {r.file_name | <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>{statusBadge(r.status)}</TableCell>
@@ -322,11 +322,11 @@ export default function ImportJobs() {
                 <dt className="text-muted-foreground">Source</dt>
                 <dd className="col-span-2">{detailRow.source_type}</dd>
                 <dt className="text-muted-foreground">File</dt>
-                <dd className="col-span-2">{detailRow.file_name | '—'}</dd>
+                <dd className="col-span-2">{detailRow.file_name || '—'}</dd>
                 <dt className="text-muted-foreground">File hash</dt>
-                <dd className="col-span-2 font-mono text-xs break-all">{detailRow.file_hash | '—'}</dd>
+                <dd className="col-span-2 font-mono text-xs break-all">{detailRow.file_hash || '—'}</dd>
                 <dt className="text-muted-foreground">Manifest</dt>
-                <dd className="col-span-2 text-xs">{detailRow.manifest_summary | '—'}</dd>
+                <dd className="col-span-2 text-xs">{detailRow.manifest_summary || '—'}</dd>
                 <dt className="text-muted-foreground">Created</dt>
                 <dd className="col-span-2">{format(parseISO(detailRow.created_at), 'PPP p')}</dd>
                 <dt className="text-muted-foreground">Committed</dt>

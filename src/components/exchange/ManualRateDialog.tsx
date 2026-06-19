@@ -42,7 +42,7 @@ export function ManualRateDialog({
 
   const handleConfirm = () => {
     setError(null);
-    if (!rateInput | !Number.isFinite(rateValue) | rateValue <= 0) {
+    if (!rateInput || !Number.isFinite(rateValue) || rateValue <= 0) {
       setError('Enter a valid positive exchange rate.');
       return;
     }

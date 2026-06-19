@@ -181,7 +181,7 @@ export async function commitStagedImportPayload(
     .select('id')
     .single();
 
-  if (jobErr | !jobRow) {
+  if (jobErr || !jobRow) {
     throw new StagedImportCommitError(
       `import_jobs insert failed: ${jobErr?.message ?? 'no row returned'}`,
     );
@@ -196,7 +196,7 @@ export async function commitStagedImportPayload(
 
   // 4. Commit journal entries.
   const journalEntryRows = payload.staged.journalEntries ?? [];
-  if (journalEntryRows.length === 0 && (payload.staged.accounts?.length | payload.staged.contacts?.length)) {
+  if (journalEntryRows.length === 0 && (payload.staged.accounts?.length || payload.staged.contacts?.length)) {
     // v1 only commits JEs. Surface that clearly.
     await supabase
       .from('import_jobs')
@@ -261,7 +261,7 @@ export async function commitStagedImportPayload(
         .select('id')
         .single();
 
-      if (jeErr | !jeData) {
+      if (jeErr || !jeData) {
         // 23505 = unique_violation on (org_id, hmac_import_external_id).
         // That means this exact import has been done before. Surface clearly.
         if (jeErr?.code === '23505') {

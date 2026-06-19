@@ -496,7 +496,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" disabled={!isValid | loading}>
+      <Button type="submit" className="w-full" disabled={!isValid || loading}>
         {loading ? 'Creating Vault…' : 'Continue'}
       </Button>
     </form>

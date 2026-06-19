@@ -33,7 +33,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
   const abortRef = useRef<AbortController | null>(null);
 
   const handleStart = useCallback(async () => {
-    if (!orgId | !encryptText | !decryptText) return;
+    if (!orgId || !encryptText || !decryptText) return;
     abortRef.current = new AbortController();
     setRunState('running');
 
@@ -157,7 +157,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
         {runState !== 'running' ? (
           <Button
             onClick={handleStart}
-            disabled={!orgId | runState === 'done'}
+            disabled={!orgId || runState === 'done'}
             className="flex items-center gap-2"
             style={{ background: 'var(--color-brand-orange)', color: 'white' }}
           >

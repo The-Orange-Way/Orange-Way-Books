@@ -18,12 +18,12 @@ import { mkdir, writeFile, readFileSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 
-const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL | process.env.SUPABASE_URL;
-const SERVICE_KEY   = process.env.V3_DEV_SUPABASE_SERVICE_KEY | process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
+const SERVICE_KEY   = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY;
 const WEBHOOK_SECRET = process.env.FLASH_WEBHOOK_SECRET;
 const OUTLINE_TOKEN = process.env.OUTLINE_API_TOKEN;
-const OUTLINE_BASE  = process.env.OUTLINE_BASE_URL | 'https://wiki.example.com';
+const OUTLINE_BASE  = process.env.OUTLINE_BASE_URL || 'https://wiki.example.com';
 const APP_URL       = 'https://books.orangeway.dev';
 const RUN_ID        = new Date().toISOString().replace(/[:.]/g, '-');
 const OUT_DIR       = `/tmp/v3-flash-e2e-${RUN_ID}`;
@@ -31,7 +31,7 @@ const TEST_EMAIL    = `e2e+flash+${RUN_ID}@owb.test`;
 const TEST_PASSWORD = `Test-${RUN_ID}!Strong#1`;
 const VAULT_PASSWORD = `Vault-${RUN_ID}!Phrase#2`;
 
-if (!SUPABASE_URL | !SERVICE_KEY | !ANON_KEY | !WEBHOOK_SECRET | !OUTLINE_TOKEN) {
+if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY || !WEBHOOK_SECRET || !OUTLINE_TOKEN) {
   console.error('Missing required env vars.');
   console.error(' Have SUPABASE_URL?', !!SUPABASE_URL);
   console.error(' Have SERVICE_KEY?', !!SERVICE_KEY);
@@ -253,7 +253,7 @@ try {
       if (resp.url().includes('/functions/v1/create-flash-payment')) {
         try {
           const body = await resp.json();
-          if (body?.externalReference | body?.external_reference) {
+          if (body?.externalReference || body?.external_reference) {
             lastPaymentExternalRef = body.externalReference | body.external_reference;
           }
         } catch {}
@@ -329,7 +329,7 @@ for (const s of shots) {
     headers: { Authorization: `Bearer ${OUTLINE_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: s.filename, contentType: 'image/png', size: body.length, preset: 'documentAttachment' }),
   }).then(r => r.json()).catch(e => ({ error: e.message }));
-  if (create.error | !create.data) {
+  if (create.error || !create.data) {
     console.error(`   ❌ ${s.filename}: ${JSON.stringify(create).slice(0, 200)}`);
     uploaded.push({ ...s, url: null });
     continue;
@@ -375,7 +375,7 @@ Everything Flash hasn't shared yet is a single constant or env var:
 
 ## Walkthrough
 
-${uploaded.map(u => `### ${u.label}\n\n${u.url ? `![${u.label}](${u.url})` : `\`${u.filename}\``}\n\n${u.caption | ''}\n`).join('\n')}
+${uploaded.map(u => `### ${u.label}\n\n${u.url ? `![${u.label}](${u.url})` : `\`${u.filename}\``}\n\n${u.caption || ''}\n`).join('\n')}
 `;
 
 const docPath = join(OUT_DIR, 'outline-doc.md');

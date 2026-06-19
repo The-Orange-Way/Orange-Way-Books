@@ -123,7 +123,7 @@ export async function upgradeVaultToV3(args: UpgradeVaultToV3Args): Promise<void
       'Only v2 → v3 is supported in this release.',
     );
   }
-  if (!currentVerifier | !currentSalt) {
+  if (!currentVerifier || !currentSalt) {
     throw new Error('Vault is not fully set up (missing verifier or salt)');
   }
   const oldPasswordOk = await verifyVaultPassword(password, userId, currentVerifier, currentSalt, currentVersion);

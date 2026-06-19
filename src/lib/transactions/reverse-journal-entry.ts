@@ -69,7 +69,7 @@ export async function reverseJournalEntry(
     .select('*')
     .eq('journal_entry_id', p.journalEntryId);
   if (linesErr) throw linesErr;
-  if (!origLines | origLines.length === 0) {
+  if (!origLines || origLines.length === 0) {
     throw new Error('Journal entry has no lines to reverse.');
   }
 
@@ -80,7 +80,7 @@ export async function reverseJournalEntry(
   );
 
   // ── Build reversing wrapper JE ───────────────────────────────────────
-  const reversalMemo = `Reversal of ${origJeDec.ref_number | origJeDec.memo | `JE ${p.journalEntryId.slice(0, 8)}`}${
+  const reversalMemo = `Reversal of ${origJeDec.ref_number || origJeDec.memo | `JE ${p.journalEntryId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
   }`;
   const encReversing = await encryptJournalEntry(

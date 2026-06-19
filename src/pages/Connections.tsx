@@ -243,7 +243,7 @@ export default function Connections() {
 
   // Lazily provision when missing (after isUnlocked, since proxy uses JWT).
   useEffect(() => {
-    if (!orgId | subaccountId | !isUnlocked) return;
+    if (!orgId || subaccountId || !isUnlocked) return;
     let cancelled = false;
     (async () => {
       setProvisioning(true);
@@ -268,7 +268,7 @@ export default function Connections() {
   // both the connection-level fields (label, last_error) and any per-wallet
   // metadata (currency, label) on each connection's source_wallets.
   const refreshList = useCallback(async () => {
-    if (!subaccountId | !isUnlocked) {
+    if (!subaccountId || !isUnlocked) {
       // No subaccount yet (still provisioning or vault locked) — drop the
       // initial loading state so the empty-state card can render. Without
       // this, the page sat on "Loading…" forever for fresh accounts.
@@ -366,7 +366,7 @@ export default function Connections() {
   // instead. We keep the variable name for minimal blast radius — it now
   // holds wallets.id → wallet name.
   const refreshMappingsAndAccounts = useCallback(async () => {
-    if (!orgId | !isUnlocked) return;
+    if (!orgId || !isUnlocked) return;
     try {
       const decryptedMappings = await fetchAndDecryptMappings(orgId, decryptText);
       setMappings(decryptedMappings);
@@ -531,7 +531,7 @@ export default function Connections() {
    * advance to the destination-account picker.
    */
   async function handleSaveWalletPicks(selections: Array<DiscoveredWallet & { is_synced: boolean }>) {
-    if (!walletPicker | !subaccountId) return;
+    if (!walletPicker || !subaccountId) return;
 
     const payloadWallets = await Promise.all(
       selections.map(async (sel) => {
@@ -598,7 +598,7 @@ export default function Connections() {
    * encrypted_account_id is AES-256-GCM (vault MEK) over the chart_of_accounts.id.
    */
   async function handleSaveDestinations(mappingsToSave: Array<{ or_external_wallet_id: string; external_account_id: string }>) {
-    if (!destPicker | !orgId) return;
+    if (!destPicker || !orgId) return;
     await saveMappingsForConnection({
       orgId,
       orConnectionId: destPicker.connectionId,
@@ -689,7 +689,7 @@ export default function Connections() {
       } else if (res.synced === 0) {
         toast.info('No new transactions found.');
       } else {
-        toast.success(`Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} from ${conn.decrypted_label | conn.provider_type}`);
+        toast.success(`Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} from ${conn.decrypted_label || conn.provider_type}`);
       }
       // Auto-expand the just-synced connection and trigger a tx refresh.
       setExpanded(prev => ({ ...prev, [conn.id]: true }));
@@ -722,7 +722,7 @@ export default function Connections() {
    * per-tx errors are logged to the console.
    */
   async function bridgeConnection(conn: ConnectionRow): Promise<void> {
-    if (!orgId | !subaccountId) return;
+    if (!orgId || !subaccountId) return;
     setBridgingId(conn.id);
     try {
       // Re-fetch so we work from the freshest OR-side state (the sync we
@@ -819,7 +819,7 @@ export default function Connections() {
 
   async function confirmDelete() {
     const conn = deleteTarget;
-    if (!conn | !subaccountId) return;
+    if (!conn || !subaccountId) return;
     try {
       await callProxy('or-connection-delete', { subaccount_id: subaccountId, connection_id: conn.id });
       toast.success('Connection deleted');
@@ -1062,7 +1062,7 @@ function ConnectionCard({
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium truncate">{conn.decrypted_label | conn.provider_type}</span>
+            <span className="font-medium truncate">{conn.decrypted_label || conn.provider_type}</span>
             <Badge variant="outline" className={`text-xs ${statusColor}`}>{conn.status}</Badge>
             {setupIncomplete && (
               <Badge
@@ -1246,7 +1246,7 @@ function AddConnectionDialog({ onClose, onSubmit }: {
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>Cancel</Button>
-            <Button type="submit" disabled={submitting | !apiKey.trim()}>
+            <Button type="submit" disabled={submitting || !apiKey.trim()}>
               {submitting ? 'Encrypting + saving…' : 'Add connection'}
             </Button>
           </DialogFooter>

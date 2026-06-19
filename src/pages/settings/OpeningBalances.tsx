@@ -253,7 +253,7 @@ export default function OpeningBalances() {
     }
   };
 
-  if (orgSettingsLoading | loading) {
+  if (orgSettingsLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -417,7 +417,7 @@ export default function OpeningBalances() {
         <Button
           type="button"
           onClick={handleSubmit}
-          disabled={!totals.balanced | submitting}
+          disabled={!totals.balanced || submitting}
         >
           {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Post opening balance
