@@ -154,27 +154,28 @@ Deno.serve(async (req: Request) => {
       // or-provision mirror below). The browser caches the value too but
       // a cleared cache used to surface as a 400; now the server resolves
       // it via service role on the verified org_id and injects it.
-      orBody = { ...payload };
-      if (!orBody.subaccount_id) {
-        const resolverClient = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-          { auth: { autoRefreshToken: false, persistSession: false } },
+      // Always resolve subaccount_id server-side from the verified org_id.
+      // Never trust a client-supplied value: an authenticated member of org A
+      // could otherwise pass org B's subaccount_id and operate against B's
+      // Orange Rails state.
+      const resolverClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      );
+      const { data: orgRow } = await resolverClient
+        .from('organizations')
+        .select('or_subaccount_id')
+        .eq('id', org_id)
+        .maybeSingle();
+      const resolved = (orgRow as { or_subaccount_id?: unknown } | null)?.or_subaccount_id;
+      if (typeof resolved !== 'string' || !resolved) {
+        return jsonResponse(
+          { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
+          400, cors,
         );
-        const { data: orgRow } = await resolverClient
-          .from('organizations')
-          .select('or_subaccount_id')
-          .eq('id', org_id)
-          .maybeSingle();
-        const resolved = (orgRow as { or_subaccount_id?: unknown } | null)?.or_subaccount_id;
-        if (typeof resolved !== 'string' || !resolved) {
-          return jsonResponse(
-            { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
-            400, cors,
-          );
-        }
-        orBody.subaccount_id = resolved;
       }
+      orBody = { ...payload, subaccount_id: resolved };
     }
 
     const orRes = await callOr(endpoint, orBody);
