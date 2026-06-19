@@ -143,8 +143,8 @@ COMMENT ON FUNCTION public.is_date_in_closed_period IS
 --
 --   users.revoke           (only Owner can kick another user)
 --   users.invite           (could be used to add an attacker email)
---   users.manage_roles     (eslegacytion vector)
---   roles.manage           (eslegacytion vector)
+--   users.manage_roles     (escalation vector)
+--   roles.manage           (escalation vector)
 --   org.manage             (org-wide settings, currency change, archive)
 --   periods.close          (closing is an Owner business decision)
 --
