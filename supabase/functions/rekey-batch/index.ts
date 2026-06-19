@@ -133,14 +133,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -177,7 +177,7 @@ serve(async (req) => {
     if (modeHint && modeHint !== 'quick' && modeHint !== 'deep') {
       return jsonResponse({ error: 'mode must be quick or deep' }, 400, cors);
     }
-    if (!jobId | !UUID_RE.test(jobId)) {
+    if (!jobId || !UUID_RE.test(jobId)) {
       return jsonResponse({ error: 'job_id is required' }, 400, cors);
     }
     if (stage !== 'wrap_members' && stage !== 'rekey_rows') {
@@ -190,7 +190,7 @@ serve(async (req) => {
       .select('id, org_id, status, new_dek_key_version, new_osk_key_version, rows_processed, rows_failed, error_log')
       .eq('id', jobId)
       .maybeSingle();
-    if (jobErr | !jobData) {
+    if (jobErr || !jobData) {
       return jsonResponse({ error: 'Rotation job not found' }, 404, cors);
     }
     const job = jobData as RekeyJob;
@@ -203,7 +203,7 @@ serve(async (req) => {
       return jsonResponse({ error: "You don't have permission to continue this key update." }, 403, cors);
     }
 
-    if (job.status === 'complete' | job.status === 'aborted' | job.status === 'rolled_back') {
+    if (job.status === 'complete' || job.status === 'aborted' || job.status === 'rolled_back') {
       return jsonResponse({ error: `Job is in status '${job.status}' — no further work accepted.` }, 409, cors);
     }
 
@@ -225,7 +225,7 @@ serve(async (req) => {
 async function handleWrapMembers(
   batchRaw: unknown, job: RekeyJob, cors: Record<string, string>,
 ): Promise<Response> {
-  if (!batchRaw | typeof batchRaw !== 'object') {
+  if (!batchRaw || typeof batchRaw !== 'object') {
     return jsonResponse({ error: 'batch must be an object' }, 400, cors);
   }
   const batch = batchRaw as { kind?: string; rows?: unknown[]; public_key_b64?: string; org_id?: string };
@@ -250,19 +250,19 @@ async function handleWrapMembers(
     }> = [];
     for (let i = 0; i < batch.rows.length; i++) {
       const r = batch.rows[i] as Record<string, unknown>;
-      if (typeof r.user_id !== 'string' | !UUID_RE.test(r.user_id)) {
+      if (typeof r.user_id !== 'string' || !UUID_RE.test(r.user_id)) {
         return jsonResponse({ error: `rows[${i}].user_id invalid` }, 400, cors);
       }
-      if (typeof r.wrapped_dek !== 'string' | !BASE64_RE.test(r.wrapped_dek) | r.wrapped_dek.length > 8192) {
+      if (typeof r.wrapped_dek !== 'string' || !BASE64_RE.test(r.wrapped_dek) || r.wrapped_dek.length > 8192) {
         return jsonResponse({ error: `rows[${i}].wrapped_dek invalid` }, 400, cors);
       }
-      if (typeof r.iv !== 'string' | !BASE64_RE.test(r.iv) | r.iv.length > 64) {
+      if (typeof r.iv !== 'string' || !BASE64_RE.test(r.iv) || r.iv.length > 64) {
         return jsonResponse({ error: `rows[${i}].iv invalid` }, 400, cors);
       }
-      if (typeof r.wrap_algo !== 'string' | r.wrap_algo.length > 64) {
+      if (typeof r.wrap_algo !== 'string' || r.wrap_algo.length > 64) {
         return jsonResponse({ error: `rows[${i}].wrap_algo invalid` }, 400, cors);
       }
-      if (typeof r.key_version !== 'number' | r.key_version !== job.new_dek_key_version) {
+      if (typeof r.key_version !== 'number' || r.key_version !== job.new_dek_key_version) {
         return jsonResponse({ error: `rows[${i}].key_version must be ${job.new_dek_key_version}` }, 400, cors);
       }
       dekRows.push({
@@ -296,7 +296,7 @@ async function handleWrapMembers(
   }
 
   // batch.kind === 'osk' — insert the signing-key row + wraps.
-  if (typeof batch.public_key_b64 !== 'string' | !BASE64_RE.test(batch.public_key_b64)) {
+  if (typeof batch.public_key_b64 !== 'string' || !BASE64_RE.test(batch.public_key_b64)) {
     return jsonResponse({ error: 'batch.public_key_b64 invalid' }, 400, cors);
   }
   const oskRows: Array<{
@@ -305,19 +305,19 @@ async function handleWrapMembers(
   }> = [];
   for (let i = 0; i < batch.rows.length; i++) {
     const r = batch.rows[i] as Record<string, unknown>;
-    if (typeof r.user_id !== 'string' | !UUID_RE.test(r.user_id)) {
+    if (typeof r.user_id !== 'string' || !UUID_RE.test(r.user_id)) {
       return jsonResponse({ error: `rows[${i}].user_id invalid` }, 400, cors);
     }
-    if (typeof r.wrapped_private_key !== 'string' | !BASE64_RE.test(r.wrapped_private_key) | r.wrapped_private_key.length > 32768) {
+    if (typeof r.wrapped_private_key !== 'string' || !BASE64_RE.test(r.wrapped_private_key) || r.wrapped_private_key.length > 32768) {
       return jsonResponse({ error: `rows[${i}].wrapped_private_key invalid` }, 400, cors);
     }
-    if (typeof r.iv !== 'string' | !BASE64_RE.test(r.iv) | r.iv.length > 64) {
+    if (typeof r.iv !== 'string' || !BASE64_RE.test(r.iv) || r.iv.length > 64) {
       return jsonResponse({ error: `rows[${i}].iv invalid` }, 400, cors);
     }
-    if (typeof r.wrap_algo !== 'string' | r.wrap_algo.length > 64) {
+    if (typeof r.wrap_algo !== 'string' || r.wrap_algo.length > 64) {
       return jsonResponse({ error: `rows[${i}].wrap_algo invalid` }, 400, cors);
     }
-    if (typeof r.key_version !== 'number' | r.key_version !== job.new_osk_key_version) {
+    if (typeof r.key_version !== 'number' || r.key_version !== job.new_osk_key_version) {
       return jsonResponse({ error: `rows[${i}].key_version must be ${job.new_osk_key_version}` }, 400, cors);
     }
     oskRows.push({
@@ -396,7 +396,7 @@ async function handleWrapMembers(
 async function handleRekeyRows(
   batchRaw: unknown, job: RekeyJob, cors: Record<string, string>,
 ): Promise<Response> {
-  if (!batchRaw | typeof batchRaw !== 'object') {
+  if (!batchRaw || typeof batchRaw !== 'object') {
     return jsonResponse({ error: 'batch must be an object' }, 400, cors);
   }
   const batch = batchRaw as { rows?: unknown[] };
@@ -416,17 +416,17 @@ async function handleRekeyRows(
   const updates: RekeyRowUpdate[] = [];
   for (let i = 0; i < batch.rows.length; i++) {
     const r = batch.rows[i] as Record<string, unknown>;
-    if (typeof r.table !== 'string' | !ALLOWED_REKEY_TABLES.has(r.table)) {
+    if (typeof r.table !== 'string' || !ALLOWED_REKEY_TABLES.has(r.table)) {
       return jsonResponse({ error: `rows[${i}].table not allowed` }, 400, cors);
     }
-    if (typeof r.row_id !== 'string' | !UUID_RE.test(r.row_id)) {
+    if (typeof r.row_id !== 'string' || !UUID_RE.test(r.row_id)) {
       return jsonResponse({ error: `rows[${i}].row_id invalid` }, 400, cors);
     }
-    if (typeof r.new_dek_key_version !== 'number' | r.new_dek_key_version !== job.new_dek_key_version) {
+    if (typeof r.new_dek_key_version !== 'number' || r.new_dek_key_version !== job.new_dek_key_version) {
       return jsonResponse({ error: `rows[${i}].new_dek_key_version must be ${job.new_dek_key_version}` }, 400, cors);
     }
     const fields = r.new_ciphertext_fields ?? {};
-    if (typeof fields !== 'object' | fields === null) {
+    if (typeof fields !== 'object' || fields === null) {
       return jsonResponse({ error: `rows[${i}].new_ciphertext_fields must be an object` }, 400, cors);
     }
     const allowedCols = ALLOWED_CIPHERTEXT_COLUMNS[r.table] ?? new Set<string>();
@@ -435,7 +435,7 @@ async function handleRekeyRows(
       if (!allowedCols.has(col)) {
         return jsonResponse({ error: `rows[${i}].new_ciphertext_fields.${col} is not an allowed column for ${r.table}` }, 400, cors);
       }
-      if (typeof val !== 'string' | val.length > 65536) {
+      if (typeof val !== 'string' || val.length > 65536) {
         return jsonResponse({ error: `rows[${i}].new_ciphertext_fields.${col} must be a string under 64KB` }, 400, cors);
       }
       safeFields[col] = val;

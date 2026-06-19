@@ -66,14 +66,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -107,16 +107,16 @@ serve(async (req) => {
     const recipientEmail = typeof body.recipient_email === 'string' ? body.recipient_email.trim() : '';
     const orgNameDecrypted = typeof body.org_name_decrypted === 'string' ? body.org_name_decrypted.trim() : '';
 
-    if (!orgId | !UUID_RE.test(orgId)) {
+    if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
     if (!ALLOWED_TEMPLATES.has(template)) {
       return jsonResponse({ error: `template must be one of: ${Array.from(ALLOWED_TEMPLATES).join(', ')}` }, 400, cors);
     }
-    if (!recipientEmail | recipientEmail.length > MAX_EMAIL_LEN | !EMAIL_RE.test(recipientEmail)) {
+    if (!recipientEmail || recipientEmail.length > MAX_EMAIL_LEN || !EMAIL_RE.test(recipientEmail)) {
       return jsonResponse({ error: 'recipient_email is not a valid email' }, 400, cors);
     }
-    if (!orgNameDecrypted | orgNameDecrypted.length > MAX_ORG_NAME_LEN) {
+    if (!orgNameDecrypted || orgNameDecrypted.length > MAX_ORG_NAME_LEN) {
       return jsonResponse({ error: 'org_name_decrypted is required' }, 400, cors);
     }
 
@@ -145,7 +145,7 @@ serve(async (req) => {
         ? ownerRole.role_definitions[0]?.name
         : ownerRole.role_definitions?.name
       : undefined;
-    if (!roleName | roleName.toLowerCase() !== 'owner') {
+    if (!roleName || roleName.toLowerCase() !== 'owner') {
       return jsonResponse({ error: "You don't have permission to queue this email." }, 403, cors);
     }
 
@@ -166,7 +166,7 @@ serve(async (req) => {
       })
       .select('id')
       .single();
-    if (insertErr | !inserted) {
+    if (insertErr || !inserted) {
       console.error('queue-admin-email insert failed:', insertErr);
       return jsonResponse({ error: 'Could not queue the email.' }, 500, cors);
     }

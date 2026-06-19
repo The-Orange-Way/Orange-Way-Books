@@ -6,13 +6,13 @@ import { rateLimit } from '../_shared/rate-limit.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const OXR_APP_ID = Deno.env.get('OXR_APP_ID') | '';
+const OXR_APP_ID = Deno.env.get('OXR_APP_ID') || '';
 
 // ORBI — Orange Rails Bitcoin Index. Preferred provider for BTC↔fiat
 // pairs in the targets it covers; falls back to CoinGecko on miss/error.
 // Anon key is public by design (RLS gates writes); safe to hold here.
-const ORBI_SUPABASE_URL = Deno.env.get('ORBI_SUPABASE_URL') | '';
-const ORBI_SUPABASE_ANON_KEY = Deno.env.get('ORBI_SUPABASE_ANON_KEY') | '';
+const ORBI_SUPABASE_URL = Deno.env.get('ORBI_SUPABASE_URL') || '';
+const ORBI_SUPABASE_ANON_KEY = Deno.env.get('ORBI_SUPABASE_ANON_KEY') || '';
 const ORBI_SUPPORTED_TARGETS = new Set([
   'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF',
   'MXN', 'BRL', 'ARS', 'INR', 'TRY', 'ZAR',
@@ -144,8 +144,8 @@ serve(async (req) => {
       bucketTs = startOfUtcDay(new Date());
     }
 
-    if (!base | !quote) return jsonResponse({ error: 'base and quote required' }, 400, cors);
-    if (!ALLOWED_CURRENCIES.has(base) | !ALLOWED_CURRENCIES.has(quote)) {
+    if (!base || !quote) return jsonResponse({ error: 'base and quote required' }, 400, cors);
+    if (!ALLOWED_CURRENCIES.has(base) || !ALLOWED_CURRENCIES.has(quote)) {
       return jsonResponse({ error: 'Unsupported currency code' }, 400, cors);
     }
 
@@ -155,7 +155,7 @@ serve(async (req) => {
     const todayMs = Date.now();
     const minMs = Date.parse(MIN_RATE_DATE);
     const oldestAllowedMs = todayMs - MAX_HISTORICAL_DAYS * 86_400_000;
-    if (dateMs < minMs | dateMs < oldestAllowedMs | dateMs > todayMs + 86_400_000) {
+    if (dateMs < minMs || dateMs < oldestAllowedMs || dateMs > todayMs + 86_400_000) {
       return jsonResponse({ error: 'date outside supported range' }, 400, cors);
     }
 
@@ -205,7 +205,7 @@ serve(async (req) => {
     const rateDate = bucketTs.slice(0, 10);
 
     try {
-      if (isCrypto(base) | isCrypto(quote)) {
+      if (isCrypto(base) || isCrypto(quote)) {
         const cryptoCode = isCrypto(base) ? base : quote;
         const fiatCode = isCrypto(base) ? quote : base;
         const orbiBtcSide = cryptoCode === 'BTC' | cryptoCode === 'SATS';
@@ -289,7 +289,7 @@ serve(async (req) => {
         if (!rates) throw new Error('OXR: no rates in response');
         const baseRate = base === 'USD' ? 1 : rates[base];
         const quoteRate = quote === 'USD' ? 1 : rates[quote];
-        if (!baseRate | !quoteRate) throw new Error(`OXR: missing ${base} or ${quote}`);
+        if (!baseRate || !quoteRate) throw new Error(`OXR: missing ${base} or ${quote}`);
         rate = quoteRate / baseRate;
         provider = 'openexchangerates';
       } else {

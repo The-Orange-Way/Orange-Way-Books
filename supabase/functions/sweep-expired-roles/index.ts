@@ -47,7 +47,7 @@ serve(async (req) => {
     // headers; we refuse every request whose x-cron-secret does not match
     // the configured env var. Unconfigured secret = refuse everything.
     const provided = req.headers.get('x-cron-secret') ?? '';
-    if (!CRON_SWEEP_SECRET | provided !== CRON_SWEEP_SECRET) {
+    if (!CRON_SWEEP_SECRET || provided !== CRON_SWEEP_SECRET) {
       return jsonResponse({ error: 'Forbidden' }, 403, cors);
     }
 

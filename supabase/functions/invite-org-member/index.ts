@@ -79,7 +79,7 @@ interface WrappedDekPayload {
 }
 
 function isValidWrapPayload(v: unknown): v is WrappedDekPayload {
-  if (!v | typeof v !== 'object') return false;
+  if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.wrapped_dek === 'string' &&
@@ -107,14 +107,14 @@ serve(async (req) => {
   try {
     // 1) Caller auth.
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -152,7 +152,7 @@ serve(async (req) => {
     const roleDefId = typeof body.role_definition_id === 'string'
       ? body.role_definition_id.trim()
       : '';
-    if (!email | !orgId | !roleDefId) {
+    if (!email || !orgId || !roleDefId) {
       return jsonResponse(
         { error: 'email, org_id, and role_definition_id are required' },
         400,
@@ -162,7 +162,7 @@ serve(async (req) => {
     if (!EMAIL_RE.test(email)) {
       return jsonResponse({ error: 'Invalid email' }, 400, cors);
     }
-    if (!UUID_RE.test(orgId) | !UUID_RE.test(roleDefId)) {
+    if (!UUID_RE.test(orgId) || !UUID_RE.test(roleDefId)) {
       return jsonResponse({ error: 'org_id and role_definition_id must be UUIDs' }, 400, cors);
     }
 
@@ -205,7 +205,7 @@ serve(async (req) => {
     // admin-update-user grant_support_session action and is rejected here.
     let source: 'direct' | 'auditor_invite' = 'direct';
     if (body.source !== undefined && body.source !== null) {
-      if (body.source === 'direct' | body.source === 'auditor_invite') {
+      if (body.source === 'direct' || body.source === 'auditor_invite') {
         source = body.source;
       } else {
         return jsonResponse(
@@ -458,7 +458,7 @@ serve(async (req) => {
         normalizedEmail,
         { redirectTo },
       );
-      if (inviteErr | !invited?.user) {
+      if (inviteErr || !invited?.user) {
         console.error('invite-org-member inviteUserByEmail failed:', inviteErr);
         return jsonResponse({ error: 'Failed to send invitation' }, 500, cors);
       }

@@ -59,11 +59,11 @@ function isMock(): boolean {
 }
 
 function parseTokenResponse(json: any): { access_token: string; refresh_token: string; expires_in: number; scope?: string } {
-  if (!json | typeof json.access_token !== 'string' | typeof json.refresh_token !== 'string') {
+  if (!json || typeof json.access_token !== 'string' || typeof json.refresh_token !== 'string') {
     throw new Error('Flash token response missing access_token / refresh_token');
   }
   const expiresIn = Number(json.expires_in);
-  if (!Number.isFinite(expiresIn) | expiresIn <= 0) {
+  if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
     throw new Error('Flash token response missing valid expires_in');
   }
   return {
@@ -79,7 +79,7 @@ function parsePaymentLinkResponse(json: any): PaymentLinkResult {
   const id = json?.id ?? json?.paymentLinkId ?? json?.payment_link_id;
   const url = json?.url ?? json?.paymentUrl ?? json?.payment_url;
   const expiresAt = json?.expiresAt ?? json?.expires_at;
-  if (typeof id !== 'string' | typeof url !== 'string') {
+  if (typeof id !== 'string' || typeof url !== 'string') {
     throw new Error('Flash /payment-links response missing id or url');
   }
   return {
@@ -104,7 +104,7 @@ async function refreshTokens(admin: SupabaseClient, current: FlashTokens): Promi
 
   const clientId = Deno.env.get('FLASH_CLIENT_ID');
   const clientSecret = Deno.env.get('FLASH_CLIENT_SECRET');
-  if (!clientId | !clientSecret) {
+  if (!clientId || !clientSecret) {
     throw new Error('FLASH_CLIENT_ID / FLASH_CLIENT_SECRET not configured');
   }
   const body = new URLSearchParams({
