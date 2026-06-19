@@ -1,7 +1,7 @@
 /**
  * Orange Way Books — full E2E suite.
  *
- * Runs against dev.books.orangeway.app by default. Captures screenshots at
+ * Runs against books.orangeway.dev by default. Captures screenshots at
  * every key step into tests/e2e/__artifacts__/owb-full-suite-<run>/.
  *
  * Sections:

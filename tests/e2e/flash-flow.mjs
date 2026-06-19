@@ -24,7 +24,7 @@ const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY;
 const WEBHOOK_SECRET = process.env.FLASH_WEBHOOK_SECRET;
 const OUTLINE_TOKEN = process.env.OUTLINE_API_TOKEN;
 const OUTLINE_BASE  = process.env.OUTLINE_BASE_URL | 'https://wiki.example.com';
-const APP_URL       = 'https://dev.books.orangeway.app';
+const APP_URL       = 'https://books.orangeway.dev';
 const RUN_ID        = new Date().toISOString().replace(/[:.]/g, '-');
 const OUT_DIR       = `/tmp/v3-flash-e2e-${RUN_ID}`;
 const TEST_EMAIL    = `e2e+flash+${RUN_ID}@owb.test`;
@@ -168,7 +168,7 @@ try {
   // ─── Step 1: Auth page + sign in ──────────────────────────────────────────
   await page.goto(`${APP_URL}/app/auth`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2000);
-  await shot(page, 'auth-page', 'Sign-in page on dev.books.orangeway.app (Orange Way Books).');
+  await shot(page, 'auth-page', 'Sign-in page on books.orangeway.dev (Orange Way Books).');
   await page.fill('input[type="email"]', TEST_EMAIL);
   await page.fill('input[type="password"]', TEST_PASSWORD);
   await page.locator('button:has-text("Sign in"), button:has-text("Log in"), button[type="submit"]').first().click();
