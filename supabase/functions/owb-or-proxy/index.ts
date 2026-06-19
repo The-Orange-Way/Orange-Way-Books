@@ -1,5 +1,5 @@
 /**
- * bb-or-proxy — Orange Way Books ↔ OrangeRails proxy.
+ * owb-or-proxy: Orange Way Books to OrangeRails proxy.
  *
  * Orange Way Books is a Plaid-style platform consumer of OrangeRails. End users
  * of Orange Way Books never see OR; this proxy holds the OR_PLATFORM_API_KEY
@@ -102,13 +102,13 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr | !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
+    if (authErr || !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
 
     // ── Rate limit (M5 — 2026-05-19 audit) ───────────────────────────
     // 30 OR calls per user per minute. Caps cost-amplification against
     // OR's edge functions; Connections page rarely exceeds a handful.
     const rl = await rateLimit(rlClient, {
-      scope: 'or-proxy',
+      scope: 'owb-or-proxy',
       subject: user.id,
       maxPerWindow: 30,
       windowSeconds: 60,
@@ -128,7 +128,7 @@ Deno.serve(async (req: Request) => {
     };
 
     const { endpoint, org_id, payload = {} } = body;
-    if (!endpoint | !ALLOWED_ENDPOINTS.has(endpoint)) {
+    if (!endpoint || !ALLOWED_ENDPOINTS.has(endpoint)) {
       return jsonResponse({ error: `endpoint must be one of: ${[...ALLOWED_ENDPOINTS].join(', ')}` }, 400, cors);
     }
     if (!org_id) return jsonResponse({ error: 'org_id required' }, 400, cors);
@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
           .eq('id', org_id)
           .maybeSingle();
         const resolved = (orgRow as { or_subaccount_id?: unknown } | null)?.or_subaccount_id;
-        if (typeof resolved !== 'string' | !resolved) {
+        if (typeof resolved !== 'string' || !resolved) {
           return jsonResponse(
             { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
             400, cors,
@@ -203,7 +203,7 @@ Deno.serve(async (req: Request) => {
           // Don't fail the request — the browser localStorage cache still
           // works and the receiver will return 202 (accepted_no_org) if
           // the mapping isn't found. Surface as a server log for now.
-          console.error('[or-proxy] failed to mirror subaccount_id to organizations:', mapErr.message);
+          console.error('[owb-or-proxy] failed to mirror subaccount_id to organizations:', mapErr.message);
         }
       }
     }
@@ -211,7 +211,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(orJson, orRes.status, cors);
 
   } catch (err) {
-    console.error('[or-proxy] fatal:', err);
+    console.error('[owb-or-proxy] fatal:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);
   }
 });

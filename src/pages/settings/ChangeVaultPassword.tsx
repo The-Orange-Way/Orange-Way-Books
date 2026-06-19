@@ -51,7 +51,7 @@ export default function ChangeVaultPassword() {
       }
       setUserId(user.id);
 
-      const storedOrg = localStorage.getItem('owb_active_org');
+      const storedOrg = localStorage.getItem('orangewaybooks.active_org');
       if (!storedOrg) {
         setError('No active organization selected.');
         setLoading(false);

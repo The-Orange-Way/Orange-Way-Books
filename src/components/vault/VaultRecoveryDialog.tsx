@@ -94,7 +94,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       if (!user) throw new Error('Not signed in.');
 
       // Resolve active org (same logic as VaultContext.unlock)
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       const { data: memberships } = await supabase
         .from('org_members')
         .select('org_id, joined_at')

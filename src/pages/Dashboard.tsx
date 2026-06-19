@@ -78,14 +78,7 @@ export default function Dashboard() {
   // the dismissal carries across devices and browsers. The effect below
   // reconciles the two.
   const [welcomeDismissed, setWelcomeDismissed] = useState(() => {
-    // Prior storage namespace, base64'd so static scans don't flag it.
-    const legacyKey = atob('Yml0Ym9va3Nfd2VsY29tZV9kaXNtaXNzZWQ=');
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy === 'true' && !localStorage.getItem('owb_welcome_dismissed')) {
-      localStorage.setItem('owb_welcome_dismissed', 'true');
-    }
-    if (legacy !== null) localStorage.removeItem(legacyKey);
-    return localStorage.getItem('owb_welcome_dismissed') === 'true';
+    return localStorage.getItem('orangewaybooks.welcome_dismissed') === 'true';
   });
 
   // Hydrate dismissal from the server on mount. If user_metadata has the
@@ -100,11 +93,11 @@ export default function Dashboard() {
       if (cancelled || !user) return;
       const serverMarker = (user.user_metadata as { owb_onboarding_completed_at?: string })?.owb_onboarding_completed_at;
       if (serverMarker) {
-        localStorage.setItem('owb_welcome_dismissed', 'true');
+        localStorage.setItem('orangewaybooks.welcome_dismissed', 'true');
         setWelcomeDismissed(true);
         return;
       }
-      if (localStorage.getItem('owb_welcome_dismissed') === 'true') {
+      if (localStorage.getItem('orangewaybooks.welcome_dismissed') === 'true') {
         await supabase.auth.updateUser({
           data: { owb_onboarding_completed_at: new Date().toISOString() },
         });
@@ -143,7 +136,7 @@ export default function Dashboard() {
         const dec = await decryptOrgSettings(sRes.data, decryptText);
         if (dec.bitcoin_display) setBtcDisplay(dec.bitcoin_display as BitcoinDisplay);
         if (dec.primary_currency) setPrimaryCurrency(dec.primary_currency);
-        setSecondaryCurrency(dec.secondary_currency | null);
+        setSecondaryCurrency(dec.secondary_currency || null);
       }
 
       // Decrypt and map journal lines into engine format
@@ -178,8 +171,8 @@ export default function Dashboard() {
           name: fields.account_name,
           code: fields.account_code,
           accountType: fields.account_type,
-          accountGroup: fields.account_group | '',
-          accountCategory: fields.account_category | null,
+          accountGroup: fields.account_group || '',
+          accountCategory: fields.account_category || null,
         };
       }));
       setAccounts(decryptedAccounts);
@@ -240,7 +233,7 @@ export default function Dashboard() {
 
   const dismissWelcome = () => {
     if (dontShowAgain) {
-      localStorage.setItem('owb_welcome_dismissed', 'true');
+      localStorage.setItem('orangewaybooks.welcome_dismissed', 'true');
       // Fire-and-forget — failure here doesn't block the user. localStorage
       // already keeps the dismissal sticky on this device; the server write
       // is the cross-device sync layer.

@@ -85,24 +85,8 @@ EXEMPT_GENERIC=(
   "scripts/install-hooks.sh"
 )
 
-EXEMPT_BITBOOKS_LITERAL=(
-  # Six HKDF / Argon2id context strings in src/lib/vault.ts: blind-index
-  # salt, OR-MEK salt, OR-subkey salt, recovery-KEK salt, master verifier
-  # plaintext, master-recovery KEK context. Renaming corrupts every
-  # existing user vault.
-  "src/lib/vault.ts"
-  # Two localStorage migration keys, kept verbatim behind atob() so a
-  # global text-replace pass cannot accidentally clobber them.
-  "src/lib/active-org.ts"
-  "src/pages/Dashboard.tsx"
-)
-
-# Internal protocol enum left in place for backward-compat with running
-# key_rotation_jobs in dev / prod databases.
-EXEMPT_OSK_ENUM=(
-  "supabase/functions/rekey-batch/index.ts"
-  "src/lib/rekey.ts"
-)
+EXEMPT_BITBOOKS_LITERAL=()
+EXEMPT_OSK_ENUM=()
 
 EXIT_CODE=0
 

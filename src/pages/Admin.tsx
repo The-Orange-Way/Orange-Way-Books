@@ -801,7 +801,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
               } else {
                 toast.success('Organization deleted');
                 setDeleteModal(false);
-                localStorage.removeItem('owb_active_org');
+                localStorage.removeItem('orangewaybooks.active_org');
                 window.location.href = '/';
               }
             }}>{saving ? 'Deleting...' : 'Delete Forever'}</Button>
