@@ -3371,7 +3371,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
-            // Phase 2 (legacy-ledger removal): chart_of_accounts is Postgres-only.
+            // Phase 2 (external-ledger removal): chart_of_accounts is Postgres-only.
             // No the ledger provisioning step; row goes straight into the new schema.
             try {
               const enc = await encryptChartOfAccount(
@@ -4571,9 +4571,9 @@ function DataTab({ orgId }: { orgId: string | null }) {
             </li>
           </ul>
           <p className="mt-2">
-            <strong>Created fresh on import:</strong> the ledger blind journal, legacy ledger
-            accounts (with remapped ids), 10 ZKA_* posting templates, so new transactions post
-            correctly after restore.
+            <strong>On import:</strong> the rows above land directly in this org&apos;s encrypted
+            Postgres tables, with account IDs remapped to fresh UUIDs. Nothing else is provisioned
+            server-side, and new transactions post correctly after restore.
           </p>
         </div>
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
@@ -4747,11 +4747,11 @@ function DataTab({ orgId }: { orgId: string | null }) {
               and replace.
             </li>
             <li>
-              New ledger journal, accounts, and templates are created as part of the import, new
-              transactions will post correctly afterwards.
+              Imported rows insert directly into the target org&apos;s Postgres tables with remapped
+              IDs. New transactions will post correctly afterwards.
             </li>
             <li>
-              Historical transactions are not replayed as the ledger postings. Reports read from the
+              Historical transactions are not replayed as ledger postings. Reports read from the
               Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance
               Sheet look right immediately.
             </li>
@@ -4861,9 +4861,9 @@ function DataTab({ orgId }: { orgId: string | null }) {
             (complements the current plaintext mode)
           </li>
           <li>
-            <strong>Historical ledger replay</strong>, today we recreate journal + accounts +
-            templates; old transaction postings remain Supabase-only (reports still read correctly
-            from JE lines)
+            <strong>Historical posting backfill</strong>: the takeout carries journal lines (reports
+            read from these) but does not include any separate server-side postings that older
+            versions used to maintain.
           </li>
         </ul>
       </section>

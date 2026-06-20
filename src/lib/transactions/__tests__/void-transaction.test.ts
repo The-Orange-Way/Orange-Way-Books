@@ -26,11 +26,6 @@ interface FakeStore {
 }
 
 let store: FakeStore;
-let legacyPosts: Array<{
-  legacyTxId: string;
-  templateCode: string;
-  params: Record<string, unknown>;
-}>;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -132,14 +127,6 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-// Stub the ledger client so we can introspect what would have been posted.
-vi.mock('@/lib/legacy-ledger', () => ({
-  async postTransaction(legacyTxId: string, templateCode: string, params: Record<string, unknown>) {
-    legacyPosts.push({ legacyTxId, templateCode, params });
-    return { transactionId: legacyTxId };
-  },
-}));
-
 // Stub the audit logger, write is async and we don't care about its shape.
 vi.mock('@/lib/audit-logger', () => ({
   writeAuditLog: () => undefined,
@@ -159,7 +146,6 @@ import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
 const ORG = 'org-1';
-const CALA_JOURNAL = 'legacy-journal-1';
 
 function seedWalletAndAccount() {
   const walletLegacyId = 'legacy-wallet-source';
@@ -299,7 +285,6 @@ beforeEach(() => {
     chart_of_accounts: [],
     audit_log: [],
   };
-  legacyPosts = [];
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
 });
@@ -451,9 +436,10 @@ describe('voidTransaction', () => {
     expect(dest!.status).toBe('enc(VOID)');
   });
 
-  // the ledger-specific reversal tests removed 2026-06-13, the legacy-ledger removal physically
-  // deleted the vendored ledger fork. Void no longer posts a ledger reversal; the reversing
-  // JE in the previous test ("writes a reversing JE …") IS the void path now.
+  // Server-side ledger reversal tests were removed when the in-tree ledger
+  // posting layer was retired (Phase 2). Void no longer posts a separate
+  // reversal; the reversing JE asserted in the previous test ("writes a
+  // reversing JE …") IS the void path now.
 
   it('throws clearly when the caller has no signing-key wrap', async () => {
     seedSplitTransaction({ withExternalLedger: false });

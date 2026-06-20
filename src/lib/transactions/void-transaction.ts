@@ -201,10 +201,10 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     .in('id', voidedIds);
   if (voidErr) throw voidErr;
 
-  // Phase 2 (legacy-ledger removal): the ledger reversing-posting block (~100 lines)
+  // Phase 2 (external-ledger removal): the ledger reversing-posting block (~100 lines)
   // lived here. Postgres-side reversing journal_entries + reversed lines
   // already written earlier in this function are now the single source of
-  // truth. No legacy-ledger dual-write required.
+  // truth. No external-ledger dual-write required.
 
   // ── Phase 7: audit ────────────────────────────────────────────────────
   writeAuditLog({
