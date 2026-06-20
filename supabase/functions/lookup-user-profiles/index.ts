@@ -50,14 +50,14 @@ Deno.serve(async (req) => {
 
   // 1) Caller auth.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
   }
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-  if (authErr | !caller) {
+  if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
   for (const id of visibleIds) {
     try {
       const { data, error } = await adminClient.auth.admin.getUserById(id);
-      if (error | !data.user) continue;
+      if (error || !data.user) continue;
       const u = data.user;
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
       const name = typeof meta.full_name === 'string'

@@ -44,11 +44,10 @@ jobs:
       fail-fast: false
       matrix:
         function:
-          # legacy-era functions removed in the legacy-ledger removal pass.
           - exchange-rate-fetch
           - invite-org-member
           - lookup-user-profiles
-          - or-proxy
+          - owb-or-proxy
           - or-webhook-receiver
 
     steps:

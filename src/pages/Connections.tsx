@@ -133,7 +133,7 @@ async function postProxy(
   orgId: string,
   payload: Record<string, unknown>,
 ): Promise<Response> {
-  return fetch(`${SUPABASE_URL}/functions/v1/or-proxy`, {
+  return fetch(`${SUPABASE_URL}/functions/v1/owb-or-proxy`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ async function postProxy(
 async function callProxy(endpoint: string, payload: Record<string, unknown>): Promise<unknown> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
-  const orgId = localStorage.getItem('owb_active_org');
+  const orgId = localStorage.getItem('orangewaybooks.active_org');
   if (!orgId) throw new Error('No active org');
 
   // First call: send current session access_token. The Supabase Edge
@@ -232,7 +232,7 @@ export default function Connections() {
 
   // Resolve org + subaccount on mount.
   useEffect(() => {
-    const id = localStorage.getItem('owb_active_org');
+    const id = localStorage.getItem('orangewaybooks.active_org');
     setOrgId(id);
     if (id) {
       const cached = localStorage.getItem(SUBACCOUNT_LS_PREFIX + id);

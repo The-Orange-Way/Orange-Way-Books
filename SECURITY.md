@@ -98,7 +98,7 @@ names, descriptions, currencies, account types -- is ciphertext only.
 ```
 enc_amount:      "aB3kL9mP2qR7wQ4nX1jZ8vY5cD6fE0hT"
 enc_description: "zR7wQ4nX1jZ8vY5cD6fE0hTaB3kL9mP"
-date:            "TBD"
+date:            "2026-04-18"
 ```
 
 To an attacker who breaches the database, this is indistinguishable from
@@ -106,20 +106,12 @@ random noise.
 
 ---
 
-## v2 to v3 upgrade (opt-in)
+## Vault format
 
-Settings -> Security -> Upgrade vault encryption.
-
-What happens, entirely in your browser:
-1. Verify current password (local only, never transmitted)
-2. Generate a fresh random 32-byte salt
-3. Derive v3 MEK from Argon2id
-4. Decrypt every encrypted row under the old key
-5. Re-encrypt every row (including file attachments) under the new key
-6. Commit everything in a single atomic Postgres transaction
-
-The migration cannot be partially applied. If anything fails mid-way,
-the database is unchanged.
+The vault is at format version 1 (Argon2id, OWASP 2023 parameters,
+random-MEK wrapping). A KDF strategy registry is in place so future
+upgrades to memory/iteration parameters land as a single appended entry
+without touching consumers.
 
 ---
 
@@ -127,23 +119,20 @@ the database is unchanged.
 
 ### Shipped
 
-- Argon2id v3 KDF (OWASP 2023 parameters)
-- Strategy map for KDF versions -- adding v4 KDF is one map entry, zero edits
-  to existing v2/v3 code (open/closed principle)
-- Backward-compatible: v1/v2 vaults unlock, v3 available as opt-in upgrade
-- v2 to v3 migration orchestrator with atomic Postgres RPC rollback guarantee
-- Attachment (blob) re-encryption during migration
+- Argon2id KDF (OWASP 2023 parameters), random 32-byte MEK wrapped by
+  the password-derived KEK so password rotation re-wraps the MEK
+  instead of re-encrypting every row
+- Strategy map for KDF versions (open/closed for future bumps)
 - zxcvbn-ts strength meter + EFF passphrase generator on vault setup
-- Security tab in Admin panel showing current version + upgrade card
+- Security tab in Admin panel showing current version
 - Test suite: KDF round-trip, verifier, tamper rejection, wrong-password
-  rejection, migration orchestrator, blob re-encryption
+  rejection
 
 ### Coming
 
 - Post-quantum key material (hybrid X25519 + ML-KEM-768 + ML-DSA-65) modeled
-  on OrangeRails' implementation -- protects long-lived data keys against
-  future quantum computers
-- v1 vault upgrade banner (deterministic salt users need a prominent alert)
+  on OrangeRails' implementation. Protects long-lived data keys against
+  future quantum computers.
 
 ### Future
 
@@ -163,25 +152,18 @@ without WASM. A contribution that ports a vetted reference (Bitwarden,
 libsodium-binding, etc.) would land cleanly behind the existing
 `encryptInviteWrap` / `signMutation` interfaces.
 
-**2. v1 vault upgrade alert**
-Version 1 used a deterministic salt (userId only). Users still on v1 should
-see a prominent banner, not just a settings card. Detect via
-`vault_key_version = 1` in `org_settings` and render a persistent upgrade
-prompt.
-
-**3. Argon2id unlock benchmarks on mobile**
+**2. Argon2id unlock benchmarks on mobile**
 Measure 64 MiB / 3 iteration unlock latency on mid-range Android (Snapdragon
 7 Gen 1) and iOS (A15 Bionic). If it causes a visible pause, add a Web Worker
 offload for the Argon2id computation.
 
-**4. Security audit**
+**3. Security audit**
 - `src/lib/vault.ts` -- KDF primitives, verifier scheme
-- `src/lib/vault-migration.ts` -- orchestrator, re-key flow, error paths
 - `src/lib/crypto-fields.ts` -- per-table field encrypt/decrypt
 - Look for: IV reuse scenarios, key material in error messages, missing tamper
   detection on specific field types
 
-**5. Passphrase word list**
+**4. Passphrase word list**
 Current EFF word list yields ~51 bits per 4 words. The EFF long list
 (7,776 words, 12.9 bits/word) gives a small strength increase with no UX cost.
 

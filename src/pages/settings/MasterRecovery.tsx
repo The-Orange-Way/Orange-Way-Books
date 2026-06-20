@@ -73,7 +73,7 @@ export default function MasterRecovery() {
       const orgIds = ((members ?? []) as MembershipRow[]).map((m) => m.org_id);
       setMemberships(orgIds);
 
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       setActiveOrgId(stored && orgIds.includes(stored) ? stored : (orgIds[0] ?? null));
 
       const { data: master } = await (supabase as any)

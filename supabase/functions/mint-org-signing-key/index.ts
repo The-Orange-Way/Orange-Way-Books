@@ -66,7 +66,7 @@ interface OskWrapInput {
 }
 
 function isValidWrap(v: unknown): v is OskWrapInput {
-  if (!v | typeof v !== 'object') return false;
+  if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.user_id === 'string' &&
@@ -98,14 +98,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -137,17 +137,17 @@ serve(async (req) => {
     }
 
     const orgId = typeof body.org_id === 'string' ? body.org_id.trim() : '';
-    if (!orgId | !UUID_RE.test(orgId)) {
+    if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
 
     const publicKeyB64 = typeof body.public_key_b64 === 'string' ? body.public_key_b64 : '';
-    if (!publicKeyB64 | !BASE64_RE.test(publicKeyB64) | publicKeyB64.length < 100) {
+    if (!publicKeyB64 || !BASE64_RE.test(publicKeyB64) || publicKeyB64.length < 100) {
       return jsonResponse({ error: 'public_key_b64 must be a base64 ML-DSA-65 public key' }, 400, cors);
     }
 
     const keyVersion = typeof body.key_version === 'number' ? body.key_version : 1;
-    if (!Number.isInteger(keyVersion) | keyVersion < 1) {
+    if (!Number.isInteger(keyVersion) || keyVersion < 1) {
       return jsonResponse({ error: 'key_version must be a positive integer' }, 400, cors);
     }
 

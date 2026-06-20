@@ -147,10 +147,8 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         } as any);
       if (settingsError) throw settingsError;
 
-      // 4. Save vault verifier + per-org salt. vault_key_version = 2 tells
-      // VaultContext.unlock() to derive the MEK with the per-org salt
-      // scheme (deriveKeyV2). Orgs created before the vault_salt migration
-      // have NULL / 1 here and continue to unlock under the legacy scheme.
+      // 4. Save vault verifier + per-org salt. vault_key_version stamps
+      // the active strategy (currently 1 → deriveVaultV1Kek).
       if (vaultVerifier) {
         const { error: verifierError } = await (supabase as any)
           .from('org_settings')

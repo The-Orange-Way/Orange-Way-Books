@@ -62,14 +62,14 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -104,10 +104,10 @@ serve(async (req) => {
     const bodyHtml = typeof body.body_html === 'string' ? body.body_html : '';
     const replyTo = typeof body.reply_to === 'string' ? body.reply_to.trim() : '';
 
-    if (!invoiceId | !UUID_RE.test(invoiceId)) {
+    if (!invoiceId || !UUID_RE.test(invoiceId)) {
       return jsonResponse({ error: 'invoice_id is required' }, 400, cors);
     }
-    if (!to | to.length > MAX_EMAIL_LEN | !EMAIL_RE.test(to)) {
+    if (!to || to.length > MAX_EMAIL_LEN || !EMAIL_RE.test(to)) {
       return jsonResponse({ error: 'to is not a valid email' }, 400, cors);
     }
     // Per-invoice cap on top of the per-user rate limit above. A
@@ -123,16 +123,16 @@ serve(async (req) => {
     if (!perInvoice.allowed) {
       return jsonResponse({ error: 'Per-invoice send limit reached (5 / 24h)' }, 429, cors);
     }
-    if (!subject | subject.length > MAX_SUBJECT_LEN) {
+    if (!subject || subject.length > MAX_SUBJECT_LEN) {
       return jsonResponse({ error: 'subject is required (<=300 chars)' }, 400, cors);
     }
-    if (!bodyText | bodyText.length > MAX_BODY_LEN) {
+    if (!bodyText || bodyText.length > MAX_BODY_LEN) {
       return jsonResponse({ error: 'body_text is required (<=64KB)' }, 400, cors);
     }
     if (bodyHtml.length > MAX_BODY_LEN) {
       return jsonResponse({ error: 'body_html exceeds 64KB' }, 400, cors);
     }
-    if (replyTo && (replyTo.length > MAX_EMAIL_LEN | !EMAIL_RE.test(replyTo))) {
+    if (replyTo && (replyTo.length > MAX_EMAIL_LEN || !EMAIL_RE.test(replyTo))) {
       return jsonResponse({ error: 'reply_to is not a valid email' }, 400, cors);
     }
 
@@ -176,7 +176,7 @@ serve(async (req) => {
     const resendJson: { id?: string; message?: string; name?: string } =
       await resendResp.json().catch(() => ({}));
 
-    if (!resendResp.ok | !resendJson.id) {
+    if (!resendResp.ok || !resendJson.id) {
       console.error('Resend send failed', resendResp.status, resendJson);
       const msg = resendJson.message | 'Resend rejected the send';
       return jsonResponse({ error: msg }, 502, cors);
