@@ -5,7 +5,6 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import posthog from 'posthog-js';
 import { VaultProvider, useVault } from '@/context/VaultContext';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -73,24 +72,21 @@ function RootRouter() {
   useEffect(() => {
     let isActive = true;
 
+    // PostHog identify is intentionally NOT called. Tying the analytics
+    // distinct_id to the auth.uid would contradict the "no personally
+    // identifying telemetry" stance. Events stay anonymous per-tab even
+    // when telemetry is enabled (SaaS builds); self-hosted builds skip
+    // PostHog initialization entirely. See src/main.tsx.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isActive) return;
       setSession(session);
       setSessionLoaded(true);
-      if (session?.user) {
-        posthog.identify(session.user.id);
-      } else {
-        posthog.reset();
-      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isActive) return;
       setSession(session);
       setSessionLoaded(true);
-      if (session?.user) {
-        posthog.identify(session.user.id);
-      }
     });
 
     return () => {
