@@ -1,0 +1,15 @@
+# Pin package installs to the public npm registry.
+#
+# Why: this repo is public-OSS. A prior agent's `bun install` resolved many
+# packages through a private GCP Artifact Registry mirror, baking those
+# private URLs into `bun.lock`. The lockfile leak got cleaned up in the
+# regen PR; this file is the defensive guard that prevents a contributor's
+# local Bun config (or a future `bun add` from a misconfigured env) from
+# silently re-introducing a non-public source.
+#
+# If a contributor genuinely needs a different registry (private fork,
+# mirror), they should override locally via `BUN_CONFIG_REGISTRY=...`
+# rather than editing this file.
+
+[install]
+registry = "https://registry.npmjs.org/"

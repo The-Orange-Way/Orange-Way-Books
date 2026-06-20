@@ -29,10 +29,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # The project is managed with Bun (bun.lockb, bunfig.toml).
+      # The project is managed with Bun (bun.lock, bunfig.toml).
       # The older workflow used `npm ci` which broke on every dep add
-      # because the build system updates bun.lockb, not package-lock.json.
-      # bun.lockb is the single source of truth.
+      # because Bun updates `bun.lock`, not package-lock.json.
+      # `bun.lock` is the single source of truth.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:

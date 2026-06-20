@@ -44,7 +44,6 @@ EXCLUDE_DIRS=(
 # Lock files + binary assets: skip wholesale.
 EXCLUDE_FILES=(
   --exclude=bun.lock
-  --exclude=bun.lockb
   --exclude=package-lock.json
   --exclude=yarn.lock
   --exclude="*.png"
