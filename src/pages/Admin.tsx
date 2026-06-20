@@ -2813,7 +2813,7 @@ function UsersTab({
                 from this organization? They will lose access to future data in this org.
               </p>
               <p className="text-muted-foreground">
-                This does not delete their account, they can still sign in and access any other
+                This does not delete their account. They can still sign in and access any other
                 organizations they belong to. Refreshing your team's security so a removed member
                 can't read data they already opened on their device is a separate
                 <em> security refresh</em> step, which you'll be offered next.
@@ -4837,7 +4837,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-semibold text-foreground mb-1">Coming soon</h2>
         <p className="text-sm text-muted-foreground mb-3">
           These parts of the organization aren&apos;t in the takeout yet. Files remain functional on
-          the source vault, the gap only matters when you restore into a fresh org.
+          the source vault; the gap only matters when you restore into a fresh org.
         </p>
         <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
           <li>
@@ -5320,7 +5320,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-semibold">Close a Period</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Lock the books on or before a date. After close, journal entries and transactions on or
-          before this date become read-only, corrections go in the current open period as adjustment
+          before this date become read-only; corrections go in the current open period as adjustment
           entries. Owner can reopen for 24 hours via the list below.
         </p>
       </div>
