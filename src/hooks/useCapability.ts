@@ -25,11 +25,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import {
-  aggregateActiveGrants,
-  type CurrentUserRole,
-  type RawGrant,
-} from './capability-logic';
+import { aggregateActiveGrants, type CurrentUserRole, type RawGrant } from './capability-logic';
 
 export type { CurrentUserRole, RawGrant } from './capability-logic';
 export { aggregateActiveGrants } from './capability-logic';
@@ -211,9 +207,12 @@ export function useCurrentUserRoles(orgId: string | null): CurrentUserRoles {
     let cleanup: (() => void) | null = null;
 
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        if (active) setState({ roles: [], capabilities: new Set(), loading: false, error: 'no-user' });
+        if (active)
+          setState({ roles: [], capabilities: new Set(), loading: false, error: 'no-user' });
         return;
       }
 
@@ -229,7 +228,9 @@ export function useCurrentUserRoles(orgId: string | null): CurrentUserRoles {
       };
 
       await refresh();
-      cleanup = subscribeChannel(orgId, user.id, () => { void refresh(); });
+      cleanup = subscribeChannel(orgId, user.id, () => {
+        void refresh();
+      });
     })();
 
     return () => {
@@ -283,9 +284,14 @@ export function useRoles(orgId: string | null): UseRolesResult {
     let cleanup: (() => void) | null = null;
 
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        if (active) { setLoading(false); setError('no-user'); }
+        if (active) {
+          setLoading(false);
+          setError('no-user');
+        }
         return;
       }
 
@@ -309,7 +315,9 @@ export function useRoles(orgId: string | null): UseRolesResult {
       };
 
       await refresh();
-      cleanup = subscribeChannel(orgId, user.id, () => { void refresh(); });
+      cleanup = subscribeChannel(orgId, user.id, () => {
+        void refresh();
+      });
     })();
 
     return () => {
@@ -363,7 +371,9 @@ export function useRoleCapabilities(roleId: string | null): UseRoleCapabilitiesR
       }
       setLoading(false);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [roleId, tick]);
 
   return { keys, loading, error, refresh: () => setTick((t) => t + 1) };
@@ -411,7 +421,9 @@ export function useAllCapabilities(): UseAllCapabilitiesResult {
       }
       setLoading(false);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const byFeature = useMemo(() => {

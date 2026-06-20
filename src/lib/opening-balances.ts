@@ -80,7 +80,9 @@ export class OpeningBalanceValidationError extends Error {
 
 export class DuplicateOpeningBalanceError extends Error {
   constructor(date: string) {
-    super(`An opening balance journal already exists for ${date}. Delete it first or pick a different date.`);
+    super(
+      `An opening balance journal already exists for ${date}. Delete it first or pick a different date.`,
+    );
     this.name = 'DuplicateOpeningBalanceError';
   }
 }
@@ -100,9 +102,10 @@ function round2(n: number): number {
 }
 
 /** Validate the entries pre-flight. Throws OpeningBalanceValidationError on issues. */
-export function validateOpeningBalanceEntries(
-  entries: OpeningBalanceEntry[],
-): { totalDebits: number; totalCredits: number } {
+export function validateOpeningBalanceEntries(entries: OpeningBalanceEntry[]): {
+  totalDebits: number;
+  totalCredits: number;
+} {
   if (!entries || entries.length === 0) {
     throw new OpeningBalanceValidationError('At least one opening balance entry is required.');
   }
@@ -124,16 +127,24 @@ export function validateOpeningBalanceEntries(
     const dr = Number(e.debit) | 0;
     const cr = Number(e.credit) | 0;
     if (dr < 0 || cr < 0) {
-      throw new OpeningBalanceValidationError(`Entry ${i + 1} (${e.accountName}): amounts must be non-negative.`);
+      throw new OpeningBalanceValidationError(
+        `Entry ${i + 1} (${e.accountName}): amounts must be non-negative.`,
+      );
     }
     if (dr > 0 && cr > 0) {
-      throw new OpeningBalanceValidationError(`Entry ${i + 1} (${e.accountName}): cannot have both debit and credit.`);
+      throw new OpeningBalanceValidationError(
+        `Entry ${i + 1} (${e.accountName}): cannot have both debit and credit.`,
+      );
     }
     if (dr === 0 && cr === 0) {
-      throw new OpeningBalanceValidationError(`Entry ${i + 1} (${e.accountName}): zero amount; remove the line instead.`);
+      throw new OpeningBalanceValidationError(
+        `Entry ${i + 1} (${e.accountName}): zero amount; remove the line instead.`,
+      );
     }
     if (!e.currency) {
-      throw new OpeningBalanceValidationError(`Entry ${i + 1} (${e.accountName}): currency is required.`);
+      throw new OpeningBalanceValidationError(
+        `Entry ${i + 1} (${e.accountName}): currency is required.`,
+      );
     }
     totalDebits += dr;
     totalCredits += cr;
@@ -145,8 +156,8 @@ export function validateOpeningBalanceEntries(
   if (Math.abs(totalDebits - totalCredits) > 0.005) {
     throw new OpeningBalanceValidationError(
       `Opening balance does not balance. Debits ${totalDebits.toFixed(2)} vs Credits ${totalCredits.toFixed(2)} ` +
-      `(difference ${(totalDebits - totalCredits).toFixed(2)}). ` +
-      `Add an Owner's Equity / Retained Earnings line to balance.`,
+        `(difference ${(totalDebits - totalCredits).toFixed(2)}). ` +
+        `Add an Owner's Equity / Retained Earnings line to balance.`,
     );
   }
 
@@ -252,9 +263,7 @@ export async function postOpeningBalanceJournal(
     });
   }
 
-  const { error: linesErr } = await supabase
-    .from('journal_entry_lines')
-    .insert(lineInserts as any);
+  const { error: linesErr } = await supabase.from('journal_entry_lines').insert(lineInserts as any);
 
   if (linesErr) {
     // Best-effort cleanup of the JE header if lines fail. The unique HMAC

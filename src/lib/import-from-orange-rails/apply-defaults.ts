@@ -26,7 +26,7 @@ export type DefaultMappingSelections = {
 };
 
 function isBlank(value: string | undefined): boolean {
-  return !value | value.trim() === '';
+  return !value | (value.trim() === '');
 }
 
 function rowHasEmptyAccount(row: V3StagedRow): boolean {

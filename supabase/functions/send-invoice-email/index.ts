@@ -57,7 +57,8 @@ serve(async (req) => {
     if (!RESEND_API_KEY) {
       return jsonResponse(
         { error: 'Email sending is not configured. Contact support.' },
-        503, cors,
+        503,
+        cors,
       );
     }
 
@@ -68,7 +69,10 @@ serve(async (req) => {
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
     if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
@@ -90,10 +94,16 @@ serve(async (req) => {
       return jsonResponse({ error: 'Request body too large' }, 413, cors);
     }
     let body: {
-      invoice_id?: unknown; to?: unknown; subject?: unknown;
-      body_text?: unknown; body_html?: unknown; reply_to?: unknown;
+      invoice_id?: unknown;
+      to?: unknown;
+      subject?: unknown;
+      body_text?: unknown;
+      body_html?: unknown;
+      reply_to?: unknown;
     };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw | '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
@@ -168,13 +178,14 @@ serve(async (req) => {
     const resendResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(resendBody),
     });
-    const resendJson: { id?: string; message?: string; name?: string } =
-      await resendResp.json().catch(() => ({}));
+    const resendJson: { id?: string; message?: string; name?: string } = await resendResp
+      .json()
+      .catch(() => ({}));
 
     if (!resendResp.ok || !resendJson.id) {
       console.error('Resend send failed', resendResp.status, resendJson);

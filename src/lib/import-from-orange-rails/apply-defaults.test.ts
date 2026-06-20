@@ -55,9 +55,7 @@ describe('applyDefaultMappings', () => {
   });
 
   it('preserves explicit account values (never overwrites)', () => {
-    const p = payload([
-      { account_code: '4000', account_name: 'Sales', contact_name: 'ACME Corp' },
-    ]);
+    const p = payload([{ account_code: '4000', account_name: 'Sales', contact_name: 'ACME Corp' }]);
     const out = applyDefaultMappings(p, { defaultAccount: ACCT, defaultContact: CONTACT });
     expect(out.staged.journalEntries?.[0]).toEqual({
       account_code: '4000',
@@ -96,7 +94,14 @@ describe('applyDefaultMappings', () => {
       contractVersion: STAGED_IMPORT_CONTRACT_VERSION,
       source: { name: 'strike', version: '0.1.0', exportedAt: '2026-05-21T00:00:00Z' },
       manifest: { files: [] },
-      summary: { accounts: 0, contacts: 0, journalEntries: 0, journalLines: 0, warnings: [], errors: [] },
+      summary: {
+        accounts: 0,
+        contacts: 0,
+        journalEntries: 0,
+        journalLines: 0,
+        warnings: [],
+        errors: [],
+      },
       staged: { journalEntries: [] },
     };
     const out = applyDefaultMappings(p, { defaultAccount: ACCT, defaultContact: CONTACT });
@@ -108,7 +113,14 @@ describe('applyDefaultMappings', () => {
       contractVersion: STAGED_IMPORT_CONTRACT_VERSION,
       source: { name: 'strike', version: '0.1.0', exportedAt: '2026-05-21T00:00:00Z' },
       manifest: { files: [] },
-      summary: { accounts: 0, contacts: 0, journalEntries: 0, journalLines: 0, warnings: [], errors: [] },
+      summary: {
+        accounts: 0,
+        contacts: 0,
+        journalEntries: 0,
+        journalLines: 0,
+        warnings: [],
+        errors: [],
+      },
       staged: {},
     };
     const out = applyDefaultMappings(p, { defaultAccount: ACCT });

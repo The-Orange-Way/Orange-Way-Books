@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CircleCheck, CircleAlert, TriangleAlert } from 'lucide-react';
-import {
-  Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import type { TrialBalanceReport } from '@/lib/ledger-engine';
 
 export type LedgerStatusSeverity = 'healthy' | 'warning' | 'critical';
@@ -33,20 +31,17 @@ export function LedgerStatusIcon({
 }: LedgerStatusIconProps) {
   const severity = severityFrom(trialBalance, warnings);
 
-  const color =
-    severity === 'healthy' ? '#16a34a'
-    : severity === 'warning' ? '#d97706'
-    : '#dc2626';
+  const color = severity === 'healthy' ? '#16a34a' : severity === 'warning' ? '#d97706' : '#dc2626';
 
   const Icon =
-    severity === 'healthy' ? CircleCheck
-    : severity === 'warning' ? TriangleAlert
-    : CircleAlert;
+    severity === 'healthy' ? CircleCheck : severity === 'warning' ? TriangleAlert : CircleAlert;
 
   const title =
-    severity === 'healthy' ? 'All accounts balanced'
-    : severity === 'warning' ? 'Ledger balanced · review advisories'
-    : 'Ledger out of balance';
+    severity === 'healthy'
+      ? 'All accounts balanced'
+      : severity === 'warning'
+        ? 'Ledger balanced · review advisories'
+        : 'Ledger out of balance';
 
   const diff = Math.abs(trialBalance.totalDebits - trialBalance.totalCredits);
   const body: React.ReactNode =
@@ -62,7 +57,9 @@ export function LedgerStatusIcon({
       <>
         <p className="font-semibold">Ledger is balanced, but:</p>
         <ul className="text-xs mt-1 list-disc pl-4 space-y-0.5">
-          {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          {warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
         </ul>
         <p className="text-xs mt-2 underline">Open Trial Balance →</p>
       </>
@@ -73,10 +70,9 @@ export function LedgerStatusIcon({
           Difference: <strong>{formatAmount(diff, primaryCurrency)}</strong>
         </p>
         <p className="text-xs mt-1 opacity-80">
-          How to fix: open the Trial Balance report to find which accounts
-          don&apos;t reconcile, then edit the offending journal entry so its
-          debits equal its credits. Common causes: a split entry where one
-          line was edited but the offsetting line wasn&apos;t, or an import
+          How to fix: open the Trial Balance report to find which accounts don&apos;t reconcile,
+          then edit the offending journal entry so its debits equal its credits. Common causes: a
+          split entry where one line was edited but the offsetting line wasn&apos;t, or an import
           that skipped a row.
         </p>
         <p className="text-xs mt-2 underline">Open Trial Balance →</p>

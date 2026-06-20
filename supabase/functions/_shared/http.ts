@@ -37,11 +37,14 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
+    Vary: 'Origin',
   };
 
   if (allowedEnv) {
-    const list = allowedEnv.split(',').map((s) => s.trim()).filter(Boolean);
+    const list = allowedEnv
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (list.includes(origin)) {
       headers['Access-Control-Allow-Origin'] = origin;
     }
@@ -95,7 +98,11 @@ export async function readBoundedText(req: Request): Promise<string | null> {
     if (value) {
       total += value.byteLength;
       if (total > MAX_BODY_BYTES) {
-        try { await reader.cancel(); } catch { /* ignore */ }
+        try {
+          await reader.cancel();
+        } catch {
+          /* ignore */
+        }
         return null;
       }
       chunks.push(value);

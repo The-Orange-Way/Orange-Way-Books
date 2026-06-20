@@ -18,18 +18,10 @@ export function AmountDisplay({
   showCurrency = false,
   className,
 }: AmountDisplayProps) {
-  const formatted = isCrypto(asset)
-    ? formatCrypto(amount, displayMode)
-    : formatFiat(amount, asset);
+  const formatted = isCrypto(asset) ? formatCrypto(amount, displayMode) : formatFiat(amount, asset);
 
   return (
-    <span
-      className={cn(
-        'tabular-nums',
-        isCrypto(asset) && 'font-mono',
-        className,
-      )}
-    >
+    <span className={cn('tabular-nums', isCrypto(asset) && 'font-mono', className)}>
       {formatted}
       {showCurrency && !isCrypto(asset) && (
         <span className="ml-1 text-muted-foreground text-xs">{asset}</span>

@@ -140,6 +140,8 @@ describe('signMutation + verifyMutation', () => {
 
     const payload = new TextEncoder().encode('anything');
     expect(verifyMutation(payload, '!!!not-base64!!!', bundle.publicKeyB64)).toBe(false);
-    expect(verifyMutation(payload, bytesToBase64(new Uint8Array(10)), bundle.publicKeyB64)).toBe(false);
+    expect(verifyMutation(payload, bytesToBase64(new Uint8Array(10)), bundle.publicKeyB64)).toBe(
+      false,
+    );
   });
 });

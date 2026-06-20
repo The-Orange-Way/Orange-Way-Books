@@ -1,7 +1,15 @@
 import { parseCsvText } from './parse-csv-row';
 import type { ImportPreviewRow } from '@/components/ui/import-popup';
 
-export const PAYMENT_COLUMNS = ['Contact', 'Amount', 'Currency', 'Type', 'Vendor Ref', 'Description', 'Due Date'];
+export const PAYMENT_COLUMNS = [
+  'Contact',
+  'Amount',
+  'Currency',
+  'Type',
+  'Vendor Ref',
+  'Description',
+  'Due Date',
+];
 
 export const PAYMENT_SAMPLE_CSV = `Contact,Amount,Currency,Type,Vendor Ref,Description,Due Date
 Acme Corp,1500.00,USD,Invoice,INV-2026-001,Office supplies Q1,2026-02-15

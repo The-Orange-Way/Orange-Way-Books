@@ -42,9 +42,15 @@ export async function signIn(page: Page): Promise<void> {
   try {
     await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 20_000 });
   } catch {
-    const inlineErr = await page.locator('[role="alert"], .text-destructive, [data-testid*="error"]').first().textContent().catch(() => null);
+    const inlineErr = await page
+      .locator('[role="alert"], .text-destructive, [data-testid*="error"]')
+      .first()
+      .textContent()
+      .catch(() => null);
     const url = page.url();
-    throw new Error(`signIn: URL still at ${url} after 20s. Inline error: ${inlineErr ?? '(none found)'}`);
+    throw new Error(
+      `signIn: URL still at ${url} after 20s. Inline error: ${inlineErr ?? '(none found)'}`,
+    );
   }
 }
 
@@ -78,7 +84,11 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   // hydrate the dashboard. Screenshots taken between unlock and hydration
   // capture a blank spinner page. The sidebar "Insights" nav item is the
   // first stable element of the authenticated shell.
-  await page.locator('text=Insights').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+  await page
+    .locator('text=Insights')
+    .first()
+    .waitFor({ state: 'visible', timeout: 15_000 })
+    .catch(() => undefined);
   return true;
 }
 
@@ -91,6 +101,8 @@ export async function signInAndUnlock(page: Page): Promise<void> {
     .isVisible()
     .catch(() => false);
   if (stillLocked) {
-    throw new Error('signInAndUnlock: still on vault unlock screen — password rejected or page did not navigate');
+    throw new Error(
+      'signInAndUnlock: still on vault unlock screen — password rejected or page did not navigate',
+    );
   }
 }

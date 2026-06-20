@@ -27,10 +27,7 @@ if (typeof (globalThis as unknown as { window?: unknown }).window === 'undefined
   (globalThis as unknown as { window: typeof globalThis }).window = globalThis;
 }
 
-import {
-  wrapOrgDekForRecipient,
-  generatePlaceholderOrgDek,
-} from '@/lib/invite-wrap';
+import { wrapOrgDekForRecipient, generatePlaceholderOrgDek } from '@/lib/invite-wrap';
 import { KEY_WRAP_STRATEGIES, base64ToBytes } from '@/lib/key-wrapping';
 import { generateHybridKemKeyPair } from '@/lib/pqc';
 
@@ -60,10 +57,7 @@ describe('wrapOrgDekForRecipient', () => {
     const recipient = generateHybridKemKeyPair();
     const orgDek = generatePlaceholderOrgDek();
 
-    const payload = await wrapOrgDekForRecipient(
-      orgDek,
-      bytesToBase64(recipient.publicKey),
-    );
+    const payload = await wrapOrgDekForRecipient(orgDek, bytesToBase64(recipient.publicKey));
 
     expect(payload.wrap_algo).toBe('hybrid-x25519-mlkem768');
     expect(typeof payload.wrapped_dek).toBe('string');
@@ -77,7 +71,7 @@ describe('wrapOrgDekForRecipient', () => {
     expect(bytesToBase64(unwrapped)).toBe(bytesToBase64(orgDek));
   });
 
-  it("rejects an incorrect DEK length", async () => {
+  it('rejects an incorrect DEK length', async () => {
     const recipient = generateHybridKemKeyPair();
     const tooShort = new Uint8Array(16);
     crypto.getRandomValues(tooShort);
@@ -86,14 +80,12 @@ describe('wrapOrgDekForRecipient', () => {
     ).rejects.toThrow(/32 bytes/);
   });
 
-  it("rejects a malformed base64 recipient public key", async () => {
+  it('rejects a malformed base64 recipient public key', async () => {
     const orgDek = generatePlaceholderOrgDek();
-    await expect(
-      wrapOrgDekForRecipient(orgDek, '!!!not-base64!!!'),
-    ).rejects.toThrow();
+    await expect(wrapOrgDekForRecipient(orgDek, '!!!not-base64!!!')).rejects.toThrow();
   });
 
-  it("throws when a third party tries to unwrap", async () => {
+  it('throws when a third party tries to unwrap', async () => {
     const intendedRecipient = generateHybridKemKeyPair();
     const eavesdropper = generateHybridKemKeyPair();
     const orgDek = generatePlaceholderOrgDek();
@@ -108,8 +100,6 @@ describe('wrapOrgDekForRecipient', () => {
     // ML-KEM "fails" by deriving a different shared secret which makes
     // AES-GCM decryption fail. We only assert the unwrap rejects — not
     // the exact error message — because KEM failure modes are noisy.
-    await expect(
-      strategy.unwrapForSelf(wrapped, eavesdropper.secretKey),
-    ).rejects.toThrow();
+    await expect(strategy.unwrapForSelf(wrapped, eavesdropper.secretKey)).rejects.toThrow();
   });
 });

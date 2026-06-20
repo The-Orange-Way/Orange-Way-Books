@@ -1,9 +1,6 @@
 import type { BitcoinDisplay } from '@/types';
 
-export function formatCrypto(
-  amount: number,
-  displayMode: BitcoinDisplay = 'sats'
-): string {
+export function formatCrypto(amount: number, displayMode: BitcoinDisplay = 'sats'): string {
   switch (displayMode) {
     case 'sats': {
       const sats = Math.round(amount * 1e8);
@@ -29,7 +26,7 @@ export function formatCrypto(
 export function formatFiat(
   amount: number,
   currency: string = 'USD',
-  numberFormat: 'US' | 'EU' = 'US'
+  numberFormat: 'US' | 'EU' = 'US',
 ): string {
   const locale = numberFormat === 'EU' ? 'de-DE' : 'en-US';
   // Intl.NumberFormat throws a RangeError for any currency code that isn't

@@ -30,15 +30,16 @@ interface ActiveJob {
   started_by: string;
 }
 
-const ACTIVE_STAGES = new Set([
-  'wrapping_members', 'rekeying_rows', 'finalizing',
-]);
+const ACTIVE_STAGES = new Set(['wrapping_members', 'rekeying_rows', 'finalizing']);
 
 export function MaintenanceBanner({ orgId, currentUserId }: MaintenanceBannerProps) {
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
 
   useEffect(() => {
-    if (!orgId) { setActiveJob(null); return; }
+    if (!orgId) {
+      setActiveJob(null);
+      return;
+    }
     let active = true;
 
     const fetch = async () => {
@@ -60,7 +61,9 @@ export function MaintenanceBanner({ orgId, currentUserId }: MaintenanceBannerPro
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'key_rotation_jobs', filter: `org_id=eq.${orgId}` },
-        () => { void fetch(); },
+        () => {
+          void fetch();
+        },
       )
       .subscribe();
 
@@ -77,12 +80,10 @@ export function MaintenanceBanner({ orgId, currentUserId }: MaintenanceBannerPro
     <div className="w-full bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3 text-sm">
       <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
       <div className="flex-1">
-        <p className="font-semibold text-amber-900">
-          Your team is updating its security.
-        </p>
+        <p className="font-semibold text-amber-900">Your team is updating its security.</p>
         <p className="text-amber-800">
-          You can view data but can't make changes for a few minutes.
-          If this takes longer than expected, contact support.
+          You can view data but can't make changes for a few minutes. If this takes longer than
+          expected, contact support.
         </p>
       </div>
     </div>

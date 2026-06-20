@@ -134,11 +134,7 @@ vi.mock('@/lib/supabase', () => ({
 
 // Stub the ledger client so we can introspect what would have been posted.
 vi.mock('@/lib/legacy-ledger', () => ({
-  async postTransaction(
-    legacyTxId: string,
-    templateCode: string,
-    params: Record<string, unknown>,
-  ) {
+  async postTransaction(legacyTxId: string, templateCode: string, params: Record<string, unknown>) {
     legacyPosts.push({ legacyTxId, templateCode, params });
     return { transactionId: legacyTxId };
   },
@@ -289,9 +285,10 @@ function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
 }
 
 const loadOrgSigningKey = vi.fn(async (_orgId: string) => ({}));
-const signMutation = vi.fn(
-  (_payload: Uint8Array, _orgId: string) => ({ signature_b64: 'sig-xyz', key_version: 1 }),
-);
+const signMutation = vi.fn((_payload: Uint8Array, _orgId: string) => ({
+  signature_b64: 'sig-xyz',
+  key_version: 1,
+}));
 
 beforeEach(() => {
   store = {
@@ -324,9 +321,7 @@ describe('voidTransaction', () => {
 
     // Reversing JE was created.
     expect(result.reversalJournalEntryId).toBeTruthy();
-    const reversalJe = store.journal_entries.find(
-      (j) => j.id === result.reversalJournalEntryId,
-    );
+    const reversalJe = store.journal_entries.find((j) => j.id === result.reversalJournalEntryId);
     expect(reversalJe).toBeDefined();
     // Post-Phase-1: source_type is plaintext (server reads it to gate
     // the immutability trigger). Not encrypted.

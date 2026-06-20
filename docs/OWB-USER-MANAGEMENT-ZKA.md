@@ -18,14 +18,14 @@
 
 ## 1. Repository reality check
 
-| Topic | In repo **today** This spec **targets** |
-|-------|-------------------|------------------------|
-| Vault key | Argon2id v4 (see `src/lib/vault.ts`). | No change. |
-| Per-org DEK + `org_keys` | **Not** in migrations at time of consolidation — **add** when implementing. | One org DEK (AES-256); wrapped per member via hybrid KEM. |
-| Hybrid KEM wrap (Bitwarden-style invite, PQC-safe) | Not yet implemented. | `user_vault_keys` + Owner wraps DEK with invitee's hybrid public key (X25519 + ML-KEM-768). |
-| `org_members.role` | Column exists; RLS is mostly "any org member". | **Capability-based RLS** via `capabilities` + `role_definitions` + `role_capabilities` (see `OWB-MULTIUSER-DESIGN.md` §2). |
-| `payment_requests` | Tables + authorship migration exist. | Wire **capability checks** (`payments.approve`, `payments.pay`) to approve / pay state machine + UI. |
-| Admin invites | UI / flow partial — must create real membership + key grants. | Full invite + hybrid-KEM wrap pipeline. |
+| Topic                                              | In repo **today** This spec **targets**                                     |
+| -------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Vault key                                          | Argon2id v4 (see `src/lib/vault.ts`).                                       | No change.                                                                                                                 |
+| Per-org DEK + `org_keys`                           | **Not** in migrations at time of consolidation — **add** when implementing. | One org DEK (AES-256); wrapped per member via hybrid KEM.                                                                  |
+| Hybrid KEM wrap (Bitwarden-style invite, PQC-safe) | Not yet implemented.                                                        | `user_vault_keys` + Owner wraps DEK with invitee's hybrid public key (X25519 + ML-KEM-768).                                |
+| `org_members.role`                                 | Column exists; RLS is mostly "any org member".                              | **Capability-based RLS** via `capabilities` + `role_definitions` + `role_capabilities` (see `OWB-MULTIUSER-DESIGN.md` §2). |
+| `payment_requests`                                 | Tables + authorship migration exist.                                        | Wire **capability checks** (`payments.approve`, `payments.pay`) to approve / pay state machine + UI.                       |
+| Admin invites                                      | UI / flow partial — must create real membership + key grants.               | Full invite + hybrid-KEM wrap pipeline.                                                                                    |
 
 Do not assume migrations exist until they land in `supabase/migrations/`.
 
@@ -54,10 +54,10 @@ The fix is **one org data key (DEK)** encrypted for each member, plus **server g
 
 ### Soft revoke vs hard re-key
 
-| | Plain English | Speed |
-|---|----------------|-------|
+|                                                                                                                     | Plain English                                                     | Speed |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----- |
 | **Soft revoke** Remove membership + **delete their wrapped DEK** (and role rows). They cannot unwrap on next login. | Instant. Does not erase RAM on their machine from an old session. |
-| **Hard re-key** New DEK; **re-encrypt** all org rows; re-wrap for remaining members. | Slow; resumable job; strongest if device was compromised. |
+| **Hard re-key** New DEK; **re-encrypt** all org rows; re-wrap for remaining members.                                | Slow; resumable job; strongest if device was compromised.         |
 
 ---
 
@@ -65,12 +65,12 @@ The fix is **one org data key (DEK)** encrypted for each member, plus **server g
 
 ### Systems compared
 
-| System | Key model | Sharing | Revocation |
-|--------|-----------|---------|------------|
-| **Bitwarden** Org symmetric key | RSA-OAEP wrap per member | Re-wrap / remove grant — **no** full re-encrypt by default |
-| **Proton Drive** Per-share / PGP | Address keys | Remove share — strong, heavy stack |
-| **Tresorit** Folder keys | RSA wrap | **New key + re-encrypt** — strongest, expensive |
-| **1Password** Per-vault keys | SRP wrapping | Re-wrap |
+| System                           | Key model                | Sharing                                                    | Revocation |
+| -------------------------------- | ------------------------ | ---------------------------------------------------------- | ---------- |
+| **Bitwarden** Org symmetric key  | RSA-OAEP wrap per member | Re-wrap / remove grant — **no** full re-encrypt by default |
+| **Proton Drive** Per-share / PGP | Address keys             | Remove share — strong, heavy stack                         |
+| **Tresorit** Folder keys         | RSA wrap                 | **New key + re-encrypt** — strongest, expensive            |
+| **1Password** Per-vault keys     | SRP wrapping             | Re-wrap                                                    |
 
 ### Choice for Orange Way Books
 
@@ -110,25 +110,25 @@ Application rows  →  encrypt / decrypt with Org DEK (in browser)
 
 ### Key inventory
 
-| Secret / key | Type | Where born | Server sees |
-|--------------|------|------------|-------------|
-| MEK | AES (Argon2id-derived) | Browser | Never |
-| User hybrid keypair | X25519 + ML-KEM-768 | Browser | Public key (base64) + private **ciphertext** (MEK-wrapped) |
-| Org DEK | AES-256 | Browser | Only **wrapped** per user |
-| Signing key (optional) | ML-DSA-65 | Browser | Public + wrapped for writers only |
+| Secret / key           | Type                   | Where born | Server sees                                                |
+| ---------------------- | ---------------------- | ---------- | ---------------------------------------------------------- |
+| MEK                    | AES (Argon2id-derived) | Browser    | Never                                                      |
+| User hybrid keypair    | X25519 + ML-KEM-768    | Browser    | Public key (base64) + private **ciphertext** (MEK-wrapped) |
+| Org DEK                | AES-256                | Browser    | Only **wrapped** per user                                  |
+| Signing key (optional) | ML-DSA-65              | Browser    | Public + wrapped for writers only                          |
 
 ### Cryptographic libraries
 
 Pure-TypeScript, audited, no WASM. Land the modules in `src/lib/pqc/` in Phase 4.0.
 
-| Need | Library / API |
-|------|---------------|
-| Password KDF | `hash-wasm` Argon2id (already used by `src/lib/vault.ts`) |
-| X25519 (classical half of hybrid KEM) | `@noble/curves/ed25519` |
-| ML-KEM-768 (post-quantum half) | `@noble/post-quantum/ml-kem` |
-| ML-DSA-65 (optional) | `@noble/post-quantum/ml-dsa` |
-| HKDF combiner | `@noble/hashes/hkdf` + `sha256` |
-| Row encrypt | WebCrypto AES-256-GCM (existing) |
+| Need                                  | Library / API                                             |
+| ------------------------------------- | --------------------------------------------------------- |
+| Password KDF                          | `hash-wasm` Argon2id (already used by `src/lib/vault.ts`) |
+| X25519 (classical half of hybrid KEM) | `@noble/curves/ed25519`                                   |
+| ML-KEM-768 (post-quantum half)        | `@noble/post-quantum/ml-kem`                              |
+| ML-DSA-65 (optional)                  | `@noble/post-quantum/ml-dsa`                              |
+| HKDF combiner                         | `@noble/hashes/hkdf` + `sha256`                           |
+| Row encrypt                           | WebCrypto AES-256-GCM (existing)                          |
 
 See `orange-rails/src/lib/pqc.ts` for the reference implementation of `hybridEncapsulate` / `hybridDecapsulate` and byte-length constants.
 
@@ -140,16 +140,16 @@ See `orange-rails/src/lib/pqc.ts` for the reference implementation of `hybridEnc
 
 Example canonical roles (tune names in migration `CHECK`):
 
-| Role | Typical powers |
-|------|------------------|
-| **Owner** Full decrypt, write, user + key management |
-| **Admin** Write + users; keys policy per product |
-| **Accountant** Full financial write |
+| Role                                                                                   | Typical powers |
+| -------------------------------------------------------------------------------------- | -------------- |
+| **Owner** Full decrypt, write, user + key management                                   |
+| **Admin** Write + users; keys policy per product                                       |
+| **Accountant** Full financial write                                                    |
 | **Member** Create/edit own work; **limited** delete/archive / closed period — RLS + UI |
-| **PaymentsApprover** Approve payment requests |
-| **PaymentsPayer** Mark paid / execute pay step |
-| **Auditor** Read-only; **time-bounded** `expires_at` |
-| **OWBSupport** **Scoped** + short TTL; never combined with other roles |
+| **PaymentsApprover** Approve payment requests                                          |
+| **PaymentsPayer** Mark paid / execute pay step                                         |
+| **Auditor** Read-only; **time-bounded** `expires_at`                                   |
+| **OWBSupport** **Scoped** + short TTL; never combined with other roles                 |
 
 **Separation of duties:** UI warning if same user is both Approver and Payer (configurable per org).
 
@@ -175,26 +175,26 @@ Example canonical roles (tune names in migration `CHECK`):
 
 ## 8. Flows (summary)
 
-1. **Owner creates org** — Generate Org DEK; generate user hybrid keypair (X25519 + ML-KEM-768); MEK-wrap the hybrid private key; wrap Org DEK with own hybrid public key via `hybridEncapsulate`; store rows; encrypt data with Org DEK as today.  
-2. **Owner invites** — Invite email (or Nostr later) → invitee signs up, sets vault, uploads hybrid public key → **Owner client** unwraps Org DEK, re-wraps for invitee's hybrid public key via `hybridEncapsulate`, writes `org_keys` + `org_member_roles`. **Owner must be online** for wrap (Bitwarden pattern).  
-3. **Auditor** — Gets Org DEK grant + **no** signing key if implemented; RLS read-only.  
-4. **Soft revoke** — Delete `org_keys` row + roles + `org_members` for that user; audit.  
-5. **Hard re-key** — New Org DEK; re-wrap all members; batch decrypt old / encrypt new per table; bump `key_version`; optional logout everyone first.  
-6. **Support** — Owner issues **scoped** key + short `expires_at`; sweep removes access; consider enqueue hard re-key if support had live decrypt capability.  
+1. **Owner creates org** — Generate Org DEK; generate user hybrid keypair (X25519 + ML-KEM-768); MEK-wrap the hybrid private key; wrap Org DEK with own hybrid public key via `hybridEncapsulate`; store rows; encrypt data with Org DEK as today.
+2. **Owner invites** — Invite email (or Nostr later) → invitee signs up, sets vault, uploads hybrid public key → **Owner client** unwraps Org DEK, re-wraps for invitee's hybrid public key via `hybridEncapsulate`, writes `org_keys` + `org_member_roles`. **Owner must be online** for wrap (Bitwarden pattern).
+3. **Auditor** — Gets Org DEK grant + **no** signing key if implemented; RLS read-only.
+4. **Soft revoke** — Delete `org_keys` row + roles + `org_members` for that user; audit.
+5. **Hard re-key** — New Org DEK; re-wrap all members; batch decrypt old / encrypt new per table; bump `key_version`; optional logout everyone first.
+6. **Support** — Owner issues **scoped** key + short `expires_at`; sweep removes access; consider enqueue hard re-key if support had live decrypt capability.
 7. **Custody (paid)** — 2-of-3 Shamir for recovery key that protects wrapped Org DEK backup; use **audited** SSS library; ops runbook for releasing custodian share — **not** only code.
 
 ---
 
 ## 9. Phased delivery
 
-| Phase | Deliverable |
-|-------|-------------|
+| Phase                                                                                                            | Deliverable |
+| ---------------------------------------------------------------------------------------------------------------- | ----------- |
 | **1** Migrations + hybrid keypair (X25519 + ML-KEM-768) lifecycle in vault unlock / setup; solo org still works. |
-| **2** `useRoles()` + RLS capability checks + Admin UI visibility. |
-| **3** Real invites + Owner-side wrap + soft revoke + audit events. |
-| **4** Time-bounded Auditor + Support sessions + sweeps. |
-| **5** Hard re-key job + progress UI + resume. |
-| **6** Paid custody (Shamir) + billing + support runbooks. |
+| **2** `useRoles()` + RLS capability checks + Admin UI visibility.                                                |
+| **3** Real invites + Owner-side wrap + soft revoke + audit events.                                               |
+| **4** Time-bounded Auditor + Support sessions + sweeps.                                                          |
+| **5** Hard re-key job + progress UI + resume.                                                                    |
+| **6** Paid custody (Shamir) + billing + support runbooks.                                                        |
 
 Each phase should leave **`dev`** deployable to staging and keep the `dev` → `prod` release path clean. Scope by **phase deliverables** above.
 
@@ -202,38 +202,38 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 ## 10. Security properties
 
-| Property | How |
-|----------|-----|
-| Server never reads books | Org DEK only in browser; server stores wraps + ciphertext |
-| Distinct vault passwords | Each user's MEK unwraps only their hybrid private key |
-| Invite without sharing password | Hybrid-KEM wrap of Org DEK to invitee's public key |
-| Post-quantum safety | X25519 + ML-KEM-768 combiner — breaks require defeating both primitives |
-| Revoke | Soft = remove wrap; hard = new DEK + re-encrypt |
-| Optional stronger read-only | signing key withheld from Auditor + RLS + UI |
+| Property                        | How                                                                     |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| Server never reads books        | Org DEK only in browser; server stores wraps + ciphertext               |
+| Distinct vault passwords        | Each user's MEK unwraps only their hybrid private key                   |
+| Invite without sharing password | Hybrid-KEM wrap of Org DEK to invitee's public key                      |
+| Post-quantum safety             | X25519 + ML-KEM-768 combiner — breaks require defeating both primitives |
+| Revoke                          | Soft = remove wrap; hard = new DEK + re-encrypt                         |
+| Optional stronger read-only     | signing key withheld from Auditor + RLS + UI                            |
 
 ---
 
 ## 11. Open questions
 
-- Viewer / reports-only: live decrypt vs snapshot-only?  
-- Org ownership transfer: wrap-only handoff flow?  
-- Multi-org: already in UI — confirm one hybrid key per user (recommended) vs per org.  
-- Session: auto-lock after idle for unwrapped keys?  
-- KYC / policy for releasing paid-tier custodian share.  
-- Billing: custody as add-on line vs bundle.  
+- Viewer / reports-only: live decrypt vs snapshot-only?
+- Org ownership transfer: wrap-only handoff flow?
+- Multi-org: already in UI — confirm one hybrid key per user (recommended) vs per org.
+- Session: auto-lock after idle for unwrapped keys?
+- KYC / policy for releasing paid-tier custodian share.
+- Billing: custody as add-on line vs bundle.
 - Which rows default to “support visible” vs explicit tag.
 
 ---
 
 ## 12. References
 
-- Bitwarden security whitepaper — bitwarden.com/help/bitwarden-security-white-paper/  
-- NIST FIPS 203 (ML-KEM) — csrc.nist.gov/pubs/fips/203/final  
-- NIST FIPS 204 (ML-DSA) — csrc.nist.gov/pubs/fips/204/final  
-- RFC 7748 (X25519) — datatracker.ietf.org/doc/html/rfc7748  
-- `@noble/post-quantum` — github.com/paulmillr/noble-post-quantum  
-- `@noble/curves` — github.com/paulmillr/noble-curves  
-- MDN `wrapKey` — developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/wrapKey  
+- Bitwarden security whitepaper — bitwarden.com/help/bitwarden-security-white-paper/
+- NIST FIPS 203 (ML-KEM) — csrc.nist.gov/pubs/fips/203/final
+- NIST FIPS 204 (ML-DSA) — csrc.nist.gov/pubs/fips/204/final
+- RFC 7748 (X25519) — datatracker.ietf.org/doc/html/rfc7748
+- `@noble/post-quantum` — github.com/paulmillr/noble-post-quantum
+- `@noble/curves` — github.com/paulmillr/noble-curves
+- MDN `wrapKey` — developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/wrapKey
 - Shamir: use an **audited** library (e.g. reviewed SSS port); do not roll crypto.
 
 ---
@@ -242,7 +242,7 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 - **`docs/OWB-MULTIUSER-DESIGN.md`** — Capability-based role engine, 9 role presets, 12 stress-test scenarios, invite/revoke/re-key sequence diagrams, monetization levers, phased delivery. **Read alongside this doc — it carries the post-RSA cryptographic design.**
 - **`docs/COMPETITIVE-ANALYSIS.md`** — Survey of 8 accounting platforms (QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting) with cited patterns.
-- **`docs/OWB-ZKA-BRIDGE.md`** — Tracks for ledger storage, ledger engine, and encryption wiring + pointer to this Track D spec and research.  
+- **`docs/OWB-ZKA-BRIDGE.md`** — Tracks for ledger storage, ledger engine, and encryption wiring + pointer to this Track D spec and research.
 - **`docs/DOCUMENTATION-INDEX.md`** — Full doc map.
 
 ---

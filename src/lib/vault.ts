@@ -43,9 +43,7 @@ function requireStrongPassword(
   minLength: number = MIN_VAULT_PASSWORD_LENGTH,
 ): void {
   if (typeof password !== 'string' || password.length < minLength) {
-    throw new Error(
-      `Vault password must be at least ${minLength} characters`,
-    );
+    throw new Error(`Vault password must be at least ${minLength} characters`);
   }
 }
 
@@ -67,7 +65,7 @@ export async function encryptText(plaintext: string, key: CryptoKey): Promise<st
   const ciphertext = await window.crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    encoder.encode(plaintext)
+    encoder.encode(plaintext),
   );
 
   // Combine: [iv (12 bytes)][ciphertext + auth tag]
@@ -101,11 +99,7 @@ export async function decryptText(ciphertext: string, key: CryptoKey): Promise<s
   const iv = combined.slice(0, 12);
   const data = combined.slice(12);
 
-  const plaintext = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    data
-  );
+  const plaintext = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
 
   return new TextDecoder().decode(plaintext);
 }
@@ -151,11 +145,7 @@ export async function decryptBlob(
   const iv = bytes.slice(0, 12);
   const data = bytes.slice(12);
 
-  return window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    data,
-  );
+  return window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
 }
 
 /**
@@ -172,15 +162,16 @@ export type DeriveFnWithSalt = (
   orgSaltB64: string,
 ) => Promise<CryptoKey>;
 
-export const KEY_DERIVATION_STRATEGIES_WITH_SALT: Readonly<Record<number, DeriveFnWithSalt>> = Object.freeze({
-  // v1 returns the KEK (not a direct MEK). Callers using deriveKeyForVersion
-  // under v1 are encrypting the verifier or running through a wrapping path
-  // where the KEK is the right key to hand back. The actual MEK lives as
-  // random bytes wrapped by this KEK; see deriveVaultV1Kek / wrapMekWithKey /
-  // unwrapMekWithKey for the wrapping flow and VaultContext.setupVault for
-  // the full onboarding orchestration.
-  1: deriveVaultV1Kek,
-});
+export const KEY_DERIVATION_STRATEGIES_WITH_SALT: Readonly<Record<number, DeriveFnWithSalt>> =
+  Object.freeze({
+    // v1 returns the KEK (not a direct MEK). Callers using deriveKeyForVersion
+    // under v1 are encrypting the verifier or running through a wrapping path
+    // where the KEK is the right key to hand back. The actual MEK lives as
+    // random bytes wrapped by this KEK; see deriveVaultV1Kek / wrapMekWithKey /
+    // unwrapMekWithKey for the wrapping flow and VaultContext.setupVault for
+    // the full onboarding orchestration.
+    1: deriveVaultV1Kek,
+  });
 
 /**
  * Creates an encrypted verifier to store in Supabase.
@@ -283,7 +274,10 @@ export async function wrapMekWithKey(mekRaw: Uint8Array, wrappingKey: CryptoKey)
  * Unwrap a wrapped MEK ciphertext back to raw bytes.
  * Throws on wrong key or tampered ciphertext (AES-GCM auth).
  */
-export async function unwrapMekWithKey(ciphertext: string, wrappingKey: CryptoKey): Promise<Uint8Array> {
+export async function unwrapMekWithKey(
+  ciphertext: string,
+  wrappingKey: CryptoKey,
+): Promise<Uint8Array> {
   const mekB64 = await decryptText(ciphertext, wrappingKey);
   return Uint8Array.from(atob(mekB64), (c) => c.charCodeAt(0));
 }
@@ -362,13 +356,9 @@ export async function deriveBlindIndexKeyFromMek(
     256,
   );
 
-  return window.crypto.subtle.importKey(
-    'raw',
-    rawHmac,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+  return window.crypto.subtle.importKey('raw', rawHmac, { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
 }
 
 // ─── OrangeRails MEK — vault-version-independent ────────────────────────────
@@ -445,11 +435,17 @@ async function deriveOrSubkey(
   );
 }
 
-export async function deriveOrCredsKeyFromMek(mekRaw: Uint8Array, orgSaltB64: string): Promise<CryptoKey> {
+export async function deriveOrCredsKeyFromMek(
+  mekRaw: Uint8Array,
+  orgSaltB64: string,
+): Promise<CryptoKey> {
   return deriveOrSubkey(mekRaw, orgSaltB64, 'orangerails-creds-v1');
 }
 
-export async function deriveOrTxnsKeyFromMek(mekRaw: Uint8Array, orgSaltB64: string): Promise<CryptoKey> {
+export async function deriveOrTxnsKeyFromMek(
+  mekRaw: Uint8Array,
+  orgSaltB64: string,
+): Promise<CryptoKey> {
   return deriveOrSubkey(mekRaw, orgSaltB64, 'orangerails-txns-v1');
 }
 
@@ -466,7 +462,7 @@ import { BIP39_WORDS } from './bip39-words';
 export function generateRecoveryCode(): string {
   const buf = new Uint16Array(12);
   window.crypto.getRandomValues(buf);
-  return Array.from(buf, (sample) => BIP39_WORDS[sample & 0x7FF]).join(' ');
+  return Array.from(buf, (sample) => BIP39_WORDS[sample & 0x7ff]).join(' ');
 }
 
 /**
