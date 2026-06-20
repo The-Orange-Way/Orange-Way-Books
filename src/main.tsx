@@ -4,24 +4,36 @@ import "./index.css";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
 
-// Cookieless PostHog — privacy stance for the Orange Way Books family.
-// Memory-only persistence, no cookies, no localStorage tracking,
-// no session recording, no person profiles. Each page load is a
-// fresh anonymous event stream. Pageview + explicit captures only.
+// PostHog only initializes when VITE_POSTHOG_KEY is present at build
+// time. Self-hosted builds leave it unset and ship with zero
+// telemetry: no init, no provider wrap, no network calls to PostHog.
+// SaaS builds set the key and get cookieless analytics: memory-only
+// persistence, no cookies, no localStorage tracking, no session
+// recording, no person profiles. Pageview + explicit captures only.
 // phc_ keys are PostHog "Project API Keys" — write-only, public-safe.
-posthog.init(import.meta.env.VITE_POSTHOG_KEY ?? "", {
-  api_host: import.meta.env.VITE_POSTHOG_HOST ?? "https://eu.i.posthog.com",
-  persistence: "memory",
-  person_profiles: "never",
-  capture_pageview: true,
-  autocapture: false,
-  disable_session_recording: true,
-  respect_dnt: true,
-});
-posthog.register({ app: "orangewaybooks", brand: "orangewaybooks" });
+const posthogKey = import.meta.env.VITE_POSTHOG_KEY;
+const telemetryEnabled = typeof posthogKey === "string" && posthogKey.length > 0;
 
-createRoot(document.getElementById("root")!).render(
-  <PostHogProvider client={posthog}>
+if (telemetryEnabled) {
+  posthog.init(posthogKey, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST ?? "https://eu.i.posthog.com",
+    persistence: "memory",
+    person_profiles: "never",
+    capture_pageview: true,
+    autocapture: false,
+    disable_session_recording: true,
+    respect_dnt: true,
+  });
+  posthog.register({ app: "orangewaybooks", brand: "orangewaybooks" });
+}
+
+const root = createRoot(document.getElementById("root")!);
+root.render(
+  telemetryEnabled ? (
+    <PostHogProvider client={posthog}>
+      <App />
+    </PostHogProvider>
+  ) : (
     <App />
-  </PostHogProvider>,
+  ),
 );
