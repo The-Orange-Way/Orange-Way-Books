@@ -3,12 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fingerprintQuickBooksWorkbook } from '../fingerprint';
-import {
-  parseContacts,
-  parseJournal,
-  parseTrialBalance,
-  parseValidationReport,
-} from '../parsers';
+import { parseContacts, parseJournal, parseTrialBalance, parseValidationReport } from '../parsers';
 import { classifyQuickBooksAccounts } from '../classifyAccounts';
 
 const FIXTURE_DIR = path.resolve(__dirname, '../../../../../docs/fixtures/quickbooks');
@@ -50,9 +45,9 @@ describe('Trial balance parser', () => {
   it('skips the export-timestamp footer row', async () => {
     const buf = await readFixture('Trial_balance.xlsx');
     const { accounts } = await parseTrialBalance(buf);
-    expect(
-      accounts.every((a) => !/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,/i.test(a.name)),
-    ).toBe(true);
+    expect(accounts.every((a) => !/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,/i.test(a.name))).toBe(
+      true,
+    );
   });
 });
 
@@ -100,7 +95,9 @@ describe('Validation reports', () => {
   it('parses balance sheet and P&L lines without errors', async () => {
     const [bs, pl] = await Promise.all([
       readFixture('Balance_sheet.xlsx').then((b) => parseValidationReport(b, 'Balance_sheet.xlsx')),
-      readFixture('Profit_and_loss.xlsx').then((b) => parseValidationReport(b, 'Profit_and_loss.xlsx')),
+      readFixture('Profit_and_loss.xlsx').then((b) =>
+        parseValidationReport(b, 'Profit_and_loss.xlsx'),
+      ),
     ]);
     expect(bs.errors).toEqual([]);
     expect(pl.errors).toEqual([]);

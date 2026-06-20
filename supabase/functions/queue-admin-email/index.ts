@@ -42,8 +42,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Cheap server-side email validation. The real source of truth is the
 // Owner's auth.users row, but we also sanity-check to reject obvious
@@ -72,7 +71,10 @@ serve(async (req) => {
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
     if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
@@ -95,25 +97,39 @@ serve(async (req) => {
       return jsonResponse({ error: 'Request body too large' }, 413, cors);
     }
     let body: {
-      org_id?: unknown; template?: unknown;
-      recipient_email?: unknown; org_name_decrypted?: unknown;
+      org_id?: unknown;
+      template?: unknown;
+      recipient_email?: unknown;
+      org_name_decrypted?: unknown;
     };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw | '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
     const orgId = typeof body.org_id === 'string' ? body.org_id.trim() : '';
     const template = typeof body.template === 'string' ? body.template.trim() : '';
-    const recipientEmail = typeof body.recipient_email === 'string' ? body.recipient_email.trim() : '';
-    const orgNameDecrypted = typeof body.org_name_decrypted === 'string' ? body.org_name_decrypted.trim() : '';
+    const recipientEmail =
+      typeof body.recipient_email === 'string' ? body.recipient_email.trim() : '';
+    const orgNameDecrypted =
+      typeof body.org_name_decrypted === 'string' ? body.org_name_decrypted.trim() : '';
 
     if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
     if (!ALLOWED_TEMPLATES.has(template)) {
-      return jsonResponse({ error: `template must be one of: ${Array.from(ALLOWED_TEMPLATES).join(', ')}` }, 400, cors);
+      return jsonResponse(
+        { error: `template must be one of: ${Array.from(ALLOWED_TEMPLATES).join(', ')}` },
+        400,
+        cors,
+      );
     }
-    if (!recipientEmail || recipientEmail.length > MAX_EMAIL_LEN || !EMAIL_RE.test(recipientEmail)) {
+    if (
+      !recipientEmail ||
+      recipientEmail.length > MAX_EMAIL_LEN ||
+      !EMAIL_RE.test(recipientEmail)
+    ) {
       return jsonResponse({ error: 'recipient_email is not a valid email' }, 400, cors);
     }
     if (!orgNameDecrypted || orgNameDecrypted.length > MAX_ORG_NAME_LEN) {
@@ -158,11 +174,11 @@ serve(async (req) => {
     const { data: inserted, error: insertErr } = await adminClient
       .from('pending_admin_emails')
       .insert({
-        to_email:  recipientEmail,
-        subject:   composed.subject,
+        to_email: recipientEmail,
+        subject: composed.subject,
         body_text: composed.bodyText,
         body_html: composed.bodyHtml,
-        status:    'pending',
+        status: 'pending',
       })
       .select('id')
       .single();
@@ -183,12 +199,18 @@ serve(async (req) => {
           recipient_email: recipientEmail,
         },
       });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
 
-    return jsonResponse({
-      queued: true,
-      email_id: (inserted as { id: string }).id,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        queued: true,
+        email_id: (inserted as { id: string }).id,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('queue-admin-email error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

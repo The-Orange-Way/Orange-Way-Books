@@ -35,6 +35,7 @@ Playwright job in a follow-up) can run against a local
 ## Scenarios
 
 ### 1. Org creation auto-provisions billing
+
 - Sign up a new user; complete the onboarding wizard to create one
   organization.
 - Expected: `organizations.billing_account_id` is non-null, a
@@ -43,6 +44,7 @@ Playwright job in a follow-up) can run against a local
   about 45 days out.
 
 ### 2. Trial expiry → past_due
+
 - Manually backdate the trialing subscription:
   ```sql
   update subscriptions set trial_ends_at = now() - interval '1 day';
@@ -56,6 +58,7 @@ Playwright job in a follow-up) can run against a local
   `subscription_lifecycle_events` row appended.
 
 ### 3. Pay → mock checkout → webhook → active
+
 - On `/app/billing`, click the Pay button. Browser navigates to the
   mock checkout page.
 - Click "Mark as paid". The mock POSTs an HMAC-signed
@@ -65,6 +68,7 @@ Playwright job in a follow-up) can run against a local
   `past_due_since` cleared.
 
 ### 4. Duplicate webhook is idempotent
+
 - Re-post the same event body + signature to `flash-webhook` with
   `curl`. Re-applying must not change the subscription further; the
   flash_payments row stays `completed`; an extra row lands in
@@ -72,10 +76,12 @@ Playwright job in a follow-up) can run against a local
   `subscription_lifecycle_events`.
 
 ### 5. Tampered webhook signature → 401
+
 - POST the same body with a wrong `X-Flash-Signature`. Expected: 401,
   no DB changes, no `flash_payment_events` row.
 
 ### 6. Failed payment inside active period
+
 - With subscription `status='active'` and `current_period_end > now()`,
   POST an HMAC-signed `payment.failed` event for a fresh
   `external_reference`. Expected: the matching `flash_payments` row

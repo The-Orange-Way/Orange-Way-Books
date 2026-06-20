@@ -29,7 +29,9 @@ export function Seo({
   jsonLd,
   isArticle = false,
 }: SeoProps) {
-  const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — Zero-Knowledge Bitcoin Accounting`;
+  const fullTitle = title
+    ? `${title} — ${SITE_NAME}`
+    : `${SITE_NAME} — Zero-Knowledge Bitcoin Accounting`;
   const url = `${SITE_URL}${path}`;
   const fullImage = image.startsWith('http') ? image : `${SITE_URL}${image}`;
   const ldArray = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];

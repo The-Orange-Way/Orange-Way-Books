@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
-import {
-  InsightsDonutChart,
-  buildDonutSliceViews,
-} from './InsightsDonutChart';
+import { InsightsDonutChart, buildDonutSliceViews } from './InsightsDonutChart';
 import type { JournalLine, AccountInfo } from '@/lib/ledger-engine';
 
 export type ExpenseInsightsPreset = 'ytd' | 'month' | '30d' | '90d' | 'all';

@@ -84,13 +84,12 @@ export default function ResetPasswordPage() {
         <CardContent>
           {!ready ? (
             <p className="text-sm text-muted-foreground">
-              This page expects a valid password-reset link. If you arrived here
-              without clicking the link in your reset email, request a new one
-              from the{' '}
+              This page expects a valid password-reset link. If you arrived here without clicking
+              the link in your reset email, request a new one from the{' '}
               <a href="/login" className="font-medium text-primary underline underline-offset-2">
                 sign-in page
               </a>
-            .
+              .
             </p>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">

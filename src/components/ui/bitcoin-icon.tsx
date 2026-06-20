@@ -6,11 +6,7 @@ export interface BitcoinIconProps {
   color?: string;
 }
 
-export function BitcoinIcon({
-  size = 16,
-  className,
-  color = '#F7931A',
-}: BitcoinIconProps) {
+export function BitcoinIcon({ size = 16, className, color = '#F7931A' }: BitcoinIconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

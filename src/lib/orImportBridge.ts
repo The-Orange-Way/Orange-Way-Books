@@ -157,10 +157,7 @@ function resolveDestinationWalletId(
  * within the BTC ladder. For other mismatches we fall back to OR's amount —
  * the user can re-categorize later.
  */
-function computeAmount(
-  tx: DecryptedOrTx,
-  walletAsset: string,
-): { amount: number; asset: string } {
+function computeAmount(tx: DecryptedOrTx, walletAsset: string): { amount: number; asset: string } {
   const sats = typeof tx.amount_sats === 'number' ? tx.amount_sats : null;
   const fiat = typeof tx.amount === 'number' ? tx.amount : null;
   const upperWalletAsset = walletAsset.toUpperCase();
@@ -248,9 +245,7 @@ async function ensureUncategorizedAccounts(
 
   function pickByName(targets: string[]): Decoded | null {
     const lowered = targets.map((t) => t.toLowerCase());
-    return (
-      active.find((a) => lowered.includes(a.account_name.trim().toLowerCase())) ?? null
-    );
+    return active.find((a) => lowered.includes(a.account_name.trim().toLowerCase())) ?? null;
   }
 
   let revenue = pickByName(['Uncategorized Revenue', 'Uncategorized Income']);
@@ -529,9 +524,7 @@ export async function importOrTransactionsToV3(
   // does the same lookup as one query across all mapped wallets and returns
   // the set of OR external ids already in the ledger, so importSingleTx can
   // short-circuit without touching the network.
-  const mappedWalletIds = Array.from(
-    new Set(Array.from(mappingIndex.values()).flat()),
-  );
+  const mappedWalletIds = Array.from(new Set(Array.from(mappingIndex.values()).flat()));
   let alreadyImported: Set<string>;
   try {
     alreadyImported = await findImportedOrTxIds(
@@ -608,13 +601,17 @@ export async function findImportedOrTxIds(
     .from('transactions')
     .select('encrypted_metadata')
     .in('account_id', walletIds)
-    .contains('encrypted_metadata', { source: SOURCE_TAG, or_connection_id: orConnectionId } as any);
+    .contains('encrypted_metadata', {
+      source: SOURCE_TAG,
+      or_connection_id: orConnectionId,
+    } as any);
   if (error) {
     console.warn('[orImportBridge] findImportedOrTxIds query failed:', error);
     return found;
   }
   const wanted = new Set(orExternalIds);
-  for (const row of (data as Array<{ encrypted_metadata: Record<string, string> | null }> | null) ?? []) {
+  for (const row of (data as Array<{ encrypted_metadata: Record<string, string> | null }> | null) ??
+    []) {
     const meta = row.encrypted_metadata;
     if (!meta) continue;
     const ext = typeof meta.or_external_id === 'string' ? meta.or_external_id : null;

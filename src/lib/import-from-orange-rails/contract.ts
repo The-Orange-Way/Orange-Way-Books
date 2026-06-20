@@ -108,6 +108,8 @@ export function assertStagedImportPayload(value: unknown): asserts value is Stag
  * because the contract was designed to match `ImportPreviewRow.data` keys
  * exactly — this helper just adds the `rowIndex` field.
  */
-export function stagedRowsToPreview(rows: V3StagedRow[]): Array<{ rowIndex: number; data: V3StagedRow }> {
+export function stagedRowsToPreview(
+  rows: V3StagedRow[],
+): Array<{ rowIndex: number; data: V3StagedRow }> {
   return rows.map((data, i) => ({ rowIndex: i, data }));
 }

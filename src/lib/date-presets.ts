@@ -50,16 +50,16 @@ const RELATIVE_OPTIONS: ReadonlyArray<DatePresetOption> = [
 // ── Calendar quarters — one source of truth for both ends of the range ────
 
 interface QuarterBounds {
-  startMonth: number;   // 1-12
+  startMonth: number; // 1-12
   startDay: number;
   endMonth: number;
   endDay: number;
 }
 
 const QUARTER_TABLE: ReadonlyArray<QuarterBounds> = [
-  { startMonth: 1,  startDay: 1, endMonth: 3,  endDay: 31 },
-  { startMonth: 4,  startDay: 1, endMonth: 6,  endDay: 30 },
-  { startMonth: 7,  startDay: 1, endMonth: 9,  endDay: 30 },
+  { startMonth: 1, startDay: 1, endMonth: 3, endDay: 31 },
+  { startMonth: 4, startDay: 1, endMonth: 6, endDay: 30 },
+  { startMonth: 7, startDay: 1, endMonth: 9, endDay: 30 },
   { startMonth: 10, startDay: 1, endMonth: 12, endDay: 31 },
 ];
 
@@ -152,14 +152,22 @@ export function computeDateRange(presetId: DateRangePreset): DateRange {
   const now = new Date();
 
   switch (presetId) {
-    case 'week':     return weekRange(now, 0);
-    case 'prevWeek': return weekRange(now, -7);
-    case 'month':    return monthRange(now, 0);
-    case 'prevMonth':return monthRange(now, -1);
-    case 'last30':   return trailingDaysRange(now, 30);
-    case 'last60':   return trailingDaysRange(now, 60);
-    case 'last90':   return trailingDaysRange(now, 90);
-    case 'custom':   return EMPTY_RANGE;
+    case 'week':
+      return weekRange(now, 0);
+    case 'prevWeek':
+      return weekRange(now, -7);
+    case 'month':
+      return monthRange(now, 0);
+    case 'prevMonth':
+      return monthRange(now, -1);
+    case 'last30':
+      return trailingDaysRange(now, 30);
+    case 'last60':
+      return trailingDaysRange(now, 60);
+    case 'last90':
+      return trailingDaysRange(now, 90);
+    case 'custom':
+      return EMPTY_RANGE;
   }
 
   const yearMatch = YEAR_ID_PATTERN.exec(presetId);
@@ -195,10 +203,10 @@ export type StatusFilter =
   | 'reconciled';
 
 export const STATUS_OPTIONS: ReadonlyArray<{ value: StatusFilter; label: string }> = [
-  { value: 'all',          label: 'All Statuses' },
-  { value: 'incomplete',   label: 'Incomplete' },
-  { value: 'complete',     label: 'Complete' },
-  { value: 'not-cleared',  label: 'Not Cleared' },
-  { value: 'cleared',      label: 'Cleared' },
-  { value: 'reconciled',   label: 'Reconciled' },
+  { value: 'all', label: 'All Statuses' },
+  { value: 'incomplete', label: 'Incomplete' },
+  { value: 'complete', label: 'Complete' },
+  { value: 'not-cleared', label: 'Not Cleared' },
+  { value: 'cleared', label: 'Cleared' },
+  { value: 'reconciled', label: 'Reconciled' },
 ];

@@ -48,17 +48,31 @@ export async function buildTakeoutFile(
   const progress = onProgress ?? (() => {});
 
   const [
-    orgRes, settingsRes, walletsRes, accountsRes, contactsRes,
-    txsRes, jesRes, linesRes, paymentsRes, attachmentsRes,
+    orgRes,
+    settingsRes,
+    walletsRes,
+    accountsRes,
+    contactsRes,
+    txsRes,
+    jesRes,
+    linesRes,
+    paymentsRes,
+    attachmentsRes,
   ] = await Promise.all([
     supabase.from('organizations').select('*').eq('id', orgId).maybeSingle(),
     supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
     supabase.from('accounts').select('*').eq('org_id', orgId),
-    supabase.from('chart_of_accounts' as any).select('*').eq('org_id', orgId),
+    supabase
+      .from('chart_of_accounts' as any)
+      .select('*')
+      .eq('org_id', orgId),
     supabase.from('contacts').select('*').eq('org_id', orgId),
     supabase.from('transactions').select('*').eq('org_id', orgId),
     supabase.from('journal_entries').select('*').eq('org_id', orgId),
-    supabase.from('journal_entry_lines').select('*, journal_entries!inner(org_id)').eq('journal_entries.org_id', orgId),
+    supabase
+      .from('journal_entry_lines')
+      .select('*, journal_entries!inner(org_id)')
+      .eq('journal_entries.org_id', orgId),
     supabase.from('payment_requests').select('*').eq('org_id', orgId),
     supabase.from('attachments').select('*').eq('org_id', orgId),
   ]);
@@ -219,11 +233,13 @@ export async function buildTakeoutFile(
   progress('Receipts', attachmentRows.length, attachmentRows.length);
 
   const data: TakeoutData = {
-    organizations: [{
-      id: orgId,
-      name: orgFields.name,
-      external_journal_id: (orgRow as any).external_journal_id ?? null,
-    }],
+    organizations: [
+      {
+        id: orgId,
+        name: orgFields.name,
+        external_journal_id: (orgRow as any).external_journal_id ?? null,
+      },
+    ],
     org_settings: [settings],
     wallets,
     chart_of_accounts,

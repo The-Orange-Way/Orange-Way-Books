@@ -42,7 +42,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
 
 interface MappingRow {
@@ -78,7 +83,9 @@ function parseMappingCsv(text: string): { rows: MappingRow[]; errors: string[] }
       continue;
     }
     if (sourceRaw !== 'wave' && sourceRaw !== 'quickbooks' && sourceRaw !== 'orange_rails') {
-      errors.push(`Row ${i + 1}: source "${sourceRaw}" not one of wave / quickbooks / orange_rails`);
+      errors.push(
+        `Row ${i + 1}: source "${sourceRaw}" not one of wave / quickbooks / orange_rails`,
+      );
       continue;
     }
     rows.push({ filename, source: sourceRaw, externalId });
@@ -107,8 +114,14 @@ export default function BulkReceiptLinker() {
     return m;
   }, [mapping]);
 
-  const matchedFiles = useMemo(() => files.filter((f) => mappingByFilename.has(f.name)), [files, mappingByFilename]);
-  const unmappedFiles = useMemo(() => files.filter((f) => !mappingByFilename.has(f.name)), [files, mappingByFilename]);
+  const matchedFiles = useMemo(
+    () => files.filter((f) => mappingByFilename.has(f.name)),
+    [files, mappingByFilename],
+  );
+  const unmappedFiles = useMemo(
+    () => files.filter((f) => !mappingByFilename.has(f.name)),
+    [files, mappingByFilename],
+  );
 
   const handleMappingPick = async (file: File) => {
     const text = await file.text();
@@ -151,7 +164,11 @@ export default function BulkReceiptLinker() {
       });
 
       const out = await bulkLinkAttachmentsByImportExternalId(
-        supabase, encryptText, blindIndex, orgId, inputs,
+        supabase,
+        encryptText,
+        blindIndex,
+        orgId,
+        inputs,
       );
       setResults(out);
 
@@ -171,7 +188,10 @@ export default function BulkReceiptLinker() {
 
   return (
     <div className="container max-w-4xl py-8">
-      <Link to="/app/admin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link
+        to="/app/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Admin
       </Link>
 
@@ -181,9 +201,9 @@ export default function BulkReceiptLinker() {
           Bulk Receipt Linker
         </h1>
         <p className="text-sm text-muted-foreground">
-          Attach many receipts to imported journal entries at once. Upload a mapping CSV
-          (filename, source, external_id) and the receipt files. Each file whose name appears
-          in the mapping is attached to the matching journal entry.
+          Attach many receipts to imported journal entries at once. Upload a mapping CSV (filename,
+          source, external_id) and the receipt files. Each file whose name appears in the mapping is
+          attached to the matching journal entry.
         </p>
       </header>
 
@@ -192,8 +212,10 @@ export default function BulkReceiptLinker() {
           1. Mapping CSV
         </h2>
         <p className="text-sm text-muted-foreground mb-3">
-          Columns required: <code className="text-xs">filename,source,external_id</code>. Source must be one of
-          {' '}<code className="text-xs">wave</code>, <code className="text-xs">quickbooks</code>, or <code className="text-xs">orange_rails</code>.
+          Columns required: <code className="text-xs">filename,source,external_id</code>. Source
+          must be one of <code className="text-xs">wave</code>,{' '}
+          <code className="text-xs">quickbooks</code>, or{' '}
+          <code className="text-xs">orange_rails</code>.
         </p>
         <input
           ref={mappingInputRef}
@@ -206,11 +228,7 @@ export default function BulkReceiptLinker() {
           }}
         />
         <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => mappingInputRef.current?.click()}
-          >
+          <Button type="button" variant="outline" onClick={() => mappingInputRef.current?.click()}>
             <Upload className="w-4 h-4 mr-2" />
             Select mapping CSV
           </Button>
@@ -225,9 +243,7 @@ export default function BulkReceiptLinker() {
             {mappingErrors.slice(0, 10).map((e, i) => (
               <div key={i}>{e}</div>
             ))}
-            {mappingErrors.length > 10 && (
-              <div>(+{mappingErrors.length - 10} more)</div>
-            )}
+            {mappingErrors.length > 10 && <div>(+{mappingErrors.length - 10} more)</div>}
           </div>
         )}
       </section>
@@ -254,21 +270,23 @@ export default function BulkReceiptLinker() {
             Select files
           </Button>
           {files.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {files.length} file(s) selected
-            </span>
+            <span className="text-sm text-muted-foreground">{files.length} file(s) selected</span>
           )}
         </div>
 
         {files.length > 0 && (
           <div className="text-xs text-muted-foreground space-y-1">
             <div>
-              <Badge variant="default" className="mr-2">{matchedFiles.length}</Badge>
+              <Badge variant="default" className="mr-2">
+                {matchedFiles.length}
+              </Badge>
               match the mapping and will be linked
             </div>
             {unmappedFiles.length > 0 && (
               <div>
-                <Badge variant="secondary" className="mr-2">{unmappedFiles.length}</Badge>
+                <Badge variant="secondary" className="mr-2">
+                  {unmappedFiles.length}
+                </Badge>
                 have no mapping row and will be skipped
               </div>
             )}
@@ -277,11 +295,7 @@ export default function BulkReceiptLinker() {
       </section>
 
       <div className="flex justify-end mb-8">
-        <Button
-          type="button"
-          onClick={handleRun}
-          disabled={running || matchedFiles.length === 0}
-        >
+        <Button type="button" onClick={handleRun} disabled={running || matchedFiles.length === 0}>
           {running && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Link {matchedFiles.length} receipt(s)
         </Button>
@@ -312,7 +326,8 @@ export default function BulkReceiptLinker() {
                     {r.status === 'error' && <Badge variant="destructive">Error</Badge>}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {r.error || (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '—')}
+                    {r.error ||
+                      (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '—')}
                   </TableCell>
                 </TableRow>
               ))}

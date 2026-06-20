@@ -188,8 +188,10 @@ export async function recordPlaceholderPayment(
   //     short-circuit so a duplicate click on an already-paid invoice
   //     resolves cleanly. The plaintext amount_applied mirror is the
   //     server's source of truth for SUM() (same column the RPC uses).
-  const sumApplied = ((existingRows ?? []) as Array<{ amount_applied: number }>)
-    .reduce((acc, r) => acc + Number(r.amount_applied ?? 0), 0);
+  const sumApplied = ((existingRows ?? []) as Array<{ amount_applied: number }>).reduce(
+    (acc, r) => acc + Number(r.amount_applied ?? 0),
+    0,
+  );
   const remaining = Math.max(0, p.invoiceAmount - sumApplied);
   if (p.amount > remaining + 0.0001) {
     throw new AmountExceedsRemainingError(remaining);
@@ -272,17 +274,14 @@ export async function recordPlaceholderPayment(
   const encryptedApplied = await encryptNumber(p.amount, p.encryptText);
   const encryptedMemo = p.memo ? await p.encryptText(p.memo) : null;
 
-  const { data: applyRes, error: applyErr } = await (supabase as any).rpc(
-    'apply_invoice_payment',
-    {
-      p_invoice_id: p.invoiceId,
-      p_transaction_id: transactionId,
-      p_amount_applied: p.amount,
-      p_encrypted_amount_applied: encryptedApplied,
-      p_applied_rate: null,
-      p_encrypted_notes: encryptedMemo,
-    },
-  );
+  const { data: applyRes, error: applyErr } = await (supabase as any).rpc('apply_invoice_payment', {
+    p_invoice_id: p.invoiceId,
+    p_transaction_id: transactionId,
+    p_amount_applied: p.amount,
+    p_encrypted_amount_applied: encryptedApplied,
+    p_applied_rate: null,
+    p_encrypted_notes: encryptedMemo,
+  });
   if (applyErr) {
     // Best-effort cleanup: drop the orphaned synthetic tx so a retry
     // doesn't leak a phantom transaction in the wallet. RLS scopes

@@ -11,7 +11,9 @@ import { webcrypto } from 'node:crypto';
 const subtle: SubtleCrypto = (webcrypto as unknown as Crypto).subtle;
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 async function sign(secret: string, body: string): Promise<string> {
@@ -30,7 +32,8 @@ async function verify(secret: string, body: string, presented: string): Promise<
   const expected = await sign(secret, body);
   if (expected.length !== presented.length) return false;
   let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ presented.toLowerCase().charCodeAt(i);
+  for (let i = 0; i < expected.length; i++)
+    diff |= expected.charCodeAt(i) ^ presented.toLowerCase().charCodeAt(i);
   return diff === 0;
 }
 

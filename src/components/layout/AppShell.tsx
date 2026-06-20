@@ -20,7 +20,9 @@ export default function AppShell() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (active) setUserId(user?.id ?? null);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -40,10 +42,7 @@ export default function AppShell() {
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           >
-            <div
-              className="absolute left-0 top-0 h-full"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute left-0 top-0 h-full" onClick={(e) => e.stopPropagation()}>
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>

@@ -32,8 +32,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -52,14 +51,19 @@ serve(async (req) => {
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
     if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
     const rl = await rateLimit(adminClient, {
-      scope: 'finalize-rekey', subject: caller.id,
-      maxPerWindow: 10, windowSeconds: 300,
+      scope: 'finalize-rekey',
+      subject: caller.id,
+      maxPerWindow: 10,
+      windowSeconds: 300,
     });
     if (!rl.allowed) {
       return jsonResponse({ error: 'Rate limit exceeded; try again shortly' }, 429, cors);
@@ -68,7 +72,9 @@ serve(async (req) => {
     const raw = await readBoundedText(req);
     if (raw === null) return jsonResponse({ error: 'Request body too large' }, 413, cors);
     let body: { job_id?: unknown };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw | '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
     const jobId = typeof body.job_id === 'string' ? body.job_id.trim() : '';
@@ -85,22 +91,32 @@ serve(async (req) => {
       return jsonResponse({ error: 'Rotation job not found' }, 404, cors);
     }
     const job = jobRow as {
-      id: string; org_id: string; status: string;
-      new_dek_key_version: number; new_osk_key_version: number; started_by: string;
+      id: string;
+      org_id: string;
+      status: string;
+      new_dek_key_version: number;
+      new_osk_key_version: number;
+      started_by: string;
     };
 
-    const { data: hasCap } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: job.org_id },
-    );
+    const { data: hasCap } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: job.org_id,
+    });
     if (!hasCap) {
-      return jsonResponse({ error: "You don't have permission to finish this key update." }, 403, cors);
+      return jsonResponse(
+        { error: "You don't have permission to finish this key update." },
+        403,
+        cors,
+      );
     }
 
     if (job.status !== 'finalizing') {
       return jsonResponse(
         { error: `Job is in status '${job.status}' — must be 'finalizing' to complete.` },
-        409, cors,
+        409,
+        cors,
       );
     }
 
@@ -108,14 +124,15 @@ serve(async (req) => {
     // exists for orgs that were created before the Phase 4.5 migration
     // backfilled (defense-in-depth; the migration's INSERT ... WHERE
     // NOT EXISTS already covered this).
-    const { error: activeErr } = await adminClient
-      .from('active_key_versions')
-      .upsert({
-        org_id:                 job.org_id,
+    const { error: activeErr } = await adminClient.from('active_key_versions').upsert(
+      {
+        org_id: job.org_id,
         active_dek_key_version: job.new_dek_key_version,
         active_osk_key_version: job.new_osk_key_version,
-        last_rotated_at:        new Date().toISOString(),
-      }, { onConflict: 'org_id' });
+        last_rotated_at: new Date().toISOString(),
+      },
+      { onConflict: 'org_id' },
+    );
     if (activeErr) {
       console.error('finalize-rekey active_key_versions upsert failed:', activeErr);
       return jsonResponse({ error: 'Could not finalize the key update.' }, 500, cors);
@@ -127,7 +144,8 @@ serve(async (req) => {
     // advance_rotation_job (for audit) + direct UPDATE of
     // rollback_expires_at (advance_rotation_job doesn't set it).
     const { error: advErr } = await adminClient.rpc('advance_rotation_job', {
-      p_job_id: job.id, p_new_status: 'complete',
+      p_job_id: job.id,
+      p_new_status: 'complete',
     });
     if (advErr) {
       console.error('finalize-rekey advance_rotation_job failed:', advErr);
@@ -149,20 +167,27 @@ serve(async (req) => {
         user_id: caller.id,
         event: 'rekey.finalized',
         metadata: {
-          job_id: job.id, org_id: job.org_id,
+          job_id: job.id,
+          org_id: job.org_id,
           active_dek_key_version: job.new_dek_key_version,
           active_osk_key_version: job.new_osk_key_version,
           rollback_expires_at: rollbackExpiresAt,
         },
       });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
 
-    return jsonResponse({
-      ok: true,
-      active_dek_key_version: job.new_dek_key_version,
-      active_osk_key_version: job.new_osk_key_version,
-      rollback_expires_at:    rollbackExpiresAt,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        ok: true,
+        active_dek_key_version: job.new_dek_key_version,
+        active_osk_key_version: job.new_osk_key_version,
+        rollback_expires_at: rollbackExpiresAt,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('finalize-rekey error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

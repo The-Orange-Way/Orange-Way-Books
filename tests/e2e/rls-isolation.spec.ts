@@ -50,11 +50,21 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   await page.goto(`${baseURL}/app`, { waitUntil: 'networkidle' });
   await unlockVaultIfNeeded(page);
   // Belt-and-suspenders: if helper missed the lock screen, re-check + fill manually.
-  const stillLocked = await page.locator('text="Unlock your encrypted vault"').first().isVisible({ timeout: 500 }).catch(() => false);
+  const stillLocked = await page
+    .locator('text="Unlock your encrypted vault"')
+    .first()
+    .isVisible({ timeout: 500 })
+    .catch(() => false);
   if (stillLocked) {
-    await page.locator('input[type="password"]').first().fill(process.env.OWB_DEV_E2E_VAULT_PASSWORD!);
+    await page
+      .locator('input[type="password"]')
+      .first()
+      .fill(process.env.OWB_DEV_E2E_VAULT_PASSWORD!);
     await page.locator('button:has-text("Unlock Vault")').first().click();
-    await page.locator('text="Unlock your encrypted vault"').first().waitFor({ state: 'hidden', timeout: 30_000 });
+    await page
+      .locator('text="Unlock your encrypted vault"')
+      .first()
+      .waitFor({ state: 'hidden', timeout: 30_000 });
   }
   await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 15_000 });
 
@@ -64,7 +74,9 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   // is baked into the bundle as VITE_SUPABASE_PUBLISHABLE_KEY.
   const ctx = await page.evaluate(() => {
     // Find the sb-...-auth-token key
-    const sbKey = Object.keys(localStorage).find((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    const sbKey = Object.keys(localStorage).find(
+      (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
+    );
     if (!sbKey) return { error: 'no session token in localStorage' as const };
     const raw = localStorage.getItem(sbKey);
     if (!raw) return { error: 'session token empty' as const };
@@ -90,14 +102,17 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   const PUBLISHABLE_KEY = process.env.OWB_E2E_SUPABASE_PUBLISHABLE_KEY!;
 
   // 1. Resolve the user's own org_id(s) via org_members.
-  const myOrgsResp = await page.evaluate(async ({ url, key, token, userId }) => {
-    const r = await fetch(`${url}/rest/v1/org_members?user_id=eq.${userId}&select=org_id`, {
-      headers: { apikey: key, Authorization: `Bearer ${token}` },
-    });
-    const status = r.status;
-    const body = await r.text();
-    return { status, body };
-  }, { url: SUPA_URL, key: PUBLISHABLE_KEY, token: ctx.access_token, userId: ctx.user_id });
+  const myOrgsResp = await page.evaluate(
+    async ({ url, key, token, userId }) => {
+      const r = await fetch(`${url}/rest/v1/org_members?user_id=eq.${userId}&select=org_id`, {
+        headers: { apikey: key, Authorization: `Bearer ${token}` },
+      });
+      const status = r.status;
+      const body = await r.text();
+      return { status, body };
+    },
+    { url: SUPA_URL, key: PUBLISHABLE_KEY, token: ctx.access_token, userId: ctx.user_id },
+  );
 
   expect(myOrgsResp.status, `org_members query: ${myOrgsResp.body}`).toBe(200);
   const myOrgs: Array<{ org_id: string }> = JSON.parse(myOrgsResp.body);
@@ -109,12 +124,15 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   const failures: Array<{ table: string; reason: string }> = [];
 
   for (const table of ORG_SCOPED_TABLES) {
-    const resp = await page.evaluate(async ({ url, key, token, table }) => {
-      const r = await fetch(`${url}/rest/v1/${table}?select=*`, {
-        headers: { apikey: key, Authorization: `Bearer ${token}` },
-      });
-      return { status: r.status, body: await r.text() };
-    }, { url: SUPA_URL, key: PUBLISHABLE_KEY, token: ctx.access_token, table });
+    const resp = await page.evaluate(
+      async ({ url, key, token, table }) => {
+        const r = await fetch(`${url}/rest/v1/${table}?select=*`, {
+          headers: { apikey: key, Authorization: `Bearer ${token}` },
+        });
+        return { status: r.status, body: await r.text() };
+      },
+      { url: SUPA_URL, key: PUBLISHABLE_KEY, token: ctx.access_token, table },
+    );
 
     if (resp.status !== 200) {
       // Some tables (e.g. `organizations` queried directly without filter)
@@ -125,7 +143,10 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
         // Hard-deny — fine.
         continue;
       }
-      failures.push({ table, reason: `unexpected status ${resp.status}: ${resp.body.slice(0, 120)}` });
+      failures.push({
+        table,
+        reason: `unexpected status ${resp.status}: ${resp.body.slice(0, 120)}`,
+      });
       continue;
     }
 
@@ -135,11 +156,17 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
       // own row; check that the id is in myOrgIds.
       const id = (row.org_id as string | undefined) ?? (row.id as string | undefined);
       if (!id) {
-        failures.push({ table, reason: `row has no org_id or id: ${JSON.stringify(row).slice(0, 120)}` });
+        failures.push({
+          table,
+          reason: `row has no org_id or id: ${JSON.stringify(row).slice(0, 120)}`,
+        });
         continue;
       }
       if (!myOrgIds.has(id)) {
-        failures.push({ table, reason: `row org_id=${id} is NOT in user's org set ${[...myOrgIds].join(',')}` });
+        failures.push({
+          table,
+          reason: `row org_id=${id} is NOT in user's org set ${[...myOrgIds].join(',')}`,
+        });
       }
     }
   }

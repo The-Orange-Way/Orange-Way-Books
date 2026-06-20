@@ -41,9 +41,22 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Format check is enforced (no continue-on-error). After PR 0 lands the
+      # tree is prettier-clean and the pre-commit hook keeps it that way, so
+      # a red format check means someone committed without the hook
+      # installed. The shell wrapper prints an actionable fix on failure
+      # rather than leaving a contributor staring at "exit code 1".
+      - name: Format check
+        run: |
+          if ! bun run format:check; then
+            echo ""
+            echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
+            exit 1
+          fi
+
       - name: Lint
         run: bun run lint
-        # Don't fail the whole CI on lint warnings yet — the codebase
+        # Don't fail the whole CI on lint warnings yet, the codebase
         # is young, warnings are noise, and a false-red CI trains
         # everyone to ignore the signal.
         continue-on-error: true

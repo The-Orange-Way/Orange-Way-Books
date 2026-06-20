@@ -2,9 +2,9 @@ import {
   MissingSignatureError,
   SignatureVerificationError,
   TimestampToleranceExceededError,
-} from "./errors.ts";
-import { computeHmacSha256Hex, timingSafeEqualHex } from "./verify.ts";
-import type { Event } from "./types.ts";
+} from './errors.ts';
+import { computeHmacSha256Hex, timingSafeEqualHex } from './verify.ts';
+import type { Event } from './types.ts';
 
 /**
  * Header bag accepted by `constructEvent`. Keys are lower-cased on read
@@ -53,24 +53,24 @@ export async function constructEvent(options: ConstructEventOptions): Promise<Ev
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE_SECONDS;
   const now = options.now ?? (() => Math.floor(Date.now() / 1000));
 
-  if (typeof rawBody !== "string") {
-    throw new SignatureVerificationError("rawBody must be a string of the exact bytes received.");
+  if (typeof rawBody !== 'string') {
+    throw new SignatureVerificationError('rawBody must be a string of the exact bytes received.');
   }
-  if (typeof secret !== "string" || secret.length === 0) {
-    throw new SignatureVerificationError("secret must be a non-empty string.");
+  if (typeof secret !== 'string' || secret.length === 0) {
+    throw new SignatureVerificationError('secret must be a non-empty string.');
   }
 
-  const sigV2 = readHeader(headers, "x-or-signature-v2");
-  const sigV1 = readHeader(headers, "x-or-signature");
-  const eventId = readHeader(headers, "x-or-event-id");
+  const sigV2 = readHeader(headers, 'x-or-signature-v2');
+  const sigV1 = readHeader(headers, 'x-or-signature');
+  const eventId = readHeader(headers, 'x-or-event-id');
 
   if (!sigV2 && !sigV1) {
     throw new MissingSignatureError(
-      "No signature header present (X-OR-Signature-V2 or X-OR-Signature).",
+      'No signature header present (X-OR-Signature-V2 or X-OR-Signature).',
     );
   }
   if (!eventId) {
-    throw new MissingSignatureError("Missing X-OR-Event-Id header.");
+    throw new MissingSignatureError('Missing X-OR-Event-Id header.');
   }
 
   if (sigV2) {
@@ -90,7 +90,7 @@ async function verifyV1(args: {
 }): Promise<void> {
   const expected = await computeHmacSha256Hex(args.secret, args.rawBody);
   if (!timingSafeEqualHex(expected, args.sigHeader.trim())) {
-    throw new SignatureVerificationError("X-OR-Signature did not match expected HMAC.");
+    throw new SignatureVerificationError('X-OR-Signature did not match expected HMAC.');
   }
 }
 
@@ -110,7 +110,7 @@ async function verifyV2(args: {
 
   const { timestamp, signatures } = parsed;
   if (signatures.length === 0) {
-    throw new SignatureVerificationError("X-OR-Signature-V2 contained no v1 signatures.");
+    throw new SignatureVerificationError('X-OR-Signature-V2 contained no v1 signatures.');
   }
 
   const signedPayload = `${timestamp}.${args.rawBody}`;
@@ -118,7 +118,7 @@ async function verifyV2(args: {
 
   const matched = signatures.some((s) => timingSafeEqualHex(expected, s));
   if (!matched) {
-    throw new SignatureVerificationError("X-OR-Signature-V2 did not match expected HMAC.");
+    throw new SignatureVerificationError('X-OR-Signature-V2 did not match expected HMAC.');
   }
 
   // Only enforce tolerance AFTER signature is valid — the timestamp is
@@ -137,20 +137,20 @@ interface ParsedV2Header {
 }
 
 function parseV2Header(header: string): ParsedV2Header | null {
-  const parts = header.split(",").map((p) => p.trim());
+  const parts = header.split(',').map((p) => p.trim());
   let timestamp: number | null = null;
   const signatures: string[] = [];
 
   for (const part of parts) {
-    const eq = part.indexOf("=");
+    const eq = part.indexOf('=');
     if (eq < 0) return null;
     const k = part.slice(0, eq);
     const v = part.slice(eq + 1);
-    if (k === "t") {
+    if (k === 't') {
       const n = Number.parseInt(v, 10);
       if (!Number.isFinite(n) || n <= 0) return null;
       timestamp = n;
-    } else if (k === "v1") {
+    } else if (k === 'v1') {
       signatures.push(v);
     }
     // Unknown keys (e.g. future v2) are ignored, matching Stripe.
@@ -178,21 +178,21 @@ function parseEvent(rawBody: string, eventId: string): Event {
   try {
     parsed = JSON.parse(rawBody);
   } catch {
-    throw new SignatureVerificationError("Webhook body is not valid JSON; cannot construct Event.");
+    throw new SignatureVerificationError('Webhook body is not valid JSON; cannot construct Event.');
   }
 
-  if (typeof parsed !== "object" || parsed === null) {
-    throw new SignatureVerificationError("Webhook body is not a JSON object.");
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new SignatureVerificationError('Webhook body is not a JSON object.');
   }
 
   const body = parsed as Record<string, unknown>;
-  const type = body["type"];
-  const data = body["data"];
+  const type = body['type'];
+  const data = body['data'];
 
-  if (type !== "sync.completed") {
+  if (type !== 'sync.completed') {
     throw new SignatureVerificationError(`Unsupported webhook event type: ${String(type)}.`);
   }
-  if (typeof data !== "object" || data === null) {
+  if (typeof data !== 'object' || data === null) {
     throw new SignatureVerificationError("Webhook body is missing 'data' object.");
   }
 
@@ -200,7 +200,7 @@ function parseEvent(rawBody: string, eventId: string): Event {
   // field embedded in the JSON body — the header is what dedupe keys on.
   return {
     id: eventId,
-    type: "sync.completed",
-    data: data as Event["data"],
+    type: 'sync.completed',
+    data: data as Event['data'],
   };
 }

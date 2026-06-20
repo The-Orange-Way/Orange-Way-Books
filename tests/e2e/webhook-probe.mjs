@@ -20,12 +20,14 @@
 
 import { createHmac } from 'node:crypto';
 
-const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
-const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-const SECRET        = process.env.FLASH_WEBHOOK_SECRET;
+const SUPABASE_URL = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
+const ANON_KEY = process.env.V3_DEV_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const SECRET = process.env.FLASH_WEBHOOK_SECRET;
 
 if (!SUPABASE_URL || !ANON_KEY || !SECRET) {
-  console.error('Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_ANON_KEY, FLASH_WEBHOOK_SECRET.');
+  console.error(
+    'Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_ANON_KEY, FLASH_WEBHOOK_SECRET.',
+  );
   process.exit(2);
 }
 
@@ -48,7 +50,7 @@ const r = await fetch(`${SUPABASE_URL}/functions/v1/flash-webhook`, {
   headers: {
     'Content-Type': 'application/json',
     'X-Flash-Signature': sig,
-    'Authorization': `Bearer ${ANON_KEY}`,
+    Authorization: `Bearer ${ANON_KEY}`,
   },
   body: payload,
 });
@@ -65,7 +67,9 @@ if (r.status === 401) {
   console.log('             FLASH_WEBHOOK_SECRET="$FLASH_WEBHOOK_SECRET"');
   console.log('   2. Secret has trailing whitespace in one of the two places.');
   console.log('   3. The edge function was deployed before the secret was set.');
-  console.log('      Fix: redeploy: supabase functions deploy flash-webhook --project-ref pfoywzsziessalioerlg');
+  console.log(
+    '      Fix: redeploy: supabase functions deploy flash-webhook --project-ref pfoywzsziessalioerlg',
+  );
 } else if (r.status === 200) {
   console.log('\n✅ signing scheme is correct.');
 }

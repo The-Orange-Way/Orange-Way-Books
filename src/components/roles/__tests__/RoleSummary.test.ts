@@ -10,17 +10,10 @@
  * doesn't currently use for other components.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  buildRoleSummary,
-  humanizeFeature,
-} from '@/components/roles/RoleSummary';
+import { buildRoleSummary, humanizeFeature } from '@/components/roles/RoleSummary';
 import type { CapabilityRow } from '@/hooks/useCapability';
 
-function cap(
-  key: string,
-  feature: string,
-  description: string,
-): CapabilityRow {
+function cap(key: string, feature: string, description: string): CapabilityRow {
   return {
     key,
     feature,
@@ -60,10 +53,7 @@ describe('buildRoleSummary', () => {
         cap('payments.pay', 'payments', 'Execute approved payments'),
       ],
     ],
-    [
-      'reports',
-      [cap('reports.read', 'reports', 'View financial reports')],
-    ],
+    ['reports', [cap('reports.read', 'reports', 'View financial reports')]],
   ]);
 
   it('returns empty array when no capabilities are granted', () => {
@@ -101,32 +91,19 @@ describe('buildRoleSummary', () => {
   it('ignores granted keys that are not in the registry (unknown capabilities)', () => {
     const granted = new Set(['nonexistent.cap', 'transactions.read']);
     const summary = buildRoleSummary(granted, byFeature);
-    expect(summary).toEqual([
-      { feature: 'transactions', descriptions: ['View transactions'] },
-    ]);
+    expect(summary).toEqual([{ feature: 'transactions', descriptions: ['View transactions'] }]);
   });
 
   it('preserves the iteration order of the input Map (feature order is stable)', () => {
     // Insertion order: transactions, payments, reports. Grant one from each.
     const granted = new Set(['payments.pay', 'transactions.read', 'reports.read']);
     const summary = buildRoleSummary(granted, byFeature);
-    expect(summary.map((s) => s.feature)).toEqual([
-      'transactions',
-      'payments',
-      'reports',
-    ]);
+    expect(summary.map((s) => s.feature)).toEqual(['transactions', 'payments', 'reports']);
   });
 
   it('skips capabilities with blank/whitespace descriptions', () => {
     const sparse: Map<string, CapabilityRow[]> = new Map([
-      [
-        'x',
-        [
-          cap('x.a', 'x', 'Do A'),
-          cap('x.b', 'x', '   '),
-          cap('x.c', 'x', ''),
-        ],
-      ],
+      ['x', [cap('x.a', 'x', 'Do A'), cap('x.b', 'x', '   '), cap('x.c', 'x', '')]],
     ]);
     const summary = buildRoleSummary(new Set(['x.a', 'x.b', 'x.c']), sparse);
     expect(summary).toEqual([{ feature: 'x', descriptions: ['Do A'] }]);
