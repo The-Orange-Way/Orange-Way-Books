@@ -71,25 +71,32 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
     // Fetch rates that have been used by this org's journal lines.
     const { data } = await supabase
       .from('exchange_rates')
-      .select('id, base_currency, quote_currency, rate, rate_date, provider, status, source_kind, confirmed_at, created_at')
+      .select(
+        'id, base_currency, quote_currency, rate, rate_date, provider, status, source_kind, confirmed_at, created_at',
+      )
       .order('rate_date', { ascending: false })
       .limit(500);
 
     if (data) {
       // Augment with manual rate info from journal_entry_lines (where available)
-      setRows(data.map((r: any) => ({
-        ...r,
-        manual_rate_reason: null,
-        manual_rate_source: null,
-      })));
+      setRows(
+        data.map((r: any) => ({
+          ...r,
+          manual_rate_reason: null,
+          manual_rate_source: null,
+        })),
+      );
     }
     setLoading(false);
   }, [orgId]);
 
-  useEffect(() => { fetchRates(); }, [fetchRates]);
+  useEffect(() => {
+    fetchRates();
+  }, [fetchRates]);
 
-  const filtered = rows.filter(r => {
-    if (filter === 'stale') return differenceInDays(new Date(), parseISO(r.rate_date)) > STALE_THRESHOLD_DAYS;
+  const filtered = rows.filter((r) => {
+    if (filter === 'stale')
+      return differenceInDays(new Date(), parseISO(r.rate_date)) > STALE_THRESHOLD_DAYS;
     if (filter === 'manual') return !!r.manual_rate_source;
     if (filter === 'pending') return r.status === 'PENDING';
     return true;
@@ -97,7 +104,7 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
 
   const handleExportCsv = () => {
     const header = ['Pair', 'Date', 'Rate', 'Source', 'Status', 'Age (days)'].join(',');
-    const csvRows = filtered.map(r => {
+    const csvRows = filtered.map((r) => {
       const age = differenceInDays(new Date(), parseISO(r.rate_date));
       return [
         `${r.base_currency}/${r.quote_currency}`,
@@ -124,7 +131,8 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
         <div>
           <h3 className="text-base font-semibold">Exchange Rate Audit</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            All exchange rates in the cache. Rates older than {STALE_THRESHOLD_DAYS} days are flagged.
+            All exchange rates in the cache. Rates older than {STALE_THRESHOLD_DAYS} days are
+            flagged.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -132,7 +140,12 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
             <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filtered.length === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+          >
             <Download className="w-3.5 h-3.5 mr-1" />
             Export CSV
           </Button>
@@ -141,7 +154,7 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
 
       {/* Filter tabs */}
       <div className="flex gap-1">
-        {(['all', 'stale', 'manual', 'pending'] as const).map(f => (
+        {(['all', 'stale', 'manual', 'pending'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -161,40 +174,63 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4">No rates found for this filter.</p>
       ) : (
-        <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+        <div
+          className="border rounded-lg overflow-hidden"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-xs text-muted-foreground" style={{ borderColor: 'var(--color-border)', background: 'var(--color-gray-50)' }}>
+              <tr
+                className="border-b text-xs text-muted-foreground"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-gray-50)' }}
+              >
                 <th className="px-3 py-2 text-left font-medium">Pair</th>
                 <th className="px-3 py-2 text-left font-medium">Date</th>
                 <th className="px-3 py-2 text-right font-medium">Rate</th>
                 <th className="px-3 py-2 text-left font-medium">Source</th>
                 <th className="px-3 py-2 text-left font-medium">Status</th>
                 <th className="px-3 py-2 text-left font-medium">Age</th>
-                {rows.some(r => r.manual_rate_source) && (
+                {rows.some((r) => r.manual_rate_source) && (
                   <th className="px-3 py-2 text-left font-medium">Audit Note</th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(r => (
-                <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors" style={{ borderColor: 'var(--color-border)' }}>
+              {filtered.map((r) => (
+                <tr
+                  key={r.id}
+                  className="border-b last:border-0 hover:bg-gray-50 transition-colors"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
                   <td className="px-3 py-2 font-mono font-semibold text-xs">
                     {r.base_currency}/{r.quote_currency}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{r.rate_date}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs">
-                    {r.rate != null ? r.rate.toPrecision(8) : <span className="text-amber-600">pending</span>}
+                    {r.rate != null ? (
+                      r.rate.toPrecision(8)
+                    ) : (
+                      <span className="text-amber-600">pending</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{sourceLabel(r)}</td>
                   <td className="px-3 py-2">
-                    {r.status === 'PENDING'
-                      ? <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">Pending</Badge>
-                      : <Badge variant="outline" className="text-xs border-green-300 text-green-700">Confirmed</Badge>}
+                    {r.status === 'PENDING' ? (
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                        Pending
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs border-green-300 text-green-700">
+                        Confirmed
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-3 py-2">{staleBadge(r.rate_date)}</td>
-                  {rows.some(row => row.manual_rate_source) && (
-                    <td className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate" title={r.manual_rate_reason ?? ''}>
+                  {rows.some((row) => row.manual_rate_source) && (
+                    <td
+                      className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate"
+                      title={r.manual_rate_reason ?? ''}
+                    >
                       {r.manual_rate_reason ?? '—'}
                     </td>
                   )}
@@ -207,8 +243,8 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
 
       <p className="text-xs text-muted-foreground">
         {filtered.length} rate{filtered.length !== 1 ? 's' : ''} shown
-        {filter !== 'all' && ` (filtered: ${filter})`}.
-        Rates are shared across all orgs and cached for 5 minutes per session.
+        {filter !== 'all' && ` (filtered: ${filter})`}. Rates are shared across all orgs and cached
+        for 5 minutes per session.
       </p>
     </div>
   );

@@ -38,7 +38,9 @@ export async function retryPendingRateLines(
   // fetch the journal_entry's wallet currency via the journal_entries join.
   const { data: lineDetails } = await supabase
     .from('journal_entry_lines')
-    .select('id, rate_asof, primary_currency_at_posting, encrypted_wallet_currency, key_version, journal_entries(date)')
+    .select(
+      'id, rate_asof, primary_currency_at_posting, encrypted_wallet_currency, key_version, journal_entries(date)',
+    )
     .eq('rate_pending', true)
     .limit(100);
 

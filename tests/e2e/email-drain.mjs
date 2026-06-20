@@ -15,19 +15,28 @@
  */
 
 const SUPABASE_URL = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const CRON_SECRET  = process.env.FLASH_CRON_SECRET || process.env.CRON_SECRET;
-const TO_EMAIL     = process.env.DRAIN_TEST_TO_EMAIL || 'miguel@orangeway.app';
+const SERVICE_KEY = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const CRON_SECRET = process.env.FLASH_CRON_SECRET || process.env.CRON_SECRET;
+const TO_EMAIL = process.env.DRAIN_TEST_TO_EMAIL || 'miguel@orangeway.app';
 
 if (!SUPABASE_URL || !SERVICE_KEY || !CRON_SECRET) {
-  console.error('Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET.');
+  console.error(
+    'Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET.',
+  );
   process.exit(2);
 }
 
-const H = { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': 'application/json' };
+const H = {
+  Authorization: `Bearer ${SERVICE_KEY}`,
+  apikey: SERVICE_KEY,
+  'Content-Type': 'application/json',
+};
 
 async function rest(path, opts = {}) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...opts, headers: { ...H, Prefer: 'return=representation', ...(opts.headers | {}) } });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { ...H, Prefer: 'return=representation', ...(opts.headers | {}) },
+  });
   if (!r.ok) throw new Error(`${r.status} ${path}: ${await r.text()}`);
   return r.status === 204 ? null : r.json();
 }

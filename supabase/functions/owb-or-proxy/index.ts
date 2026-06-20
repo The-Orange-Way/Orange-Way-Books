@@ -101,7 +101,10 @@ Deno.serve(async (req: Request) => {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
+    const {
+      data: { user },
+      error: authErr,
+    } = await userClient.auth.getUser();
     if (authErr || !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
 
     // ── Rate limit (M5 — 2026-05-19 audit) ───────────────────────────
@@ -129,7 +132,11 @@ Deno.serve(async (req: Request) => {
 
     const { endpoint, org_id, payload = {} } = body;
     if (!endpoint || !ALLOWED_ENDPOINTS.has(endpoint)) {
-      return jsonResponse({ error: `endpoint must be one of: ${[...ALLOWED_ENDPOINTS].join(', ')}` }, 400, cors);
+      return jsonResponse(
+        { error: `endpoint must be one of: ${[...ALLOWED_ENDPOINTS].join(', ')}` },
+        400,
+        cors,
+      );
     }
     if (!org_id) return jsonResponse({ error: 'org_id required' }, 400, cors);
 
@@ -172,7 +179,8 @@ Deno.serve(async (req: Request) => {
       if (typeof resolved !== 'string' || !resolved) {
         return jsonResponse(
           { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
-          400, cors,
+          400,
+          cors,
         );
       }
       orBody = { ...payload, subaccount_id: resolved };
@@ -204,13 +212,15 @@ Deno.serve(async (req: Request) => {
           // Don't fail the request — the browser localStorage cache still
           // works and the receiver will return 202 (accepted_no_org) if
           // the mapping isn't found. Surface as a server log for now.
-          console.error('[owb-or-proxy] failed to mirror subaccount_id to organizations:', mapErr.message);
+          console.error(
+            '[owb-or-proxy] failed to mirror subaccount_id to organizations:',
+            mapErr.message,
+          );
         }
       }
     }
 
     return jsonResponse(orJson, orRes.status, cors);
-
   } catch (err) {
     console.error('[owb-or-proxy] fatal:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

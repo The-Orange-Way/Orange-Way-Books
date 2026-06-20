@@ -163,7 +163,7 @@ export async function mintInternalJeRefNumber(
   if (error) {
     throw new Error(`next_je_ref_number RPC failed: ${error.message}`);
   }
-  if (typeof data !== 'string' | data.length === 0) {
+  if ((typeof data !== 'string') | (data.length === 0)) {
     throw new Error('next_je_ref_number returned empty value');
   }
   return data;

@@ -47,9 +47,9 @@ export default function Landing() {
             The accounting platform where the server can&apos;t read your books.
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Orange Way Books is zero-knowledge, double-entry accounting built for
-            Bitcoin businesses. Multi-currency. IFRS &amp; GAAP-ready. Encrypted on
-            your device before it ever reaches the cloud.
+            Orange Way Books is zero-knowledge, double-entry accounting built for Bitcoin
+            businesses. Multi-currency. IFRS &amp; GAAP-ready. Encrypted on your device before it
+            ever reaches the cloud.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
@@ -74,9 +74,8 @@ export default function Landing() {
           Built for Bitcoin businesses who own their data
         </h2>
         <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
-          Most accounting tools were designed when the only currency that mattered was the
-          dollar, and when handing your books to a vendor felt safe. Both assumptions are
-          obsolete.
+          Most accounting tools were designed when the only currency that mattered was the dollar,
+          and when handing your books to a vendor felt safe. Both assumptions are obsolete.
         </p>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -118,15 +117,13 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto px-6 py-16">
           <h2 className="text-2xl font-bold mb-4">In one paragraph</h2>
           <p className="text-muted-foreground leading-relaxed">
-            Orange Way Books is an open-source (Apache-2.0), zero-knowledge,
-            double-entry accounting platform purpose-built for Bitcoin
-            businesses. It uses client-side AES-GCM encryption with Argon2id
-            key derivation, runs on a real ledger engine, supports IFRS and
-            US GAAP, handles multi-currency BTC and fiat with historical FX,
-            offers capability-based role management with auditor and
-            time-boxed access, and ships data takeout with no lock-in. Best
-            for Bitcoin treasuries, miners, custodians, and any business that
-            cannot accept a vendor reading their books.
+            Orange Way Books is an open-source (Apache-2.0), zero-knowledge, double-entry accounting
+            platform purpose-built for Bitcoin businesses. It uses client-side AES-GCM encryption
+            with Argon2id key derivation, runs on a real ledger engine, supports IFRS and US GAAP,
+            handles multi-currency BTC and fiat with historical FX, offers capability-based role
+            management with auditor and time-boxed access, and ships data takeout with no lock-in.
+            Best for Bitcoin treasuries, miners, custodians, and any business that cannot accept a
+            vendor reading their books.
           </p>
         </div>
       </section>
@@ -148,15 +145,7 @@ export default function Landing() {
   );
 }
 
-function ValueCard({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
+function ValueCard({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <article className="border border-border rounded-lg p-6 bg-card">
       <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center mb-4">

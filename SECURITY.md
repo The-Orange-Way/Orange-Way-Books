@@ -21,13 +21,13 @@ Existing vaults can opt in to v3 via Settings -> Security.
 
 Argon2id is a memory-hard KDF -- winner of NIST's Password Hashing Competition.
 
-| Setting | Value |
-|---------|-------|
-| Memory | 64 MiB per attempt |
-| Iterations | 3 |
-| Parallelism | 4 threads |
-| Output | 256-bit Master Encryption Key |
-| Minimum password | 14 characters (new vaults) |
+| Setting          | Value                         |
+| ---------------- | ----------------------------- |
+| Memory           | 64 MiB per attempt            |
+| Iterations       | 3                             |
+| Parallelism      | 4 threads                     |
+| Output           | 256-bit Master Encryption Key |
+| Minimum password | 14 characters (new vaults)    |
 
 **Version 2: PBKDF2-SHA256 (existing vaults, still secure)**
 
@@ -41,11 +41,11 @@ Precomputation is theoretically possible for a targeted attack. Please upgrade.
 
 **Crack-time comparison (single RTX 4090):**
 
-| Password | PBKDF2 v1/v2 | Argon2id v3 |
-|---|---|---|
-| 4 EFF words | ~2 years | ~19 years |
-| 5 EFF words | ~20 million years | ~200 million years |
-| Nation-state 10k GPUs, 4 words | ~17 hours | ~7 days |
+| Password                       | PBKDF2 v1/v2      | Argon2id v3        |
+| ------------------------------ | ----------------- | ------------------ |
+| 4 EFF words                    | ~2 years          | ~19 years          |
+| 5 EFF words                    | ~20 million years | ~200 million years |
+| Nation-state 10k GPUs, 4 words | ~17 hours         | ~7 days            |
 
 With a 5-word EFF passphrase, both versions are effectively unbreakable
 today. Argon2id v3 raises the ceiling by 10x and future-proofs against
@@ -82,16 +82,16 @@ names, descriptions, currencies, account types -- is ciphertext only.
 
 ## What the server sees
 
-| Field | Server stores | Server can read |
-|---|---|---|
-| Org name | AES-256-GCM ciphertext | Never |
-| Transaction amount | AES-256-GCM ciphertext | Never |
-| Contact name | AES-256-GCM ciphertext | Never |
-| Wallet name | AES-256-GCM ciphertext | Never |
-| Account type | AES-256-GCM ciphertext | Never |
-| Currency | AES-256-GCM ciphertext | Never |
-| Transaction date | Plaintext | Yes (needed for filtering) |
-| Your vault password | Never transmitted | Never |
+| Field               | Server stores          | Server can read            |
+| ------------------- | ---------------------- | -------------------------- |
+| Org name            | AES-256-GCM ciphertext | Never                      |
+| Transaction amount  | AES-256-GCM ciphertext | Never                      |
+| Contact name        | AES-256-GCM ciphertext | Never                      |
+| Wallet name         | AES-256-GCM ciphertext | Never                      |
+| Account type        | AES-256-GCM ciphertext | Never                      |
+| Currency            | AES-256-GCM ciphertext | Never                      |
+| Transaction date    | Plaintext              | Yes (needed for filtering) |
+| Your vault password | Never transmitted      | Never                      |
 
 **Example -- what Supabase literally stores for a $4,200 transaction:**
 
@@ -158,6 +158,7 @@ Measure 64 MiB / 3 iteration unlock latency on mid-range Android (Snapdragon
 offload for the Argon2id computation.
 
 **3. Security audit**
+
 - `src/lib/vault.ts` -- KDF primitives, verifier scheme
 - `src/lib/crypto-fields.ts` -- per-table field encrypt/decrypt
 - Look for: IV reuse scenarios, key material in error messages, missing tamper

@@ -51,7 +51,8 @@ export default function SignupPage() {
         setCaptchaToken(null);
         toast({
           title: 'Private beta',
-          description: 'Orange Way Books is currently in private beta. Email hello@orangeway.app to request access.',
+          description:
+            'Orange Way Books is currently in private beta. Email hello@orangeway.app to request access.',
           variant: 'destructive',
         });
         return;
@@ -89,7 +90,10 @@ export default function SignupPage() {
     } else {
       toast({ title: 'Check your email', description: 'We sent you a confirmation link.' });
       // Mark the allowlist row as having signed up (best-effort, non-blocking).
-      void supabase.from('beta_allowlist').update({ signed_up_at: new Date().toISOString() }).eq('email', email.toLowerCase());
+      void supabase
+        .from('beta_allowlist')
+        .update({ signed_up_at: new Date().toISOString() })
+        .eq('email', email.toLowerCase());
     }
   };
 
@@ -115,11 +119,25 @@ export default function SignupPage() {
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
             {HCAPTCHA_SITE_KEY && (
               <div className="flex justify-center">

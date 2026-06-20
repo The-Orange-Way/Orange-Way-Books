@@ -75,10 +75,7 @@ function renderRoute(shell: string, route: PublicRouteMeta): string {
   let html = shell;
 
   // <title>
-  html = html.replace(
-    /<title>[\s\S]*?<\/title>/,
-    `<title>${escapeHtml(route.title)}</title>`,
-  );
+  html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(route.title)}</title>`);
 
   // <meta name="description">
   html = html.replace(
@@ -93,10 +90,7 @@ function renderRoute(shell: string, route: PublicRouteMeta): string {
       `<link rel="canonical" href="${canonical}" />`,
     );
   } else {
-    html = html.replace(
-      '</head>',
-      `<link rel="canonical" href="${canonical}" />\n</head>`,
-    );
+    html = html.replace('</head>', `<link rel="canonical" href="${canonical}" />\n</head>`);
   }
 
   // OG / Twitter title + description (for social embed bots)
@@ -122,10 +116,7 @@ function renderRoute(shell: string, route: PublicRouteMeta): string {
   // sitewide Organization/WebSite/SoftwareApplication block intact.
   if (route.jsonLd && route.jsonLd.length > 0) {
     const blocks = route.jsonLd
-      .map(
-        (obj) =>
-          `<script type="application/ld+json">\n${JSON.stringify(obj)}\n</script>`,
-      )
+      .map((obj) => `<script type="application/ld+json">\n${JSON.stringify(obj)}\n</script>`)
       .join('\n');
     html = html.replace('</head>', `${blocks}\n</head>`);
   }

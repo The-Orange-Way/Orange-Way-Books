@@ -28,11 +28,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { decryptInvoice } from '@/lib/crypto-fields';
-import {
-  rankInvoiceMatches,
-  type InvoiceCandidate,
-  type RankedMatch,
-} from '@/lib/invoiceMatch';
+import { rankInvoiceMatches, type InvoiceCandidate, type RankedMatch } from '@/lib/invoiceMatch';
 import {
   fetchPlaceholderPayments,
   mergeWithPlaceholder,
@@ -44,9 +40,9 @@ import { toast } from 'sonner';
 interface Props {
   orgId: string;
   txId: string;
-  txAmount: number;          // positive deposit amount
+  txAmount: number; // positive deposit amount
   txCurrency: string;
-  txDate: string;             // ISO date
+  txDate: string; // ISO date
   counterparty: string | null;
   onApplied: () => void;
 }
@@ -55,7 +51,13 @@ const OPEN_STATUSES = ['DRAFT', 'SENT', 'VIEWED', 'PARTIAL', 'OVERDUE'];
 const MAX_SHOWN = 3;
 
 export function InvoiceMatchPanel({
-  orgId, txId, txAmount, txCurrency, txDate, counterparty, onApplied,
+  orgId,
+  txId,
+  txAmount,
+  txCurrency,
+  txDate,
+  counterparty,
+  onApplied,
 }: Props) {
   const { encryptText, decryptText, loadOrgSigningKey, signMutation } = useVault();
   const [loading, setLoading] = useState(true);
@@ -64,9 +66,7 @@ export function InvoiceMatchPanel({
   const [merging, setMerging] = useState<string | null>(null);
   const [appliedAmounts, setAppliedAmounts] = useState<Record<string, number>>({});
   /** invoice_id → existing placeholder invoice_payments row, if any. */
-  const [placeholders, setPlaceholders] = useState<Map<string, PlaceholderInfo>>(
-    () => new Map(),
-  );
+  const [placeholders, setPlaceholders] = useState<Map<string, PlaceholderInfo>>(() => new Map());
   /** invoice_ids that have been merged this session (hide row actions). */
   const [merged, setMerged] = useState<Set<string>>(() => new Set());
   // Per-row editable amount (string for input control).
@@ -134,7 +134,9 @@ export function InvoiceMatchPanel({
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [orgId, txAmount, txCurrency, txDate, counterparty, decryptText]);
 
   const handleApply = async (m: RankedMatch) => {
@@ -222,13 +224,14 @@ export function InvoiceMatchPanel({
       onApplied();
     } catch (err) {
       if (err instanceof MergeAmountMismatchError) {
-        const proceed = typeof window !== 'undefined'
-          ? window.confirm(
-              `Deposit (${err.depositAmount}) and placeholder ` +
-                `(${err.placeholderAmount}) differ by more than ` +
-                `${(err.tolerancePct * 100).toFixed(2)}%. Merge anyway?`,
-            )
-          : false;
+        const proceed =
+          typeof window !== 'undefined'
+            ? window.confirm(
+                `Deposit (${err.depositAmount}) and placeholder ` +
+                  `(${err.placeholderAmount}) differ by more than ` +
+                  `${(err.tolerancePct * 100).toFixed(2)}%. Merge anyway?`,
+              )
+            : false;
         if (proceed) {
           setMerging(null);
           await handleMerge(m, { confirm: true });
@@ -268,7 +271,11 @@ export function InvoiceMatchPanel({
         <p className="text-sm font-medium">{headline}</p>
         {loading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
         {!loading && ranked.length > 0 && remaining > 0.0001 && (
-          <Badge variant="outline" className="text-xs ml-auto" data-testid="invoice-match-remaining">
+          <Badge
+            variant="outline"
+            className="text-xs ml-auto"
+            data-testid="invoice-match-remaining"
+          >
             {remaining.toFixed(2)} {txCurrency} left
           </Badge>
         )}
@@ -294,7 +301,9 @@ export function InvoiceMatchPanel({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{m.candidate.invoice_number}</span>
-                    <Badge variant="outline" className="text-xs">{pct}% match</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {pct}% match
+                    </Badge>
                     {placeholder && !isMerged && (
                       <Badge
                         variant="secondary"
@@ -306,7 +315,8 @@ export function InvoiceMatchPanel({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {m.candidate.customer_name || '(no customer)'} · {m.candidate.amount} {m.candidate.currency}
+                    {m.candidate.customer_name || '(no customer)'} · {m.candidate.amount}{' '}
+                    {m.candidate.currency}
                     {m.candidate.due_date ? ` · due ${m.candidate.due_date}` : ''}
                   </p>
                 </div>
@@ -345,7 +355,9 @@ export function InvoiceMatchPanel({
                         {isMerging ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          <><Merge className="w-3 h-3 mr-1" /> Merge</>
+                          <>
+                            <Merge className="w-3 h-3 mr-1" /> Merge
+                          </>
                         )}
                       </Button>
                     )}
@@ -356,9 +368,13 @@ export function InvoiceMatchPanel({
                       disabled={isApplying || isMerging || remaining <= 0.0001}
                       data-testid={`invoice-match-apply-${m.candidate.invoice_number}`}
                     >
-                      {isApplying
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : (placeholder ? 'Apply as new' : 'Apply')}
+                      {isApplying ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : placeholder ? (
+                        'Apply as new'
+                      ) : (
+                        'Apply'
+                      )}
                     </Button>
                   </>
                 )}

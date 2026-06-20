@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import '@testing-library/jest-dom';
 
 // jsdom 20 (bundled with vitest 3.x at this dependency level) does not
 // implement Blob.prototype.arrayBuffer — added in jsdom 21. Polyfill it
@@ -21,8 +21,8 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
 // matchMedia only exists in jsdom; skip when running under the
 // "node" environment (used by tests that don't touch DOM APIs —
 // e.g. the Phase 4.1 vault-keypair test).
-if (typeof window !== "undefined") {
-  Object.defineProperty(window, "matchMedia", {
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({
       matches: false,

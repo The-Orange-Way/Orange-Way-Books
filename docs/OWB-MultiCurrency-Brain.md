@@ -25,11 +25,11 @@ Most accounting software thinks in one currency. Orange Way Books thinks in thre
 
 ### Plain-English Explanation
 
-| Currency | IAS 21 Term | ASC 830 Term | What it is in plain English |
-|---|---|---|---|
-| **Wallet Currency** Transaction currency | Foreign currency | The actual money in the transaction — what you received or paid |
-| **Primary Currency** Functional currency | Functional currency | Your reporting base — the currency your business "thinks in" |
-| **Secondary Currency** Presentation currency | Reporting currency | A secondary view for partners, investors, or tax authorities |
+| Currency                                     | IAS 21 Term         | ASC 830 Term                                                    | What it is in plain English |
+| -------------------------------------------- | ------------------- | --------------------------------------------------------------- | --------------------------- |
+| **Wallet Currency** Transaction currency     | Foreign currency    | The actual money in the transaction — what you received or paid |
+| **Primary Currency** Functional currency     | Functional currency | Your reporting base — the currency your business "thinks in"    |
+| **Secondary Currency** Presentation currency | Reporting currency  | A secondary view for partners, investors, or tax authorities    |
 
 ### The Peso / Bitcoin / USD Worked Example
 
@@ -61,6 +61,7 @@ The key insight: **the wallet currency and primary currency are both pinned the 
 3. **Secondary currency**: Reporting truth. What you show a partner, a bank, or a regulator who requires a specific currency for their systems.
 
 Without all three, you end up with one of two bad outcomes:
+
 - **Lose the transaction record** (can't reconcile with bank statements or invoices)
 - **Distort the P&L** (show revenue in the wrong units, mix currencies in summations)
 
@@ -96,20 +97,20 @@ More damaging: if BTC drops (1 BTC = 1,500,000 MXN), your January revenue looks 
 ### Before Pinning: The Dangerous Pattern
 
 | Report Date | Jan Revenue (MXN) | Rate Used | Jan Revenue (BTC) |
-|---|---|---|---|
-| Jan 31 | 10,000 | 1,100,000 | ₿0.009090 |
-| Feb 28 | 10,000 | 950,000 | ₿0.010526 |
-| Mar 31 | 10,000 | 900,000 | ₿0.011111 |
+| ----------- | ----------------- | --------- | ----------------- |
+| Jan 31      | 10,000            | 1,100,000 | ₿0.009090         |
+| Feb 28      | 10,000            | 950,000   | ₿0.010526         |
+| Mar 31      | 10,000            | 900,000   | ₿0.011111         |
 
 The same January transaction generates **three different P&L outcomes** depending on when you look at it. This is not just confusing — it is non-compliant with both IFRS and US GAAP, which both require transactions to be recorded at the exchange rate on the transaction date (IAS 21.21, ASC 830-10-30-3).
 
 ### After Pinning: The Correct Pattern
 
 | Report Date | Jan Revenue (MXN) | Rate Pinned On | Jan Revenue (BTC) |
-|---|---|---|---|
-| Jan 31 | 10,000 | Jan 1 (pinned) | ₿0.009090 |
-| Feb 28 | 10,000 | Jan 1 (pinned) | ₿0.009090 |
-| Mar 31 | 10,000 | Jan 1 (pinned) | ₿0.009090 |
+| ----------- | ----------------- | -------------- | ----------------- |
+| Jan 31      | 10,000            | Jan 1 (pinned) | ₿0.009090         |
+| Feb 28      | 10,000            | Jan 1 (pinned) | ₿0.009090         |
+| Mar 31      | 10,000            | Jan 1 (pinned) | ₿0.009090         |
 
 January revenue is **₿0.009090 forever**. The P&L is stable. Comparatives are reliable. Auditors can verify the rate against the source.
 
@@ -119,17 +120,17 @@ Orange Way Books stores the following per journal entry line:
 
 ```typescript
 // Encrypted at rest (ZKA Level 2)
-encrypted_amount_native   // 10,000 (MXN)
-encrypted_amount_primary  // 0.00909090... (BTC)
-encrypted_posted_rate     // 1,100,000 (MXN per BTC)
-encrypted_wallet_currency // "MXN"
+encrypted_amount_native; // 10,000 (MXN)
+encrypted_amount_primary; // 0.00909090... (BTC)
+encrypted_posted_rate; // 1,100,000 (MXN per BTC)
+encrypted_wallet_currency; // "MXN"
 
 // Plaintext (needed for server-side filtering, same privacy baseline as dates)
-primary_currency_at_posting  // "BTC" — the primary currency at the moment of posting
-pinned_rate_id               // FK to exchange_rates row
-rate_pending                 // false (or true if rate not available at post time)
-rate_asof                    // 2026-01-01T00:00:00Z
-dual_amounts_backfilled      // true
+primary_currency_at_posting; // "BTC" — the primary currency at the moment of posting
+pinned_rate_id; // FK to exchange_rates row
+rate_pending; // false (or true if rate not available at post time)
+rate_asof; // 2026-01-01T00:00:00Z
+dual_amounts_backfilled; // true
 ```
 
 This is the **immutable ledger of record**. Once a transaction posts, these fields never change.
@@ -145,12 +146,12 @@ Pinning handles new transactions correctly. But what about the balance sheet at 
 Under IAS 21.16 and ASC 830-10-45-3, a **monetary item** is an asset or liability you will settle in a fixed or determinable amount of cash:
 
 | Monetary (remeasure) | Non-monetary (historical cost) |
-|---|---|
-| Cash, bank accounts | Property, plant & equipment |
-| Accounts receivable | Inventory (at cost) |
-| Accounts payable | Prepaid expenses |
-| Short-term loans | Equity shares |
-| Credit card balances | Intangible assets |
+| -------------------- | ------------------------------ |
+| Cash, bank accounts  | Property, plant & equipment    |
+| Accounts receivable  | Inventory (at cost)            |
+| Accounts payable     | Prepaid expenses               |
+| Short-term loans     | Equity shares                  |
+| Credit card balances | Intangible assets              |
 
 Orange Way Books classifies your accounts automatically using account type heuristics, with a manual override available per account.
 
@@ -171,6 +172,7 @@ Gain on remeasurement: ₿0.009500 - ₿0.009000 = ₿0.000500 (unrealized)
 ```
 
 **Revaluation journal entry (Mar 31):**
+
 ```
   Debit  MXN Cash Account          ₿0.000500
   Credit Unrealized FX Gain/Loss   ₿0.000500
@@ -178,6 +180,7 @@ Gain on remeasurement: ₿0.009500 - ₿0.009000 = ₿0.000500 (unrealized)
 ```
 
 **Auto-reversal entry (Apr 1):**
+
 ```
   Debit  Unrealized FX Gain/Loss   ₿0.000500
   Credit MXN Cash Account          ₿0.000500
@@ -214,6 +217,7 @@ The functional currency (primary currency in Orange Way Books) is the currency y
 ### The Core Problem
 
 Naive implementations do one of two things when you change primary currency:
+
 1. **Convert everything historically** — destroys the original record, produces incorrect comparatives
 2. **Block the change** — QuickBooks does this (you cannot change your home currency once set)
 
@@ -227,9 +231,9 @@ Orange Way Books uses a **cutoff** approach:
 Timeline:
   Before cutoff: All JE lines retain primary_currency_at_posting = "USD"
                  Amounts denominated in USD — unchanged forever
-  
+
   Cutoff date: Jan 1, 2027
-  
+
   After cutoff:  New JE lines get primary_currency_at_posting = "BTC"
                  Amounts denominated in BTC — pinned as usual
 ```
@@ -271,7 +275,7 @@ Invoice created Dec 15, 2026:
 
 Payment received Feb 1, 2027 (after cutoff, primary now BTC):
   Rate on Feb 1: 1 BTC = $95,000 USD
-  
+
   Debit  Cash / BTC           ₿0.025263   (actual BTC received = $2,400 / $95,000)
   Credit Accounts Receivable  $2,400 USD  (closes at original USD amount)
   Credit Realized FX Gain     ₿0.000052   (delta, if any rate difference)
@@ -282,17 +286,20 @@ The open item is kept in the old primary until settlement. On settlement, a real
 ### Pros and Cons of This Approach
 
 **Pros:**
+
 - Historical records are never rewritten — full audit trail preserved
 - No confusion between "old" and "new" comparatives
 - IFRS and GAAP compliant
 - Open items settle correctly without complex re-pinning
 
 **Cons:**
+
 - Reports spanning the cutoff require explanation (handled by Split View + disclosure)
 - Tax treatment of the cutoff may require CPA guidance in some jurisdictions
 - If you have many open items at the boundary, the settlement process generates more journal lines
 
 **The alternative (re-translate everything):**
+
 - Simpler appearance at first glance
 - But: destroys the original transaction record
 - Makes historical comparatives unreliable
@@ -334,29 +341,30 @@ Each transaction translated at the exchange rate on the date of that specific tr
 ### Side-by-Side P&L Example
 
 Setup:
+
 - Primary currency: BTC
 - Secondary: USD
 - Two transactions in Q1: Jan sale ₿0.009, Mar sale ₿0.011
 
-| Month | BTC Revenue | BTC→USD rate on trans. date | Historical USD | Avg Rate (Q1) | Closing Rate (Mar 31) |
-|---|---|---|---|---|---|
-| Jan sale | ₿0.009 | $90,000/BTC | $810.00 | — | — |
-| Mar sale | ₿0.011 | $95,000/BTC | $1,045.00 | — | — |
+| Month                     | BTC Revenue                               | BTC→USD rate on trans. date | Historical USD | Avg Rate (Q1) | Closing Rate (Mar 31) |
+| ------------------------- | ----------------------------------------- | --------------------------- | -------------- | ------------- | --------------------- |
+| Jan sale                  | ₿0.009                                    | $90,000/BTC                 | $810.00        | —             | —                     |
+| Mar sale                  | ₿0.011                                    | $95,000/BTC                 | $1,045.00      | —             | —                     |
 | **Total Q1** **₿0.020** — | **$1,855.00** **$1,900.00** **$1,980.00** |
 
-*(Avg rate Q1 = $95,000; Closing rate Mar 31 = $99,000)*
+_(Avg rate Q1 = $95,000; Closing rate Mar 31 = $99,000)_
 
 The three methods produce **$125 difference** on the same underlying business activity. None is "wrong" — but Method 3 is most defensible to auditors, and Method 1 is most useful for day-to-day dashboards.
 
 ### Orange Way Books Default Configuration
 
-| Context | Default Method | Why |
-|---|---|---|
-| Dashboard KPI cards | Closing rate | Speed — one fetch, no per-transaction work |
-| WalletsInsightsCard donut | Closing rate | Live, visual overview |
-| P&L Report | Historical per transaction | IFRS accuracy |
-| Balance Sheet | Closing rate | Standard for balance sheet items |
-| CSV / PDF Export | Historical per transaction | Auditor-grade output |
+| Context                   | Default Method             | Why                                        |
+| ------------------------- | -------------------------- | ------------------------------------------ |
+| Dashboard KPI cards       | Closing rate               | Speed — one fetch, no per-transaction work |
+| WalletsInsightsCard donut | Closing rate               | Live, visual overview                      |
+| P&L Report                | Historical per transaction | IFRS accuracy                              |
+| Balance Sheet             | Closing rate               | Standard for balance sheet items           |
+| CSV / PDF Export          | Historical per transaction | Auditor-grade output                       |
 
 Users can override the default per-report using the toolbar selector. The chosen method is recorded in the export's audit footer.
 
@@ -375,6 +383,7 @@ Once you set your home currency in QBO, you cannot change it. Ever. The QuickBoo
 This is a hard architectural constraint, not a policy choice. QBO was built on a single-currency ledger, and multi-currency was bolted on as a display feature rather than a first-class data model.
 
 Additional QBO gaps:
+
 - **Rate precision**: QBO stores exchange rates to 6 decimal places. For BTC/USD, rates often require 8-10 significant figures (e.g., 0.00000978). Truncation introduces rounding errors that compound across thousands of transactions.
 - **No IFRS mode**: QBO does not offer a translation method selector. It uses an undocumented internal method that approximates period-average but is not auditor-verifiable.
 - **No FX revaluation automation**: QBO requires manual revaluation journal entries. There is no built-in workflow, no auto-reversal, and no classification of monetary vs. non-monetary items.
@@ -389,6 +398,7 @@ Additional QBO gaps:
 Xero performs FX revaluation for bank account balances only (cash/bank accounts). Accounts receivable, accounts payable, and loan accounts are not revalued — the user must post manual journal entries. This violates IAS 21.23, which requires remeasurement of ALL monetary items at the closing rate.
 
 Additional Xero gaps:
+
 - **Home currency change**: Like QBO, Xero does not support changing the base currency after org creation.
 - **Rate sourcing**: Xero pulls from a single undisclosed rate provider. The rate used for each transaction is not stored per-line in the export — users cannot independently verify or reproduce exchange rate history.
 - **Translation method**: Xero uses closing rate for all revaluations and does not offer historical-per-transaction for formal reports.
@@ -422,6 +432,7 @@ For businesses that receive payments in multiple currencies — which includes v
 All four incumbents share the same fundamental constraint: they were built as **invoice + expense managers** with a single-currency ledger, and multi-currency was added as a display feature. The result is software that looks like it handles multi-currency (it can print invoices in euros!) but fails at the accounting layer where it counts.
 
 The gaps they share:
+
 1. No functional currency change after setup
 2. Incomplete FX revaluation (cash only, or manual, or none)
 3. No translation method selector
@@ -464,6 +475,7 @@ This section maps each incumbent gap to the specific Orange Way Books feature th
 ### Manual Rate Entry with Audit-Grade Reason
 
 **What we do**: When a rate is not available from a provider (historical gap, obscure pair, or provider outage), Orange Way Books prompts you for a manual rate entry. The dialog requires:
+
 - The rate value
 - The source (dropdown: OANDA.com, CPA-quoted, Spot rate from bank, Other)
 - A reason in your own words (minimum 40 characters)
@@ -477,6 +489,7 @@ This creates a `manual_rate_reason` + `manual_rate_source` record on the journal
 ### Translation Method Selector
 
 **What we do**: Three methods available globally (set in Org Settings → Accounting Framework) and overridable per-report in the toolbar:
+
 - Closing rate (default for dashboards)
 - Period average
 - Historical per transaction (default for formal reports and exports)
@@ -490,6 +503,7 @@ The method used is recorded in every exported report's audit footer.
 ### Crypto as Functional Currency
 
 **What we do**: Orange Way Books treats BTC, SATS, and other crypto assets as first-class functional currencies. Rate resolution handles four source types:
+
 - Fiat → crypto (e.g., MXN → BTC): CoinGecko API
 - Crypto → fiat (e.g., BTC → USD): CoinGecko API (direct or inverted)
 - Fiat → fiat (e.g., MXN → EUR): OXR API via USD cross-rate
@@ -514,15 +528,15 @@ For most small businesses, IFRS and US GAAP produce nearly identical results in 
 
 ### Key Differences
 
-| Topic | IFRS (IAS 21) | US GAAP (ASC 830) |
-|---|---|---|
-| **Functional currency definition** Entity-specific, determined by facts | Same — entity-specific |
-| **Re-measurement method** Monetary/non-monetary classification | Temporal method (similar but not identical) |
+| Topic                                                                                            | IFRS (IAS 21)                                                                              | US GAAP (ASC 830) |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------- |
+| **Functional currency definition** Entity-specific, determined by facts                          | Same — entity-specific                                                                     |
+| **Re-measurement method** Monetary/non-monetary classification                                   | Temporal method (similar but not identical)                                                |
 | **Translation to presentation currency** Closing rate for assets/liabilities; average for income | Same, but "current rate method" vs. "temporal method" distinction matters for subsidiaries |
-| **FX differences in equity** Cumulative translation adjustment (CTA) in OCI | Same — CTA in AOCI |
-| **Hyperinflationary economies** IAS 29 applies (restate then translate) | ASC 830-10-45-11 (remeasure into functional) |
-| **Crypto assets** IAS 38 (intangible asset) if held; IAS 21 for functional | No specific standard; SEC staff guidance |
-| **Disclosure** More narrative required | Similar, with additional tabular disclosures |
+| **FX differences in equity** Cumulative translation adjustment (CTA) in OCI                      | Same — CTA in AOCI                                                                         |
+| **Hyperinflationary economies** IAS 29 applies (restate then translate)                          | ASC 830-10-45-11 (remeasure into functional)                                               |
+| **Crypto assets** IAS 38 (intangible asset) if held; IAS 21 for functional                       | No specific standard; SEC staff guidance                                                   |
+| **Disclosure** More narrative required                                                           | Similar, with additional tabular disclosures                                               |
 
 ### When the Difference Matters
 
@@ -531,6 +545,7 @@ For most small businesses, IFRS and US GAAP produce nearly identical results in 
 **GAAP temporal method** applies when translating the financial statements of a subsidiary whose functional currency differs from the parent's reporting currency. The temporal method re-measures at historical rates for non-monetary items (PP&E, inventory) rather than closing rates. For small businesses without subsidiaries, this distinction rarely applies.
 
 **The practical default for most Orange Way Books users:**
+
 - Non-US businesses: use IFRS
 - US businesses: use US GAAP
 - Businesses with international investors or planning IPO: use IFRS_AND_GAAP dual mode
@@ -577,6 +592,7 @@ We recommend consulting a qualified tax professional when using BTC as your prim
 USDC, USDT, and similar USD-pegged stablecoins are treated as USD-equivalent in Orange Way Books by default. Rate is set to 1.0000 (no external fetch).
 
 This is appropriate for most scenarios. Edge cases:
+
 - **USDT de-peg events** (May 2022: USDT briefly traded at $0.9956): Orange Way Books will not automatically detect a de-peg. Users operating with material USDT balances should monitor rate manually and use the Manual Rate Entry dialog during de-peg events.
 - **Rebasing stablecoins** (AMPL, RAI): Not supported in v1. Contact support for a roadmap timeline.
 
@@ -597,10 +613,12 @@ The JE must balance in the primary currency, not in any single wallet currency. 
 ### Missing Historical Rates
 
 Orange Way Books uses free-tier rate providers (OpenExchangeRates for fiat, CoinGecko for crypto). Free tiers provide:
+
 - OXR: latest rates only (no historical for free tier). Historical rates for dates older than 30 days require OXR paid tier.
 - CoinGecko: daily OHLC up to 365 days back for free tier. Beyond 365 days requires CoinGecko Pro.
 
 For transactions posted with missing historical rates, Orange Way Books sets `rate_pending = true`. The Pending Rates Banner appears in the app. You can:
+
 1. **Retry**: Once an hour automatically; "Retry now" button for immediate retry
 2. **Resolve manually**: Enter the rate yourself with source and reason (minimum 40 characters)
 
@@ -674,4 +692,4 @@ Transactions with `rate_pending = true` are excluded from formal reports with a 
 
 ---
 
-*Orange Way Books — built for the Bitcoin Standard. Questions? Open an issue in the repo or email hello@orangeway.app.*
+_Orange Way Books — built for the Bitcoin Standard. Questions? Open an issue in the repo or email hello@orangeway.app._

@@ -36,7 +36,7 @@ export function aggregateActiveGrants(
 ): { roles: CurrentUserRole[]; capabilities: Set<string> } {
   const active: CurrentUserRole[] = (grants ?? [])
     .filter((g) => !g.revoked_at)
-    .filter((g) => !g.expires_at | new Date(g.expires_at).getTime() > now)
+    .filter((g) => !g.expires_at | (new Date(g.expires_at).getTime() > now))
     .map((g) => ({
       role_definition_id: g.role_definition_id,
       role_name: g.role_definitions?.name ?? '(unknown role)',
@@ -46,9 +46,7 @@ export function aggregateActiveGrants(
 
   const roleIds = new Set(active.map((r) => r.role_definition_id));
   const capabilities = new Set(
-    (roleCaps ?? [])
-      .filter((c) => roleIds.has(c.role_id))
-      .map((c) => c.capability_key),
+    (roleCaps ?? []).filter((c) => roleIds.has(c.role_id)).map((c) => c.capability_key),
   );
 
   return { roles: active, capabilities };

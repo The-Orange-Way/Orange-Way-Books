@@ -50,13 +50,13 @@
  *      receives a row within ~30s (OR backoff).
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { jsonResponse, readBoundedText } from "../_shared/http.ts";
-import { constructEvent, SignatureVerificationError } from "../_shared/or-webhooks/index.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { jsonResponse, readBoundedText } from '../_shared/http.ts';
+import { constructEvent, SignatureVerificationError } from '../_shared/or-webhooks/index.ts';
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OR_WEBHOOK_SECRET = Deno.env.get("OR_WEBHOOK_SECRET");
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const OR_WEBHOOK_SECRET = Deno.env.get('OR_WEBHOOK_SECRET');
 
 const service = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -72,29 +72,29 @@ const service = createClient(SUPABASE_URL, SERVICE_KEY, {
  */
 async function resolveOrgId(subaccountId: string): Promise<string | null> {
   const { data, error } = await service
-    .from("organizations")
-    .select("id")
-    .eq("or_subaccount_id", subaccountId)
+    .from('organizations')
+    .select('id')
+    .eq('or_subaccount_id', subaccountId)
     .maybeSingle();
   if (error) {
-    console.error("[or-webhook-receiver] org lookup error:", error.message);
+    console.error('[or-webhook-receiver] org lookup error:', error.message);
     return null;
   }
   return (data?.id as string | undefined) ?? null;
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   if (!OR_WEBHOOK_SECRET) {
-    return jsonResponse({ error: "OR_WEBHOOK_SECRET not configured" }, 500);
+    return jsonResponse({ error: 'OR_WEBHOOK_SECRET not configured' }, 500);
   }
 
   const body = await readBoundedText(req);
   if (body === null) {
-    return jsonResponse({ error: "Request body too large" }, 413);
+    return jsonResponse({ error: 'Request body too large' }, 413);
   }
 
   let event;
@@ -102,9 +102,9 @@ Deno.serve(async (req: Request) => {
     event = await constructEvent({
       rawBody: body,
       headers: {
-        "x-or-signature": req.headers.get("x-or-signature"),
-        "x-or-signature-v2": req.headers.get("x-or-signature-v2"),
-        "x-or-event-id": req.headers.get("x-or-event-id"),
+        'x-or-signature': req.headers.get('x-or-signature'),
+        'x-or-signature-v2': req.headers.get('x-or-signature-v2'),
+        'x-or-event-id': req.headers.get('x-or-event-id'),
       },
       secret: OR_WEBHOOK_SECRET,
       tolerance: 300,
@@ -112,19 +112,19 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     if (err instanceof SignatureVerificationError) {
       console.warn(`[or-webhook-receiver] verification failed (${err.code}): ${err.message}`);
-      return jsonResponse({ error: "Invalid signature" }, 401);
+      return jsonResponse({ error: 'Invalid signature' }, 401);
     }
-    console.error("[or-webhook-receiver] unexpected SDK error:", err);
-    return jsonResponse({ error: "Verification error" }, 500);
+    console.error('[or-webhook-receiver] unexpected SDK error:', err);
+    return jsonResponse({ error: 'Verification error' }, 500);
   }
 
   // Mapping from OR event type → sync_events.status. New types added
   // here must also be added to the CHECK constraint in the
   // sync_events_status migration.
-  const STATUS_BY_TYPE: Record<string, "completed" | "failed" | "deleted"> = {
-    "sync.completed": "completed",
-    "connection.failed": "failed",
-    "connection.deleted": "deleted",
+  const STATUS_BY_TYPE: Record<string, 'completed' | 'failed' | 'deleted'> = {
+    'sync.completed': 'completed',
+    'connection.failed': 'failed',
+    'connection.deleted': 'deleted',
   };
 
   const status = STATUS_BY_TYPE[event.type];
@@ -134,7 +134,7 @@ Deno.serve(async (req: Request) => {
     console.warn(
       `[or-webhook-receiver] unhandled event type "${event.type}" — accepting without persisting`,
     );
-    return jsonResponse({ status: "accepted_unhandled", type: event.type }, 202);
+    return jsonResponse({ status: 'accepted_unhandled', type: event.type }, 202);
   }
 
   const orgId = await resolveOrgId(event.data.subaccount_id);
@@ -142,27 +142,27 @@ Deno.serve(async (req: Request) => {
     console.warn(
       `[or-webhook-receiver] unknown subaccount_id ${event.data.subaccount_id} — no org match`,
     );
-    return jsonResponse({ status: "accepted_no_org" }, 202);
+    return jsonResponse({ status: 'accepted_no_org' }, 202);
   }
 
-  const { error: insertErr } = await service.from("sync_events").upsert(
+  const { error: insertErr } = await service.from('sync_events').upsert(
     {
       org_id: orgId,
       or_connection_id: event.data.connection_id,
       // synced_count is only meaningful on completed events; failed +
       // deleted leave it null so the UI doesn't render a misleading "0".
-      synced_count: status === "completed" ? event.data.synced_count : null,
+      synced_count: status === 'completed' ? event.data.synced_count : null,
       or_ts: event.data.ts,
       or_event_id: event.id,
       status,
     },
-    { onConflict: "or_event_id", ignoreDuplicates: true },
+    { onConflict: 'or_event_id', ignoreDuplicates: true },
   );
 
   if (insertErr) {
-    console.error("[or-webhook-receiver] sync_events upsert failed:", insertErr.message);
-    return jsonResponse({ error: "Persist failed" }, 500);
+    console.error('[or-webhook-receiver] sync_events upsert failed:', insertErr.message);
+    return jsonResponse({ error: 'Persist failed' }, 500);
   }
 
-  return jsonResponse({ status: "ok", recordedAs: status }, 200);
+  return jsonResponse({ status: 'ok', recordedAs: status }, 200);
 });

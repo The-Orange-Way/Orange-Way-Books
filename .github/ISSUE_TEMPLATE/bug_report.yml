@@ -1,7 +1,7 @@
 name: Bug report
 description: Something broke or behaves wrong. Use this for reproducible problems.
-title: "[bug] "
-labels: ["bug"]
+title: '[bug] '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -15,7 +15,7 @@ body:
     attributes:
       label: What happened?
       description: What did you do, and what did you see? Plain language is fine.
-      placeholder: "I unlocked the vault, clicked Payments, and..."
+      placeholder: 'I unlocked the vault, clicked Payments, and...'
     validations:
       required: true
 
@@ -42,7 +42,7 @@ body:
     id: browser
     attributes:
       label: Browser and version
-      placeholder: "Chrome 130, Safari 17, Firefox 125"
+      placeholder: 'Chrome 130, Safari 17, Firefox 125'
     validations:
       required: true
 

@@ -31,10 +31,19 @@ export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * BYTES_PER_MB;
  *  capture HEIC by default). */
 export const ALLOWED_EXTENSIONS = [
   'pdf',
-  'doc', 'docx',
-  'xls', 'xlsx',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
   'csv',
-  'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'heic',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'bmp',
+  'tiff',
+  'webp',
+  'heic',
 ] as const;
 
 export type AllowedExtension = (typeof ALLOWED_EXTENSIONS)[number];

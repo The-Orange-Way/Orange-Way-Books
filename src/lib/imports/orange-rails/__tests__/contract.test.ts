@@ -15,7 +15,14 @@ function validPayload(over: Partial<StagedImportPayload> = {}): StagedImportPayl
     contractVersion: 1,
     source: { name: 'wave', version: '1.0.0', exportedAt: '2026-05-19T12:00:00Z' },
     manifest: { files: [{ name: 'accounts.csv', sizeBytes: 100 }] },
-    summary: { accounts: 0, contacts: 0, journalEntries: 0, journalLines: 0, warnings: [], errors: [] },
+    summary: {
+      accounts: 0,
+      contacts: 0,
+      journalEntries: 0,
+      journalLines: 0,
+      warnings: [],
+      errors: [],
+    },
     staged: {},
     ...over,
   };
@@ -49,7 +56,10 @@ describe('assertStagedImportPayload', () => {
   });
 
   it('rejects summary counts that are not numbers', () => {
-    const bad = { ...validPayload(), summary: { ...validPayload().summary, accounts: 'three' as any } };
+    const bad = {
+      ...validPayload(),
+      summary: { ...validPayload().summary, accounts: 'three' as any },
+    };
     expect(() => assertStagedImportPayload(bad)).toThrow(/summary.accounts/);
   });
 
@@ -59,9 +69,11 @@ describe('assertStagedImportPayload', () => {
   });
 
   it('accepts staged with empty arrays', () => {
-    const result = assertStagedImportPayload(validPayload({
-      staged: { accounts: [], contacts: [], journalEntries: [] },
-    }));
+    const result = assertStagedImportPayload(
+      validPayload({
+        staged: { accounts: [], contacts: [], journalEntries: [] },
+      }),
+    );
     expect(result.staged.accounts).toEqual([]);
   });
 

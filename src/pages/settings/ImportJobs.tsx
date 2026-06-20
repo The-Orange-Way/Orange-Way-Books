@@ -36,10 +36,19 @@ import { purgeImportJobArtifacts } from '@/lib/journal-entry-ref-numbers';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 
 interface ImportJobRow {
@@ -95,7 +104,9 @@ export default function ImportJobs() {
     try {
       const { data, error } = await supabase
         .from('import_jobs')
-        .select('id, source_type, status, file_name, file_hash, row_count, created_at, committed_at, encrypted_parse_summary, encrypted_manifest, encrypted_error, key_version')
+        .select(
+          'id, source_type, status, file_name, file_hash, row_count, created_at, committed_at, encrypted_parse_summary, encrypted_manifest, encrypted_error, key_version',
+        )
         .eq('org_id', orgId)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -160,14 +171,19 @@ export default function ImportJobs() {
   }, [orgId]);
 
   const handlePurge = async (jobId: string) => {
-    if (!confirm(
-      'Delete all journal entries created by this import job? This cannot be undone. ' +
-      'After purging you can re-upload the same payload through the Import wizard.',
-    )) return;
+    if (
+      !confirm(
+        'Delete all journal entries created by this import job? This cannot be undone. ' +
+          'After purging you can re-upload the same payload through the Import wizard.',
+      )
+    )
+      return;
     setPurgingId(jobId);
     try {
       const result = await purgeImportJobArtifacts(supabase, jobId);
-      toast.success(`Purged ${result.journal_entries_deleted} journal entr${result.journal_entries_deleted === 1 ? 'y' : 'ies'} from this job.`);
+      toast.success(
+        `Purged ${result.journal_entries_deleted} journal entr${result.journal_entries_deleted === 1 ? 'y' : 'ies'} from this job.`,
+      );
       await load();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -197,7 +213,10 @@ export default function ImportJobs() {
 
   return (
     <div className="container max-w-5xl py-8">
-      <Link to="/app/admin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link
+        to="/app/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Admin
       </Link>
 
@@ -206,9 +225,9 @@ export default function ImportJobs() {
           <FileJson className="w-5 h-5" /> Import Jobs
         </h1>
         <p className="text-sm text-muted-foreground">
-          Every import that ran through the Orange Rails wizard appears here.
-          Committed jobs have a "Purge" button — use it to delete the journal
-          entries they created when you want to re-import after a mapping fix.
+          Every import that ran through the Orange Rails wizard appears here. Committed jobs have a
+          "Purge" button — use it to delete the journal entries they created when you want to
+          re-import after a mapping fix.
         </p>
       </header>
 
@@ -236,7 +255,10 @@ export default function ImportJobs() {
           <div className="p-8 text-center">
             <p className="text-sm text-muted-foreground">
               No import jobs yet. Upload a staged-import.json via{' '}
-              <Link to="/app/settings/import-from-or" className="underline">Import from Orange Rails</Link>.
+              <Link to="/app/settings/import-from-or" className="underline">
+                Import from Orange Rails
+              </Link>
+              .
             </p>
           </div>
         ) : (
@@ -264,9 +286,7 @@ export default function ImportJobs() {
                     {r.file_name | <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>{statusBadge(r.status)}</TableCell>
-                  <TableCell className="text-right text-sm">
-                    {r.row_count ?? '—'}
-                  </TableCell>
+                  <TableCell className="text-right text-sm">{r.row_count ?? '—'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button
@@ -277,7 +297,7 @@ export default function ImportJobs() {
                       >
                         Details
                       </Button>
-                      {(r.status === 'committed' | r.status === 'failed') && (
+                      {(r.status === 'committed') | (r.status === 'failed') && (
                         <Button
                           type="button"
                           variant="ghost"
@@ -309,7 +329,12 @@ export default function ImportJobs() {
         )}
       </section>
 
-      <Dialog open={!!detailRow} onOpenChange={(o) => { if (!o) setDetailRow(null); }}>
+      <Dialog
+        open={!!detailRow}
+        onOpenChange={(o) => {
+          if (!o) setDetailRow(null);
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import job detail</DialogTitle>
@@ -324,7 +349,9 @@ export default function ImportJobs() {
                 <dt className="text-muted-foreground">File</dt>
                 <dd className="col-span-2">{detailRow.file_name || '—'}</dd>
                 <dt className="text-muted-foreground">File hash</dt>
-                <dd className="col-span-2 font-mono text-xs break-all">{detailRow.file_hash || '—'}</dd>
+                <dd className="col-span-2 font-mono text-xs break-all">
+                  {detailRow.file_hash || '—'}
+                </dd>
                 <dt className="text-muted-foreground">Manifest</dt>
                 <dd className="col-span-2 text-xs">{detailRow.manifest_summary || '—'}</dd>
                 <dt className="text-muted-foreground">Created</dt>
@@ -341,17 +368,33 @@ export default function ImportJobs() {
                 <div>
                   <div className="text-xs uppercase text-muted-foreground mb-1">Summary</div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <div>Accounts: <span className="font-mono">{detailRow.summary.accounts ?? 0}</span></div>
-                    <div>Contacts: <span className="font-mono">{detailRow.summary.contacts ?? 0}</span></div>
-                    <div>Journal entries: <span className="font-mono">{detailRow.summary.journalEntries ?? 0}</span></div>
-                    <div>Journal lines: <span className="font-mono">{detailRow.summary.journalLines ?? 0}</span></div>
+                    <div>
+                      Accounts: <span className="font-mono">{detailRow.summary.accounts ?? 0}</span>
+                    </div>
+                    <div>
+                      Contacts: <span className="font-mono">{detailRow.summary.contacts ?? 0}</span>
+                    </div>
+                    <div>
+                      Journal entries:{' '}
+                      <span className="font-mono">{detailRow.summary.journalEntries ?? 0}</span>
+                    </div>
+                    <div>
+                      Journal lines:{' '}
+                      <span className="font-mono">{detailRow.summary.journalLines ?? 0}</span>
+                    </div>
                   </div>
                   {(detailRow.summary.warnings?.length ?? 0) > 0 && (
                     <div className="mt-3 text-xs">
-                      <div className="text-amber-600 font-medium mb-1">Warnings ({detailRow.summary.warnings!.length})</div>
+                      <div className="text-amber-600 font-medium mb-1">
+                        Warnings ({detailRow.summary.warnings!.length})
+                      </div>
                       <ul className="list-disc list-inside text-muted-foreground space-y-0.5 max-h-32 overflow-y-auto">
-                        {detailRow.summary.warnings!.slice(0, 20).map((w, i) => <li key={i}>{w}</li>)}
-                        {detailRow.summary.warnings!.length > 20 && <li>+{detailRow.summary.warnings!.length - 20} more</li>}
+                        {detailRow.summary.warnings!.slice(0, 20).map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                        {detailRow.summary.warnings!.length > 20 && (
+                          <li>+{detailRow.summary.warnings!.length - 20} more</li>
+                        )}
                       </ul>
                     </div>
                   )}
@@ -371,11 +414,16 @@ export default function ImportJobs() {
             </div>
           )}
           <DialogFooter>
-            {detailRow && (detailRow.status === 'committed' | detailRow.status === 'failed') && (
+            {detailRow && (detailRow.status === 'committed') | (detailRow.status === 'failed') && (
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => { if (detailRow) { void handlePurge(detailRow.id); setDetailRow(null); } }}
+                onClick={() => {
+                  if (detailRow) {
+                    void handlePurge(detailRow.id);
+                    setDetailRow(null);
+                  }
+                }}
                 disabled={purgingId === detailRow.id}
               >
                 <Trash2 className="w-4 h-4 mr-1" /> Purge artifacts

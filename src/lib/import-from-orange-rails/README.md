@@ -5,10 +5,10 @@ wire format is defined in `contract.ts` in this directory.
 
 ## What's here
 
-| File | What it does |
-|---|---|
-| `contract.ts` | Type definition (`StagedImportPayload`) + runtime validator (`assertStagedImportPayload`) + helper (`stagedRowsToPreview`). Kept in sync manually with `orangerails/src/connectors/contract.ts` until OR is published as an npm package. |
-| `contract.test.ts` | Vitest unit tests for the validator and the helper. |
+| File               | What it does                                                                                                                                                                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contract.ts`      | Type definition (`StagedImportPayload`) + runtime validator (`assertStagedImportPayload`) + helper (`stagedRowsToPreview`). Kept in sync manually with `orangerails/src/connectors/contract.ts` until OR is published as an npm package. |
+| `contract.test.ts` | Vitest unit tests for the validator and the helper.                                                                                                                                                                                      |
 
 The wizard component lives at `src/components/imports/ImportFromOrangeRailsWizard.tsx`.
 

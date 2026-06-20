@@ -26,21 +26,30 @@
 import { randomUUID } from 'node:crypto';
 
 const SUPABASE_URL = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const CRON_SECRET  = process.env.FLASH_CRON_SECRET || process.env.CRON_SECRET;
+const SERVICE_KEY = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const CRON_SECRET = process.env.FLASH_CRON_SECRET || process.env.CRON_SECRET;
 
 if (!SUPABASE_URL || !SERVICE_KEY || !CRON_SECRET) {
-  console.error('Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET.');
+  console.error(
+    'Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET.',
+  );
   process.exit(2);
 }
 
-const H = { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY, 'Content-Type': 'application/json' };
+const H = {
+  Authorization: `Bearer ${SERVICE_KEY}`,
+  apikey: SERVICE_KEY,
+  'Content-Type': 'application/json',
+};
 const DAY = 24 * 3600 * 1000;
 const iso = (ms) => new Date(ms).toISOString();
 const now = Date.now();
 
 async function rest(path, opts = {}) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...opts, headers: { ...H, Prefer: 'return=representation', ...(opts.headers | {}) } });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { ...H, Prefer: 'return=representation', ...(opts.headers | {}) },
+  });
   if (!r.ok) throw new Error(`${r.status} ${path}: ${await r.text()}`);
   return r.status === 204 ? null : r.json();
 }
@@ -56,23 +65,31 @@ async function runCron() {
 }
 
 async function getSub(id) {
-  const [row] = await rest(`subscriptions?id=eq.${id}&select=status,past_due_since,locked_at,scheduled_deletion_at`);
+  const [row] = await rest(
+    `subscriptions?id=eq.${id}&select=status,past_due_since,locked_at,scheduled_deletion_at`,
+  );
   return row;
 }
 
 async function countEvents(subId, toStatus) {
-  const rows = await rest(`subscription_lifecycle_events?subscription_id=eq.${subId}&to_status=eq.${toStatus}&select=id`);
+  const rows = await rest(
+    `subscription_lifecycle_events?subscription_id=eq.${subId}&to_status=eq.${toStatus}&select=id`,
+  );
   return rows.length;
 }
 
 async function countQueuedEmails(toEmail) {
-  const rows = await rest(`pending_admin_emails?to_email=eq.${encodeURIComponent(toEmail)}&select=subject,status`);
+  const rows = await rest(
+    `pending_admin_emails?to_email=eq.${encodeURIComponent(toEmail)}&select=subject,status`,
+  );
   return rows;
 }
 
 function assert(cond, msg) {
-  if (!cond) { console.error(`❌ ${msg}`); process.exitCode = 1; }
-  else console.log(`✅ ${msg}`);
+  if (!cond) {
+    console.error(`❌ ${msg}`);
+    process.exitCode = 1;
+  } else console.log(`✅ ${msg}`);
 }
 
 // ─── Setup: create a throwaway billing_account + subscription ────────────
@@ -118,7 +135,7 @@ try {
   console.log('   cron report:', report);
   let after = await getSub(sub.id);
   assert(after.status === 'past_due', `status is past_due (got ${after.status})`);
-  assert(await countEvents(sub.id, 'past_due') >= 1, 'lifecycle event written for past_due');
+  assert((await countEvents(sub.id, 'past_due')) >= 1, 'lifecycle event written for past_due');
 
   // ── Phase 2: backdate past_due_since 46 days, expect read_only ───────
   console.log('\n📅 phase 2: past_due → read_only');
@@ -130,7 +147,7 @@ try {
   console.log('   cron report:', report);
   after = await getSub(sub.id);
   assert(after.status === 'read_only', `status is read_only (got ${after.status})`);
-  assert(await countEvents(sub.id, 'read_only') >= 1, 'lifecycle event written for read_only');
+  assert((await countEvents(sub.id, 'read_only')) >= 1, 'lifecycle event written for read_only');
 
   // ── Phase 3: backdate past_due_since 91 days, expect locked ──────────
   console.log('\n📅 phase 3: read_only → locked');
@@ -143,7 +160,7 @@ try {
   after = await getSub(sub.id);
   assert(after.status === 'locked', `status is locked (got ${after.status})`);
   assert(after.locked_at !== null, 'locked_at set');
-  assert(await countEvents(sub.id, 'locked') >= 1, 'lifecycle event written for locked');
+  assert((await countEvents(sub.id, 'locked')) >= 1, 'lifecycle event written for locked');
 
   // ── Email queue check ────────────────────────────────────────────────
   console.log('\n📧 checking queued emails for owner');
@@ -151,14 +168,18 @@ try {
   console.log(`   ${emails.length} rows in pending_admin_emails for ${ownerEmail}`);
   emails.forEach((e) => console.log(`     • [${e.status}] ${e.subject}`));
   assert(emails.length >= 3, 'at least 3 lifecycle emails queued (one per transition)');
-
 } finally {
   // ── Cleanup ──────────────────────────────────────────────────────────
   console.log('\n🧹 cleanup');
   await rest(`subscriptions?id=eq.${sub.id}`, { method: 'DELETE' }).catch(() => {});
   await rest(`billing_accounts?id=eq.${billingId}`, { method: 'DELETE' }).catch(() => {});
-  await rest(`pending_admin_emails?to_email=eq.${encodeURIComponent(ownerEmail)}`, { method: 'DELETE' }).catch(() => {});
-  await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${ownerId}`, { method: 'DELETE', headers: H }).catch(() => {});
+  await rest(`pending_admin_emails?to_email=eq.${encodeURIComponent(ownerEmail)}`, {
+    method: 'DELETE',
+  }).catch(() => {});
+  await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${ownerId}`, {
+    method: 'DELETE',
+    headers: H,
+  }).catch(() => {});
 }
 
 console.log('\n✨ done.');

@@ -4,15 +4,18 @@ Thank you for helping. This project uses GitHub as a **marketing and trust surfa
 
 ---
 
-## Install the pre-push gate
+## Install the git hooks
 
-**On a fresh clone, install the pre-push gate:**
+**On a fresh clone, install the hooks:**
 
 ```bash
 bash scripts/install-hooks.sh
 ```
 
-That wires a `git pre-push` hook into `.git/hooks/pre-push`. Before every push the hook runs `scripts/pre-push-gate.sh`, which refuses the push if any of these fail:
+That wires two `git` hooks into `.git/hooks/`:
+
+- **pre-commit** runs `scripts/pre-commit-format.sh`, which auto-formats every staged file with Prettier and re-stages it. So every commit lands Prettier-clean and `bun run format:check` in CI never fires red on a forgotten format.
+- **pre-push** runs `scripts/pre-push-gate.sh`, which refuses the push if any of these fail:
 
 1. The `/pr-this` skill has not been recorded against the current `HEAD` (marker at `.git/.pr-this-ran`)
 2. The pre-publish leak scanner reports anything other than clean

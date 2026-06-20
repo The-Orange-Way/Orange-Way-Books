@@ -8,7 +8,12 @@ import { encryptContact, encryptWallet } from '@/lib/crypto-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 // Plausible-looking demo data for sales walkthroughs, training, and Playwright
@@ -17,17 +22,59 @@ import {
 // requires balanced double-entry inserts under the active vault, tracked
 // separately. Contacts + wallets are enough to demo the directory + dropdowns.
 const SAMPLE_CONTACTS = [
-  { name: 'Acme Industrial Supply', email: 'billing@acme-industrial.example', phone: '555-0101', city: 'Calgary',  country: 'CA', type: 'VENDOR' },
-  { name: 'North Loop Logistics',   email: 'ap@northloop.example',           phone: '555-0102', city: 'Edmonton', country: 'CA', type: 'VENDOR' },
-  { name: 'Cohort Coffee Co.',      email: 'orders@cohortcoffee.example',    phone: '555-0103', city: 'Vancouver',country: 'CA', type: 'CUSTOMER' },
-  { name: 'Harbor & Vine',          email: 'hello@harborandvine.example',    phone: '555-0104', city: 'Halifax',  country: 'CA', type: 'CUSTOMER' },
-  { name: 'Granite Plumbing Ltd.',  email: 'office@granite-plumbing.example',phone: '555-0105', city: 'Winnipeg', country: 'CA', type: 'CUSTOMER' },
-  { name: 'Jordan Reyes',           email: 'jordan.reyes@example.com',       phone: '555-0106', city: 'Toronto',  country: 'CA', type: 'EMPLOYEE' },
+  {
+    name: 'Acme Industrial Supply',
+    email: 'billing@acme-industrial.example',
+    phone: '555-0101',
+    city: 'Calgary',
+    country: 'CA',
+    type: 'VENDOR',
+  },
+  {
+    name: 'North Loop Logistics',
+    email: 'ap@northloop.example',
+    phone: '555-0102',
+    city: 'Edmonton',
+    country: 'CA',
+    type: 'VENDOR',
+  },
+  {
+    name: 'Cohort Coffee Co.',
+    email: 'orders@cohortcoffee.example',
+    phone: '555-0103',
+    city: 'Vancouver',
+    country: 'CA',
+    type: 'CUSTOMER',
+  },
+  {
+    name: 'Harbor & Vine',
+    email: 'hello@harborandvine.example',
+    phone: '555-0104',
+    city: 'Halifax',
+    country: 'CA',
+    type: 'CUSTOMER',
+  },
+  {
+    name: 'Granite Plumbing Ltd.',
+    email: 'office@granite-plumbing.example',
+    phone: '555-0105',
+    city: 'Winnipeg',
+    country: 'CA',
+    type: 'CUSTOMER',
+  },
+  {
+    name: 'Jordan Reyes',
+    email: 'jordan.reyes@example.com',
+    phone: '555-0106',
+    city: 'Toronto',
+    country: 'CA',
+    type: 'EMPLOYEE',
+  },
 ] as const;
 
 const SAMPLE_WALLETS = [
-  { name: 'Operating Checking', asset: 'USD', walletType: 'Bank',     initialBalance: 25_000 },
-  { name: 'Treasury BTC',       asset: 'BTC', walletType: 'Exchange', initialBalance: 0.75 },
+  { name: 'Operating Checking', asset: 'USD', walletType: 'Bank', initialBalance: 25_000 },
+  { name: 'Treasury BTC', asset: 'BTC', walletType: 'Exchange', initialBalance: 0.75 },
 ] as const;
 
 // Tables emptied by the wipe. Order matters — children before parents so
@@ -75,16 +122,23 @@ export default function DemoDataPage() {
         SAMPLE_CONTACTS.map((c) =>
           encryptContact(
             {
-              name: c.name, email: c.email, phone: c.phone, city: c.city, country: c.country,
-              street: null, state: null, zip: null, type: c.type,
+              name: c.name,
+              email: c.email,
+              phone: c.phone,
+              city: c.city,
+              country: c.country,
+              street: null,
+              state: null,
+              zip: null,
+              type: c.type,
             },
             encryptText,
           ),
         ),
       );
-      const { error: cErr } = await supabase.from('contacts').insert(
-        contacts.map((enc) => ({ org_id: orgId, ...enc } as any)),
-      );
+      const { error: cErr } = await supabase
+        .from('contacts')
+        .insert(contacts.map((enc) => ({ org_id: orgId, ...enc }) as any));
       if (cErr) throw new Error(`contacts: ${cErr.message}`);
 
       const wallets = await Promise.all(
@@ -102,12 +156,14 @@ export default function DemoDataPage() {
           ),
         ),
       );
-      const { error: wErr } = await supabase.from('accounts').insert(
-        wallets.map((enc) => ({ org_id: orgId, ...enc } as any)),
-      );
+      const { error: wErr } = await supabase
+        .from('accounts')
+        .insert(wallets.map((enc) => ({ org_id: orgId, ...enc }) as any));
       if (wErr) throw new Error(`wallets: ${wErr.message}`);
 
-      toast.success(`Seeded ${SAMPLE_CONTACTS.length} contacts and ${SAMPLE_WALLETS.length} accounts.`);
+      toast.success(
+        `Seeded ${SAMPLE_CONTACTS.length} contacts and ${SAMPLE_WALLETS.length} accounts.`,
+      );
       await fetchCounts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Seed failed.');
@@ -172,9 +228,9 @@ export default function DemoDataPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Demo data</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Reset this organization's bookkeeping data so you can demo a clean state, capture
-          fresh screenshots, or run a Playwright suite from scratch. The wipe leaves the
-          organization, billing, and your membership intact — only the bookkeeping tables are emptied.
+          Reset this organization's bookkeeping data so you can demo a clean state, capture fresh
+          screenshots, or run a Playwright suite from scratch. The wipe leaves the organization,
+          billing, and your membership intact — only the bookkeeping tables are emptied.
         </p>
       </div>
 
@@ -196,7 +252,12 @@ export default function DemoDataPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Current row counts
           </h2>
-          <Button variant="outline" size="sm" onClick={fetchCounts} disabled={countingNow || orgLoading || !orgId}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchCounts}
+            disabled={countingNow || orgLoading || !orgId}
+          >
             {countingNow ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
             {counts.length === 0 ? 'Count' : 'Refresh'}
           </Button>
@@ -206,7 +267,10 @@ export default function DemoDataPage() {
             Hit "Count" to see how many rows the wipe would delete.
           </p>
         ) : (
-          <div className="bg-card border border-border rounded-lg divide-y" data-testid="demo-data-row-counts">
+          <div
+            className="bg-card border border-border rounded-lg divide-y"
+            data-testid="demo-data-row-counts"
+          >
             {counts.map((c) => (
               <div key={c.table} className="flex items-center justify-between px-4 py-2 text-sm">
                 <span className="font-mono text-xs text-muted-foreground">{c.table}</span>
@@ -219,7 +283,9 @@ export default function DemoDataPage() {
             ))}
             <div className="flex items-center justify-between px-4 py-2 text-sm bg-muted/40">
               <span className="font-medium">Total</span>
-              <span className="font-mono tabular-nums font-semibold">{totalRows.toLocaleString()}</span>
+              <span className="font-mono tabular-nums font-semibold">
+                {totalRows.toLocaleString()}
+              </span>
             </div>
           </div>
         )}
@@ -230,8 +296,8 @@ export default function DemoDataPage() {
           Seed sample data
         </h2>
         <p className="text-xs text-muted-foreground">
-          Adds {SAMPLE_CONTACTS.length} plausible contacts (customers, vendors, employee) and
-          {' '}{SAMPLE_WALLETS.length} accounts (USD operating + BTC treasury). Names are clearly
+          Adds {SAMPLE_CONTACTS.length} plausible contacts (customers, vendors, employee) and{' '}
+          {SAMPLE_WALLETS.length} accounts (USD operating + BTC treasury). Names are clearly
           fictional. Safe to run on top of existing data — it inserts, doesn't replace.
         </p>
         <Button
@@ -240,7 +306,11 @@ export default function DemoDataPage() {
           disabled={!orgId || seeding || working || orgLoading}
           data-testid="demo-data-seed-trigger"
         >
-          {seeding ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Sparkles className="w-4 h-4 mr-1.5" />}
+          {seeding ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+          ) : (
+            <Sparkles className="w-4 h-4 mr-1.5" />
+          )}
           Seed contacts and accounts
         </Button>
         <p className="text-xs text-muted-foreground">
@@ -262,12 +332,20 @@ export default function DemoDataPage() {
           Clear all bookkeeping data for this org
         </Button>
         <p className="text-xs text-muted-foreground">
-          Empties {WIPE_TABLES.length} tables scoped to this org. Membership, billing rows,
-          and the organization record are preserved.
+          Empties {WIPE_TABLES.length} tables scoped to this org. Membership, billing rows, and the
+          organization record are preserved.
         </p>
       </section>
 
-      <Dialog open={confirmOpen} onOpenChange={(v) => { if (!working) { setConfirmOpen(v); setConfirmText(''); } }}>
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(v) => {
+          if (!working) {
+            setConfirmOpen(v);
+            setConfirmText('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Wipe bookkeeping data?</DialogTitle>
@@ -279,7 +357,11 @@ export default function DemoDataPage() {
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm">
-              Type <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-semibold">{expectedConfirm}</code> to confirm.
+              Type{' '}
+              <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-semibold">
+                {expectedConfirm}
+              </code>{' '}
+              to confirm.
             </p>
             <Input
               value={confirmText}

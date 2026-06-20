@@ -64,7 +64,7 @@ const FAQ = [
   },
   {
     q: 'Does Orange Way Books support multiple users per organization?',
-    a: 'Yes. Multi-user orgs use envelope encryption: a per-org data key is wrapped per-user with that user\'s public key, so each member can decrypt with their own vault password. Capability-based roles (owner, admin, accountant, member, etc.) are time-boxable and revocable.',
+    a: "Yes. Multi-user orgs use envelope encryption: a per-org data key is wrapped per-user with that user's public key, so each member can decrypt with their own vault password. Capability-based roles (owner, admin, accountant, member, etc.) are time-boxable and revocable.",
   },
   {
     q: 'Can my external auditor access the books?',
@@ -108,8 +108,7 @@ export default function Faq() {
         <header className="mb-12">
           <h1 className="text-4xl font-bold mb-4">Frequently Asked Questions</h1>
           <p className="text-muted-foreground">
-            Everything you might want to ask before trusting Orange Way Books
-            with your books.
+            Everything you might want to ask before trusting Orange Way Books with your books.
           </p>
         </header>
 

@@ -1,7 +1,7 @@
 name: SaaS accounting horror story
 description: Tell us your worst experience with cloud accounting software. These sharpen the roadmap.
-title: "[horror] "
-labels: ["horror-story", "roadmap-input"]
+title: '[horror] '
+labels: ['horror-story', 'roadmap-input']
 body:
   - type: markdown
     attributes:

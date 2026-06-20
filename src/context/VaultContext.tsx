@@ -41,7 +41,11 @@ import {
   importMekForHkdf,
   type SupabaseKeypairClient,
 } from '@/lib/vault-keypair';
-import { unwrapSigningKeyForSelf, signMutation as signingKeySignMutation, type SigningKeyHandle } from '@/lib/signing-key';
+import {
+  unwrapSigningKeyForSelf,
+  signMutation as signingKeySignMutation,
+  type SigningKeyHandle,
+} from '@/lib/signing-key';
 import { derivePqcSecretWrapKey } from '@/lib/key-derivation';
 import { isCredentialError } from './vault-unlock-errors';
 
@@ -115,7 +119,10 @@ interface VaultContextType {
    * call site should skip the signature columns (server-side trigger
    * accepts NULL for write_own paths and for service-role inserts).
    */
-  signMutation: (payloadBytes: Uint8Array, orgId: string) => { signature_b64: string; key_version: number } | null;
+  signMutation: (
+    payloadBytes: Uint8Array,
+    orgId: string,
+  ) => { signature_b64: string; key_version: number } | null;
 
   /**
    * Change the vault password. Re-wraps the MEK under the new password and
@@ -224,10 +231,17 @@ async function maybeFirstTimeSetup(
 ): Promise<void> {
   try {
     // Capability check — only Owners/Admins run first-time setup.
-    const { data: canInvite } = await (supabase as unknown as {
-      rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-    }).rpc('user_has_capability', {
-      p_user_id: userId, p_capability: 'users.invite', p_org_id: orgId,
+    const { data: canInvite } = await (
+      supabase as unknown as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: unknown }>;
+      }
+    ).rpc('user_has_capability', {
+      p_user_id: userId,
+      p_capability: 'users.invite',
+      p_org_id: orgId,
     });
     if (!canInvite) return;
 
@@ -237,7 +251,8 @@ async function maybeFirstTimeSetup(
       .select('active_dek_key_version')
       .eq('org_id', orgId)
       .maybeSingle();
-    const activeVer = (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
+    const activeVer =
+      (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
     if (activeVer > 1) return; // Already rotated past baseline.
 
     // Probe: does the caller's own wrap exist AND is it a placeholder?
@@ -291,14 +306,18 @@ async function maybeFirstTimeSetup(
           toast.success('One-time security setup completed in background', { duration: 4000 });
         },
         onAborted: (reason) => {
-          toast.error(`Security setup couldn't finish: ${reason}. You can retry from Settings → Security.`, { duration: 8000 });
+          toast.error(
+            `Security setup couldn't finish: ${reason}. You can retry from Settings → Security.`,
+            { duration: 8000 },
+          );
         },
         onError: (err) => {
           console.warn('[vault] first-time-setup error:', err);
         },
-        firstTimeSetupEmail: orgNameDecrypted && userEmail
-          ? { orgNameDecrypted, recipientEmail: userEmail }
-          : undefined,
+        firstTimeSetupEmail:
+          orgNameDecrypted && userEmail
+            ? { orgNameDecrypted, recipientEmail: userEmail }
+            : undefined,
       });
     } catch (err) {
       toast.error("Security setup couldn't finish. Please try again from Settings → Security.");
@@ -339,7 +358,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // logged as `vault_unlock_failed`, otherwise a reload-induced flake
     // ticks the S10 sliding-window counter (see the bug fix referenced
     // in fix/vault-unlock-after-reload).
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.user) throw new Error('Session not yet ready — please try again.');
     const user = session.user;
 
@@ -394,7 +415,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const kek = await deriveVaultV1Kek(password, user.id, orgSalt);
       const mekRaw = await unwrapMekWithKey(encMekCiphertext, kek);
       const mek = await importAesGcmKey(mekRaw);
-      const isValid = await verifyVaultPassword(password, user.id, verifier, orgSalt, vaultKeyVersion);
+      const isValid = await verifyVaultPassword(
+        password,
+        user.id,
+        verifier,
+        orgSalt,
+        vaultKeyVersion,
+      );
       if (!isValid) throw new Error('Incorrect vault password');
       const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSalt);
       keyRef.current = mek;
@@ -547,7 +574,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setupVault = useCallback(async (password: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     // v4: random MEK, Argon2id-derived KEK wraps MEK, recovery code wraps MEK independently.
@@ -585,46 +614,54 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const recoverWithCode = useCallback(async ({
-    recoveryCode,
-    recoveryCiphertext,
-    orgSaltB64,
-    userId,
-    newPassword,
-  }: {
-    recoveryCode: string;
-    encMekCiphertext: string;
-    recoveryCiphertext: string;
-    orgSaltB64: string;
-    userId: string;
-    newPassword: string;
-  }) => {
-    // Unwrap MEK with the recovery code KEK — throws if code is wrong.
-    const recoveryKek = await deriveRecoveryKek(recoveryCode);
-    const mekRaw = await unwrapMekWithKey(recoveryCiphertext, recoveryKek);
-    const mek = await importAesGcmKey(mekRaw);
+  const recoverWithCode = useCallback(
+    async ({
+      recoveryCode,
+      recoveryCiphertext,
+      orgSaltB64,
+      userId,
+      newPassword,
+    }: {
+      recoveryCode: string;
+      encMekCiphertext: string;
+      recoveryCiphertext: string;
+      orgSaltB64: string;
+      userId: string;
+      newPassword: string;
+    }) => {
+      // Unwrap MEK with the recovery code KEK — throws if code is wrong.
+      const recoveryKek = await deriveRecoveryKek(recoveryCode);
+      const mekRaw = await unwrapMekWithKey(recoveryCiphertext, recoveryKek);
+      const mek = await importAesGcmKey(mekRaw);
 
-    // Re-wrap MEK with the new password (same salt → all existing ciphertext stays valid).
-    // Blind index key derives from MEK so it survives this rotation unchanged.
-    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
-    const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
-    const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
+      // Re-wrap MEK with the new password (same salt → all existing ciphertext stays valid).
+      // Blind index key derives from MEK so it survives this rotation unchanged.
+      const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
+      const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
+      const newVerifier = await createVaultVerifier(
+        newPassword,
+        userId,
+        orgSaltB64,
+        LATEST_VAULT_KEY_VERSION,
+      );
 
-    // Generate a fresh recovery code (old one is consumed).
-    const newRecoveryCode = generateRecoveryCode();
-    const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
-    const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
+      // Generate a fresh recovery code (old one is consumed).
+      const newRecoveryCode = generateRecoveryCode();
+      const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
+      const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
 
-    const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
+      const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
 
-    keyRef.current = mek;
-    blindIndexKeyRef.current = blindIndexKey;
-    setIsUnlocked(true);
+      keyRef.current = mek;
+      blindIndexKeyRef.current = blindIndexKey;
+      setIsUnlocked(true);
 
-    void logSecurityEvent(userId, 'vault_recover');
+      void logSecurityEvent(userId, 'vault_recover');
 
-    return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
-  }, []);
+      return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
+    },
+    [],
+  );
 
   /**
    * Rotate ONLY the recovery code without touching the vault password or
@@ -679,13 +716,16 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
    * recovery setup. The caller provides the master code (it's only
    * known to the user at setup time; we never persist it).
    */
-  const wrapCurrentOrgUnderMaster = useCallback(async (masterCode: string, masterSaltB64: string) => {
-    if (!mekRawRef.current) {
-      throw new Error('Vault must be unlocked before enrolling org in master recovery.');
-    }
-    const masterKek = await deriveMasterRecoveryKek(masterCode, masterSaltB64);
-    return wrapMekWithKey(mekRawRef.current, masterKek);
-  }, []);
+  const wrapCurrentOrgUnderMaster = useCallback(
+    async (masterCode: string, masterSaltB64: string) => {
+      if (!mekRawRef.current) {
+        throw new Error('Vault must be unlocked before enrolling org in master recovery.');
+      }
+      const masterKek = await deriveMasterRecoveryKek(masterCode, masterSaltB64);
+      return wrapMekWithKey(mekRawRef.current, masterKek);
+    },
+    [],
+  );
 
   /**
    * S14 — Recover an org using the master recovery code. Used on the
@@ -703,133 +743,152 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
    *
    * Caller persists the returned ciphertexts to org_settings.
    */
-  const recoverOrgWithMasterCode = useCallback(async ({
-    masterCode,
-    masterSaltB64,
-    verifierCiphertext,
-    masterWrappedMek,
-    orgSaltB64,
-    userId,
-    newPassword,
-  }: {
-    masterCode: string;
-    masterSaltB64: string;
-    verifierCiphertext: string;
-    masterWrappedMek: string;
-    orgSaltB64: string;
-    userId: string;
-    newPassword: string;
-  }) => {
-    // 1. Verify the code via the exported helper. This is the SAME crypto
-    //    path the helper in vault.ts encapsulates — using the helper avoids
-    //    a name-shadow bug where the local `decryptText` useCallback
-    //    (1 arg, uses keyRef MEK which is null during recovery) would
-    //    silently take precedence over the imported 2-arg helper. Found
-    //    by the 2026-05-16 post-hardening audit (A1).
-    if (!(await verifyMasterRecoveryCode(masterCode, masterSaltB64, verifierCiphertext))) {
-      throw new Error('Master recovery code is incorrect.');
-    }
+  const recoverOrgWithMasterCode = useCallback(
+    async ({
+      masterCode,
+      masterSaltB64,
+      verifierCiphertext,
+      masterWrappedMek,
+      orgSaltB64,
+      userId,
+      newPassword,
+    }: {
+      masterCode: string;
+      masterSaltB64: string;
+      verifierCiphertext: string;
+      masterWrappedMek: string;
+      orgSaltB64: string;
+      userId: string;
+      newPassword: string;
+    }) => {
+      // 1. Verify the code via the exported helper. This is the SAME crypto
+      //    path the helper in vault.ts encapsulates — using the helper avoids
+      //    a name-shadow bug where the local `decryptText` useCallback
+      //    (1 arg, uses keyRef MEK which is null during recovery) would
+      //    silently take precedence over the imported 2-arg helper. Found
+      //    by the 2026-05-16 post-hardening audit (A1).
+      if (!(await verifyMasterRecoveryCode(masterCode, masterSaltB64, verifierCiphertext))) {
+        throw new Error('Master recovery code is incorrect.');
+      }
 
-    // 2. Re-derive the master KEK for the unwrap step. HKDF is cheap;
-    //    the helper above did it once internally to verify, we do it
-    //    once more here. If we ever care about the microseconds, the
-    //    helper can be lifted to return both (boolean, kek).
-    const masterKek = await deriveMasterRecoveryKek(masterCode, masterSaltB64);
-    const mekRaw = await unwrapMekWithKey(masterWrappedMek, masterKek);
-    const mek = await importAesGcmKey(mekRaw);
+      // 2. Re-derive the master KEK for the unwrap step. HKDF is cheap;
+      //    the helper above did it once internally to verify, we do it
+      //    once more here. If we ever care about the microseconds, the
+      //    helper can be lifted to return both (boolean, kek).
+      const masterKek = await deriveMasterRecoveryKek(masterCode, masterSaltB64);
+      const mekRaw = await unwrapMekWithKey(masterWrappedMek, masterKek);
+      const mek = await importAesGcmKey(mekRaw);
 
-    // 3. Re-wrap under the new password's KEK.
-    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
-    const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
-    const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
-
-    // 4. Fresh per-org recovery code (rotates whatever the user had — they
-    //    don't necessarily remember it anyway, since they just used the
-    //    master).
-    const newRecoveryCode = generateRecoveryCode();
-    const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
-    const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
-
-    // 5. Unlock in memory.
-    const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
-    keyRef.current = mek;
-    blindIndexKeyRef.current = blindIndexKey;
-    mekRawRef.current = mekRaw;
-    orgSaltRef.current = orgSaltB64;
-    setIsUnlocked(true);
-
-    void logSecurityEvent(userId, 'vault_recover', { via: 'master_code' });
-
-    return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
-  }, []);
-
-  const changeVaultPassword = useCallback(async ({
-    currentPassword,
-    newPassword,
-    orgSaltB64,
-    encMekCiphertext,
-    userId,
-  }: {
-    currentPassword: string;
-    newPassword: string;
-    orgSaltB64: string;
-    encMekCiphertext: string;
-    userId: string;
-  }) => {
-    // 1. Unwrap MEK with current password's KEK — throws if current password is wrong.
-    const currentKek = await deriveVaultV1Kek(currentPassword, userId, orgSaltB64);
-    const mekRaw = await unwrapMekWithKey(encMekCiphertext, currentKek);
-    const mek = await importAesGcmKey(mekRaw);
-
-    // 2. Re-wrap MEK with new password's KEK (same salt — blind index stays valid).
-    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
-    const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
-    const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
-
-    // 3. Fresh recovery code — old one is invalidated.
-    const newRecoveryCode = generateRecoveryCode();
-    const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
-    const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
-
-    // 4. Keep vault unlocked with the same MEK + blind index key in memory.
-    const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
-    keyRef.current = mek;
-    blindIndexKeyRef.current = blindIndexKey;
-
-    // 5. Phase 4.1: re-wrap the hybrid private key with the new MEK via
-    // atomic UPDATE (Decision D5). The random MEK bytes are identical
-    // across password change, so the HKDF-derived pqcSecretWrapKey also
-    // stays the same — meaning this call is a no-op at the crypto layer
-    // yet still exercises the UPDATE path so the DB-touch invariants
-    // are observable. Password changes that *do* rotate the MEK (e.g.
-    // Phase 4.5 hard re-key) will see real re-wrap work here.
-    //
-    // Never let a keypair-row failure block the password change UX;
-    // the user's data encryption still works, and we retry on the
-    // next unlock via ensureUserKeypair.
-    try {
-      const oldMekForHkdf = await importMekForHkdf(mekRaw);
-      const newMekForHkdf = await importMekForHkdf(mekRaw);
-      await rewrapUserKeypair({
+      // 3. Re-wrap under the new password's KEK.
+      const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
+      const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
+      const newVerifier = await createVaultVerifier(
+        newPassword,
         userId,
-        oldMek: oldMekForHkdf,
-        newMek: newMekForHkdf,
-        saltB64: orgSaltB64,
-        supabase: supabase as unknown as SupabaseKeypairClient,
-      });
-    } catch (e) {
-      console.warn('[vault] rewrapUserKeypair failed; retry next unlock', e);
-    }
+        orgSaltB64,
+        LATEST_VAULT_KEY_VERSION,
+      );
 
-    void logSecurityEvent(userId, 'vault_password_changed');
+      // 4. Fresh per-org recovery code (rotates whatever the user had — they
+      //    don't necessarily remember it anyway, since they just used the
+      //    master).
+      const newRecoveryCode = generateRecoveryCode();
+      const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
+      const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
 
-    return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
-  }, []);
+      // 5. Unlock in memory.
+      const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
+      keyRef.current = mek;
+      blindIndexKeyRef.current = blindIndexKey;
+      mekRawRef.current = mekRaw;
+      orgSaltRef.current = orgSaltB64;
+      setIsUnlocked(true);
 
-  const blindIndex = useCallback(async (value: string | null | undefined): Promise<string | null> => {
-    if (!blindIndexKeyRef.current) return null;
-    return computeBlindIndex(value, blindIndexKeyRef.current);
-  }, []);
+      void logSecurityEvent(userId, 'vault_recover', { via: 'master_code' });
+
+      return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
+    },
+    [],
+  );
+
+  const changeVaultPassword = useCallback(
+    async ({
+      currentPassword,
+      newPassword,
+      orgSaltB64,
+      encMekCiphertext,
+      userId,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+      orgSaltB64: string;
+      encMekCiphertext: string;
+      userId: string;
+    }) => {
+      // 1. Unwrap MEK with current password's KEK — throws if current password is wrong.
+      const currentKek = await deriveVaultV1Kek(currentPassword, userId, orgSaltB64);
+      const mekRaw = await unwrapMekWithKey(encMekCiphertext, currentKek);
+      const mek = await importAesGcmKey(mekRaw);
+
+      // 2. Re-wrap MEK with new password's KEK (same salt — blind index stays valid).
+      const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
+      const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
+      const newVerifier = await createVaultVerifier(
+        newPassword,
+        userId,
+        orgSaltB64,
+        LATEST_VAULT_KEY_VERSION,
+      );
+
+      // 3. Fresh recovery code — old one is invalidated.
+      const newRecoveryCode = generateRecoveryCode();
+      const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
+      const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
+
+      // 4. Keep vault unlocked with the same MEK + blind index key in memory.
+      const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSaltB64);
+      keyRef.current = mek;
+      blindIndexKeyRef.current = blindIndexKey;
+
+      // 5. Phase 4.1: re-wrap the hybrid private key with the new MEK via
+      // atomic UPDATE (Decision D5). The random MEK bytes are identical
+      // across password change, so the HKDF-derived pqcSecretWrapKey also
+      // stays the same — meaning this call is a no-op at the crypto layer
+      // yet still exercises the UPDATE path so the DB-touch invariants
+      // are observable. Password changes that *do* rotate the MEK (e.g.
+      // Phase 4.5 hard re-key) will see real re-wrap work here.
+      //
+      // Never let a keypair-row failure block the password change UX;
+      // the user's data encryption still works, and we retry on the
+      // next unlock via ensureUserKeypair.
+      try {
+        const oldMekForHkdf = await importMekForHkdf(mekRaw);
+        const newMekForHkdf = await importMekForHkdf(mekRaw);
+        await rewrapUserKeypair({
+          userId,
+          oldMek: oldMekForHkdf,
+          newMek: newMekForHkdf,
+          saltB64: orgSaltB64,
+          supabase: supabase as unknown as SupabaseKeypairClient,
+        });
+      } catch (e) {
+        console.warn('[vault] rewrapUserKeypair failed; retry next unlock', e);
+      }
+
+      void logSecurityEvent(userId, 'vault_password_changed');
+
+      return { newEncMekCiphertext, newRecoveryCode, newRecoveryCiphertext, newVerifier };
+    },
+    [],
+  );
+
+  const blindIndex = useCallback(
+    async (value: string | null | undefined): Promise<string | null> => {
+      if (!blindIndexKeyRef.current) return null;
+      return computeBlindIndex(value, blindIndexKeyRef.current);
+    },
+    [],
+  );
 
   /**
    * Phase 4.4: lazily unwrap the user's Org Signing Key for a given
@@ -856,7 +915,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
 
     // Step 1: latest signing-key wrap for this user in this org.
@@ -914,7 +975,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signMutation = useCallback(
-    (payloadBytes: Uint8Array, orgId: string): { signature_b64: string; key_version: number } | null => {
+    (
+      payloadBytes: Uint8Array,
+      orgId: string,
+    ): { signature_b64: string; key_version: number } | null => {
       const handle = signingKeysRef.current.get(orgId);
       if (!handle) return null;
       return signingKeySignMutation(payloadBytes, handle);
@@ -923,15 +987,32 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <VaultCtx.Provider value={{
-      isUnlocked, unlock, lock,
-      encryptText, decryptText, encryptBlob, decryptBlob,
-      encryptOrCipher, decryptOrCipher, decryptOrTxnCipher,
-      exportOrCredsKey, exportOrTxnsKey,
-      setupVault, recoverWithCode, blindIndex, changeVaultPassword, rotateRecoveryCode,
-      setupMasterRecoveryCode, wrapCurrentOrgUnderMaster, recoverOrgWithMasterCode,
-      loadOrgSigningKey, signMutation,
-    }}>
+    <VaultCtx.Provider
+      value={{
+        isUnlocked,
+        unlock,
+        lock,
+        encryptText,
+        decryptText,
+        encryptBlob,
+        decryptBlob,
+        encryptOrCipher,
+        decryptOrCipher,
+        decryptOrTxnCipher,
+        exportOrCredsKey,
+        exportOrTxnsKey,
+        setupVault,
+        recoverWithCode,
+        blindIndex,
+        changeVaultPassword,
+        rotateRecoveryCode,
+        setupMasterRecoveryCode,
+        wrapCurrentOrgUnderMaster,
+        recoverOrgWithMasterCode,
+        loadOrgSigningKey,
+        signMutation,
+      }}
+    >
       {children}
     </VaultCtx.Provider>
   );

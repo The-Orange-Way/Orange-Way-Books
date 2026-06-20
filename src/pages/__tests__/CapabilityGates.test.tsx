@@ -25,19 +25,37 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mirrors src/hooks/__tests__/capability-rls.test.ts. Kept in-file (not
 // imported) so a future drift on the source-of-truth test surfaces here too.
 const ALL_CAPS = [
-  'transactions.read', 'transactions.write', 'transactions.write_own', 'transactions.delete',
-  'journal_entries.read', 'journal_entries.write', 'journal_entries.delete',
-  'accounts.read', 'accounts.write', 'accounts.delete',
-  'payments.read', 'payments.create', 'payments.approve', 'payments.pay',
-  'contacts.read', 'contacts.write', 'contacts.delete',
-  'reports.read', 'reports.read_summary',
-  'periods.close', 'periods.unlock',
-  'users.invite', 'users.revoke', 'users.manage_roles',
+  'transactions.read',
+  'transactions.write',
+  'transactions.write_own',
+  'transactions.delete',
+  'journal_entries.read',
+  'journal_entries.write',
+  'journal_entries.delete',
+  'accounts.read',
+  'accounts.write',
+  'accounts.delete',
+  'payments.read',
+  'payments.create',
+  'payments.approve',
+  'payments.pay',
+  'contacts.read',
+  'contacts.write',
+  'contacts.delete',
+  'reports.read',
+  'reports.read_summary',
+  'periods.close',
+  'periods.unlock',
+  'users.invite',
+  'users.revoke',
+  'users.manage_roles',
   'roles.manage',
-  'connectors.read', 'connectors.write',
+  'connectors.read',
+  'connectors.write',
   'org.manage',
   'audit.read',
-  'support.session_open', 'support.scope_read',
+  'support.session_open',
+  'support.scope_read',
 ] as const;
 type Cap = (typeof ALL_CAPS)[number];
 
@@ -45,13 +63,21 @@ const PRESETS: Record<string, Cap[]> = {
   Owner: [...ALL_CAPS],
   Viewer: ['reports.read_summary'],
   Auditor: [
-    'transactions.read', 'journal_entries.read', 'accounts.read', 'payments.read',
-    'contacts.read', 'reports.read', 'reports.read_summary', 'connectors.read', 'audit.read',
+    'transactions.read',
+    'journal_entries.read',
+    'accounts.read',
+    'payments.read',
+    'contacts.read',
+    'reports.read',
+    'reports.read_summary',
+    'connectors.read',
+    'audit.read',
   ],
   PaymentsApprover: ['transactions.read', 'payments.read', 'payments.approve', 'reports.read'],
   PaymentsPayer: ['transactions.read', 'payments.read', 'payments.pay', 'reports.read'],
   CustomNoContactsWrite: [
-    'transactions.read', 'contacts.read', // contacts.write absent
+    'transactions.read',
+    'contacts.read', // contacts.write absent
   ],
 };
 
@@ -71,10 +97,20 @@ vi.mock('@/hooks/useCapability', () => ({
   useCapability: (key: string) => __activeCaps.current.has(key),
   // Other exports the pages may pull from this module — not used in these
   // tests but exported to satisfy the module shape.
-  useCurrentUserRoles: () => ({ roles: [], capabilities: __activeCaps.current, loading: false, error: null }),
+  useCurrentUserRoles: () => ({
+    roles: [],
+    capabilities: __activeCaps.current,
+    loading: false,
+    error: null,
+  }),
   useRoles: () => ({ roles: [], loading: false, error: null, refresh: () => {} }),
   useRoleCapabilities: () => ({ keys: new Set(), loading: false, error: null, refresh: () => {} }),
-  useAllCapabilities: () => ({ capabilities: [], byFeature: new Map(), loading: false, error: null }),
+  useAllCapabilities: () => ({
+    capabilities: [],
+    byFeature: new Map(),
+    loading: false,
+    error: null,
+  }),
   useHasAdvancedTier: () => true,
   aggregateActiveGrants: () => ({ roles: [], capabilities: new Set() }),
 }));
@@ -149,7 +185,12 @@ vi.mock('@/lib/supabase', () => {
       auth: { getUser: vi.fn(async () => ({ data: { user: { id: 'u1' } } })) },
       rpc: vi.fn(async () => ({ data: null, error: null })),
       functions: { invoke: vi.fn(async () => ({ data: null, error: null })) },
-      channel: vi.fn(() => ({ on: function () { return this; }, subscribe: () => ({}) })),
+      channel: vi.fn(() => ({
+        on: function () {
+          return this;
+        },
+        subscribe: () => ({}),
+      })),
       removeChannel: vi.fn(),
     },
   };

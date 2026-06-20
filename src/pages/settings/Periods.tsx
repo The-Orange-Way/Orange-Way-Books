@@ -36,11 +36,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
@@ -99,7 +102,9 @@ export default function Periods() {
     if (!orgId) return;
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const uid = user?.id ?? null;
       setUserId(uid);
 
@@ -173,8 +178,16 @@ export default function Periods() {
 
       // Capability checks
       const [{ data: closeCap }, { data: unlockCap }] = await Promise.all([
-        supabase.rpc('user_has_capability', { p_user_id: uid, p_capability: 'periods.close', p_org_id: orgId }),
-        supabase.rpc('user_has_capability', { p_user_id: uid, p_capability: 'periods.unlock', p_org_id: orgId }),
+        supabase.rpc('user_has_capability', {
+          p_user_id: uid,
+          p_capability: 'periods.close',
+          p_org_id: orgId,
+        }),
+        supabase.rpc('user_has_capability', {
+          p_user_id: uid,
+          p_capability: 'periods.unlock',
+          p_org_id: orgId,
+        }),
       ]);
       setCanClose(!!closeCap);
       setCanUnlock(!!unlockCap);
@@ -253,7 +266,12 @@ export default function Periods() {
   };
 
   const handleRevoke = async (sessionId: string) => {
-    if (!confirm('Revoke this unlock session? Writes to the closed period will be blocked again immediately.')) return;
+    if (
+      !confirm(
+        'Revoke this unlock session? Writes to the closed period will be blocked again immediately.',
+      )
+    )
+      return;
     try {
       const { error } = await supabase
         .from('period_unlock_sessions')
@@ -278,7 +296,10 @@ export default function Periods() {
 
   return (
     <div className="container max-w-4xl py-8">
-      <Link to="/app/admin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link
+        to="/app/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Admin
       </Link>
 
@@ -288,14 +309,13 @@ export default function Periods() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Lock a date range so journal entries on or before that date can no longer be edited.
-          Owners can briefly reopen a closed period for themselves with a 24 hour time-limited session.
+          Owners can briefly reopen a closed period for themselves with a 24 hour time-limited
+          session.
         </p>
       </header>
 
       <section className="rounded-md border p-5 mb-8 bg-card">
-        <h2 className="text-sm uppercase tracking-wide text-muted-foreground mb-2">
-          Current lock
-        </h2>
+        <h2 className="text-sm uppercase tracking-wide text-muted-foreground mb-2">Current lock</h2>
         {activeLock ? (
           <div className="flex items-baseline gap-3">
             <span className="text-2xl font-mono">
@@ -320,13 +340,18 @@ export default function Periods() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="close-date" className="text-sm font-medium">Lock through date (inclusive)</Label>
+              <Label htmlFor="close-date" className="text-sm font-medium">
+                Lock through date (inclusive)
+              </Label>
               <Popover open={datePopOpen} onOpenChange={setDatePopOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     id="close-date"
                     variant="outline"
-                    className={cn('w-full md:w-72 justify-start text-left font-normal mt-1', !closeDate && 'text-muted-foreground')}
+                    className={cn(
+                      'w-full md:w-72 justify-start text-left font-normal mt-1',
+                      !closeDate && 'text-muted-foreground',
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {closeDate ? format(closeDate, 'PPP') : 'Pick a date'}
@@ -336,7 +361,12 @@ export default function Periods() {
                   <Calendar
                     mode="single"
                     selected={closeDate}
-                    onSelect={(d) => { if (d) { setCloseDate(d); setDatePopOpen(false); } }}
+                    onSelect={(d) => {
+                      if (d) {
+                        setCloseDate(d);
+                        setDatePopOpen(false);
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -347,7 +377,9 @@ export default function Periods() {
             </div>
 
             <div>
-              <Label htmlFor="close-note" className="text-sm font-medium">Reason / note (encrypted, optional)</Label>
+              <Label htmlFor="close-note" className="text-sm font-medium">
+                Reason / note (encrypted, optional)
+              </Label>
               <Textarea
                 id="close-note"
                 value={note}
@@ -359,11 +391,7 @@ export default function Periods() {
             </div>
 
             <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={handleClose}
-                disabled={submitting || !closeDate}
-              >
+              <Button type="button" onClick={handleClose} disabled={submitting || !closeDate}>
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Close period
               </Button>
@@ -378,19 +406,25 @@ export default function Periods() {
             <KeyRound className="w-4 h-4" /> Reopen for me (24 hour TTL)
           </h2>
           <p className="text-xs text-muted-foreground mb-3">
-            Creates a time-limited unlock session just for you. Writes into the closed period become possible
-            until the session expires (24 hours) or you revoke it. The audit trail records every reopen.
+            Creates a time-limited unlock session just for you. Writes into the closed period become
+            possible until the session expires (24 hours) or you revoke it. The audit trail records
+            every reopen.
           </p>
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="unlock-date" className="text-sm font-medium">Unlock through date</Label>
+              <Label htmlFor="unlock-date" className="text-sm font-medium">
+                Unlock through date
+              </Label>
               <Popover open={unlockDatePopOpen} onOpenChange={setUnlockDatePopOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     id="unlock-date"
                     variant="outline"
-                    className={cn('w-full md:w-72 justify-start text-left font-normal mt-1', !unlockDate && 'text-muted-foreground')}
+                    className={cn(
+                      'w-full md:w-72 justify-start text-left font-normal mt-1',
+                      !unlockDate && 'text-muted-foreground',
+                    )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {unlockDate ? format(unlockDate, 'PPP') : 'Pick a date'}
@@ -400,18 +434,26 @@ export default function Periods() {
                   <Calendar
                     mode="single"
                     selected={unlockDate}
-                    onSelect={(d) => { if (d) { setUnlockDate(d); setUnlockDatePopOpen(false); } }}
+                    onSelect={(d) => {
+                      if (d) {
+                        setUnlockDate(d);
+                        setUnlockDatePopOpen(false);
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
               <p className="text-xs text-muted-foreground mt-1">
-                Pick a date inside the locked range. Writes for that day and earlier become possible.
+                Pick a date inside the locked range. Writes for that day and earlier become
+                possible.
               </p>
             </div>
 
             <div>
-              <Label htmlFor="unlock-reason" className="text-sm font-medium">Reason (encrypted, optional)</Label>
+              <Label htmlFor="unlock-reason" className="text-sm font-medium">
+                Reason (encrypted, optional)
+              </Label>
               <Textarea
                 id="unlock-reason"
                 value={unlockReason}
@@ -456,13 +498,30 @@ export default function Periods() {
             <TableBody>
               {unlockRows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell>{r.is_mine ? <Badge variant="default">You</Badge> : <span className="text-xs font-mono">{r.user_id.slice(0, 8)}…</span>}</TableCell>
-                  <TableCell className="font-mono">{format(parseISO(r.unlock_through_date), 'yyyy-MM-dd')}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{format(parseISO(r.expires_at), 'PPP p')}</TableCell>
-                  <TableCell className="text-sm">{r.reason_plain | <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell>
+                    {r.is_mine ? (
+                      <Badge variant="default">You</Badge>
+                    ) : (
+                      <span className="text-xs font-mono">{r.user_id.slice(0, 8)}…</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono">
+                    {format(parseISO(r.unlock_through_date), 'yyyy-MM-dd')}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {format(parseISO(r.expires_at), 'PPP p')}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {r.reason_plain | <span className="text-muted-foreground">—</span>}
+                  </TableCell>
                   <TableCell>
                     {r.is_mine && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRevoke(r.id)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRevoke(r.id)}
+                      >
                         Revoke
                       </Button>
                     )}
@@ -479,9 +538,7 @@ export default function Periods() {
           Close history
         </h2>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground p-5 pt-0">
-            No close events yet.
-          </p>
+          <p className="text-sm text-muted-foreground p-5 pt-0">No close events yet.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -495,7 +552,9 @@ export default function Periods() {
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-mono">{format(parseISO(r.locked_through_date), 'yyyy-MM-dd')}</TableCell>
+                  <TableCell className="font-mono">
+                    {format(parseISO(r.locked_through_date), 'yyyy-MM-dd')}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(parseISO(r.closed_at), 'PPP p')}
                   </TableCell>

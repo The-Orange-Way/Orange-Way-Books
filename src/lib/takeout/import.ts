@@ -28,9 +28,10 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
 }
 
 function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
-  if (acct.normal_balance === 'DEBIT' | acct.normal_balance === 'CREDIT') return acct.normal_balance;
+  if ((acct.normal_balance === 'DEBIT') | (acct.normal_balance === 'CREDIT'))
+    return acct.normal_balance;
   const t = acct.account_type.toUpperCase();
-  if (t === 'ASSET' | t === 'EXPENSE') return 'DEBIT';
+  if ((t === 'ASSET') | (t === 'EXPENSE')) return 'DEBIT';
   return 'CREDIT';
 }
 
@@ -60,7 +61,10 @@ export async function wipeOrgData(orgId: string): Promise<void> {
   };
 
   check('attachments', (await supabase.from('attachments').delete().eq('org_id', orgId)).error);
-  check('payment_requests', (await supabase.from('payment_requests').delete().eq('org_id', orgId)).error);
+  check(
+    'payment_requests',
+    (await supabase.from('payment_requests').delete().eq('org_id', orgId)).error,
+  );
   const { data: jes, error: jesQueryErr } = await supabase
     .from('journal_entries')
     .select('id')
@@ -78,15 +82,31 @@ export async function wipeOrgData(orgId: string): Promise<void> {
       (await supabase.from('journal_entry_lines').delete().in('journal_entry_id', batch)).error,
     );
   }
-  check('journal_entries', (await supabase.from('journal_entries').delete().eq('org_id', orgId)).error);
+  check(
+    'journal_entries',
+    (await supabase.from('journal_entries').delete().eq('org_id', orgId)).error,
+  );
   check('transactions', (await supabase.from('transactions').delete().eq('org_id', orgId)).error);
   check('wallets', (await supabase.from('accounts').delete().eq('org_id', orgId)).error);
   check('contacts', (await supabase.from('contacts').delete().eq('org_id', orgId)).error);
-  check('chart_of_accounts', (await supabase.from('chart_of_accounts' as any).delete().eq('org_id', orgId)).error);
+  check(
+    'chart_of_accounts',
+    (
+      await supabase
+        .from('chart_of_accounts' as any)
+        .delete()
+        .eq('org_id', orgId)
+    ).error,
+  );
   // Clear the journal link on the org (it'll be re-set on next import).
   check(
     'organization journal link',
-    (await supabase.from('organizations').update({ external_journal_id: null } as any).eq('id', orgId)).error,
+    (
+      await supabase
+        .from('organizations')
+        .update({ external_journal_id: null } as any)
+        .eq('id', orgId)
+    ).error,
   );
 }
 
@@ -162,9 +182,18 @@ export async function importTakeoutFile(
   // Pre-flight: refuse if org already has data, unless force = true.
   if (!opts.force) {
     const [w, t, j] = await Promise.all([
-      supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
-      supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
-      supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
+      supabase
+        .from('accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
+      supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
+      supabase
+        .from('journal_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
     ]);
     const total = (w.count ?? 0) + (t.count ?? 0) + (j.count ?? 0);
     if (total > 0) {
@@ -253,7 +282,9 @@ export async function importTakeoutFile(
       },
       encryptText,
     );
-    const newLegacyAccountId = w.legacy_account_id ? legacyAccountIdMap.get(w.legacy_account_id) ?? null : null;
+    const newLegacyAccountId = w.legacy_account_id
+      ? (legacyAccountIdMap.get(w.legacy_account_id) ?? null)
+      : null;
     const { error } = await supabase.from('accounts').insert({
       id: walletIdMap.get(w.id),
       org_id: targetOrgId,
@@ -285,7 +316,7 @@ export async function importTakeoutFile(
         // Takeout schema still uses legacy parent_legacy_account_id field name
         // on the JSON file format. Read it then map to new parent_id.
         parent_id: (a as any).parent_legacy_account_id
-          ? legacyAccountIdMap.get((a as any).parent_legacy_account_id) ?? null
+          ? (legacyAccountIdMap.get((a as any).parent_legacy_account_id) ?? null)
           : null,
       },
       encryptText,
@@ -307,8 +338,14 @@ export async function importTakeoutFile(
     const enc = await encryptContact(
       {
         name: c.name,
-        email: c.email, phone: c.phone, type: c.type,
-        street: c.street, city: c.city, state: c.state, zip: c.zip, country: c.country,
+        email: c.email,
+        phone: c.phone,
+        type: c.type,
+        street: c.street,
+        city: c.city,
+        state: c.state,
+        zip: c.zip,
+        country: c.country,
       },
       encryptText,
     );
@@ -342,7 +379,7 @@ export async function importTakeoutFile(
     const { error } = await supabase.from('transactions').insert({
       id: txIdMap.get(t.id),
       org_id: targetOrgId,
-      account_id: t.account_id ? walletIdMap.get(t.account_id) ?? null : null,
+      account_id: t.account_id ? (walletIdMap.get(t.account_id) ?? null) : null,
       date: t.date,
       ...enc,
     } as any);
@@ -406,7 +443,7 @@ export async function importTakeoutFile(
         );
         const newJeId = jeIdMap.get(l.journal_entry_id);
         if (!newJeId) throw new Error(`JE line references missing parent ${l.journal_entry_id}`);
-        const newAccountId = l.account_id ? legacyAccountIdMap.get(l.account_id) ?? null : null;
+        const newAccountId = l.account_id ? (legacyAccountIdMap.get(l.account_id) ?? null) : null;
         return {
           journal_entry_id: newJeId,
           account_id: newAccountId,
