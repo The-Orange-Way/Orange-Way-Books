@@ -587,7 +587,7 @@ export default function Transactions() {
   // ── Bulk actions ──
   // ── Bulk actions ────────────────────────────────────────────────────────
   //
-  // T5 (Track 2): keep status, JE wrapper, and legacy ledger backend mirror in sync. Pre-T5
+  // T5 (Track 2): keep status, JE wrapper, and the ledger mirror in sync. Pre-T5
   // bulk actions flipped only `transactions.status`, leaving any linked JE
   // wrapper stale (a split that got bulk-posted left its journal_entries row
   // as DRAFT) and never wrote a reversing JE on void.
@@ -596,7 +596,7 @@ export default function Transactions() {
   //   - Bulk Post: flips tx.status → POSTED, and for txs with journal_entry_id
   //     flips journal_entries.status → POSTED too.
   //   - Bulk Void: routes through the existing voidTransaction helper so we
-  //     get a real reversing JE + legacy ledger backend mirror, not just a status flip.
+  //     get a real reversing JE + the ledger mirror, not just a status flip.
   //   - Bulk Delete: refuses unless every selected row is in DRAFT status.
   //     Posted/reconciled/voided rows must be voided, not deleted.
 

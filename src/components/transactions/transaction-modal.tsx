@@ -1,5 +1,5 @@
 /**
- * Transaction Modal — OWB smart-transaction-modal UX.
+ * Transaction Modal, OWB smart-transaction-modal UX.
  *
  * Three modes:
  *   - STANDARD  : wallet ↔ account/contact, single amount
@@ -8,7 +8,7 @@
  *
  * Preserves existing plumbing:
  *   - ZKA encrypt on save via encryptTransaction
- *   - legacy ledger backend blind-proxy post via postTransaction (Standard only, new tx only)
+ *   - ledger blind-proxy post via postTransaction (Standard only, new tx only)
  *   - Audit logging via writeAuditLog
  *   - Exchange rate via useExchangeRate
  *   - Attachment encryption via encryptAttachment
@@ -86,7 +86,7 @@ export interface AccountOption {
 export interface ContactOption {
   id: string;
   name: string;
-  /** CUSTOMER | VENDOR | EMPLOYEE | OTHER — surfaced as a dropdown group label. */
+  /** CUSTOMER | VENDOR | EMPLOYEE | OTHER, surfaced as a dropdown group label. */
   kind: string | null;
 }
 
@@ -108,10 +108,10 @@ export interface TxEditInput {
    *  show "Select account" in the dropdown until the user picks one + saves. */
   account_id?: string | null;
   /** contacts.id of the customer / vendor / employee. Independent of
-   *  account_id — a single tx has BOTH a chart bucket and a contact. */
+   *  account_id, a single tx has BOTH a chart bucket and a contact. */
   contact_id?: string | null;
   /** journal_entries.id wrapper for split + transfer modes. NULL for standard
-   *  transactions that post directly to legacy ledger backend without a JE wrapper. */
+   *  transactions that post directly to the ledger without a JE wrapper. */
   journal_entry_id?: string | null;
 }
 
@@ -175,7 +175,7 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// String(0.00000006) returns "6e-8" — JS switches to scientific notation for
+// String(0.00000006) returns "6e-8", JS switches to scientific notation for
 // values < 1e-6, which is normal for sat-sized BTC amounts and unreadable in
 // an editable input. Round-trip through toFixed(8) and strip trailing zeros.
 function formatAmountForInput(n: number): string {
@@ -250,7 +250,7 @@ export default function TransactionModal({
       setWalletId(editingTx.account_id | '');
       setDirection(Number(editingTx.amount) >= 0 ? 'IN' : 'OUT');
       // Restore the account picked when this row was created. Falls back to
-      // empty string for legacy rows (account_id null) — those still show
+      // empty string for legacy rows (account_id null), those still show
       // "Select account" until the user picks one + saves.
       setAccountId(editingTx.account_id ?? '');
       setContactId(editingTx.contact_id ?? '');
@@ -429,7 +429,7 @@ export default function TransactionModal({
   const rightLabel = direction === 'OUT' ? 'TO' : 'FROM';
 
   // Dropdown "right-side" (TO/FROM) value: combined contact/wallet picker.
-  // Standard mode → contact (customer / vendor / employee) — independent of
+  // Standard mode → contact (customer / vendor / employee), independent of
   // the chart-of-accounts assignment, which has its own separate dropdown
   // below. Transfer mode → counterparty wallet.
   const rightValue = mode === 'transfer'
@@ -600,7 +600,7 @@ export default function TransactionModal({
   // existing "tolerate missing signing key and write unsigned" behavior for back-compat
   // with Bookkeeper/legacy callers; the split + transfer + void write paths
   // call this helper and THROW when no signing-key wrap exists, because Phase 4.2 RLS
-  // already blocks unsigned writes for Auditor + Viewer — anyone reaching
+  // already blocks unsigned writes for Auditor + Viewer, anyone reaching
   // these code paths is supposed to have a wrap.
   async function buildSignature(
     payload: string,
@@ -635,12 +635,12 @@ export default function TransactionModal({
       type,
       // T4.a Option A: new transactions land as DRAFT; existing edits preserve
       // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
+      // on create, the reconciliation flow on the wallet statement sets it.
       status: editingTx?.status ?? 'DRAFT',
       cleared_status: editingTx?.cleared_status ?? null,
     }, encryptText);
 
-    // Phase 4.4 mutation signing — scope-limited to this standard-save call
+    // Phase 4.4 mutation signing, scope-limited to this standard-save call
     // site as a proof of wiring. Split/Transfer paths and other
     // business tables (journal_entries, contacts, accounts, payments)
     // remain TODO for a future phase; the server-side trigger accepts
@@ -649,8 +649,8 @@ export default function TransactionModal({
     //
     // We derive the payload bytes from the encrypted memo + org id so
     // the server can reconstruct the same bytes for verification. The
-    // OWB-MULTIUSER-DESIGN §3 rule is simply "every mutation signed"
-    // — exact payload composition is a free choice. We pick something
+    // OWB-MULTIUSER-DESIGN §3 rule is simply "every mutation signed";
+    // exact payload composition is a free choice. We pick something
     // deterministic that includes the org scope so a stolen signature
     // can't be replayed against a different org.
     let signatureCols: { signature_b64: string | null; signature_key_version: number | null } =
@@ -669,7 +669,7 @@ export default function TransactionModal({
       }
     } catch (signErr) {
       // Plain-English failure: the user's signing-key wrap is stale or missing.
-      // Phase 4.4 D14 copy standard — no crypto jargon.
+      // Phase 4.4 D14 copy standard, no crypto jargon.
       console.warn('[tx] sig skipped:', signErr);
       toast.error("Couldn't save. Please refresh and try again. If this keeps happening, contact support.");
       return;
@@ -682,7 +682,7 @@ export default function TransactionModal({
       // the dropdown next time the row is opened. Empty string → null
       // (rows without an account assignment, e.g. transfers).
       account_id: accountId | null,
-      // Customer / vendor / employee — independent of account_id. Optional
+      // Customer / vendor / employee, independent of account_id. Optional
       // even on standard transactions; OR imports leave it null.
       contact_id: contactId | null,
       date: dateStr,
@@ -716,7 +716,7 @@ export default function TransactionModal({
     // here. Removed entirely. Postgres `transactions` row above is now the
     // single source of truth. Journal entry write-through to
     // journal_entries + journal_entry_lines for standard mode is still
-    // deferred — same TODO as before, just no longer paired with a legacy ledger backend leg.
+    // deferred, same TODO as before, just no longer paired with a ledger leg.
   }
 
   // ── Split save ─────────────────────────────────────────────────────────────
@@ -729,11 +729,11 @@ export default function TransactionModal({
   //   - 1 journal_entries row, source_type='TRANSACTION_SPLIT', encrypted.
   //   - N+1 journal_entry_lines: 1 wallet leg + N account legs. All encrypted
   //     with dual-currency amounts via buildJournalEntryLineInsert.
-  //   - N legacy ledger backend 2-entry transactions, each posting one (wallet ↔ account) pair
-  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each legacy ledger backend tx's
+  //   - N the ledger 2-entry transactions, each posting one (wallet ↔ account) pair
+  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each the ledger tx's
   //     UUID threads back to its source jel row via journal_entry_lines.legacy_transaction_id.
   //
-  // Why N legacy ledger backend transactions and not one: legacy ledger backend tx_templates have a fixed entry
+  // Why N the ledger transactions and not one: the ledger tx_templates have a fixed entry
   // count at creation time. The 10 templates seeded at onboarding all have 2
   // entries. Posting N 2-entry transactions sharing the parent OWB transactions.id
   // gives us the equivalent of "one user event with N entries" without spinning
@@ -828,7 +828,7 @@ export default function TransactionModal({
 
     // Insert all lines in deterministic order (wallet first, then account legs
     // in the same order as validLines). We need the returned IDs in the same
-    // order to thread legacy ledger backend transaction UUIDs back per leg in Phase 4.
+    // order to thread the ledger transaction UUIDs back per leg in Phase 4.
     const lineInserts = [
       { journal_entry_id: journalEntryId, ...walletLineRes.insert },
       ...accountLineResults.map((alr) => ({
@@ -854,13 +854,13 @@ export default function TransactionModal({
       type,
       // T4.a Option A: new transactions land as DRAFT; existing edits preserve
       // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
+      // on create, the reconciliation flow on the wallet statement sets it.
       status: editingTx?.status ?? 'DRAFT',
       cleared_status: editingTx?.cleared_status ?? null,
     }, encryptText);
 
     // Phase 4.4 mutation signing for split path. Throws if the caller has no signing key
-    // wrap — Phase 4.2 RLS already blocks unsigned writes for non-writers,
+    // wrap, Phase 4.2 RLS already blocks unsigned writes for non-writers,
     // so anyone reaching here is supposed to have one.
     const splitSig = await buildSignature(
       `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
@@ -904,18 +904,18 @@ export default function TransactionModal({
 
     await uploadReceipts(txId);
 
-    // ── Phase 4: N legacy ledger backend 2-entry postings (one per split row) ───────────────
-    // Each wallet ↔ account pair is its own legacy ledger backend transaction. We reuse the
+    // ── Phase 4: N the ledger 2-entry postings (one per split row) ───────────────
+    // Each wallet ↔ account pair is its own the ledger transaction. We reuse the
     // existing ZKA_SALE (inflow) / ZKA_EXPENSE (outflow) templates rather than
     // creating a new "split" template per N.
     //
-    // Failures are non-blocking — OWB's ledger-engine reads journal_entry_lines
-    // (which are already written above) as the source of truth, and the legacy ledger backend
+    // Failures are non-blocking, OWB's ledger-engine reads journal_entry_lines
+    // (which are already written above) as the source of truth, and the ledger
     // mirror is recoverable on a later sync. We log to console so an operator
     // can replay if needed.
     // Phase 2 (legacy-ledger removal): the split-leg legacy-ledger dual-write block lived here.
     // Each Postgres journal_entry_line above is now the single source of truth;
-    // no legacy ledger backend leg, no legacy_transaction_id threading.
+    // no the ledger leg, no legacy_transaction_id threading.
   }
 
   // ── Transfer save ──────────────────────────────────────────────────────────
@@ -932,15 +932,15 @@ export default function TransactionModal({
   //   - 2 transactions rows linked via linked_transfer_id (pattern preserved
   //     so each wallet's statement shows its side independently), both pointing
   //     at the same journal_entry_id and the same legacy_transaction_id.
-  //   - 1 legacy ledger backend 2-entry transaction posted with ZKA_TRANSFER template: debit dest
+  //   - 1 the ledger 2-entry transaction posted with ZKA_TRANSFER template: debit dest
   //     wallet's external_account_id, credit source wallet's external_account_id.
   //
   // Edit semantics (T2.b lock): edit-in-place if no leg is RECONCILED;
-  // void+recreate if posted (per T3 — closed-period rules apply per leg).
+  // void+recreate if posted (per T3, closed-period rules apply per leg).
   // For v1 we re-write under the same JE id when editing (wipe lines, re-insert).
   //
-  // Fee handling: pending — when fee > 0 and feeAccountId is set, an extra JE
-  // line + extra legacy ledger backend posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
+  // Fee handling: pending, when fee > 0 and feeAccountId is set, an extra JE
+  // line + extra ledger posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
   // Validation already blocks submit until feeSide + feeAccountId are picked,
   // so no data is lost; the fee posting is a follow-up.
   //
@@ -1014,7 +1014,7 @@ export default function TransactionModal({
     // around line 246): every transfer routes through the system
     // "Transfer Clearing" chart-of-accounts row. For same-currency transfers
     // this is cosmetic. For CROSS-currency transfers it is mathematically
-    // required — different units cannot balance in a single JE without a
+    // required, different units cannot balance in a single JE without a
     // clearing bucket that holds each side in its native currency.
     //
     // Shape (matches the audit doc Fix 1 spec):
@@ -1097,7 +1097,7 @@ export default function TransactionModal({
       type: 'Transfer',
       // T4.a Option A: new transactions land as DRAFT; existing edits preserve
       // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
+      // on create, the reconciliation flow on the wallet statement sets it.
       status: editingTx?.status ?? 'DRAFT',
       cleared_status: editingTx?.cleared_status ?? null,
     }, encryptText);
@@ -1110,13 +1110,13 @@ export default function TransactionModal({
       type: 'Transfer',
       // T4.a Option A: new transactions land as DRAFT; existing edits preserve
       // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
+      // on create, the reconciliation flow on the wallet statement sets it.
       status: editingTx?.status ?? 'DRAFT',
       cleared_status: editingTx?.cleared_status ?? null,
     }, encryptText);
 
     // Phase 4.4 mutation signing for transfer path. One signature per leg so each
-    // transactions row carries its own — verifier reads the row, not the pair.
+    // transactions row carries its own, verifier reads the row, not the pair.
     const srcSig = await buildSignature(
       `transfer-src|${journalEntryId}|${dateStr}|${sourceAsset}|${sentValue}`,
     );
@@ -1131,7 +1131,7 @@ export default function TransactionModal({
     if (editingTx) {
       // Edit-in-place: update source side using the editingTx.id; find the
       // dest side via linked_transfer_id and update it too. Both share the
-      // same JE wrapper id and (after legacy ledger backend post below) the same legacy_transaction_id.
+      // same JE wrapper id and (after the ledger post below) the same legacy_transaction_id.
       srcId = editingTx.id;
       const { error: srcUpdErr } = await supabase
         .from('transactions')
@@ -1233,8 +1233,8 @@ export default function TransactionModal({
 
     await uploadReceipts(srcId);
 
-    // ── Phase 4: 1 legacy ledger backend 2-entry transaction (source credit ↔ dest debit) ──
-    // Reuses the ZKA_TRANSFER template seeded at onboarding. legacy ledger backend stores one
+    // ── Phase 4: 1 the ledger 2-entry transaction (source credit ↔ dest debit) ──
+    // Reuses the ZKA_TRANSFER template seeded at onboarding. the ledger stores one
     // transaction per OWB transfer event; both OWB transactions rows reference
     // the same legacy_transaction_id so void/audit can act on the pair.
     // Phase 2 (legacy-ledger removal): transfer's legacy-ledger dual-write block deleted.
@@ -1329,7 +1329,7 @@ export default function TransactionModal({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Row 1 — Date + Upload Receipt (two-column) */}
+          {/* Row 1, Date + Upload Receipt (two-column) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</Label>
@@ -1388,7 +1388,7 @@ export default function TransactionModal({
                   <>
                     Drop receipt or click to upload
                     <div className="text-[10px] opacity-70 mt-1">
-                      {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}… — max 20MB
+                      {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}…, max 20MB
                     </div>
                   </>
                 ) : (
@@ -1427,7 +1427,7 @@ export default function TransactionModal({
             </div>
           </div>
 
-          {/* Row 2 — Wallet ← arrow → TO/FROM picker */}
+          {/* Row 2, Wallet ← arrow → TO/FROM picker */}
           <div className="space-y-1">
             <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Wallet</Label>
             <div className="flex items-center gap-2">
@@ -1465,7 +1465,7 @@ export default function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     {/* Contacts grouped by kind. The chart-of-accounts pick
-                        is the SEPARATE "Account" dropdown below — TO/FROM
+                        is the SEPARATE "Account" dropdown below, TO/FROM
                         is purely the customer / vendor / employee. */}
                     <SelectItem value="__new_contact__">
                       + New contact
@@ -1510,7 +1510,7 @@ export default function TransactionModal({
             )}
           </div>
 
-          {/* Row 3 — Amount + Account (Standard) / Amount (Split) / Sent + Received (Transfer) */}
+          {/* Row 3, Amount + Account (Standard) / Amount (Split) / Sent + Received (Transfer) */}
           {mode === 'standard' && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1740,14 +1740,14 @@ export default function TransactionModal({
                     autoRate ? (
                       <>
                         Auto rate: 1 {transferSentWallet?.asset} = {autoRate.toFixed(6)} {transferReceivedWallet?.asset}
-                        {rateOverride && <span className="ml-2 text-orange-600">(manual override — click a field to reset)</span>}
+                        {rateOverride && <span className="ml-2 text-orange-600">(manual override, click a field to reset)</span>}
                       </>
                     ) : 'No rate available; enter received amount manually.'
                   )}
                 </div>
               )}
 
-              {/* Transaction Fee — collapsed by default */}
+              {/* Transaction Fee, collapsed by default */}
               <div>
                 <button
                   type="button"
@@ -1854,7 +1854,7 @@ export default function TransactionModal({
             </>
           )}
 
-          {/* Row 4 — Memo */}
+          {/* Row 4, Memo */}
           <div className="space-y-1">
             <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Memo</Label>
             <Textarea
@@ -1865,7 +1865,7 @@ export default function TransactionModal({
             />
           </div>
 
-          {/* Row 5 — Match to invoice (inflow only, existing tx only) */}
+          {/* Row 5, Match to invoice (inflow only, existing tx only) */}
           {(() => {
             if (!editingTx || direction !== 'IN') return null;
             const parsed = parseAmount(amount);
@@ -1916,7 +1916,7 @@ export default function TransactionModal({
       </DialogContent>
     </Dialog>
 
-    {/* Inline new-contact dialog — opened from the right-side TO/FROM picker
+    {/* Inline new-contact dialog, opened from the right-side TO/FROM picker
         when the user selects "+ New contact". Saves directly to the contacts
         table; on success, the new id is selected in the picker and the
         parent's onContactsChanged callback refetches the list. */}
@@ -2014,7 +2014,7 @@ export async function fetchContactsForModal(
           kind: fields.type | 'OTHER',
         } satisfies ContactOption;
       } catch {
-        // Undecryptable rows (key version mismatch) — exclude rather than
+        // Undecryptable rows (key version mismatch), exclude rather than
         // surface garbage in the picker.
         return null;
       }
