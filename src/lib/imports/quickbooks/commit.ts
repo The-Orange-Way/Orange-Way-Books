@@ -6,7 +6,7 @@
  *
  *   1. Every amount, account name, contact PII is encrypted client-side BEFORE
  *      it leaves the browser. Supabase only sees ciphertext + structural ids.
- *   2. the ledger blind-replay: each new chart_of_accounts row gets a random UUID as
+ *   2. ledger blind-replay: each new chart_of_accounts row gets a random UUID as
  *      `external_account_id` and a random UUID placeholder as the plaintext
  *      `account_name` (the real name lives encrypted in `encrypted_name`).
  *      the ledger (when the ledger engine replays it) therefore sees opaque ids,

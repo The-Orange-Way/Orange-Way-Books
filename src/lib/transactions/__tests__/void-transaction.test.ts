@@ -1,14 +1,14 @@
 // @vitest-environment node
 //
-// Unit tests for voidTransaction — Fixes 3, 4, 5 in the split-write-path
+// Unit tests for voidTransaction, Fixes 3, 4, 5 in the split-write-path
 // audit. Locks in:
 //
 //   - Status flip uses FIELD_KEY_VERSION (sourced from crypto-fields)
-//     instead of a local literal — guards Fix 5.
-//   - Status flip carries a signing-key signature stamped onto the row — Fix 3.
+//     instead of a local literal, guards Fix 5.
+//   - Status flip carries a signing-key signature stamped onto the row, Fix 3.
 //   - Linked transfer pair: voiding one side flips both rows.
 //   - Reversal the ledger posts use real wallet / chart external_account_ids, with
-//     dr / cr swapped — Fix 4 (no more dr=cr=legacy_transaction_id placeholder).
+//     dr / cr swapped, Fix 4 (no more dr=cr=legacy_transaction_id placeholder).
 //   - When a JE line references an account_name we can't resolve, we throw
 //     rather than write a known-broken the ledger post.
 
@@ -132,7 +132,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-// Stub the the ledger client so we can introspect what would have been posted.
+// Stub the ledger client so we can introspect what would have been posted.
 vi.mock('@/lib/legacy-ledger', () => ({
   async postTransaction(
     legacyTxId: string,
@@ -144,7 +144,7 @@ vi.mock('@/lib/legacy-ledger', () => ({
   },
 }));
 
-// Stub the audit logger — write is async and we don't care about its shape.
+// Stub the audit logger, write is async and we don't care about its shape.
 vi.mock('@/lib/audit-logger', () => ({
   writeAuditLog: () => undefined,
 }));
@@ -340,7 +340,7 @@ describe('voidTransaction', () => {
     expect(reversedLines).toHaveLength(2);
 
     // Original transaction was flipped to VOID with the canonical field key
-    // version (Fix 5) — not a local literal.
+    // version (Fix 5), not a local literal.
     const origAfter = store.transactions.find((t) => t.id === 'tx-1');
     expect(origAfter!.status).toBe('enc(VOID)');
     expect(origAfter!.key_version).toBe(FIELD_KEY_VERSION);
@@ -356,7 +356,7 @@ describe('voidTransaction', () => {
   });
 
   it('uses FIELD_KEY_VERSION (=2 today) and not the deprecated literal', () => {
-    // Pure smoke — guards against a future drift where someone re-introduces
+    // Pure smoke, guards against a future drift where someone re-introduces
     // a local KEY_VERSION constant out of sync with crypto-fields.
     expect(FIELD_KEY_VERSION).toBe(2);
   });
@@ -456,8 +456,8 @@ describe('voidTransaction', () => {
     expect(dest!.status).toBe('enc(VOID)');
   });
 
-  // the ledger-specific reversal tests removed 2026-06-13 — the legacy-ledger removal physically
-  // deleted the vendored ledger fork. Void no longer posts a the ledger reversal; the reversing
+  // the ledger-specific reversal tests removed 2026-06-13, the legacy-ledger removal physically
+  // deleted the vendored ledger fork. Void no longer posts a ledger reversal; the reversing
   // JE in the previous test ("writes a reversing JE …") IS the void path now.
 
   it('throws clearly when the caller has no signing-key wrap', async () => {

@@ -11,9 +11,9 @@
  *      the original). Encryption + dual-currency via buildJournalEntryLineInsert.
  *   4. Flip the original transactions row(s) to encrypted status='VOID'. For
  *      transfer pairs, both linked rows get flipped.
- *   5. (Phase 3 removed the ledger — the reversing posts are now purely client-side.)
+ *   5. (Phase 3 removed the ledger, the reversing posts are now purely client-side.)
  *      set (account legs for split, both legs for transfer). the ledger posting is
- *      best-effort, non-blocking — OWB's encrypted JE lines are the source of
+ *      best-effort, non-blocking, OWB's encrypted JE lines are the source of
  *      truth that ledger-engine reads.
  *
  * Limitations at v1:
@@ -25,7 +25,7 @@
  *     original date. When period-lock enforcement ships, this branches
  *     to "void in original period if open; in current period if closed."
  *   - When legacy-server-minimal exposes the transactionVoid GraphQL mutation,
- *     the the ledger reversal path will switch to the direction-flip primitive
+ *     the ledger reversal path will switch to the direction-flip primitive
  *     instead of posting fresh reversing transactions.
  */
 
@@ -48,8 +48,8 @@ type DecryptFn = (ciphertext: string) => Promise<string>;
 
 /**
  * Phase 4.4 mutation signing: callers pass the same helpers from VaultContext
- * that the transaction modal uses. We throw if the caller has no signing-key wrap
- * — Phase 4.2 RLS already blocks unsigned writes for non-writers, and
+ * that the transaction modal uses. We throw if the caller has no signing-key wrap.
+ * Phase 4.2 RLS already blocks unsigned writes for non-writers, and
  * voiding is a writer action.
  */
 type LoadOskFn = (orgId: string) => Promise<unknown>;
@@ -63,7 +63,7 @@ export interface VoidTransactionParams {
   /** transactions.id of the row to void. */
   txId: string;
   orgId: string;
-  /** Org's the ledger blind-journal id. Null → skip the ledger reversals. */
+  /** Org's ledger blind-journal id. Null → skip ledger reversals. */
   legacyJournalId: string | null;
   /** Date for the reversing JE. Today's date in YYYY-MM-DD. */
   date: string;
@@ -178,8 +178,8 @@ export async function voidTransaction(
 
   // ── Phase 5: flip original transactions to VOID status ────────────────
   // Phase 4.4: sign the status flip. We compute one signature over the
-  // reversal JE id + the void status, then stamp it on each affected row
-  // — verifier reads each row and can reconstruct the same payload bytes.
+  // reversal JE id + the void status, then stamp it on each affected row.
+  // The verifier reads each row and can reconstruct the same payload bytes.
   await p.loadOrgSigningKey(p.orgId);
   const voidSigBytes = new TextEncoder().encode(
     `${p.orgId}|void|${reversalJeId}|${p.date}`,
@@ -208,7 +208,7 @@ export async function voidTransaction(
     .in('id', voidedIds);
   if (voidErr) throw voidErr;
 
-  // Phase 2 (legacy-ledger removal): the the ledger reversing-posting block (~100 lines)
+  // Phase 2 (legacy-ledger removal): the ledger reversing-posting block (~100 lines)
   // lived here. Postgres-side reversing journal_entries + reversed lines
   // already written earlier in this function are now the single source of
   // truth. No legacy-ledger dual-write required.

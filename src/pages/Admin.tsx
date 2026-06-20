@@ -215,7 +215,7 @@ interface OrgTile {
 
 function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg: (id: string) => void }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gate — UI presence only. Members lacking org.manage see a
+  // Capability gate, UI presence only. Members lacking org.manage see a
   // read-only view of organization data; RLS still authoritative on writes.
   const canManageOrg = useCapability('org.manage', orgId);
   const [saving, setSaving] = useState(false);
@@ -248,7 +248,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
     time_format: '12h',
     number_format: 'us',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    // T4 PR C — approval threshold for payment requests.
+    // T4 PR C, approval threshold for payment requests.
     approval_threshold_amount: null as number | null,
     approval_threshold_currency: '' as string,
   });
@@ -330,7 +330,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
       time_format: settings.time_format,
       number_format: settings.number_format,
       timezone: settings.timezone,
-      // T4 PR C — approval threshold. NULL when input is empty.
+      // T4 PR C, approval threshold. NULL when input is empty.
       approval_threshold_amount: settings.approval_threshold_amount,
       approval_threshold_currency: settings.approval_threshold_currency | null,
     }, encryptText);
@@ -526,7 +526,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
 
       {/* ── Settings for Active Org ── */}
       <div className="border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground mb-4">Settings — {orgName || 'Active Organization'}</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-4">Settings: {orgName || 'Active Organization'}</h2>
       </div>
 
       <div className="max-w-2xl space-y-8">
@@ -727,7 +727,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
             </div>
             <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
               "Delete Organization" removes the whole workspace. "Wipe bookkeeping data" empties the bookkeeping
-              tables but keeps your membership, billing, and the organization record — useful for resetting a demo
+              tables but keeps your membership, billing, and the organization record, useful for resetting a demo
               org or a test account.
             </p>
           </div>
@@ -825,7 +825,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
 //
 // UsersTab reads role names from `org_member_roles → role_definitions(name)`.
 // The Edit User dialog is a pure info view + "Manage role assignments"
-// jump to the Roles tab — it never writes to `org_members.role`. Role
+// jump to the Roles tab, it never writes to `org_members.role`. Role
 // changes happen exclusively through the Roles-tab UserAssignmentSection
 // (Grant / Revoke against `role_definitions`).
 
@@ -836,7 +836,7 @@ interface RolePreset {
 }
 
 interface MemberRoleGrant {
-  /** org_member_roles.id — drives the "Extend" button payload. */
+  /** org_member_roles.id, drives the "Extend" button payload. */
   grantId: string;
   roleName: string;
   /** ISO 8601 string or null for non-expiring grants. */
@@ -850,7 +850,7 @@ interface MemberRow {
   user_id: string;
   org_id: string;
   grantedRoleNames: string[];    // from org_member_roles → role_definitions
-  grants: MemberRoleGrant[];     // Phase 4.4 — per-grant expiry + source
+  grants: MemberRoleGrant[];     // Phase 4.4, per-grant expiry + source
   joined_at: string | null;
   email: string;
   name: string;
@@ -942,7 +942,7 @@ function UsersTab({
   // same member after a successful change doesn't keep stale state.
   const [emailPending, setEmailPending] = useState(false);
   // Per-button loading flags. One shared `saving` flag would disable
-  // every button whenever any single one is in flight — confusing UX
+  // every button whenever any single one is in flight, confusing UX
   // when e.g. "Save name" is running and you want to also see the
   // password reset button remain visually enabled.
   const [savingName, setSavingName] = useState(false);
@@ -965,7 +965,7 @@ function UsersTab({
       if (!active) return;
       if (error) {
         // Defensive: if the table doesn't exist yet (pre-4.2 migration
-        // environments) we degrade gracefully — the dropdown will show
+        // environments) we degrade gracefully, the dropdown will show
         // the legacy names via the fallback below.
         console.warn('role_definitions query failed, falling back to legacy names:', error.message);
         setRolePresets([]);
@@ -1051,7 +1051,7 @@ function UsersTab({
         }
       }
     } catch (err) {
-      // Network / transport error — log and fall through to the
+      // Network / transport error, log and fall through to the
       // current-user fallback below.
       console.warn('lookup-user-profiles unavailable:', err);
     }
@@ -1071,7 +1071,7 @@ function UsersTab({
         };
       }
     } catch {
-      // Ignore — worst case we just show a truncated UUID for that row.
+      // Ignore, worst case we just show a truncated UUID for that row.
     }
 
     const enriched: MemberRow[] = rawMembers.map(m => ({
@@ -1273,7 +1273,7 @@ function UsersTab({
    * shape. Supabase's functions.invoke returns `error` when the
    * function itself failed OR when the status is non-2xx (with the
    * response body as `context.response`). We peel the JSON error
-   * string out so we can show it as a toast — the edge function is
+   * string out so we can show it as a toast, the edge function is
    * careful to only put user-friendly copy there.
    */
   const invokeAdminUpdate = async (
@@ -1349,7 +1349,7 @@ function UsersTab({
     toast.success('Confirmation email sent to new address');
     setEmailPending(true);
     // We intentionally do NOT optimistically update editMember.email
-    // here — the email change isn't real until the user clicks the
+    // here, the email change isn't real until the user clicks the
     // confirmation link. fetchMembers() will show the old email
     // until the link is clicked, which matches reality.
   };
@@ -1568,11 +1568,11 @@ function UsersTab({
           const { publicKeyB64 } = await lookupRecipientPublicKey(row.recipient_user_id);
           if (!publicKeyB64) {
             // The trigger believes they have a keypair but we can't
-            // read it — likely an RLS race. Skip and retry next cycle.
+            // read it, likely an RLS race. Skip and retry next cycle.
             failed += 1;
             continue;
           }
-          // Placeholder org DEK — Phase 4.5 will replace this with the
+          // Placeholder org DEK, Phase 4.5 will replace this with the
           // real shared DEK payload. Each invite gets its own random
           // slot so the 4.5 migration can pivot per-wrap without
           // rewriting history.
@@ -1591,7 +1591,7 @@ function UsersTab({
       }
       if (!silent) {
         if (ok > 0) toast.success(`Completed ${ok} pending invite${ok === 1 ? '' : 's'}`);
-        if (failed > 0) toast.error(`${failed} invite${failed === 1 ? '' : 's'} could not be completed — retry in a moment`);
+        if (failed > 0) toast.error(`${failed} invite${failed === 1 ? '' : 's'} could not be completed, retry in a moment`);
       }
       await fetchMembers();
     } finally {
@@ -1601,7 +1601,7 @@ function UsersTab({
 
   // Load the pending-wrap count on mount + subscribe to realtime INSERTs
   // / UPDATEs on pending_invites. Any row transitioning into
-  // ready_to_wrap triggers an auto-complete attempt — the Owner sees
+  // ready_to_wrap triggers an auto-complete attempt, the Owner sees
   // a success toast without having to click anything.
   useEffect(() => {
     if (!orgId) return;
@@ -1650,7 +1650,7 @@ function UsersTab({
 
   return (
     <div className="space-y-4">
-      {/* Phase 4.4 — Orange Way Books Support access section. Customer-first
+      {/* Phase 4.4, Orange Way Books Support access section. Customer-first
           copy intentionally avoids: no "signing key", no "session TTL", no "capability". */}
       <div className="border border-border rounded-lg p-4 bg-muted/20">
         {activeSupportSession ? (
@@ -1658,7 +1658,7 @@ function UsersTab({
             <div className="flex items-center gap-2 text-sm">
               <ShieldCheck className="w-4 h-4 text-green-700" />
               <span>
-                Support access active — ends at{' '}
+                Support access active. Ends at{' '}
                 <strong>
                   {new Date(activeSupportSession.expires_at).toLocaleString(undefined, {
                     hour: 'numeric', minute: '2-digit',
@@ -1794,7 +1794,7 @@ function UsersTab({
                         className="text-xs font-semibold px-2 py-0.5 rounded bg-muted"
                         title={hasGrant
                           ? 'Assigned on the Roles tab'
-                          : 'No role assigned — add one on the Roles tab'}
+                          : 'No role assigned, add one on the Roles tab'}
                       >
                         {roleLabel}
                       </span>
@@ -1905,7 +1905,7 @@ function UsersTab({
               </div>
             )}
             <div className="bg-muted/50 border border-border rounded-md p-3 text-xs text-muted-foreground">
-              Capability bundle comes from the <strong>Roles</strong> tab — open it to see
+              Capability bundle comes from the <strong>Roles</strong> tab, open it to see
               exactly what this role can do, or to create a custom role.
             </div>
           </div>
@@ -1927,7 +1927,7 @@ function UsersTab({
         </DialogContent>
       </Dialog>
 
-      {/* Phase 4.4 — Extend access dialog. */}
+      {/* Phase 4.4, Extend access dialog. */}
       <Dialog
         open={!!extendTarget}
         onOpenChange={(open) => {
@@ -1981,7 +1981,7 @@ function UsersTab({
         </DialogContent>
       </Dialog>
 
-      {/* Phase 4.4 — Grant Orange Way Books Support access. */}
+      {/* Phase 4.4, Grant Orange Way Books Support access. */}
       <Dialog open={supportGrantOpen} onOpenChange={setSupportGrantOpen}>
         <DialogContent>
           <DialogHeader>
@@ -2042,14 +2042,14 @@ function UsersTab({
           email to the new address), a button to send a password-reset
           email, a conditional "Resend invite" button for still-invited
           members, plus a danger-zone Remove action at the bottom.
-          Role changes are NEVER written from this dialog — they live
+          Role changes are NEVER written from this dialog, they live
           exclusively in the Roles tab's UserAssignmentSection. */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
           {editMember && (
             <div className="space-y-5">
-              {/* Name — editable */}
+              {/* Name, editable */}
               <div>
                 <Label className="text-xs text-muted-foreground">Name</Label>
                 <div className="flex items-center gap-2 mt-1">
@@ -2077,7 +2077,7 @@ function UsersTab({
                 </p>
               </div>
 
-              {/* Email — editable, confirmation required */}
+              {/* Email, editable, confirmation required */}
               <div>
                 <Label className="text-xs text-muted-foreground">Email</Label>
                 <div className="flex items-center gap-2 mt-1">
@@ -2114,7 +2114,7 @@ function UsersTab({
                 )}
               </div>
 
-              {/* Role — read-only, jump to Roles tab to edit */}
+              {/* Role, read-only, jump to Roles tab to edit */}
               <div>
                 <Label className="text-xs text-muted-foreground">Role</Label>
                 <p className="text-sm mt-1">
@@ -2134,7 +2134,7 @@ function UsersTab({
                 )}
               </div>
 
-              {/* Password reset — sign-in credential only, NOT vault */}
+              {/* Password reset, sign-in credential only, NOT vault */}
               <div>
                 <Button
                   variant="outline"
@@ -2152,7 +2152,7 @@ function UsersTab({
                 </p>
               </div>
 
-              {/* Resend invite — only for invited users who haven't accepted yet */}
+              {/* Resend invite, only for invited users who haven't accepted yet */}
               {editMember.status === 'Invited' && (
                 <div>
                   <Button
@@ -2169,7 +2169,7 @@ function UsersTab({
                 </div>
               )}
 
-              {/* Danger zone — visually separated from the edit controls */}
+              {/* Danger zone, visually separated from the edit controls */}
               <div className="border-t border-border pt-4 mt-2">
                 <Button variant="destructive" size="sm" onClick={handleRemoveMember} disabled={saving}>
                   <Trash2 className="w-4 h-4 mr-1" /> Remove from Organization
@@ -2183,7 +2183,7 @@ function UsersTab({
         </DialogContent>
       </Dialog>
 
-      {/* Remove / soft-revoke confirm modal (Bitwarden pattern — D11).
+      {/* Remove / soft-revoke confirm modal (Bitwarden pattern, D11).
           One click + one confirm. Hard re-key is separate. */}
       <Dialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
         <DialogContent>
@@ -2197,7 +2197,7 @@ function UsersTab({
                 from this organization? They will lose access to future data in this org.
               </p>
               <p className="text-muted-foreground">
-                This does not delete their account — they can still sign in and access any other
+                This does not delete their account, they can still sign in and access any other
                 organizations they belong to. Refreshing your team's security so a removed
                 member can't read data they already opened on their device is a separate
                 <em> security refresh</em> step, which you'll be offered next.
@@ -2268,7 +2268,7 @@ function UsersTab({
 /* ═══════════════════════════ Chart of Accounts Tab ═══════════════════════════ */
 function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative on writes.
+  // Capability gates, UI presence only; RLS still authoritative on writes.
   const canWriteAccounts = useCapability('accounts.write', orgId);
   const [subTab, setSubTab] = useState<CoaSubTab>('income-expense');
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -2417,7 +2417,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
           const tabGroups = subTab === 'income-expense' ? IE_GROUPS : BS_GROUPS;
           const tabGroupKeys = new Set(tabGroups.map(g => `${g.name}|${g.type}`));
           // Show an "Unfiled" bucket for accounts whose type is in this tab but
-          // whose (group, type) tuple doesn't match any configured group — e.g.
+          // whose (group, type) tuple doesn't match any configured group, e.g.
           // QB-imported accounts that wrote enum-style groups. This is the only
           // way the user can see and re-classify them.
           const unfiled = accounts.filter(a =>
@@ -2431,7 +2431,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               <button onClick={() => toggleGroup('__unfiled')} className="w-full flex items-center justify-between px-4 py-3 bg-amber-100/40 hover:bg-amber-100/70 transition-colors">
                 <div className="flex items-center gap-3">
                   {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  <span className="font-semibold text-sm">Unfiled — needs review</span>
+                  <span className="font-semibold text-sm">Unfiled, needs review</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-900">{unfiled.length}</span>
                 </div>
               </button>
@@ -2573,7 +2573,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
             const code = row.data.code?.trim() | '';
             if (existingNames.has(name.toLowerCase()) | (code && existingCodes.has(code.toLowerCase()))) {
               skipped++;
-              warnings.push(`"${name}" already exists — skipped`);
+              warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
             // Phase 2 (legacy-ledger removal): chart_of_accounts is Postgres-only.
@@ -2620,7 +2620,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
 /* ═══════════════════════════ Contacts (To/From) Tab ═══════════════════════════ */
 function ContactsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative on writes.
+  // Capability gates, UI presence only; RLS still authoritative on writes.
   const canWriteContacts = useCapability('contacts.write', orgId);
   const canDeleteContacts = useCapability('contacts.delete', orgId);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -2823,7 +2823,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
             const name = row.data.name.trim();
             if (existingNames.has(name.toLowerCase())) {
               skipped++;
-              warnings.push(`"${name}" already exists — skipped`);
+              warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
             const encrypted = await encryptContact({
@@ -2858,7 +2858,7 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
   const [open, setOpen] = useState(false);
 
   // Stable deps object so the wizard's handler identity doesn't change every
-  // render — keeps the wizard's internal state clean across uploads.
+  // render, keeps the wizard's internal state clean across uploads.
   const deps = useMemo<ImportDeps>(
     () => ({ orgId, encryptText, decryptText }),
     [orgId, encryptText, decryptText],
@@ -2948,7 +2948,7 @@ const CONNECTOR_DEFS: { type: ConnectorType; name: string; icon: React.ReactNode
 
 function ConnectorsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gate — UI presence only; RLS still authoritative on writes.
+  // Capability gate, UI presence only; RLS still authoritative on writes.
   const canWriteConnectors = useCapability('connectors.write', orgId);
   const [connectors, setConnectors] = useState<ConnectorConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3039,7 +3039,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
 
   const handleSync = async (id: string) => {
     setSyncing(id);
-    // Simulate sync — actual sync logic comes later via edge function
+    // Simulate sync, actual sync logic comes later via edge function
     await supabase.from('connectors').update({ last_sync: new Date().toISOString() }).eq('id', id);
     setTimeout(() => {
       setSyncing(null);
@@ -3220,7 +3220,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Data tab — takeout export / import (MVP: plaintext JSON, seed-style)
+// Data tab, takeout export / import (MVP: plaintext JSON, seed-style)
 // ──────────────────────────────────────────────────────────────────────
 function DataTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText, encryptBlob, decryptBlob } = useVault();
@@ -3386,7 +3386,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-semibold text-foreground mb-1">Data export</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Download a full plaintext copy of this organization. Drop the file on another
-          vault (or back onto this one) and you keep working — no manual re-setup.
+          vault (or back onto this one) and you keep working, no manual re-setup.
         </p>
         <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 mb-4 space-y-1">
           <p><strong>Included in the export:</strong></p>
@@ -3397,7 +3397,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
             <li>Payment requests</li>
             <li><strong>Receipts</strong> (attachment file bytes, decrypted client-side and base64-encoded)</li>
           </ul>
-          <p className="mt-2"><strong>Created fresh on import:</strong> the ledger blind journal, legacy ledger accounts (with remapped ids), 10 ZKA_* posting templates — so new transactions post correctly after restore.</p>
+          <p className="mt-2"><strong>Created fresh on import:</strong> the ledger blind journal, legacy ledger accounts (with remapped ids), 10 ZKA_* posting templates, so new transactions post correctly after restore.</p>
         </div>
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
           <strong>Heads up:</strong> the exported file is <em>plaintext</em>. Decryption
@@ -3427,7 +3427,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           dashboard and reports without clicking through CSV imports.
         </p>
         <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 mb-4 space-y-1">
-          <p><strong>Sierra Bitcoin Mining Co.</strong> — ~18 months of realistic activity:</p>
+          <p><strong>Sierra Bitcoin Mining Co.</strong>, ~18 months of realistic activity:</p>
           <ul className="list-disc pl-5 text-xs">
             <li>4 wallets (BTC mining payout, cold storage, USD operating, Lightning)</li>
             <li>10 contacts (mining pool, electricity provider, colo host, customers, CPA…)</li>
@@ -3455,7 +3455,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           )}
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 mb-4 mt-6 space-y-1">
-          <p><strong>Common Grounds Coffee Co.</strong> — year-to-date retail + circular-economy activity:</p>
+          <p><strong>Common Grounds Coffee Co.</strong>, year-to-date retail + circular-economy activity:</p>
           <ul className="list-disc pl-5 text-xs">
             <li>4 wallets (USD operating, register cash drawer, Lightning, USD reserves)</li>
             <li>9 contacts (bean supplier, dairy, landlord, compost partner, artisan market…)</li>
@@ -3466,7 +3466,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
             <li>Payment lifecycle: pending / approved / paid / rejected</li>
           </ul>
           <p className="mt-2 text-xs">
-            Smaller than the miner seed — good for fast QA iterations.
+            Smaller than the miner seed, good for fast QA iterations.
             Running this <strong>wipes the current org first</strong>, then imports fresh.
           </p>
         </div>
@@ -3523,7 +3523,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           <p><strong>Import notes:</strong></p>
           <ul className="list-disc pl-5 text-xs">
             <li>By default the import refuses if the target org already has data. Tick force to wipe and replace.</li>
-            <li>New the ledger journal, accounts, and templates are created as part of the import — new transactions will post correctly afterwards.</li>
+            <li>New ledger journal, accounts, and templates are created as part of the import, new transactions will post correctly afterwards.</li>
             <li>Historical transactions are not replayed as the ledger postings. Reports read from the Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance Sheet look right immediately.</li>
           </ul>
         </div>
@@ -3569,7 +3569,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
                 checked={force}
                 onChange={(e) => setForce(e.target.checked)}
               />
-              Force mode — wipe existing data in the target org before importing
+              Force mode, wipe existing data in the target org before importing
             </label>
             {importPhase && (
               <p className="text-xs text-muted-foreground">
@@ -3595,17 +3595,17 @@ function DataTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-semibold text-foreground mb-1">Coming soon</h2>
         <p className="text-sm text-muted-foreground mb-3">
           These parts of the organization aren&apos;t in the takeout yet. Files remain
-          functional on the source vault — the gap only matters when you restore into a
+          functional on the source vault, the gap only matters when you restore into a
           fresh org.
         </p>
         <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-          <li><strong>Team members &amp; roles</strong> — org_members, invites, permissions</li>
-          <li><strong>Audit log</strong> — who-did-what history</li>
-          <li><strong>Exchange rates</strong> — org-scoped rate overrides (global rates re-fetch on demand, so this is minor)</li>
-          <li><strong>Connector credentials</strong> — re-connect after import</li>
-          <li><strong>Transaction links</strong> — wallet-to-wallet transfer pairs</li>
-          <li><strong>Encrypted-mode export</strong> — ciphertext-only bundle for same-vault backups (complements the current plaintext mode)</li>
-          <li><strong>Historical the ledger replay</strong> — today we recreate journal + accounts + templates; old transaction postings remain Supabase-only (reports still read correctly from JE lines)</li>
+          <li><strong>Team members &amp; roles</strong>, org_members, invites, permissions</li>
+          <li><strong>Audit log</strong>, who-did-what history</li>
+          <li><strong>Exchange rates</strong>, org-scoped rate overrides (global rates re-fetch on demand, so this is minor)</li>
+          <li><strong>Connector credentials</strong>, re-connect after import</li>
+          <li><strong>Transaction links</strong>, wallet-to-wallet transfer pairs</li>
+          <li><strong>Encrypted-mode export</strong>, ciphertext-only bundle for same-vault backups (complements the current plaintext mode)</li>
+          <li><strong>Historical ledger replay</strong>, today we recreate journal + accounts + templates; old transaction postings remain Supabase-only (reports still read correctly from JE lines)</li>
         </ul>
       </section>
 
@@ -3795,7 +3795,7 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
  * Two-step close UX (locked 2026-05-12):
  *   1. Pick a "lock through" date.
  *   2. Preview "how many entries get locked" before confirming.
- *   3. Confirm — writes an org_period_closes row. DB constraint auto-
+ *   3. Confirm, writes an org_period_closes row. DB constraint auto-
  *      blocks future writes into that range unless an unlock session
  *      exists for the writer.
  *
@@ -3935,7 +3935,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
       <div>
         <h2 className="text-lg font-semibold">Close a Period</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Lock the books on or before a date. After close, journal entries and transactions on or before this date become read-only — corrections go in the current open period as adjustment entries. Owner can reopen for 24 hours via the list below.
+          Lock the books on or before a date. After close, journal entries and transactions on or before this date become read-only, corrections go in the current open period as adjustment entries. Owner can reopen for 24 hours via the list below.
         </p>
       </div>
       <div className="space-y-3 max-w-md">
@@ -3945,7 +3945,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
         </div>
         <div>
           <Label>Note (optional, encrypted)</Label>
-          <Textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Q4 2025 close — accountant review complete" />
+          <Textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Q4 2025 close, accountant review complete" />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" disabled={!lockDate} onClick={loadPreview}>Preview</Button>

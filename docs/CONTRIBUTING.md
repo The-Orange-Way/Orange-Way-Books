@@ -25,9 +25,9 @@ If a push really must go through (true emergency only), the override is `PR_THIS
 
 ## Ground rules
 
-1. **Never commit secrets** — no Supabase service keys, production URLs with embedded tokens, or SSH passwords. Use placeholders in docs and host/Supabase env for real values.
-2. **Migrations are law** — if you change the database, add a migration and regenerate TypeScript types if your workflow uses `src/integrations/supabase/types.ts`.
-3. **Match existing patterns** — encryption goes through `crypto-fields.ts` + `VaultContext`; ledger math through `ledger-engine.ts`.
+1. **Never commit secrets**: no Supabase service keys, production URLs with embedded tokens, or SSH passwords. Use placeholders in docs and host/Supabase env for real values.
+2. **Migrations are law**: if you change the database, add a migration and regenerate TypeScript types if your workflow uses `src/integrations/supabase/types.ts`.
+3. **Match existing patterns**: encryption goes through `crypto-fields.ts` + `VaultContext`; ledger math through `ledger-engine.ts`.
 
 ---
 
@@ -39,7 +39,7 @@ When you ship code, your commit message and your PR description are the only rec
 
 **Explain WHY, not WHAT.**
 
-Git already shows the diff — the reader can see what changed. What they cannot see is:
+Git already shows the diff: the reader can see what changed. What they cannot see is:
 
 - what problem you were solving
 - what you tried that did not work
@@ -61,7 +61,7 @@ non-engineer could understand it.>
 E.g. "Considered querying journal config each call; rejected
 because it adds a DB round-trip to a hot path.">
 
-<optional: anything the next contributor must know — follow-ups,
+<optional: anything the next contributor must know: follow-ups,
 known limitations, pre-existing bugs you fixed incidentally to
 unblock this work. Label the last one "Incidental fix:" so it's
 easy to spot.>
@@ -108,7 +108,7 @@ and which section.
 
 ## What changed
 A short list of the concrete edits, grouped by file or area. Not a
-diff — a reader's-digest version.
+diff: a reader's-digest version.
 
 ## What I considered and rejected
 1-3 bullets. Each one: the alternative, and why you didn't pick it.

@@ -40,7 +40,7 @@ function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
  * "Wipe all data" button in Admin.
  *
  * Does NOT delete the organization row itself (you keep the target org
- * to import into). the ledger ledger state on the server is not touched —
+ * to import into). the ledger state on the server is not touched;
  * the legacy ledger accounts / journal become unreferenced and a subsequent
  * import will create fresh ones.
  */
@@ -134,12 +134,12 @@ export interface ImportResult {
  * ZKA note: every row is re-encrypted with the current vault before insert.
  * The plaintext file is held in memory only; no plaintext hits the database.
  *
- * the ledger: the blind the ledger ledger is re-created during import so that new
+ * the ledger: the blind ledger is re-created during import so that new
  * transactions work immediately after restore. We create:
  *   1. A fresh blind journal, stored on organizations.external_journal_id
  *   2. One legacy ledger account per chart_of_accounts row (with new UUID ids,
  *      remapped via legacyAccountIdMap)
- *   3. The 10 ZKA_* templates (idempotent — global in the ledger)
+ *   3. The 10 ZKA_* templates (idempotent, global in the ledger)
  * Historical transactions are NOT replayed as the ledger postings; the journal
  * lines in Supabase are the source of truth for reports. New transactions
  * made after the import get posted to the ledger as normal.
@@ -459,7 +459,7 @@ export async function importTakeoutFile(
     const att = attachments[i];
     progress('Receipts', i, attachments.length);
     if (!att.content_base64 || !opts.encryptBlob) {
-      // No bytes captured, or no blob-encrypt available — skip without failing the whole import.
+      // No bytes captured, or no blob-encrypt available, skip without failing the whole import.
       attachmentsFailed++;
       continue;
     }
