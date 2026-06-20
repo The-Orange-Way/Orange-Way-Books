@@ -14,8 +14,8 @@ const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefin
 if (!envUrl || !envKey) {
   throw new Error(
     'Supabase client misconfigured: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must both be set at build time. ' +
-    'For local dev, copy .env.example to .env and fill them in. ' +
-    'For Cloudflare Pages, set them in the project Environment Variables panel.',
+      'For local dev, copy .env.example to .env and fill them in. ' +
+      'For Cloudflare Pages, set them in the project Environment Variables panel.',
   );
 }
 
@@ -30,5 +30,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
 });

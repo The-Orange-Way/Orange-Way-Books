@@ -35,7 +35,9 @@ export default function VaultUnlockScreen() {
     setRateLimit(data[0] as RateLimitState);
   };
 
-  useEffect(() => { void refreshRateLimit(); }, []);
+  useEffect(() => {
+    void refreshRateLimit();
+  }, []);
 
   // Tick once a second while we're cooling down so the countdown updates.
   useEffect(() => {
@@ -104,10 +106,13 @@ export default function VaultUnlockScreen() {
         <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-card-foreground">Layer 2 — Vault Password</span>
+            <span className="text-sm font-medium text-card-foreground">
+              Layer 2 — Vault Password
+            </span>
           </div>
           <p className="text-xs text-muted-foreground mb-4">
-            Your vault password never leaves this device. It's used to decrypt your financial data locally.
+            Your vault password never leaves this device. It's used to decrypt your financial data
+            locally.
           </p>
 
           {lockedOut && (
@@ -120,7 +125,8 @@ export default function VaultUnlockScreen() {
               <div className="text-sm">
                 <p className="font-medium text-destructive">Too many failed attempts</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Try again in <span className="font-mono">{fmtCooldown()}</span>. If you've forgotten your password, use the recovery code link below.
+                  Try again in <span className="font-mono">{fmtCooldown()}</span>. If you've
+                  forgotten your password, use the recovery code link below.
                 </p>
               </div>
             </div>
@@ -142,8 +148,12 @@ export default function VaultUnlockScreen() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {!lockedOut && failuresLeft !== null && failuresLeft < 5 && failuresLeft > 0 && (
-              <p className="text-xs text-amber-700 dark:text-amber-300" data-testid="vault-failures-remaining">
-                {failuresLeft} {failuresLeft === 1 ? 'attempt' : 'attempts'} remaining before lockout.
+              <p
+                className="text-xs text-amber-700 dark:text-amber-300"
+                data-testid="vault-failures-remaining"
+              >
+                {failuresLeft} {failuresLeft === 1 ? 'attempt' : 'attempts'} remaining before
+                lockout.
               </p>
             )}
             <Button
@@ -151,7 +161,11 @@ export default function VaultUnlockScreen() {
               className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
               disabled={loading || !!lockedOut}
             >
-              {loading ? 'Unlocking…' : lockedOut ? `Locked — wait ${fmtCooldown()}` : 'Unlock Vault'}
+              {loading
+                ? 'Unlocking…'
+                : lockedOut
+                  ? `Locked — wait ${fmtCooldown()}`
+                  : 'Unlock Vault'}
             </Button>
           </form>
 

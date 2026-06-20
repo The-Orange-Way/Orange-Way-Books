@@ -60,9 +60,7 @@ describe('RekeyWizard — Quick vs Deep refresh', () => {
     // Strip comments first so code-symbol mentions in /** … */ blocks
     // don't trip the guard. Identifier comments stay per the task's
     // hard rule.
-    const stripped = source
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    const stripped = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
     expect(stripped).not.toMatch(/rotate|rotation/i);
   });
 });

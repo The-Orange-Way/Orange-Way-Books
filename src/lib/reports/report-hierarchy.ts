@@ -163,8 +163,7 @@ export function buildReportHierarchyRoots(
     const childPrevPieces = children.map((c) => c.rollupPrevPrimaryAmount);
     if (ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined)) {
       rollupPrevPrimary =
-        (ownPrevPrimary ?? 0) +
-        childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+        (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
     }
 
     const rollupNative = rollupPrimary;
@@ -221,7 +220,9 @@ export function plSectionPredicate(side: 'revenue' | 'expense'): HierarchySectio
   return (row) => row.accountType.toLowerCase() === want;
 }
 
-export function bsSectionPredicate(side: 'asset' | 'liability' | 'equity'): HierarchySectionPredicate {
+export function bsSectionPredicate(
+  side: 'asset' | 'liability' | 'equity',
+): HierarchySectionPredicate {
   const want = side;
   return (row) => row.accountType.toLowerCase() === want;
 }

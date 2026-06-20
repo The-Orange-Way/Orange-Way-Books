@@ -169,17 +169,17 @@ CREATE POLICY tx_insert_requires_cap
 
 Nine system presets ship out of the box. Every one is a `role_definitions` row with `is_system = TRUE` and a curated capability set. Owners can clone any of these to create org-specific custom roles.
 
-| Preset | Has Org DEK? | Has signing key? | Read books | Write transactions | Write others' work | Approve payments | Mark paid | Close periods | Manage users + keys | Time-bounded? |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **Owner** Full | Yes | All | Yes | Yes | Yes | Yes | Yes | Yes (sole) | No |
-| **Admin** Full | Yes | All | Yes | Yes | Yes | Yes | No | Yes (not other admins) | No |
-| **Accountant** Full | Yes | All | Yes | Yes | No | No | Yes | No | No |
-| **Bookkeeper** Full | Yes | All | Yes | Own only | No | No | No | No | No |
-| **PaymentsApprover** Full | Yes (scoped) | All | No | No | Yes | No | No | No | No |
-| **PaymentsPayer** Full | Yes (scoped) | All | No | No | No | Yes | No | No | No |
-| **Auditor** Full (read-only) | No — cryptographic read-only | All | No | No | No | No | No | No | Yes (`expires_at`) |
-| **Viewer** Full (read-only) | No | Reports + summaries | No | No | No | No | No | No | Optional |
-| **OWBSupport** Scoped sub-DEK | No | Owner-selected rows only | No | No | No | No | No | No | Short TTL + sweep |
+| Preset                        | Has Org DEK?                 | Has signing key?         | Read books | Write transactions | Write others' work | Approve payments | Mark paid | Close periods          | Manage users + keys | Time-bounded? |
+| ----------------------------- | ---------------------------- | ------------------------ | ---------- | ------------------ | ------------------ | ---------------- | --------- | ---------------------- | ------------------- | ------------- |
+| **Owner** Full                | Yes                          | All                      | Yes        | Yes                | Yes                | Yes              | Yes       | Yes (sole)             | No                  |
+| **Admin** Full                | Yes                          | All                      | Yes        | Yes                | Yes                | Yes              | No        | Yes (not other admins) | No                  |
+| **Accountant** Full           | Yes                          | All                      | Yes        | Yes                | No                 | No               | Yes       | No                     | No                  |
+| **Bookkeeper** Full           | Yes                          | All                      | Yes        | Own only           | No                 | No               | No        | No                     | No                  |
+| **PaymentsApprover** Full     | Yes (scoped)                 | All                      | No         | No                 | Yes                | No               | No        | No                     | No                  |
+| **PaymentsPayer** Full        | Yes (scoped)                 | All                      | No         | No                 | No                 | Yes              | No        | No                     | No                  |
+| **Auditor** Full (read-only)  | No — cryptographic read-only | All                      | No         | No                 | No                 | No               | No        | No                     | Yes (`expires_at`)  |
+| **Viewer** Full (read-only)   | No                           | Reports + summaries      | No         | No                 | No                 | No               | No        | No                     | Optional            |
+| **OWBSupport** Scoped sub-DEK | No                           | Owner-selected rows only | No         | No                 | No                 | No               | No        | No                     | Short TTL + sweep   |
 
 ### Three-layer read-only (Auditor)
 
@@ -240,10 +240,10 @@ sequenceDiagram
   Supabase-->>Owner: key_version bumped
 ```
 
-| Action | When to use | Speed | Safety |
-|---|---|---|---|
-| **Soft revoke** Amicable separation, no suspicion | Instant | Protects future access; cached keys in their browser persist until tab closes |
-| **Hard re-key** Device compromise, hostile termination, end of OWBSupport session | Minutes–hours, resumable | Strongest — new DEK, batch re-encrypt, `key_version` bumped |
+| Action                                                                            | When to use              | Speed                                                                         | Safety |
+| --------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------- | ------ |
+| **Soft revoke** Amicable separation, no suspicion                                 | Instant                  | Protects future access; cached keys in their browser persist until tab closes |
+| **Hard re-key** Device compromise, hostile termination, end of OWBSupport session | Minutes–hours, resumable | Strongest — new DEK, batch re-encrypt, `key_version` bumped                   |
 
 ---
 
@@ -281,15 +281,15 @@ All 12 flows MUST be representable without custom code. These validate the desig
 
 Each phase leaves `dev` deployable to staging and fit to promote into `prod`.
 
-| Phase | Deliverable | Estimated |
-|---|---|---|
-| **4.0** Extract OR's PQC primitive as shared library; port tests | 1 week |
-| **4.1** Schema: `user_vault_keys`, `org_keys`, `capabilities`, `role_definitions`, `role_capabilities`, `org_member_roles` update; keypair lifecycle in unlock/setup | 1 week |
-| **4.2** Role presets seeded; `useRoles()` + `useCapability()` hooks; capability-checked RLS across all mutating tables; Admin UI to view/clone/edit roles | 2 weeks |
-| **4.3** Real invites + Owner-side wrap + soft revoke + audit events to `vault_security_events` | 1 week |
-| **4.4** Time-boxed Auditor + OWBSupport session + sweep job; signing key (ML-DSA-65) wrapped only for writer roles | 1 week |
-| **4.5** Hard re-key job + progress UI + resume; `key_rotation_jobs` | 1–2 weeks |
-| **4.6** Paid-tier Shamir 2-of-3 custody + ops runbook | Later (paid tier) |
+| Phase                                                                                                                                                                | Deliverable       | Estimated |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
+| **4.0** Extract OR's PQC primitive as shared library; port tests                                                                                                     | 1 week            |
+| **4.1** Schema: `user_vault_keys`, `org_keys`, `capabilities`, `role_definitions`, `role_capabilities`, `org_member_roles` update; keypair lifecycle in unlock/setup | 1 week            |
+| **4.2** Role presets seeded; `useRoles()` + `useCapability()` hooks; capability-checked RLS across all mutating tables; Admin UI to view/clone/edit roles            | 2 weeks           |
+| **4.3** Real invites + Owner-side wrap + soft revoke + audit events to `vault_security_events`                                                                       | 1 week            |
+| **4.4** Time-boxed Auditor + OWBSupport session + sweep job; signing key (ML-DSA-65) wrapped only for writer roles                                                   | 1 week            |
+| **4.5** Hard re-key job + progress UI + resume; `key_rotation_jobs`                                                                                                  | 1–2 weeks         |
+| **4.6** Paid-tier Shamir 2-of-3 custody + ops runbook                                                                                                                | Later (paid tier) |
 
 Total: ~6–8 weeks for 4.0 through 4.5.
 
@@ -335,7 +335,7 @@ Implementation gate: check the org's subscription tier before exposing clone/edi
 
 Implementation: check `user_has_capability(auth.uid(), 'users.invite', org_id)` — not a hardcoded role check.
 
-**Marketing copy angle:** lead with *"We don't have your keys — that's why your Owner has to unlock to let someone new in. Even we can't do it."* Sovereignty is the pitch.
+**Marketing copy angle:** lead with _"We don't have your keys — that's why your Owner has to unlock to let someone new in. Even we can't do it."_ Sovereignty is the pitch.
 
 ### Recovery custody (paid service, "Unchained-for-orgs" model)
 
@@ -375,14 +375,14 @@ Implementation: check `user_has_capability(auth.uid(), 'users.invite', org_id)` 
 
 ## 9. Security properties
 
-| Property | How |
-|---|---|
-| Server never reads books | Org DEK only in browser; server stores wraps + ciphertext |
-| Each user has their own vault password | Personal MEK unwraps only their own private key |
-| Invite without sharing password | Hybrid KEM wrap of Org DEK to invitee's public key |
-| Revoke | Soft = remove wrap; hard = new DEK + re-encrypt |
-| Cryptographic read-only | signing key withheld from Auditor + RLS + UI |
-| Post-quantum safe | X25519 + ML-KEM-768 hybrid |
+| Property                                | How                                                                        |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| Server never reads books                | Org DEK only in browser; server stores wraps + ciphertext                  |
+| Each user has their own vault password  | Personal MEK unwraps only their own private key                            |
+| Invite without sharing password         | Hybrid KEM wrap of Org DEK to invitee's public key                         |
+| Revoke                                  | Soft = remove wrap; hard = new DEK + re-encrypt                            |
+| Cryptographic read-only                 | signing key withheld from Auditor + RLS + UI                               |
+| Post-quantum safe                       | X25519 + ML-KEM-768 hybrid                                                 |
 | Capability changes never break features | RLS checks capabilities independently; client refetches on realtime change |
 
 ---
@@ -391,13 +391,13 @@ Implementation: check `user_has_capability(auth.uid(), 'users.invite', org_id)` 
 
 The role and permission system creates natural pricing tiers — validated against how competitors actually monetize.
 
-| Lever | Segment precedent | Orange Way Books angle |
-|---|---|---|
-| **Custom roles gated to paid tier** QBO Advanced (~$200/mo) — Custom Roles is the headline feature behind the paywall | Free tier ships the 9 presets; paid unlocks clone + edit + create custom roles |
-| **External accountant seats** QBO ProAdvisor seats; Xero Adviser seats; Zoho's accountant plan | Firms managing N clients pay per-client; Auditor role with `expires_at` is the primitive |
-| **OWBSupport as concierge** Stripe, GitHub, and most B2B SaaS charge for priority support with direct session access | Time-boxed support sessions billable separately; the crypto primitive already enforces scope + TTL |
-| **Per-seat pricing above N users** Standard SMB accounting SaaS pattern (QBO, Xero, FreshBooks) | First N users free, additional seats billed per month |
-| **Compliance / audit packs** Many platforms charge extra for SOC reports, detailed audit logs | `key_audit_log` + compliance report (SoD violations, role drift) is the free value prop; richer exports and retention paid |
+| Lever                                                                                                                 | Segment precedent                                                                                                          | Orange Way Books angle |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| **Custom roles gated to paid tier** QBO Advanced (~$200/mo) — Custom Roles is the headline feature behind the paywall | Free tier ships the 9 presets; paid unlocks clone + edit + create custom roles                                             |
+| **External accountant seats** QBO ProAdvisor seats; Xero Adviser seats; Zoho's accountant plan                        | Firms managing N clients pay per-client; Auditor role with `expires_at` is the primitive                                   |
+| **OWBSupport as concierge** Stripe, GitHub, and most B2B SaaS charge for priority support with direct session access  | Time-boxed support sessions billable separately; the crypto primitive already enforces scope + TTL                         |
+| **Per-seat pricing above N users** Standard SMB accounting SaaS pattern (QBO, Xero, FreshBooks)                       | First N users free, additional seats billed per month                                                                      |
+| **Compliance / audit packs** Many platforms charge extra for SOC reports, detailed audit logs                         | `key_audit_log` + compliance report (SoD violations, role drift) is the free value prop; richer exports and retention paid |
 
 The capability-based model is what makes these levers natural — tiers gate **which capabilities** a role can include, not which roles exist. That means the same underlying engine serves free and paid without forking code paths.
 
@@ -405,13 +405,13 @@ The capability-based model is what makes these levers natural — tiers gate **w
 
 ## 11. Cross-cutting risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Owner device compromise | All member DEK wraps exposed | Hard re-key on suspicion; short-lived Auditor/Support roles |
-| Lost Owner password + lost recovery code | Whole org lost | Shamir custody (paid tier) or mandatory recovery-code verification on setup |
-| Invite link phishing | Attacker gets wrapped DEK but not the target user's MEK | Safe — DEK is wrapped under public key; unwrap requires target's MEK |
-| Cached keys in revoked member's tab | Persist until tab close | Document limitation; auto-logout hook on revoke via realtime channel |
-| Capability drift (features add caps, old custom roles stale) | Owners miss new permissions | Diff-view prompt on new-feature migration; admin dashboard flags stale custom roles |
+| Risk                                                         | Impact                                                  | Mitigation                                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Owner device compromise                                      | All member DEK wraps exposed                            | Hard re-key on suspicion; short-lived Auditor/Support roles                         |
+| Lost Owner password + lost recovery code                     | Whole org lost                                          | Shamir custody (paid tier) or mandatory recovery-code verification on setup         |
+| Invite link phishing                                         | Attacker gets wrapped DEK but not the target user's MEK | Safe — DEK is wrapped under public key; unwrap requires target's MEK                |
+| Cached keys in revoked member's tab                          | Persist until tab close                                 | Document limitation; auto-logout hook on revoke via realtime channel                |
+| Capability drift (features add caps, old custom roles stale) | Owners miss new permissions                             | Diff-view prompt on new-feature migration; admin dashboard flags stale custom roles |
 
 ---
 
@@ -426,5 +426,3 @@ The capability-based model is what makes these levers natural — tiers gate **w
 - **NIST FIPS 203 (ML-KEM)**, **FIPS 204 (ML-DSA)**, **RFC 7748 (X25519)**.
 
 ---
-
-

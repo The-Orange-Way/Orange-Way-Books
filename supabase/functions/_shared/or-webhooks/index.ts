@@ -8,16 +8,16 @@ export {
   constructEvent,
   type ConstructEventOptions,
   type WebhookHeaders,
-} from "./construct-event.ts";
+} from './construct-event.ts';
 
 export {
   SignatureVerificationError,
   TimestampToleranceExceededError,
   MissingSignatureError,
-} from "./errors.ts";
+} from './errors.ts';
 
-export type { Event, SyncCompletedEvent, EventType } from "./types.ts";
+export type { Event, SyncCompletedEvent, EventType } from './types.ts';
 
 // Low-level primitives — exported for advanced use cases (e.g. signing
 // in fixtures/tests). Most consumers should use `constructEvent`.
-export { computeHmacSha256Hex, timingSafeEqualHex } from "./verify.ts";
+export { computeHmacSha256Hex, timingSafeEqualHex } from './verify.ts';

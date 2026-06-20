@@ -10,7 +10,8 @@ const RULES: Rule[] = [
     // Wallets: cash / bank-account terms. `bank` is carved out so the
     // common expense phrases "Bank Charges" / "Bank Fees" fall through to
     // the expense rule further down instead of being misclassified as wallets.
-    pattern: /\b(cash|checking|savings|operating|petty cash)\b|\bbank\b(?!\s*(charges?|fees?|expense))/i,
+    pattern:
+      /\b(cash|checking|savings|operating|petty cash)\b|\bbank\b(?!\s*(charges?|fees?|expense))/i,
     classification: {
       accountType: 'ASSET',
       accountSubType: 'WALLETS',

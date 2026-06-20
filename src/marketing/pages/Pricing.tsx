@@ -37,8 +37,8 @@ export default function Pricing() {
         <header className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Pricing</h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Free to use. Free to self-host. No license fee, no per-seat trick,
-            no surprise upsell at month two.
+            Free to use. Free to self-host. No license fee, no per-seat trick, no surprise upsell at
+            month two.
           </p>
         </header>
 

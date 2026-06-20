@@ -10,22 +10,22 @@
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 
     /* Brand tokens */
-    --color-brand-orange: #F7931A;
-    --color-brand-orange-hover: #E0820F;
-    --color-brand-orange-light: #FEF3E2;
-    --color-border: #E5E7EB;
-    --color-border-strong: #D1D5DB;
-    --color-gray-50: #F9FAFB;
-    --color-gray-300: #D1D5DB;
-    --color-gray-400: #9CA3AF;
-    --color-gray-600: #4B5563;
+    --color-brand-orange: #f7931a;
+    --color-brand-orange-hover: #e0820f;
+    --color-brand-orange-light: #fef3e2;
+    --color-border: #e5e7eb;
+    --color-border-strong: #d1d5db;
+    --color-gray-50: #f9fafb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-600: #4b5563;
     --color-gray-700: #374151;
-    --color-gray-800: #1F2937;
+    --color-gray-800: #1f2937;
     --color-gray-900: #111827;
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --shadow-lg: 0 10px 25px rgba(0,0,0,0.12);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12);
 
     /* Shadcn semantic tokens */
     --background: 0 0% 98%;

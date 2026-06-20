@@ -72,7 +72,9 @@ export default function LoginPage() {
             </div>
             <h1 className="text-2xl font-bold text-foreground">Orange Way Books</h1>
           </div>
-          <p className="text-muted-foreground text-sm">Zero-knowledge accounting for Bitcoin businesses</p>
+          <p className="text-muted-foreground text-sm">
+            Zero-knowledge accounting for Bitcoin businesses
+          </p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-6 shadow-sm">

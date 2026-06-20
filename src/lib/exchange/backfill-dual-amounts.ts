@@ -33,14 +33,18 @@ export function loadBackfillProgress(): BackfillProgress {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return JSON.parse(stored);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { processed: 0, resolved: 0, pending: 0, failed: 0, lastCursor: null };
 }
 
 function saveBackfillProgress(p: BackfillProgress): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function clearBackfillProgress(): void {
@@ -81,7 +85,9 @@ export async function backfillDualAmounts(
     // after DB reset.
     let query = (supabase as any)
       .from('journal_entry_lines')
-      .select('id, key_version, account_id, journal_entry_id, encrypted_debit, encrypted_credit, encrypted_book_value, account_name, account_code, description, encrypted_amount_native, encrypted_wallet_currency, encrypted_primary_currency_at_posting, rate_pending, journal_entries!inner(date, org_id)')
+      .select(
+        'id, key_version, account_id, journal_entry_id, encrypted_debit, encrypted_credit, encrypted_book_value, account_name, account_code, description, encrypted_amount_native, encrypted_wallet_currency, encrypted_primary_currency_at_posting, rate_pending, journal_entries!inner(date, org_id)',
+      )
       .eq('dual_amounts_backfilled', false)
       .eq('journal_entries.org_id', orgId)
       .order('id', { ascending: true })
@@ -117,7 +123,8 @@ export async function backfillDualAmounts(
 
         // Wallet currency: prefer decrypted field; fall back to primary (identity rate)
         const walletCurrency = fields.wallet_currency ?? primaryCurrency;
-        const targetCurrency = (row as any).encrypted_primary_currency_at_posting ?? primaryCurrency;
+        const targetCurrency =
+          (row as any).encrypted_primary_currency_at_posting ?? primaryCurrency;
 
         // Signed native amount from debit/credit
         const amount_native = fields.debit > 0 ? fields.debit : -fields.credit;

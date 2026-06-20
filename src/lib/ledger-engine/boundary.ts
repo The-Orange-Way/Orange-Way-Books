@@ -9,7 +9,7 @@
 export interface PrimaryCurrencyEra {
   currency: string;
   from: string | null; // ISO date (inclusive), null = from the beginning of time
-  to: string | null;   // ISO date (inclusive), null = still current
+  to: string | null; // ISO date (inclusive), null = still current
 }
 
 export interface PrimaryCurrencyBoundaryResult {
@@ -28,7 +28,11 @@ export interface PrimaryCurrencyBoundaryResult {
  * @param rangeEnd   - ISO date string for the end   of the report period (inclusive)
  */
 export function computePrimaryCurrencyBoundaries(
-  history: Array<{ primary_currency: string; effective_from: string | null; effective_to: string | null }>,
+  history: Array<{
+    primary_currency: string;
+    effective_from: string | null;
+    effective_to: string | null;
+  }>,
   rangeStart: string,
   rangeEnd: string,
 ): PrimaryCurrencyBoundaryResult {
@@ -36,7 +40,7 @@ export function computePrimaryCurrencyBoundaries(
     return { hasBoundary: false, eras: [], boundariesInRange: [] };
   }
 
-  const eras: PrimaryCurrencyEra[] = history.map(row => ({
+  const eras: PrimaryCurrencyEra[] = history.map((row) => ({
     currency: row.primary_currency,
     from: row.effective_from,
     to: row.effective_to,
@@ -64,10 +68,9 @@ export function computePrimaryCurrencyBoundaries(
  * Split a list of journal lines into groups by the primary currency that was
  * active when each line was posted.
  */
-export function splitLinesByEra<T extends { date: string; primaryCurrencyAtPosting?: string | null }>(
-  lines: T[],
-  eras: PrimaryCurrencyEra[],
-): Map<string, T[]> {
+export function splitLinesByEra<
+  T extends { date: string; primaryCurrencyAtPosting?: string | null },
+>(lines: T[], eras: PrimaryCurrencyEra[]): Map<string, T[]> {
   const result = new Map<string, T[]>();
 
   for (const line of lines) {
@@ -85,8 +88,8 @@ function eraForDate(date: string, eras: PrimaryCurrencyEra[]): string | null {
   // eras are ordered oldest-first; walk backwards to find the active era
   for (let i = eras.length - 1; i >= 0; i--) {
     const era = eras[i];
-    const afterStart = !era.from | date >= era.from;
-    const beforeEnd = !era.to | date <= era.to;
+    const afterStart = !era.from | (date >= era.from);
+    const beforeEnd = !era.to | (date <= era.to);
     if (afterStart && beforeEnd) return era.currency;
   }
   return null;

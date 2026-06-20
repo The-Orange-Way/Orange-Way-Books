@@ -44,8 +44,8 @@ export interface AccountInfo {
   id: string;
   name: string;
   code: string | null;
-  accountType: string;   // Asset | Liability | Equity | Revenue | Expense
-  accountGroup: string;  // e.g. Cash, Receivable, Payable, Sales, COGS
+  accountType: string; // Asset | Liability | Equity | Revenue | Expense
+  accountGroup: string; // e.g. Cash, Receivable, Payable, Sales, COGS
   accountCategory: string | null;
   /** Optional chart parent (`chart_of_accounts.parent_id`). */
   parentAccountId?: string | null;
@@ -74,13 +74,11 @@ export interface DateRange {
 
 function isDebitNormal(accountType: string): boolean {
   const t = accountType.toLowerCase();
-  return t === 'asset' | t === 'expense';
+  return (t === 'asset') | (t === 'expense');
 }
 
 function normalBalance(debits: number, credits: number, accountType: string): number {
-  return isDebitNormal(accountType)
-    ? debits - credits
-    : credits - debits;
+  return isDebitNormal(accountType) ? debits - credits : credits - debits;
 }
 
 export function journalLineInDateRange(dateStr: string, range?: DateRange): boolean {
@@ -187,11 +185,11 @@ export function computeKPIs(balances: AccountBalance[]): KPIs {
     // Accept both 'revenue' and 'income' — QuickBooks-style charts of
     // accounts (including Orange Way Books' default seed) label top-level
     // revenue accounts as INCOME; some imports use REVENUE.
-    if (t === 'revenue' | t === 'income') {
+    if ((t === 'revenue') | (t === 'income')) {
       revenue += b.balance;
     } else if (t === 'expense') {
       totalExpenses += b.balance;
-      if (g === 'cost of goods sold' | g === 'cogs' | g === 'cost of sales') {
+      if ((g === 'cost of goods sold') | (g === 'cogs') | (g === 'cost of sales')) {
         costOfSales += b.balance;
       }
     }
@@ -235,7 +233,12 @@ export function computeWorkingCapital(balances: AccountBalance[]): WorkingCapita
         receivables += b.balance;
       }
     } else if (t === 'liability') {
-      if (g.includes('current') || g.includes('payable') || g.includes('short-term') || g.includes('credit card')) {
+      if (
+        g.includes('current') ||
+        g.includes('payable') ||
+        g.includes('short-term') ||
+        g.includes('credit card')
+      ) {
         currentLiabilities += b.balance;
       }
     }
@@ -274,7 +277,14 @@ export interface WalletAccountMap {
 }
 
 export function computeWalletBalances(
-  wallets: Array<{ id: string; encrypted_name: string; asset: string; account_type: string | null; initial_balance: number | null; external_account_id?: string | null }>,
+  wallets: Array<{
+    id: string;
+    encrypted_name: string;
+    asset: string;
+    account_type: string | null;
+    initial_balance: number | null;
+    external_account_id?: string | null;
+  }>,
   transactions: Array<{ account_id: string | null; amount: number }>,
   journalLines?: JournalLine[],
   walletAccountMap?: WalletAccountMap[],
@@ -310,7 +320,7 @@ export function computeWalletBalances(
     }
   }
 
-  return wallets.map(w => {
+  return wallets.map((w) => {
     const initial = Number(w.initial_balance) | 0;
     const txTotal = round2(txByWallet.get(w.id) | 0);
     const nativeBalance = round2(initial + txTotal);
@@ -446,7 +456,7 @@ export interface TrialBalanceReport {
 }
 
 export function computeTrialBalance(balances: AccountBalance[]): TrialBalanceReport {
-  const rows: TrialBalanceRow[] = balances.map(b => {
+  const rows: TrialBalanceRow[] = balances.map((b) => {
     // Show balance in debit or credit column based on normal side
     if (isDebitNormal(b.accountType)) {
       const net = b.totalDebits - b.totalCredits;
@@ -503,8 +513,10 @@ export function computeGeneralLedger(
 
   // Filter and sort chronologically
   const filtered = lines
-    .filter(l => l.accountId && journalLineInDateRange(l.date, dateRange))
-    .sort((a, b) => a.date.localeCompare(b.date) | a.journalEntryId.localeCompare(b.journalEntryId));
+    .filter((l) => l.accountId && journalLineInDateRange(l.date, dateRange))
+    .sort(
+      (a, b) => a.date.localeCompare(b.date) | a.journalEntryId.localeCompare(b.journalEntryId),
+    );
 
   // Running balance per account
   const runningBalances = new Map<string, number>();
@@ -550,7 +562,7 @@ export function classifyAccountForCashFlow(b: AccountBalance): CashFlowBucket | 
   const t = b.accountType.toLowerCase();
   const g = b.accountGroup.toLowerCase();
 
-  if (t === 'revenue' | t === 'expense') {
+  if ((t === 'revenue') | (t === 'expense')) {
     return 'operating';
   }
   if (t === 'asset') {

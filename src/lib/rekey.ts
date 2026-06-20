@@ -45,11 +45,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import {
-  DEFAULT_WRAP_ALGORITHM,
-  KEY_WRAP_STRATEGIES,
-  base64ToBytes,
-} from '@/lib/key-wrapping';
+import { DEFAULT_WRAP_ALGORITHM, KEY_WRAP_STRATEGIES, base64ToBytes } from '@/lib/key-wrapping';
 import {
   generateAndWrapSigningKey,
   type WriterRecipient,
@@ -81,11 +77,7 @@ export type RekeyTriggerType = 'first_time_setup' | 'manual' | 'post_revoke';
  */
 export type RefreshMode = 'quick' | 'deep';
 
-export type RekeyStage =
-  | 'generating_keys'
-  | 'wrapping_members'
-  | 'rekeying_rows'
-  | 'finalizing';
+export type RekeyStage = 'generating_keys' | 'wrapping_members' | 'rekeying_rows' | 'finalizing';
 
 export interface StartRekeyResult {
   jobId: string;
@@ -225,8 +217,14 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'memo', 'encrypted_amount', 'encrypted_usd_value', 'encrypted_exchange_rate',
-      'asset', 'type', 'status', 'cleared_status',
+      'memo',
+      'encrypted_amount',
+      'encrypted_usd_value',
+      'encrypted_exchange_rate',
+      'asset',
+      'type',
+      'status',
+      'cleared_status',
     ],
   },
   {
@@ -234,8 +232,13 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'memo', 'ref_number', 'currency', 'encrypted_exchange_rate',
-      'status', 'source_type', 'encrypted_period_locked',
+      'memo',
+      'ref_number',
+      'currency',
+      'encrypted_exchange_rate',
+      'status',
+      'source_type',
+      'encrypted_period_locked',
     ],
   },
   {
@@ -243,24 +246,43 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'account_name', 'account_code', 'description',
-      'encrypted_debit', 'encrypted_credit', 'encrypted_book_value',
-      'encrypted_amount_native', 'encrypted_amount_primary',
-      'encrypted_posted_rate', 'encrypted_wallet_currency',
+      'account_name',
+      'account_code',
+      'description',
+      'encrypted_debit',
+      'encrypted_credit',
+      'encrypted_book_value',
+      'encrypted_amount_native',
+      'encrypted_amount_primary',
+      'encrypted_posted_rate',
+      'encrypted_wallet_currency',
     ],
   },
   {
     table: 'contacts',
     idColumn: 'id',
     orgColumn: 'org_id',
-    encryptedColumns: ['name','street','city','state','zip','country','email','phone','type'],
+    encryptedColumns: [
+      'name',
+      'street',
+      'city',
+      'state',
+      'zip',
+      'country',
+      'email',
+      'phone',
+      'type',
+    ],
   },
   {
     table: 'chart_of_accounts',
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'encrypted_name', 'account_type', 'account_group', 'account_category',
+      'encrypted_name',
+      'account_type',
+      'account_group',
+      'account_category',
       'encrypted_is_archived',
     ],
   },
@@ -269,9 +291,15 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'encrypted_payee', 'encrypted_description', 'encrypted_rejection_reason',
-      'encrypted_amount', 'currency', 'status', 'request_type',
-      'vendor_ref', 'payment_address',
+      'encrypted_payee',
+      'encrypted_description',
+      'encrypted_rejection_reason',
+      'encrypted_amount',
+      'currency',
+      'status',
+      'request_type',
+      'vendor_ref',
+      'payment_address',
     ],
   },
   {
@@ -279,8 +307,12 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'encrypted_name', 'encrypted_balance', 'asset',
-      'account_type', 'connection_type', 'external_account_code',
+      'encrypted_name',
+      'encrypted_balance',
+      'asset',
+      'account_type',
+      'connection_type',
+      'external_account_code',
     ],
   },
   {
@@ -294,8 +326,15 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
     idColumn: 'org_id',
     orgColumn: 'org_id',
     encryptedColumns: [
-      'primary_currency', 'secondary_currency', 'bitcoin_display', 'fiscal_year_type',
-      'encrypted_fiscal_month', 'date_format', 'time_format', 'number_format', 'timezone',
+      'primary_currency',
+      'secondary_currency',
+      'bitcoin_display',
+      'fiscal_year_type',
+      'encrypted_fiscal_month',
+      'date_format',
+      'time_format',
+      'number_format',
+      'timezone',
     ],
   },
   {
@@ -336,7 +375,9 @@ export async function startRekeyJob(
     throw new Error(friendlyError(error, 'Could not start the security refresh.'));
   }
   const resp = data as {
-    job_id?: string; rows_total?: number; estimated_seconds?: number;
+    job_id?: string;
+    rows_total?: number;
+    estimated_seconds?: number;
     refresh_mode?: RefreshMode;
   };
   if (!resp?.job_id) {
@@ -345,7 +386,8 @@ export async function startRekeyJob(
   return {
     jobId: resp.job_id,
     rowsTotal: resp.rows_total ?? 0,
-    estimatedSeconds: resp.estimated_seconds ?? Math.max(60, Math.ceil((resp.rows_total ?? 0) / ROWS_PER_SECOND)),
+    estimatedSeconds:
+      resp.estimated_seconds ?? Math.max(60, Math.ceil((resp.rows_total ?? 0) / ROWS_PER_SECOND)),
     refreshMode: resp.refresh_mode ?? refreshMode,
   };
 }
@@ -380,7 +422,9 @@ export async function runRekeyJob(
     return 'completed';
   }
   if (job.status === 'aborted') {
-    callbacks.onAborted?.(job.abort_reason ?? 'The security refresh was stopped before it finished.');
+    callbacks.onAborted?.(
+      job.abort_reason ?? 'The security refresh was stopped before it finished.',
+    );
     return 'aborted';
   }
   if (job.status === 'rolled_back') {
@@ -396,7 +440,9 @@ export async function runRekeyJob(
   // Fetch the CURRENT active DEK so we can decrypt existing rows. We
   // fetch via the user's own org_keys wrap for the currently-active
   // key_version — that's the DEK the user already holds in memory.
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('You need to be signed in to run a security refresh.');
   }
@@ -407,9 +453,13 @@ export async function runRekeyJob(
   const members = await fetchOrgMembers(job.org_id);
   const writers = await filterWriters(job.org_id, members);
 
-  const newOskBundle = await generateAndWrapSigningKey(job.org_id, writers, job.new_osk_key_version);
+  const newOskBundle = await generateAndWrapSigningKey(
+    job.org_id,
+    writers,
+    job.new_osk_key_version,
+  );
 
-  if (job.status === 'pending' | job.status === 'generating_keys') {
+  if ((job.status === 'pending') | (job.status === 'generating_keys')) {
     callbacks.onStageChange?.('generating_keys');
     // advance pending -> generating_keys. Then we transition straight to
     // wrapping_members after the client materializes the new keys.
@@ -426,7 +476,14 @@ export async function runRekeyJob(
     // DEK wrap (Auditor/Viewer included — they need reads; only the signing key is
     // writer-gated).
     const dekWraps = await buildDekWraps(newDek, members, job.new_dek_key_version);
-    await submitWrapBatches(jobId, job.org_id, job.refresh_mode, dekWraps, newOskBundle.wraps, newOskBundle.publicKeyB64);
+    await submitWrapBatches(
+      jobId,
+      job.org_id,
+      job.refresh_mode,
+      dekWraps,
+      newOskBundle.wraps,
+      newOskBundle.publicKeyB64,
+    );
 
     await advanceRotation(jobId, 'rekeying_rows');
   }
@@ -448,16 +505,36 @@ export async function runRekeyJob(
     callbacks.onStageChange?.('rekeying_rows');
 
     if (job.refresh_mode === 'quick') {
-      await markAllRowsAsNewVersion(jobId, job.org_id, job.new_dek_key_version, job.refresh_mode, callbacks);
+      await markAllRowsAsNewVersion(
+        jobId,
+        job.org_id,
+        job.new_dek_key_version,
+        job.refresh_mode,
+        callbacks,
+      );
     } else if (!oldDekKey) {
       // Deep refresh was requested but the old DEK is unavailable —
       // fall back to the Quick path so first-time-setup on placeholder
       // orgs still makes progress. TODO(Phase 4.5 follow-up): hydrate
       // the hybrid secret key via VaultContext so Deep refresh actually
       // re-encrypts rows on orgs with a real shared DEK.
-      await markAllRowsAsNewVersion(jobId, job.org_id, job.new_dek_key_version, job.refresh_mode, callbacks);
+      await markAllRowsAsNewVersion(
+        jobId,
+        job.org_id,
+        job.new_dek_key_version,
+        job.refresh_mode,
+        callbacks,
+      );
     } else {
-      await rekeyAllRows(jobId, job.org_id, oldDekKey, newDekKey, job.new_dek_key_version, job.refresh_mode, callbacks);
+      await rekeyAllRows(
+        jobId,
+        job.org_id,
+        oldDekKey,
+        newDekKey,
+        job.new_dek_key_version,
+        job.refresh_mode,
+        callbacks,
+      );
     }
 
     await advanceRotation(jobId, 'finalizing');
@@ -469,7 +546,12 @@ export async function runRekeyJob(
     body: { job_id: jobId },
   });
   if (finalizeErr) {
-    throw new Error(friendlyError(finalizeErr, 'The security refresh failed at the final step. No data was lost.'));
+    throw new Error(
+      friendlyError(
+        finalizeErr,
+        'The security refresh failed at the final step. No data was lost.',
+      ),
+    );
   }
 
   callbacks.onComplete?.();
@@ -479,10 +561,10 @@ export async function runRekeyJob(
   // but the org_name comes from the client because ZKA means the
   // server cannot read the ciphertext. Non-fatal if it fails.
   if (
-    job.trigger_type === 'first_time_setup'
-    && callbacks.firstTimeSetupEmail
-    && callbacks.firstTimeSetupEmail.orgNameDecrypted
-    && callbacks.firstTimeSetupEmail.recipientEmail
+    job.trigger_type === 'first_time_setup' &&
+    callbacks.firstTimeSetupEmail &&
+    callbacks.firstTimeSetupEmail.orgNameDecrypted &&
+    callbacks.firstTimeSetupEmail.recipientEmail
   ) {
     try {
       await queueFirstTimeSetupEmail({
@@ -515,9 +597,9 @@ async function queueFirstTimeSetupEmail(args: {
 }): Promise<void> {
   const { error } = await supabase.functions.invoke('queue-admin-email', {
     body: {
-      org_id:             args.orgId,
-      template:           'first_time_setup',
-      recipient_email:    args.recipientEmail,
+      org_id: args.orgId,
+      template: 'first_time_setup',
+      recipient_email: args.recipientEmail,
       org_name_decrypted: args.orgNameDecrypted,
     },
   });
@@ -531,7 +613,10 @@ async function queueFirstTimeSetupEmail(args: {
  * status and calls runRekeyJob. Because runRekeyJob is idempotent
  * around stages, this is a thin wrapper for now.
  */
-export async function resumeRekeyJob(jobId: string, callbacks: RekeyCallbacks = {}): Promise<RekeyOutcome> {
+export async function resumeRekeyJob(
+  jobId: string,
+  callbacks: RekeyCallbacks = {},
+): Promise<RekeyOutcome> {
   return runRekeyJob(jobId, callbacks);
 }
 
@@ -604,11 +689,15 @@ export async function exportOrgBackup(
   }
 
   if (format === 'json') {
-    const json = JSON.stringify({
-      org_id: orgId,
-      exported_at: new Date().toISOString(),
-      data: snapshot,
-    }, null, 2);
+    const json = JSON.stringify(
+      {
+        org_id: orgId,
+        exported_at: new Date().toISOString(),
+        data: snapshot,
+      },
+      null,
+      2,
+    );
     return new Blob([json], { type: 'application/json' });
   }
 
@@ -616,7 +705,9 @@ export async function exportOrgBackup(
   // separated by a sentinel line. Customers can split or paste into
   // spreadsheets as needed. This keeps the export dep-free.
   const chunks: string[] = [];
-  chunks.push(`# Orange Way Books backup\n# org_id: ${orgId}\n# exported_at: ${new Date().toISOString()}\n\n`);
+  chunks.push(
+    `# Orange Way Books backup\n# org_id: ${orgId}\n# exported_at: ${new Date().toISOString()}\n\n`,
+  );
   for (const desc of BUSINESS_TABLES) {
     const rows = snapshot[desc.table] as Record<string, unknown>[];
     chunks.push(`### TABLE: ${desc.table} ###\n`);
@@ -649,8 +740,14 @@ interface RekeyJobRow {
   id: string;
   org_id: string;
   status:
-    | 'pending' | 'generating_keys' | 'wrapping_members'
-    | 'rekeying_rows' | 'finalizing' | 'complete' | 'aborted' | 'rolled_back';
+    | 'pending'
+    | 'generating_keys'
+    | 'wrapping_members'
+    | 'rekeying_rows'
+    | 'finalizing'
+    | 'complete'
+    | 'aborted'
+    | 'rolled_back';
   trigger_type: RekeyTriggerType;
   new_dek_key_version: number;
   new_osk_key_version: number;
@@ -671,7 +768,8 @@ async function fetchCurrentDek(orgId: string, userId: string): Promise<Uint8Arra
     .select('active_dek_key_version')
     .eq('org_id', orgId)
     .maybeSingle();
-  const activeKv = (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
+  const activeKv =
+    (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
 
   const { data: wrap } = await supabase
     .from('org_keys')
@@ -703,7 +801,10 @@ async function fetchCurrentDek(orgId: string, userId: string): Promise<Uint8Arra
   return null;
 }
 
-interface MemberRow { user_id: string; public_key_b64: string; }
+interface MemberRow {
+  user_id: string;
+  public_key_b64: string;
+}
 
 async function fetchOrgMembers(orgId: string): Promise<MemberRow[]> {
   // Join org_members with user_vault_keys so we only wrap for members
@@ -717,7 +818,12 @@ async function fetchOrgMembers(orgId: string): Promise<MemberRow[]> {
   // Cast through unknown — Supabase typegen doesn't currently know about the
   // org_members → user_vault_keys join, so it returns SelectQueryError on
   // the inner field. The runtime shape is correct.
-  return ((data as unknown as Array<{ user_id: string; user_vault_keys: { public_key_b64: string } | Array<{ public_key_b64: string }> }> | null) ?? [])
+  return (
+    (data as unknown as Array<{
+      user_id: string;
+      user_vault_keys: { public_key_b64: string } | Array<{ public_key_b64: string }>;
+    }> | null) ?? []
+  )
     .map((r) => {
       const vk = Array.isArray(r.user_vault_keys) ? r.user_vault_keys[0] : r.user_vault_keys;
       return { user_id: r.user_id, public_key_b64: vk?.public_key_b64 ?? '' };
@@ -764,7 +870,8 @@ async function buildDekWraps(
   keyVersion: number,
 ): Promise<DekWrapRow[]> {
   const strategy = KEY_WRAP_STRATEGIES[DEFAULT_WRAP_ALGORITHM];
-  if (!strategy) throw new Error('The system could not prepare the new keys (missing wrap strategy).');
+  if (!strategy)
+    throw new Error('The system could not prepare the new keys (missing wrap strategy).');
   const rows: DekWrapRow[] = [];
   for (const m of members) {
     const pub = base64ToBytes(m.public_key_b64);
@@ -803,7 +910,10 @@ async function submitWrapBatches(
     const { error } = await supabase.functions.invoke('rekey-batch', {
       body: { job_id: jobId, stage: 'wrap_members', mode, batch: { kind: 'dek', rows: chunk } },
     });
-    if (error) throw new Error(friendlyError(error, 'Could not save the new security codes for a team member.'));
+    if (error)
+      throw new Error(
+        friendlyError(error, 'Could not save the new security codes for a team member.'),
+      );
   }
   // signing-key wraps: send the public key once + all wraps.
   const { error } = await supabase.functions.invoke('rekey-batch', {
@@ -861,7 +971,12 @@ async function markAllRowsAsNewVersion(
 ): Promise<void> {
   let processed = 0;
   let total = 0;
-  const updates: Array<{ table: string; row_id: string; new_dek_key_version: number; new_ciphertext_fields: Record<string, string> }> = [];
+  const updates: Array<{
+    table: string;
+    row_id: string;
+    new_dek_key_version: number;
+    new_ciphertext_fields: Record<string, string>;
+  }> = [];
   for (const desc of BUSINESS_TABLES) {
     const rows = await fetchAllRows(desc.table, desc.orgColumn, orgId);
     total += rows.length;
@@ -884,7 +999,12 @@ async function markAllRowsAsNewVersion(
       body: { job_id: jobId, stage: 'rekey_rows', mode, batch: { rows: chunk } },
     });
     if (error) {
-      throw new Error(friendlyError(error, 'Could not finish updating a row. The security refresh was stopped safely.'));
+      throw new Error(
+        friendlyError(
+          error,
+          'Could not finish updating a row. The security refresh was stopped safely.',
+        ),
+      );
     }
     processed += chunk.length;
     callbacks.onRowProgress?.(processed, total);
@@ -917,31 +1037,38 @@ async function rekeyAllRows(
     const rows = await fetchAllRows(desc.table, desc.orgColumn, orgId);
     for (let i = 0; i < rows.length; i += BATCH_SIZE_ROWS) {
       const chunk = rows.slice(i, i + BATCH_SIZE_ROWS);
-      const updates = await Promise.all(chunk.map(async (row) => {
-        const id = row[desc.idColumn] as string;
-        const newCt: Record<string, string> = {};
-        for (const col of desc.encryptedColumns) {
-          const v = row[col];
-          if (typeof v === 'string' && v.length > 0) {
-            try {
-              newCt[col] = await reencryptFieldUnderNewDek(v, oldDekKey, newDekKey);
-            } catch {
-              // Leave the column alone; server keeps old ciphertext + bumps version.
+      const updates = await Promise.all(
+        chunk.map(async (row) => {
+          const id = row[desc.idColumn] as string;
+          const newCt: Record<string, string> = {};
+          for (const col of desc.encryptedColumns) {
+            const v = row[col];
+            if (typeof v === 'string' && v.length > 0) {
+              try {
+                newCt[col] = await reencryptFieldUnderNewDek(v, oldDekKey, newDekKey);
+              } catch {
+                // Leave the column alone; server keeps old ciphertext + bumps version.
+              }
             }
           }
-        }
-        return {
-          table: desc.table,
-          row_id: id,
-          new_dek_key_version: newVersion,
-          new_ciphertext_fields: newCt,
-        };
-      }));
+          return {
+            table: desc.table,
+            row_id: id,
+            new_dek_key_version: newVersion,
+            new_ciphertext_fields: newCt,
+          };
+        }),
+      );
       const { error } = await supabase.functions.invoke('rekey-batch', {
         body: { job_id: jobId, stage: 'rekey_rows', mode, batch: { rows: updates } },
       });
       if (error) {
-        throw new Error(friendlyError(error, 'Could not finish updating a row. The security refresh was stopped safely.'));
+        throw new Error(
+          friendlyError(
+            error,
+            'Could not finish updating a row. The security refresh was stopped safely.',
+          ),
+        );
       }
       processed += updates.length;
       callbacks.onRowProgress?.(processed, total);

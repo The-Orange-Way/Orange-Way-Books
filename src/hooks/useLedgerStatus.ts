@@ -48,7 +48,7 @@ export function useLedgerStatus(): LedgerStatusState {
     // Poll while provisioning to flip to ready/failed without a page reload.
     const interval = window.setInterval(() => {
       setStatus((current) => {
-        if (current === 'pending' | current === 'provisioning') {
+        if ((current === 'pending') | (current === 'provisioning')) {
           fetchStatus();
         }
         return current;

@@ -1,5 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Zap, ExternalLink, Loader2, Trash2, KeyRound, AlertTriangle, ChevronDown, ChevronRight, Pencil, Settings } from 'lucide-react';
+import {
+  Zap,
+  ExternalLink,
+  Loader2,
+  Trash2,
+  KeyRound,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Pencil,
+  Settings,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +29,14 @@ import { useVault } from '@/context/VaultContext';
 import { useCapability } from '@/hooks/useCapability';
 import { TransactionList } from '@/components/connections/TransactionList';
 import { WalletPickerStep, type DiscoveredWallet } from '@/components/connections/WalletPickerStep';
-import { DestinationAccountPicker, type SourceWalletPick } from '@/components/connections/DestinationAccountPicker';
-import { SourceWalletBadges, type DecryptedSourceWallet } from '@/components/connections/SourceWalletBadges';
+import {
+  DestinationAccountPicker,
+  type SourceWalletPick,
+} from '@/components/connections/DestinationAccountPicker';
+import {
+  SourceWalletBadges,
+  type DecryptedSourceWallet,
+} from '@/components/connections/SourceWalletBadges';
 import { DestinationAccountChips } from '@/components/connections/DestinationAccountChips';
 import { ConfirmDialog } from '@/components/connections/ConfirmDialog';
 import { decryptWallet, decryptOrgSettings } from '@/lib/crypto-fields';
@@ -68,10 +85,7 @@ function readIncompleteSet(orgId: string | null): Set<string> {
 function writeIncompleteSet(orgId: string | null, set: Set<string>): void {
   if (!orgId) return;
   try {
-    localStorage.setItem(
-      INCOMPLETE_CONNECTIONS_LS_PREFIX + orgId,
-      JSON.stringify(Array.from(set)),
-    );
+    localStorage.setItem(INCOMPLETE_CONNECTIONS_LS_PREFIX + orgId, JSON.stringify(Array.from(set)));
   } catch {
     /* swallow quota errors — incomplete tracking is a UX hint, not load-bearing */
   }
@@ -145,7 +159,9 @@ async function postProxy(
 }
 
 async function callProxy(endpoint: string, payload: Record<string, unknown>): Promise<unknown> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
   const orgId = localStorage.getItem('orangewaybooks.active_org');
   if (!orgId) throw new Error('No active org');
@@ -166,11 +182,16 @@ async function callProxy(endpoint: string, payload: Record<string, unknown>): Pr
 
   const text = await resp.text();
   let data: unknown;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
   if (!resp.ok) {
-    const msg = (data && typeof data === 'object' && 'error' in data && data.error)
-      ? String(data.error)
-      : `${endpoint} failed (HTTP ${resp.status})`;
+    const msg =
+      data && typeof data === 'object' && 'error' in data && data.error
+        ? String(data.error)
+        : `${endpoint} failed (HTTP ${resp.status})`;
     throw new Error(msg);
   }
   if (data && typeof data === 'object' && 'error' in data && (data as { error?: unknown }).error) {
@@ -182,9 +203,13 @@ async function callProxy(endpoint: string, payload: Record<string, unknown>): Pr
 export default function Connections() {
   const {
     isUnlocked,
-    encryptText, decryptText,
-    encryptOrCipher, decryptOrCipher, decryptOrTxnCipher,
-    exportOrCredsKey, exportOrTxnsKey,
+    encryptText,
+    decryptText,
+    encryptOrCipher,
+    decryptOrCipher,
+    decryptOrTxnCipher,
+    exportOrCredsKey,
+    exportOrTxnsKey,
   } = useVault();
 
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -255,13 +280,17 @@ export default function Connections() {
       } catch (err) {
         if (!cancelled) {
           console.error('[Connections] provision failed', err);
-          toast.error(`Failed to set up OrangeRails: ${err instanceof Error ? err.message : String(err)}`);
+          toast.error(
+            `Failed to set up OrangeRails: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       } finally {
         if (!cancelled) setProvisioning(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [orgId, subaccountId, isUnlocked]);
 
   // Fetch connections list whenever subaccount + vault are ready. Decrypts
@@ -277,52 +306,68 @@ export default function Connections() {
     }
     setLoading(true);
     try {
-      const res = (await callProxy('or-connection-list', { subaccount_id: subaccountId })) as { connections: ConnectionRow[] };
-      const decoded = await Promise.all((res.connections ?? []).map(async (c): Promise<ConnectionRow> => {
-        let decrypted_label: string | null = null;
-        let decrypted_last_error: string | null = null;
-        if (c.encrypted_label) {
-          try { decrypted_label = await decryptOrCipher(c.encrypted_label); } catch { /* cosmetic */ }
-        }
-        if (c.encrypted_last_error) {
-          try { decrypted_last_error = await decryptOrCipher(c.encrypted_last_error); } catch { /* may fail */ }
-        }
-
-        const decrypted_source_wallets: DecryptedSourceWallet[] = await Promise.all(
-          (c.source_wallets ?? []).map(async (sw): Promise<DecryptedSourceWallet> => {
-            let currency = '';
-            let label: string | null = null;
+      const res = (await callProxy('or-connection-list', { subaccount_id: subaccountId })) as {
+        connections: ConnectionRow[];
+      };
+      const decoded = await Promise.all(
+        (res.connections ?? []).map(async (c): Promise<ConnectionRow> => {
+          let decrypted_label: string | null = null;
+          let decrypted_last_error: string | null = null;
+          if (c.encrypted_label) {
             try {
-              const json = await decryptOrCipher(sw.encrypted_metadata);
-              const parsed = JSON.parse(json) as { currency?: string; label?: string };
-              currency = parsed.currency ?? '';
-              label = parsed.label ?? null;
+              decrypted_label = await decryptOrCipher(c.encrypted_label);
             } catch {
-              /* If decrypt fails (e.g. metadata written under a previous key),
-               * fall back to displaying just the opaque id. */
+              /* cosmetic */
             }
-            return {
-              id: sw.id,
-              external_wallet_id: sw.external_wallet_id,
-              is_synced: sw.is_synced,
-              currency,
-              label,
-            };
-          }),
-        );
+          }
+          if (c.encrypted_last_error) {
+            try {
+              decrypted_last_error = await decryptOrCipher(c.encrypted_last_error);
+            } catch {
+              /* may fail */
+            }
+          }
 
-        return { ...c, decrypted_label, decrypted_last_error, decrypted_source_wallets };
-      }));
+          const decrypted_source_wallets: DecryptedSourceWallet[] = await Promise.all(
+            (c.source_wallets ?? []).map(async (sw): Promise<DecryptedSourceWallet> => {
+              let currency = '';
+              let label: string | null = null;
+              try {
+                const json = await decryptOrCipher(sw.encrypted_metadata);
+                const parsed = JSON.parse(json) as { currency?: string; label?: string };
+                currency = parsed.currency ?? '';
+                label = parsed.label ?? null;
+              } catch {
+                /* If decrypt fails (e.g. metadata written under a previous key),
+                 * fall back to displaying just the opaque id. */
+              }
+              return {
+                id: sw.id,
+                external_wallet_id: sw.external_wallet_id,
+                is_synced: sw.is_synced,
+                currency,
+                label,
+              };
+            }),
+          );
+
+          return { ...c, decrypted_label, decrypted_last_error, decrypted_source_wallets };
+        }),
+      );
       setConnections(decoded);
     } catch (err) {
       console.error('[Connections] list failed', err);
-      toast.error(`Failed to load connections: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to load connections: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setLoading(false);
     }
   }, [subaccountId, isUnlocked, decryptOrCipher]);
 
-  useEffect(() => { void refreshList(); }, [refreshList]);
+  useEffect(() => {
+    void refreshList();
+  }, [refreshList]);
 
   // Realtime: when the or-webhook-receiver records a sync.completed event for
   // this org, the Connections page should update without a manual refresh.
@@ -336,7 +381,13 @@ export default function Connections() {
       .on(
         'postgres_changes' as never,
         { event: 'INSERT', schema: 'public', table: 'sync_events', filter: `org_id=eq.${orgId}` },
-        (payload: { new: { synced_count?: number | null; or_connection_id?: string | null; status?: string | null } }) => {
+        (payload: {
+          new: {
+            synced_count?: number | null;
+            or_connection_id?: string | null;
+            status?: string | null;
+          };
+        }) => {
           const n = payload.new?.synced_count ?? 0;
           // Branch by status so failed / deleted events surface as warnings
           // rather than silent successes. Status was added in the
@@ -344,7 +395,9 @@ export default function Connections() {
           // treated as completed (matches the DB default).
           switch (payload.new?.status ?? 'completed') {
             case 'failed':
-              toast.error('Orange Rails reported a sync failure — open the connection for details.');
+              toast.error(
+                'Orange Rails reported a sync failure — open the connection for details.',
+              );
               break;
             case 'deleted':
               toast.info('A connection was removed on the Orange Rails side.');
@@ -356,7 +409,9 @@ export default function Connections() {
         },
       )
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [orgId, refreshList]);
 
   // Phase 3: load destination mappings + a wallets name lookup alongside the
@@ -375,10 +430,7 @@ export default function Connections() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('org_id', orgId);
+      const { data, error } = await supabase.from('accounts').select('*').eq('org_id', orgId);
       if (error) throw error;
       const byId = new Map<string, string>();
       const walletsById = new Map<string, DestinationWallet>();
@@ -426,7 +478,9 @@ export default function Connections() {
     }
   }, [orgId, isUnlocked, decryptText]);
 
-  useEffect(() => { void refreshMappingsAndAccounts(); }, [refreshMappingsAndAccounts]);
+  useEffect(() => {
+    void refreshMappingsAndAccounts();
+  }, [refreshMappingsAndAccounts]);
 
   /**
    * Memoized routing index: (or_connection_id::or_external_wallet_id) →
@@ -438,7 +492,9 @@ export default function Connections() {
    * For a given connection, build a per-currency list of routed account
    * names. Used by ConnectionCard to render destination chips.
    */
-  function buildDestChips(conn: ConnectionRow): Array<{ currency: string; accountName: string | null }> {
+  function buildDestChips(
+    conn: ConnectionRow,
+  ): Array<{ currency: string; accountName: string | null }> {
     const wallets = conn.decrypted_source_wallets ?? [];
     if (wallets.length === 0) return [];
     return wallets
@@ -448,7 +504,7 @@ export default function Connections() {
         // 1:1 default — if multiple mappings exist, render the first; the
         // user can review the full set in the Edit Mapping dialog.
         const firstId = accountIds[0];
-        const accountName = firstId ? accountLookup.byId.get(firstId) ?? null : null;
+        const accountName = firstId ? (accountLookup.byId.get(firstId) ?? null) : null;
         return { currency: w.currency | w.label | '?', accountName };
       });
   }
@@ -510,7 +566,8 @@ export default function Connections() {
         credentials_key,
       })) as { discovered_wallets?: DiscoveredWallet[] };
 
-      const providerName = PROVIDERS.find((p) => p.type === params.provider)?.name ?? params.provider;
+      const providerName =
+        PROVIDERS.find((p) => p.type === params.provider)?.name ?? params.provider;
       setWalletPicker({
         connectionId: newConnectionId,
         providerType: params.provider,
@@ -530,7 +587,9 @@ export default function Connections() {
    * then send the selection to or-source-wallets-set. On success, refresh and
    * advance to the destination-account picker.
    */
-  async function handleSaveWalletPicks(selections: Array<DiscoveredWallet & { is_synced: boolean }>) {
+  async function handleSaveWalletPicks(
+    selections: Array<DiscoveredWallet & { is_synced: boolean }>,
+  ) {
     if (!walletPicker || !subaccountId) return;
 
     const payloadWallets = await Promise.all(
@@ -597,7 +656,9 @@ export default function Connections() {
    * Phase 3 — persist destination mappings to connection_account_map.
    * encrypted_account_id is AES-256-GCM (vault MEK) over the chart_of_accounts.id.
    */
-  async function handleSaveDestinations(mappingsToSave: Array<{ or_external_wallet_id: string; external_account_id: string }>) {
+  async function handleSaveDestinations(
+    mappingsToSave: Array<{ or_external_wallet_id: string; external_account_id: string }>,
+  ) {
     if (!destPicker || !orgId) return;
     await saveMappingsForConnection({
       orgId,
@@ -612,7 +673,9 @@ export default function Connections() {
 
   function handleSkipDestinations() {
     setDestPicker(null);
-    toast.info('Destination mapping skipped — synced transactions will show as unrouted until you set it.');
+    toast.info(
+      'Destination mapping skipped — synced transactions will show as unrouted until you set it.',
+    );
   }
 
   /** Re-open the destination picker for an existing connection. */
@@ -655,7 +718,8 @@ export default function Connections() {
         credentials_key,
       })) as { discovered_wallets?: DiscoveredWallet[] };
 
-      const providerName = PROVIDERS.find((p) => p.type === conn.provider_type)?.name ?? conn.provider_type;
+      const providerName =
+        PROVIDERS.find((p) => p.type === conn.provider_type)?.name ?? conn.provider_type;
       setWalletPicker({
         connectionId: conn.id,
         providerType: conn.provider_type,
@@ -664,9 +728,7 @@ export default function Connections() {
       });
     } catch (err) {
       console.warn('[Connections] re-discover failed', err);
-      toast.error(
-        `Discovery failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      toast.error(`Discovery failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -681,19 +743,24 @@ export default function Connections() {
         connection_ids: [conn.id],
         credentials_key,
         transactions_key,
-      })) as { synced: number; connections: Array<{ connection_id: string; synced: number; error?: string }> };
+      })) as {
+        synced: number;
+        connections: Array<{ connection_id: string; synced: number; error?: string }>;
+      };
 
-      const errs = res.connections.filter(c => c.error);
+      const errs = res.connections.filter((c) => c.error);
       if (errs.length > 0) {
         toast.warning(`Synced ${res.synced}; ${errs.length} connection(s) had errors.`);
       } else if (res.synced === 0) {
         toast.info('No new transactions found.');
       } else {
-        toast.success(`Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} from ${conn.decrypted_label || conn.provider_type}`);
+        toast.success(
+          `Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} from ${conn.decrypted_label || conn.provider_type}`,
+        );
       }
       // Auto-expand the just-synced connection and trigger a tx refresh.
-      setExpanded(prev => ({ ...prev, [conn.id]: true }));
-      setTxRefreshKeys(prev => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
+      setExpanded((prev) => ({ ...prev, [conn.id]: true }));
+      setTxRefreshKeys((prev) => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
       await refreshList();
 
       // Phase 5 — bridge OR-side rows into the OWB wallet ledger + JE pair.
@@ -739,24 +806,27 @@ export default function Connections() {
       const cursorCandidates = connectionMappings
         .map((m) => m.last_or_synced_at)
         .filter((v): v is string => typeof v === 'string');
-      const since = cursorCandidates.length > 0
-        ? cursorCandidates.reduce((a, b) => (a < b ? a : b))
-        : undefined;
+      const since =
+        cursorCandidates.length > 0
+          ? cursorCandidates.reduce((a, b) => (a < b ? a : b))
+          : undefined;
 
       const txRes = (await callProxy('or-transactions-list', {
         subaccount_id: subaccountId,
         connection_id: conn.id,
         limit: 200,
         ...(since ? { since } : {}),
-      })) as { transactions: Array<{
-        id: string;
-        connection_id: string;
-        external_id: string;
-        encrypted_payload: string;
-        occurred_at: string;
-      }> };
+      })) as {
+        transactions: Array<{
+          id: string;
+          connection_id: string;
+          external_id: string;
+          encrypted_payload: string;
+          occurred_at: string;
+        }>;
+      };
 
-      const rows = (txRes.transactions ?? []).filter(t => t.connection_id === conn.id);
+      const rows = (txRes.transactions ?? []).filter((t) => t.connection_id === conn.id);
       if (rows.length === 0) return;
 
       const decrypted: DecryptedOrTx[] = [];
@@ -800,10 +870,12 @@ export default function Connections() {
       }
       // Bump the txRefreshKey so TransactionList re-renders + re-checks the
       // "in ledger" badge state for these rows.
-      setTxRefreshKeys(prev => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
+      setTxRefreshKeys((prev) => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
     } catch (err) {
       console.error('[Connections] bridge failed', err);
-      toast.warning(`Could not import to ledger: ${err instanceof Error ? err.message : String(err)}`);
+      toast.warning(
+        `Could not import to ledger: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setBridgingId(null);
     }
@@ -821,7 +893,10 @@ export default function Connections() {
     const conn = deleteTarget;
     if (!conn || !subaccountId) return;
     try {
-      await callProxy('or-connection-delete', { subaccount_id: subaccountId, connection_id: conn.id });
+      await callProxy('or-connection-delete', {
+        subaccount_id: subaccountId,
+        connection_id: conn.id,
+      });
       toast.success('Connection deleted');
       // Clean up incomplete tracking for the deleted connection.
       setIncompleteConnIds((prev) => {
@@ -853,12 +928,14 @@ export default function Connections() {
         <div>
           <h1 className="text-2xl font-semibold">Connections</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sync your Bitcoin accounts via OrangeRails — wallets, exchanges, payment processors, mining pools.
-            Zero-knowledge: your credentials are never readable by anyone but you.
+            Sync your Bitcoin accounts via OrangeRails — wallets, exchanges, payment processors,
+            mining pools. Zero-knowledge: your credentials are never readable by anyone but you.
           </p>
         </div>
         {subaccountId && canWriteConnectors && (
-          <Button onClick={() => setAddOpen(true)} data-testid="connections-add">+ Add connection</Button>
+          <Button onClick={() => setAddOpen(true)} data-testid="connections-add">
+            + Add connection
+          </Button>
         )}
       </div>
 
@@ -880,7 +957,7 @@ export default function Connections() {
         </div>
       ) : (
         <div className="space-y-3">
-          {connections.map(c => {
+          {connections.map((c) => {
             const noSourceWallets = (c.decrypted_source_wallets ?? []).length === 0;
             const setupIncomplete = noSourceWallets && incompleteConnIds.has(c.id);
             return (
@@ -891,7 +968,7 @@ export default function Connections() {
                 syncing={syncingId === c.id}
                 bridging={bridgingId === c.id}
                 expanded={!!expanded[c.id]}
-                onToggleExpand={() => setExpanded(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
+                onToggleExpand={() => setExpanded((prev) => ({ ...prev, [c.id]: !prev[c.id] }))}
                 onSync={() => handleSync(c)}
                 onDelete={() => handleDelete(c)}
                 onEditMapping={() => handleEditMapping(c)}
@@ -910,17 +987,19 @@ export default function Connections() {
                     subaccount_id: subaccountId,
                     connection_id: c.id,
                     limit: 50,
-                  })) as { transactions: Array<{
-                    id: string;
-                    connection_id: string;
-                    external_id: string;
-                    encrypted_payload: string;
-                    occurred_at: string;
-                  }> };
+                  })) as {
+                    transactions: Array<{
+                      id: string;
+                      connection_id: string;
+                      external_id: string;
+                      encrypted_payload: string;
+                      occurred_at: string;
+                    }>;
+                  };
                   // OR returns transactions across the subaccount when no
                   // server-side connection_id filter is honored — filter client-side
                   // to be safe so each card only shows its own rows.
-                  return (res.transactions ?? []).filter(t => t.connection_id === c.id);
+                  return (res.transactions ?? []).filter((t) => t.connection_id === c.id);
                 }}
                 decryptTxn={decryptOrTxnCipher}
                 txRefreshKey={txRefreshKeys[c.id] ?? 0}
@@ -933,7 +1012,9 @@ export default function Connections() {
       <div className="rounded-md border p-4 text-xs text-muted-foreground space-y-1">
         <div className="flex items-center gap-2">
           <KeyRound className="w-3 h-3 shrink-0" />
-          <span>Your vault password derives the encryption keys in your browser — never sent anywhere.</span>
+          <span>
+            Your vault password derives the encryption keys in your browser — never sent anywhere.
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <KeyRound className="w-3 h-3 shrink-0" />
@@ -973,7 +1054,9 @@ export default function Connections() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        onOpenChange={(o) => {
+          if (!o) setDeleteTarget(null);
+        }}
         title="Delete connection?"
         description={
           <>
@@ -981,8 +1064,8 @@ export default function Connections() {
             <span className="font-medium text-foreground">
               {deleteTarget?.decrypted_label | deleteTarget?.provider_type}
             </span>{' '}
-            connection? Synced transactions for this connection will also be removed. This
-            cannot be undone.
+            connection? Synced transactions for this connection will also be removed. This cannot be
+            undone.
           </>
         }
         cancelLabel="Cancel"
@@ -1038,21 +1121,24 @@ function ConnectionCard({
    * that this connection's mappings point at.
    */
   resolveDestinationWalletId: (sourceWalletId: string | null | undefined) => string | null;
-  fetchTransactions: () => Promise<Array<{
-    id: string;
-    connection_id: string;
-    external_id: string;
-    encrypted_payload: string;
-    occurred_at: string;
-  }>>;
+  fetchTransactions: () => Promise<
+    Array<{
+      id: string;
+      connection_id: string;
+      external_id: string;
+      encrypted_payload: string;
+      occurred_at: string;
+    }>
+  >;
   decryptTxn: (ciphertext: string) => Promise<string>;
   txRefreshKey: number;
 }) {
-  const statusColor = conn.status === 'active'
-    ? 'border-green-500/40 text-green-700 dark:text-green-400'
-    : conn.status === 'error'
-      ? 'border-destructive/40 text-destructive'
-      : 'border-muted text-muted-foreground';
+  const statusColor =
+    conn.status === 'active'
+      ? 'border-green-500/40 text-green-700 dark:text-green-400'
+      : conn.status === 'error'
+        ? 'border-destructive/40 text-destructive'
+        : 'border-muted text-muted-foreground';
 
   const sourceWallets = conn.decrypted_source_wallets ?? [];
   const hasSourceWallets = sourceWallets.length > 0;
@@ -1062,8 +1148,12 @@ function ConnectionCard({
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium truncate">{conn.decrypted_label || conn.provider_type}</span>
-            <Badge variant="outline" className={`text-xs ${statusColor}`}>{conn.status}</Badge>
+            <span className="font-medium truncate">
+              {conn.decrypted_label || conn.provider_type}
+            </span>
+            <Badge variant="outline" className={`text-xs ${statusColor}`}>
+              {conn.status}
+            </Badge>
             {setupIncomplete && (
               <Badge
                 variant="outline"
@@ -1087,12 +1177,12 @@ function ConnectionCard({
           <div className="text-xs text-muted-foreground">
             <span className="uppercase">{conn.provider_type}</span>
             <span className="mx-2">·</span>
-            <span>{conn.last_sync_at ? `Synced ${timeAgo(conn.last_sync_at)}` : 'Never synced'}</span>
+            <span>
+              {conn.last_sync_at ? `Synced ${timeAgo(conn.last_sync_at)}` : 'Never synced'}
+            </span>
           </div>
           <SourceWalletBadges wallets={sourceWallets} />
-          {destChips.length > 0 && (
-            <DestinationAccountChips entries={destChips} />
-          )}
+          {destChips.length > 0 && <DestinationAccountChips entries={destChips} />}
           {conn.decrypted_last_error && (
             <div className="text-xs text-destructive truncate flex items-start gap-1">
               <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
@@ -1102,7 +1192,13 @@ function ConnectionCard({
         </div>
         <div className="flex items-center gap-2">
           {hasSourceWallets && canWrite && (
-            <Button onClick={onEditMapping} variant="ghost" size="sm" title="Edit destination mapping" data-testid="connections-edit-mapping">
+            <Button
+              onClick={onEditMapping}
+              variant="ghost"
+              size="sm"
+              title="Edit destination mapping"
+              data-testid="connections-edit-mapping"
+            >
               <Pencil className="w-3 h-3 mr-1" />
               Edit mapping
             </Button>
@@ -1129,18 +1225,43 @@ function ConnectionCard({
           )}
           <Button onClick={onToggleExpand} variant="ghost" size="sm">
             {expanded ? (
-              <><ChevronDown className="w-3 h-3 mr-1" />Hide transactions</>
+              <>
+                <ChevronDown className="w-3 h-3 mr-1" />
+                Hide transactions
+              </>
             ) : (
-              <><ChevronRight className="w-3 h-3 mr-1" />View transactions</>
+              <>
+                <ChevronRight className="w-3 h-3 mr-1" />
+                View transactions
+              </>
             )}
           </Button>
           {canWrite && (
-            <Button onClick={onSync} disabled={syncing} variant="outline" size="sm" data-testid="connections-sync">
-              {syncing ? (<><Loader2 className="w-3 h-3 mr-1 animate-spin" />Syncing…</>) : 'Sync now'}
+            <Button
+              onClick={onSync}
+              disabled={syncing}
+              variant="outline"
+              size="sm"
+              data-testid="connections-sync"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Syncing…
+                </>
+              ) : (
+                'Sync now'
+              )}
             </Button>
           )}
           {canWrite && (
-            <Button onClick={onDelete} variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" data-testid="connections-delete">
+            <Button
+              onClick={onDelete}
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10"
+              data-testid="connections-delete"
+            >
               <Trash2 className="w-3 h-3" />
             </Button>
           )}
@@ -1163,7 +1284,10 @@ function ConnectionCard({
   );
 }
 
-function AddConnectionDialog({ onClose, onSubmit }: {
+function AddConnectionDialog({
+  onClose,
+  onSubmit,
+}: {
   onClose: () => void;
   onSubmit: (p: { provider: string; label: string; apiKey: string }) => Promise<void>;
 }) {
@@ -1171,7 +1295,7 @@ function AddConnectionDialog({ onClose, onSubmit }: {
   const [label, setLabel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const meta = PROVIDERS.find(p => p.type === provider)!;
+  const meta = PROVIDERS.find((p) => p.type === provider)!;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1186,7 +1310,12 @@ function AddConnectionDialog({ onClose, onSubmit }: {
   }
 
   return (
-    <Dialog open onOpenChange={() => { /* close only via explicit Cancel — protect partially-typed credentials */ }}>
+    <Dialog
+      open
+      onOpenChange={() => {
+        /* close only via explicit Cancel — protect partially-typed credentials */
+      }}
+    >
       <DialogContent
         className="max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -1196,7 +1325,8 @@ function AddConnectionDialog({ onClose, onSubmit }: {
         <DialogHeader>
           <DialogTitle>Add a connection</DialogTitle>
           <DialogDescription>
-            Your API key is encrypted in your browser before it leaves. OrangeRails stores ciphertext only.
+            Your API key is encrypted in your browser before it leaves. OrangeRails stores
+            ciphertext only.
           </DialogDescription>
         </DialogHeader>
 
@@ -1209,8 +1339,10 @@ function AddConnectionDialog({ onClose, onSubmit }: {
               onChange={(e) => setProvider(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              {PROVIDERS.map(p => (
-                <option key={p.type} value={p.type}>{p.name}</option>
+              {PROVIDERS.map((p) => (
+                <option key={p.type} value={p.type}>
+                  {p.name}
+                </option>
               ))}
             </select>
             <p className="text-xs text-muted-foreground">{meta.description}</p>
@@ -1221,31 +1353,50 @@ function AddConnectionDialog({ onClose, onSubmit }: {
               <span className="text-xs font-medium uppercase tracking-wide text-orange-600 dark:text-orange-400">
                 How to get your {meta.name} API key
               </span>
-              <a href={meta.apiKeyUrl} target="_blank" rel="noopener noreferrer"
-                 className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+              <a
+                href={meta.apiKeyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
                 Open <ExternalLink className="w-3 h-3" />
               </a>
             </div>
             <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4">
-              {meta.steps.map((s, i) => <li key={i}>{s}</li>)}
+              {meta.steps.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
             </ol>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="label">Label (optional)</Label>
-            <Input id="label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={`My ${meta.name} account`} />
+            <Input
+              id="label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={`My ${meta.name} account`}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="api-key">API key</Label>
-            <Input id="api-key" type="password" autoComplete="off" required
-                   value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                   placeholder="Paste the key you just copied"
-                   className="font-mono text-sm" />
+            <Input
+              id="api-key"
+              type="password"
+              autoComplete="off"
+              required
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste the key you just copied"
+              className="font-mono text-sm"
+            />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={submitting || !apiKey.trim()}>
               {submitting ? 'Encrypting + saving…' : 'Add connection'}
             </Button>

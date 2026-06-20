@@ -82,7 +82,12 @@ export function WalletPickerStep({
   const noneSelected = selected.size === 0;
 
   return (
-    <Dialog open={open} onOpenChange={() => { /* close only via explicit Skip / Confirm — protect partial setup */ }}>
+    <Dialog
+      open={open}
+      onOpenChange={() => {
+        /* close only via explicit Skip / Confirm — protect partial setup */
+      }}
+    >
       <DialogContent
         className="max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -91,12 +96,12 @@ export function WalletPickerStep({
       >
         <DialogHeader>
           <DialogTitle>
-            Found {discoveredWallets.length}{' '}
-            {discoveredWallets.length === 1 ? 'wallet' : 'wallets'} on {providerName}
+            Found {discoveredWallets.length} {discoveredWallets.length === 1 ? 'wallet' : 'wallets'}{' '}
+            on {providerName}
           </DialogTitle>
           <DialogDescription>
-            Pick which wallets to sync. Wallet labels and currencies are encrypted with your
-            vault key before they leave your browser — OrangeRails can't read them.
+            Pick which wallets to sync. Wallet labels and currencies are encrypted with your vault
+            key before they leave your browser — OrangeRails can't read them.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,9 +126,7 @@ export function WalletPickerStep({
                     onCheckedChange={() => toggle(w.external_wallet_id)}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">
-                      {w.label || w.currency} wallet
-                    </div>
+                    <div className="text-sm font-medium">{w.label || w.currency} wallet</div>
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {w.currency} · {w.external_wallet_id.slice(0, 12)}…
                     </div>

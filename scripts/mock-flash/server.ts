@@ -27,8 +27,8 @@
  */
 
 const PORT = Number(Deno.env.get('PORT') ?? 8787);
-const WEBHOOK_TARGET_URL = Deno.env.get('WEBHOOK_TARGET_URL')
-  ?? 'http://localhost:54321/functions/v1/flash-webhook';
+const WEBHOOK_TARGET_URL =
+  Deno.env.get('WEBHOOK_TARGET_URL') ?? 'http://localhost:54321/functions/v1/flash-webhook';
 const SECRET = Deno.env.get('FLASH_WEBHOOK_SECRET') ?? 'devsecret';
 
 interface Link {
@@ -43,7 +43,9 @@ interface Link {
 const links = new Map<string, Link>();
 
 function hex(bytes: Uint8Array): string {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 async function hmacHex(secret: string, body: string): Promise<string> {
@@ -105,9 +107,13 @@ function handleCheckoutPage(id: string): Response {
     <p><strong>${(link.amount / 100).toFixed(2)} ${link.currency}</strong></p>
     <p>External reference: <code>${link.externalReference}</code></p>
     <p>Status: <strong>${link.status}</strong></p>
-    ${link.status === 'pending' ? `<form method="POST" action="/pay/${id}/complete">
+    ${
+      link.status === 'pending'
+        ? `<form method="POST" action="/pay/${id}/complete">
       <button type="submit" style="padding:10px 18px;background:#16a34a;color:white;border:0;border-radius:6px;font-size:14px">Mark as paid</button>
-    </form>` : '<p>Already paid.</p>'}
+    </form>`
+        : '<p>Already paid.</p>'
+    }
   </body></html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html' } });
 }
@@ -156,16 +162,26 @@ async function handleCompletePost(id: string): Promise<Response> {
   }
 }
 
-Deno.serve({ port: PORT, onListen: ({ port }) => {
-  console.log(`mock-flash listening on http://localhost:${port}`);
-  console.log(`webhook target = ${WEBHOOK_TARGET_URL}`);
-}}, async (req: Request) => {
-  const u = new URL(req.url);
-  if (req.method === 'POST' && u.pathname === '/oauth/token') return handleOauthToken(req);
-  if (req.method === 'POST' && (u.pathname === '/payment-links' || u.pathname === '/flash-connect/payment-links')) return handlePaymentLinks(req);
-  const payMatch = u.pathname.match(/^\/pay\/([0-9a-f-]+)$/);
-  if (req.method === 'GET' && payMatch) return handleCheckoutPage(payMatch[1]);
-  const completeMatch = u.pathname.match(/^\/pay\/([0-9a-f-]+)\/complete$/);
-  if (req.method === 'POST' && completeMatch) return handleCompletePost(completeMatch[1]);
-  return new Response('Not found', { status: 404 });
-});
+Deno.serve(
+  {
+    port: PORT,
+    onListen: ({ port }) => {
+      console.log(`mock-flash listening on http://localhost:${port}`);
+      console.log(`webhook target = ${WEBHOOK_TARGET_URL}`);
+    },
+  },
+  async (req: Request) => {
+    const u = new URL(req.url);
+    if (req.method === 'POST' && u.pathname === '/oauth/token') return handleOauthToken(req);
+    if (
+      req.method === 'POST' &&
+      (u.pathname === '/payment-links' || u.pathname === '/flash-connect/payment-links')
+    )
+      return handlePaymentLinks(req);
+    const payMatch = u.pathname.match(/^\/pay\/([0-9a-f-]+)$/);
+    if (req.method === 'GET' && payMatch) return handleCheckoutPage(payMatch[1]);
+    const completeMatch = u.pathname.match(/^\/pay\/([0-9a-f-]+)\/complete$/);
+    if (req.method === 'POST' && completeMatch) return handleCompletePost(completeMatch[1]);
+    return new Response('Not found', { status: 404 });
+  },
+);

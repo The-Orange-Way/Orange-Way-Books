@@ -47,7 +47,10 @@ export function LedgerStatusPill() {
         .from('organizations')
         .update({ ledger_status: 'failed', ledger_status_error: msg })
         .eq('id', orgId)
-        .then(() => undefined, () => undefined);
+        .then(
+          () => undefined,
+          () => undefined,
+        );
       toast.error('Retry failed', {
         id: tid,
         description: msg,
@@ -78,7 +81,11 @@ export function LedgerStatusPill() {
           className="inline-flex items-center gap-1 rounded-full bg-destructive/20 px-2 py-0.5 text-[11px] font-medium hover:bg-destructive/30 disabled:cursor-not-allowed disabled:opacity-60"
           title={isUnlocked ? 'Re-run chart of accounts seed' : 'Unlock your vault to retry'}
         >
-          {retrying ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+          {retrying ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCcw className="h-3 w-3" />
+          )}
           {retrying ? 'Retrying…' : 'Retry'}
         </button>
       </div>
@@ -102,11 +109,7 @@ export function LedgerReadyBadge() {
   const { status } = useLedgerStatus();
   if (status !== 'ready') return null;
   return (
-    <span
-      data-testid="ledger-status-pill"
-      data-ledger-status="ready"
-      className="sr-only"
-    >
+    <span data-testid="ledger-status-pill" data-ledger-status="ready" className="sr-only">
       <CheckCircle2 className="h-3.5 w-3.5" /> Ledger ready
     </span>
   );

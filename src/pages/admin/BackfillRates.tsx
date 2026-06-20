@@ -38,20 +38,14 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
     setRunState('running');
 
     try {
-      await backfillDualAmounts(
-        orgId,
-        primaryCurrency,
-        encryptText,
-        decryptText,
-        {
-          onProgress: (p) => setProgress({ ...p }),
-          onDone: (p) => {
-            setProgress({ ...p });
-            setRunState('done');
-          },
-          signal: abortRef.current.signal,
+      await backfillDualAmounts(orgId, primaryCurrency, encryptText, decryptText, {
+        onProgress: (p) => setProgress({ ...p }),
+        onDone: (p) => {
+          setProgress({ ...p });
+          setRunState('done');
         },
-      );
+        signal: abortRef.current.signal,
+      });
     } catch {
       setRunState('aborted');
     }
@@ -86,11 +80,31 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
       {/* Status cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Processed', value: progress.processed, icon: <Clock className="w-4 h-4" />, color: 'text-gray-600' },
-          { label: 'Resolved', value: progress.resolved, icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-green-600' },
-          { label: 'Pending rate', value: progress.pending, icon: <AlertTriangle className="w-4 h-4" />, color: 'text-amber-600' },
-          { label: 'Failed', value: progress.failed, icon: <AlertTriangle className="w-4 h-4" />, color: 'text-red-600' },
-        ].map(card => (
+          {
+            label: 'Processed',
+            value: progress.processed,
+            icon: <Clock className="w-4 h-4" />,
+            color: 'text-gray-600',
+          },
+          {
+            label: 'Resolved',
+            value: progress.resolved,
+            icon: <CheckCircle2 className="w-4 h-4" />,
+            color: 'text-green-600',
+          },
+          {
+            label: 'Pending rate',
+            value: progress.pending,
+            icon: <AlertTriangle className="w-4 h-4" />,
+            color: 'text-amber-600',
+          },
+          {
+            label: 'Failed',
+            value: progress.failed,
+            icon: <AlertTriangle className="w-4 h-4" />,
+            color: 'text-red-600',
+          },
+        ].map((card) => (
           <div
             key={card.label}
             className="border rounded-lg px-4 py-3"
@@ -126,27 +140,42 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
 
       {/* Resume notice */}
       {runState === 'idle' && progress.lastCursor && (
-        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}>
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
+        >
           <RefreshCw className="w-3.5 h-3.5 flex-shrink-0" />
-          Previous run was interrupted. Click Start to resume from where it left off, or Reset to start fresh.
+          Previous run was interrupted. Click Start to resume from where it left off, or Reset to
+          start fresh.
         </div>
       )}
 
       {/* State messages */}
       {runState === 'done' && (
-        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534' }}>
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534' }}
+        >
           <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-          Backfill complete. {progress.pending > 0 && `${progress.pending} rows still have pending rates — use the Exchange Rates tab to resolve them manually.`}
+          Backfill complete.{' '}
+          {progress.pending > 0 &&
+            `${progress.pending} rows still have pending rates — use the Exchange Rates tab to resolve them manually.`}
         </div>
       )}
       {runState === 'aborted' && (
-        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}>
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
+        >
           <Square className="w-3.5 h-3.5 flex-shrink-0" />
           Run stopped. Progress is saved — click Start to resume.
         </div>
       )}
       {runState === 'running' && (
-        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}>
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}
+        >
           <RefreshCw className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
           Running… keep this tab open. Progress is saved automatically.
         </div>
@@ -165,11 +194,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
             {progress.lastCursor ? 'Resume' : 'Start'} backfill
           </Button>
         ) : (
-          <Button
-            onClick={handleStop}
-            variant="destructive"
-            className="flex items-center gap-2"
-          >
+          <Button onClick={handleStop} variant="destructive" className="flex items-center gap-2">
             <Square className="w-4 h-4" />
             Stop
           </Button>
@@ -186,9 +211,9 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Backfilling large orgs can take several minutes. Rows that cannot resolve a rate are
-        marked <code className="bg-gray-100 px-1 rounded">rate_pending=true</code> and will
-        appear in the Pending Rates banner until resolved manually.
+        Backfilling large orgs can take several minutes. Rows that cannot resolve a rate are marked{' '}
+        <code className="bg-gray-100 px-1 rounded">rate_pending=true</code> and will appear in the
+        Pending Rates banner until resolved manually.
       </p>
     </div>
   );

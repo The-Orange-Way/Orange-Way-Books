@@ -66,9 +66,7 @@ function makeSupabase() {
         return chain;
       },
       then(onFulfilled: (v: { data: unknown; error: null }) => unknown) {
-        const rows = store[table].filter(
-          (row) => filterOrg === null || row.org_id === filterOrg,
-        );
+        const rows = store[table].filter((row) => filterOrg === null || row.org_id === filterOrg);
         return Promise.resolve({ data: rows, error: null }).then(onFulfilled);
       },
     };
@@ -137,12 +135,7 @@ import { migrateCoaWave2 } from '../migrate-coa-renumber';
 
 const ORG = 'org-1';
 
-function seedAccount(
-  code: string,
-  name: string,
-  type = 'ASSET',
-  group = 'Assets',
-): FakeRow {
+function seedAccount(code: string, name: string, type = 'ASSET', group = 'Assets'): FakeRow {
   const row: FakeRow = {
     id: crypto.randomUUID(),
     org_id: ORG,
@@ -190,7 +183,7 @@ describe('migrateCoaWave2', () => {
     expect(snap.find((r) => r.code === '1300')).toBeUndefined();
   });
 
-  it('renames 3000 Equity → Owner\'s Equity and 3100 Owner\'s Equity → Starting Balance', async () => {
+  it("renames 3000 Equity → Owner's Equity and 3100 Owner's Equity → Starting Balance", async () => {
     seedAccount('3000', 'Equity', 'EQUITY', 'Equity');
     seedAccount('3100', "Owner's Equity", 'EQUITY', 'Equity');
 

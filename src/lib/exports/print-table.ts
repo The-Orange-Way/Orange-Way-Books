@@ -14,7 +14,10 @@ function parseTitle(title: string): {
   reportName: string;
   period: string | null;
 } {
-  const parts = title.split(' — ').map((part) => part.trim()).filter(Boolean);
+  const parts = title
+    .split(' — ')
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (parts.length >= 3) {
     return {
       orgName: parts[0] ?? null,

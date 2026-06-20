@@ -18,32 +18,32 @@ export interface RevaluationLinePreview {
   accountId: string;
   accountName: string;
   currency: string;
-  balanceNative: number;   // in wallet currency
-  pinnedPrimary: number;   // sum of amount_primary from JE lines (existing)
-  currentPrimary: number;  // balanceNative × closingRate
-  delta: number;           // currentPrimary − pinnedPrimary
+  balanceNative: number; // in wallet currency
+  pinnedPrimary: number; // sum of amount_primary from JE lines (existing)
+  currentPrimary: number; // balanceNative × closingRate
+  delta: number; // currentPrimary − pinnedPrimary
   closingRate: number;
   rateDate: string;
 }
 
 export interface RevaluationPreview {
   lines: RevaluationLinePreview[];
-  totalGain: number;   // sum of positive deltas
-  totalLoss: number;   // sum of negative deltas (absolute value)
-  netDelta: number;    // totalGain − totalLoss
+  totalGain: number; // sum of positive deltas
+  totalLoss: number; // sum of negative deltas (absolute value)
+  netDelta: number; // totalGain − totalLoss
   periodEnd: string;
-  reverseOn: string;   // periodEnd + 1 day
+  reverseOn: string; // periodEnd + 1 day
   framework: string;
 }
 
 export interface RevaluationRunParams {
   orgId: string;
-  periodEnd: string;   // ISO date YYYY-MM-DD
+  periodEnd: string; // ISO date YYYY-MM-DD
   primaryCurrency: string;
-  framework: string;   // 'IFRS' | 'US_GAAP' | 'IFRS_AND_GAAP'
-  method: string;      // 'closing-rate' | 'period-average' | 'historical-per-transaction'
+  framework: string; // 'IFRS' | 'US_GAAP' | 'IFRS_AND_GAAP'
+  method: string; // 'closing-rate' | 'period-average' | 'historical-per-transaction'
   accounts: AccountInfo[];
-  balances: AccountBalance[];  // from computeAccountBalances at period end
+  balances: AccountBalance[]; // from computeAccountBalances at period end
   /** walletCurrencies: accountId → native currency (from wallets joined to chart_of_accounts) */
   walletCurrencies: Map<string, string>;
   /** overrides: accountId → is_monetary (user-set) */
@@ -66,11 +66,16 @@ export async function previewRevaluation(
   params: RevaluationRunParams,
 ): Promise<RevaluationPreview> {
   const {
-    accounts, balances, walletCurrencies, monetaryOverrides,
-    primaryCurrency, periodEnd, framework,
+    accounts,
+    balances,
+    walletCurrencies,
+    monetaryOverrides,
+    primaryCurrency,
+    periodEnd,
+    framework,
   } = params;
 
-  const balanceByAccount = new Map(balances.map(b => [b.accountId, b]));
+  const balanceByAccount = new Map(balances.map((b) => [b.accountId, b]));
 
   const lines: RevaluationLinePreview[] = [];
 
@@ -126,8 +131,8 @@ export async function previewRevaluation(
     });
   }
 
-  const gains = lines.filter(l => l.delta > 0);
-  const losses = lines.filter(l => l.delta < 0);
+  const gains = lines.filter((l) => l.delta > 0);
+  const losses = lines.filter((l) => l.delta < 0);
 
   return {
     lines,
@@ -170,7 +175,7 @@ export async function postRevaluation(
     .from('fx_revaluation_runs' as any)
     .insert({
       org_id: orgId,
-      period_start: null,  // not tracked for MVP
+      period_start: null, // not tracked for MVP
       period_end: preview.periodEnd,
       run_by: userId,
       framework: preview.framework,
@@ -188,7 +193,7 @@ export async function postRevaluation(
 
   return {
     runId: (run as any).id,
-    jeId: null,       // set after JE is created in the wizard
+    jeId: null, // set after JE is created in the wizard
     reverseJeId: null,
     preview,
   };
@@ -197,10 +202,7 @@ export async function postRevaluation(
 /**
  * Update a revaluation run to 'posted' status with its JE id.
  */
-export async function confirmRevaluation(
-  runId: string,
-  jeId: string,
-): Promise<void> {
+export async function confirmRevaluation(runId: string, jeId: string): Promise<void> {
   await supabase
     .from('fx_revaluation_runs' as any)
     .update({ status: 'posted', je_id: jeId })
@@ -211,10 +213,7 @@ export async function confirmRevaluation(
  * Schedule the auto-reversal JE for period open.
  * In MVP, this creates the reversal immediately (with future effective date).
  */
-export async function scheduleReversal(
-  runId: string,
-  reverseJeId: string,
-): Promise<void> {
+export async function scheduleReversal(runId: string, reverseJeId: string): Promise<void> {
   await supabase
     .from('fx_revaluation_runs' as any)
     .update({ reverse_je_id: reverseJeId, status: 'reversed' })

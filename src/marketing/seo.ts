@@ -16,9 +16,7 @@ export const ORG_JSON_LD = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: `${SITE_URL}/og/logo.png`,
-  sameAs: [
-    'https://github.com/The-Orange-Way/Orange-Way-Books',
-  ],
+  sameAs: ['https://github.com/The-Orange-Way/Orange-Way-Books'],
 };
 
 export const WEBSITE_JSON_LD = {

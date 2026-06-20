@@ -49,7 +49,10 @@ import { KEY_WRAP_STRATEGIES, DEFAULT_WRAP_ALGORITHM, base64ToBytes } from '@/li
 type SupabaseLike = {
   from: (table: string) => {
     select: (cols: string) => {
-      eq: (col: string, val: string) => {
+      eq: (
+        col: string,
+        val: string,
+      ) => {
         maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>;
       };
     };
@@ -195,9 +198,7 @@ export async function wrapOrgDekForRecipient(
   const AES_GCM_TAG_BYTES = 16;
   const ivOffset = wrapped.length - AES_GCM_IV_BYTES - DATA_KEY_BYTES - AES_GCM_TAG_BYTES;
   if (ivOffset < 0) {
-    throw new Error(
-      `wrapped blob too short to contain IV: ${wrapped.length} bytes`,
-    );
+    throw new Error(`wrapped blob too short to contain IV: ${wrapped.length} bytes`);
   }
   const iv = wrapped.subarray(ivOffset, ivOffset + AES_GCM_IV_BYTES);
 
