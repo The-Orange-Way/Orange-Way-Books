@@ -8,10 +8,10 @@ project_id = "dvobnnkuyztabapttapc"
 # true here prevents a deploy with `--no-verify-jwt` from silently
 # exposing the function to anonymous traffic.
 
-# [functions.legacy-proxy] block removed 2026-06-11 — the legacy-proxy edge
-# function was physically deleted in the legacy-ledger removal. Leaving
-# the config block in place caused `supabase functions deploy` runs to
-# attempt to push a non-existent function.
+# An older edge function block was removed here 2026-06-11 when the
+# corresponding function was retired. Leaving a config block in place for a
+# function that no longer exists causes `supabase functions deploy` runs to
+# attempt to push a non-existent function, so don't add it back.
 
 [functions.owb-or-proxy]
 # Proxy to OrangeRails. Does its own JWT check + org membership lookup
@@ -37,11 +37,11 @@ verify_jwt = true
 [functions.admin-update-user]
 verify_jwt = true
 
-# legacy-create-account and legacy-create-transaction were removed 2026-05-19
-# (audit C1/C2). They duplicated legacy-proxy.CreateAccount / .PostTransaction
+# Two retired helper edge functions were removed 2026-05-19 (audit C1/C2).
+# They duplicated the proxy's account-create and post-transaction behaviour
 # but skipped the org-membership + role checks, allowing any authenticated
-# user to write into any other org's legacy ledger backend ledger. Frontend never called them
-# (everything routes through legacy-proxy via src/lib/legacy-ledger.ts).
+# user to write into another org's data. Frontend never called them
+# directly.
 
 # ──────────────────────────────────────────────────────────────────────
 # H5 (2026-05-19 audit) — every function must declare its auth model

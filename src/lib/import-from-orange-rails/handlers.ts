@@ -103,7 +103,7 @@ export async function commitAccountsFromStaged(
     const normalBalance =
       row.data.normal_balance ||
       ((row.data.type === 'ASSET') | (row.data.type === 'EXPENSE') ? 'DEBIT' : 'CREDIT');
-    // Phase 2 (legacy-ledger removal): no legacy ledger account provisioning. Row inserted
+    // Phase 2 (external-ledger removal): no legacy ledger account provisioning. Row inserted
     // directly into chart_of_accounts below.
     const enc = await encryptChartOfAccount(
       {
