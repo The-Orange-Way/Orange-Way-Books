@@ -3,9 +3,9 @@
  * and the `ImportFromOrangeRailsWizard` (Mode 2 bundle upload).
  *
  * One canonical implementation per entity:
- *   - commitAccountsFromStaged  , Chart of Accounts → chart_of_accounts + the ledger
- *   - commitContactsFromStaged  , Contacts → contacts table (encrypted)
- *   - commitJournalEntriesFromStaged, placeholder, returns a skip (see below)
+ *   - commitAccountsFromStaged: Chart of Accounts → chart_of_accounts + the ledger
+ *   - commitContactsFromStaged: Contacts → contacts table (encrypted)
+ *   - commitJournalEntriesFromStaged: placeholder, returns a skip (see below)
  *
  * Why JE is a placeholder: OWB's existing JE import flow on the JournalEntries
  * page is ~150 lines and depends on page-scoped state (lockDate, ref counter,
