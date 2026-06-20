@@ -1482,7 +1482,7 @@ export default function TransactionModal({
                     <>
                       Drop receipt or click to upload
                       <div className="text-[10px] opacity-70 mt-1">
-                        {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}…, max 20MB
+                        {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}… (max 20MB)
                       </div>
                     </>
                   ) : (
