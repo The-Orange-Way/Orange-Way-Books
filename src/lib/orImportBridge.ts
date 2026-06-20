@@ -1,5 +1,5 @@
 /**
- * orImportBridge — Phase 5 client-side bridge between OrangeRails-synced
+ * orImportBridge, Phase 5 client-side bridge between OrangeRails-synced
  * transactions and the OWB ledger.
  *
  * After or-sync writes encrypted normalized transactions on the OR side, this
@@ -7,7 +7,7 @@
  *   1. The OWB `transactions` table (so the Wallet Statement modal sees them).
  *   2. A balanced journal entry pair (so the ledger / P&L / Reports see them).
  *
- * Routing is read from `connection_account_map` — the user picked a destination
+ * Routing is read from `connection_account_map`, the user picked a destination
  * OWB wallet for each OR source_wallet during the Phase 3 destination picker.
  * Transactions whose source_wallet has no mapping are skipped (they remain
  * visible in the OR-side Connections card, awaiting a mapping).
@@ -15,7 +15,7 @@
  * Idempotency: each row stores a plaintext routing tag inside `encrypted_metadata`
  * `{ source: "orangerails", or_external_id, or_connection_id }`. Before insert
  * we query `transactions WHERE account_id = X AND encrypted_metadata @>
- * { source: "orangerails", or_external_id: Y }` — first-write-wins. Storing
+ * { source: "orangerails", or_external_id: Y }`, first-write-wins. Storing
  * the OR external_id plaintext on OWB leaks no business data: it is already
  * server-visible on OR's side (OWB just sees an opaque token here too).
  *
@@ -64,7 +64,7 @@ export interface DecryptedOrTx {
 }
 
 /**
- * Decrypted OWB wallet — the subset the bridge needs to compose a transaction
+ * Decrypted OWB wallet, the subset the bridge needs to compose a transaction
  * + JE pair. The caller (Connections page) already decrypts wallets for the
  * routing UI, so we accept a small projection rather than re-fetching.
  */
@@ -82,7 +82,7 @@ export interface ImportOrTransactionsParams {
   orConnectionId: string;
   /** OR transactions, already decrypted from encrypted_payload by the caller. */
   orTxs: DecryptedOrTx[];
-  /** Decrypted destination mappings for this org (filtered or all — the
+  /** Decrypted destination mappings for this org (filtered or all, the
    *  bridge filters by orConnectionId internally). */
   mappings: DecryptedConnectionAccountMapping[];
   /** Lookup destination wallets by their OWB wallets.id. The caller already
@@ -168,7 +168,7 @@ function computeAmount(
   if (sats != null) {
     if (upperWalletAsset === 'SATS') return { amount: sats, asset: 'SATS' };
     if (upperWalletAsset === 'BTC') return { amount: sats / 1e8, asset: 'BTC' };
-    // Mismatched units — fall back to sats expressed in the wallet's asset
+    // Mismatched units, fall back to sats expressed in the wallet's asset
     // string. This is unusual but non-fatal; the user can re-map.
     return { amount: sats, asset: upperWalletAsset };
   }
@@ -181,7 +181,7 @@ function computeAmount(
 /**
  * Lookup-or-lazy-create the org's "Uncategorized Revenue" + "Uncategorized
  * Expense" accounts. Returns the account_name strings (which is what
- * buildJournalEntryLineInsert wants — JE lines reference accounts by name).
+ * buildJournalEntryLineInsert wants, JE lines reference accounts by name).
  *
  * Strategy:
  *   1. Decrypt all chart_of_accounts rows once.
@@ -192,13 +192,13 @@ function computeAmount(
  *      never via migration so existing orgs are not touched).
  *
  * NOT considered as fallbacks:
- *   - "Other Income" / "Other Expenses" — those are real user-configurable
+ *   - "Other Income" / "Other Expenses", those are real user-configurable
  *     buckets. Silently routing imports into them hides the "needs review"
  *     signal that the whole point of Uncategorized is to surface.
- *   - First-of-type — same reasoning. If the org has, say, only "Sales
+ *   - First-of-type, same reasoning. If the org has, say, only "Sales
  *     Revenue", we still create Uncategorized rather than dump imports there.
  *
- * Caching: results are returned per call — the bridge calls this once per
+ * Caching: results are returned per call, the bridge calls this once per
  * import batch, so per-call cost is bounded.
  */
 async function ensureUncategorizedAccounts(
@@ -239,7 +239,7 @@ async function ensureUncategorizedAccounts(
         is_archived: !!fields.is_archived,
       });
     } catch {
-      // Undecryptable rows (key mismatch / pre-migration) are ignored — we
+      // Undecryptable rows (key mismatch / pre-migration) are ignored, we
       // never want to silently route into a row we cannot read.
     }
   }
@@ -289,7 +289,7 @@ async function ensureUncategorizedAccounts(
 
 /**
  * Insert a fresh chart_of_accounts row. Mirrors the Admin "Add Account"
- * pattern (see Admin.tsx handleAdd) — we do NOT call legacy ledger backend's createAccount
+ * pattern (see Admin.tsx handleAdd), we do NOT call the ledger's createAccount
  * here because the manual-add flow doesn't either; the legacy ledger account id is a
  * random UUID stored alongside the encrypted metadata, and the ledger
  * functions in OWB read from chart_of_accounts directly.
@@ -424,7 +424,7 @@ async function importSingleTx(
 
   const encJe = await encryptJournalEntry(
     {
-      memo: `${isInflow ? 'Inflow' : 'Outflow'} — ${destWallet.name}${memo ? ` — ${memo}` : ''}`,
+      memo: `${isInflow ? 'Inflow' : 'Outflow'}, ${destWallet.name}${memo ? `, ${memo}` : ''}`,
       ref_number: null,
       currency: asset,
       exchange_rate: null,
@@ -486,7 +486,7 @@ async function importSingleTx(
 }
 
 /**
- * Bridge entry point — call after or-sync completes. Walks the decrypted OR
+ * Bridge entry point, call after or-sync completes. Walks the decrypted OR
  * transactions, routes each to its destination wallet via mappings, and
  * idempotently writes the OWB transactions + JE pair.
  *
@@ -540,7 +540,7 @@ export async function importOrTransactionsToV3(
       orTxs.map((t) => t.id),
     );
   } catch (err) {
-    // Falling back to the per-tx check is safe — slower but correct.
+    // Falling back to the per-tx check is safe, slower but correct.
     console.warn('[orImportBridge] pre-batch dedup query failed, falling back per-tx:', err);
     alreadyImported = new Set();
   }
@@ -562,7 +562,7 @@ export async function importOrTransactionsToV3(
         });
         continue;
       }
-      // Pre-batched skip — avoids the per-tx hasExistingImport network call
+      // Pre-batched skip, avoids the per-tx hasExistingImport network call
       // for txs we already know are in the ledger. Per-tx check still runs
       // inside importSingleTx as a belt-and-braces guard against races.
       if (alreadyImported.has(orTx.id)) {
@@ -584,7 +584,7 @@ export async function importOrTransactionsToV3(
 }
 
 /**
- * Helper used by TransactionList to render a "in ledger" badge — given a set
+ * Helper used by TransactionList to render a "in ledger" badge, given a set
  * of OR external_ids, returns the subset that already has a corresponding
  * OWB transactions row imported by this bridge.
  *

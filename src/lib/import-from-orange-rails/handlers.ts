@@ -3,9 +3,9 @@
  * and the `ImportFromOrangeRailsWizard` (Mode 2 bundle upload).
  *
  * One canonical implementation per entity:
- *   - commitAccountsFromStaged   — Chart of Accounts → chart_of_accounts + legacy ledger backend
- *   - commitContactsFromStaged   — Contacts → contacts table (encrypted)
- *   - commitJournalEntriesFromStaged — placeholder, returns a skip (see below)
+ *   - commitAccountsFromStaged  , Chart of Accounts → chart_of_accounts + the ledger
+ *   - commitContactsFromStaged  , Contacts → contacts table (encrypted)
+ *   - commitJournalEntriesFromStaged, placeholder, returns a skip (see below)
  *
  * Why JE is a placeholder: OWB's existing JE import flow on the JournalEntries
  * page is ~150 lines and depends on page-scoped state (lockDate, ref counter,
@@ -17,7 +17,7 @@
  * Row shape: every helper takes `ImportPreviewRow[]` where `row.data` keys
  * are the standard OWB lower_snake_case (name, code, type, …). Both the
  * inline CSV ImportPopup AND the Orange Rails staged payload produce this
- * shape — by design of the contract.
+ * shape, by design of the contract.
  */
 
 import { supabase } from '@/lib/supabase';
@@ -96,7 +96,7 @@ export async function commitAccountsFromStaged(
     }
     if (existingNames.has(name.toLowerCase()) | (code && existingCodes.has(code.toLowerCase()))) {
       skipped++;
-      warnings.push(`"${name}" already exists — skipped`);
+      warnings.push(`"${name}" already exists, skipped`);
       continue;
     }
     const normalBalance =
@@ -167,7 +167,7 @@ export async function commitContactsFromStaged(
     }
     if (existingNames.has(name.toLowerCase())) {
       skipped++;
-      warnings.push(`"${name}" already exists — skipped`);
+      warnings.push(`"${name}" already exists, skipped`);
       continue;
     }
     const encrypted = await encryptContact(
@@ -281,7 +281,7 @@ export async function commitJournalEntriesFromStaged(
     const dupeKey = journalGroupKey(first.data);
     if (existingKeys.has(dupeKey)) {
       skipped += g.length;
-      warnings.push(`${groupLabel}: duplicate of an existing journal entry — skipped`);
+      warnings.push(`${groupLabel}: duplicate of an existing journal entry, skipped`);
       continue;
     }
 
@@ -370,7 +370,7 @@ export async function commitJournalEntriesFromStaged(
           });
           if (result.pending) {
             warnings.push(
-              `${groupLabel}: rate for ${currency}→${primaryCurrency} unavailable on ${dateStr} — saved as pending; resolve from the Pending Rates banner.`,
+              `${groupLabel}: rate for ${currency}→${primaryCurrency} unavailable on ${dateStr}, saved as pending; resolve from the Pending Rates banner.`,
             );
           }
           return { journal_entry_id: (je as any).id, ...result.insert };

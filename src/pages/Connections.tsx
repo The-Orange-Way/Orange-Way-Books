@@ -116,7 +116,7 @@ const PROVIDERS = [
   {
     type: 'blink',
     name: 'Blink',
-    description: 'Lightning + USD stablecoin wallet by the upstream project.',
+    description: 'Lightning + USD stablecoin wallet.',
     apiKeyUrl: 'https://dashboard.blink.sv/api-keys',
     steps: [
       'Sign in to the Blink dashboard.',

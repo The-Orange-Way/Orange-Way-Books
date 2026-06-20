@@ -517,7 +517,7 @@ export async function decryptJournalEntryLine(
   };
 }
 
-// ── legacy ledger backend Account Map ──
+// ── the ledger Account Map ──
 
 export interface LegacyAccountFields {
   account_name: string;
