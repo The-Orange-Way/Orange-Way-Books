@@ -9,6 +9,13 @@
 --
 -- Drop the upgrade RPCs and the attachment-rekey variants so no caller
 -- can put a row into a state the new code refuses to unlock.
+--
+-- NOTE: the `(jsonb)` argument list below does not match the deployed
+-- signature (`(uuid, text, text, jsonb)`), so on production this file is
+-- a no-op. The signature-agnostic drop lives in
+-- `20260620120000_drop_legacy_vault_upgrade_rpcs_all_signatures.sql`;
+-- if you are reading this to fix the no-op, copy that file's pattern
+-- rather than guessing a new signature here.
 
 DROP FUNCTION IF EXISTS public.rpc_upgrade_vault_to_v3(jsonb);
 DROP FUNCTION IF EXISTS public.rpc_upgrade_vault_to_v3_with_attachments(jsonb);
