@@ -5,7 +5,7 @@
  * sorted oldest-to-newest, with a running balance. Pulls from two sources:
  *
  *   1. transactions where account_id = :accountId AND status != VOID
- *      (standard-mode transactions — direct legacy ledger backend posting, no JE wrapper today)
+ *      (standard-mode transactions — direct the ledger posting, no JE wrapper today)
  *   2. journal_entry_lines where account_id = :accountId AND parent JE.status != VOID
  *      (split / transfer / manual JE rows)
  *

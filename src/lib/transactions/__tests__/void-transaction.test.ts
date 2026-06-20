@@ -7,10 +7,10 @@
 //     instead of a local literal — guards Fix 5.
 //   - Status flip carries a signing-key signature stamped onto the row — Fix 3.
 //   - Linked transfer pair: voiding one side flips both rows.
-//   - Reversal legacy ledger backend posts use real wallet / chart external_account_ids, with
+//   - Reversal the ledger posts use real wallet / chart external_account_ids, with
 //     dr / cr swapped — Fix 4 (no more dr=cr=legacy_transaction_id placeholder).
 //   - When a JE line references an account_name we can't resolve, we throw
-//     rather than write a known-broken legacy ledger backend post.
+//     rather than write a known-broken the ledger post.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -132,7 +132,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-// Stub the legacy ledger backend client so we can introspect what would have been posted.
+// Stub the the ledger client so we can introspect what would have been posted.
 vi.mock('@/lib/legacy-ledger', () => ({
   async postTransaction(
     legacyTxId: string,
@@ -198,7 +198,7 @@ function seedWalletAndAccount() {
   return { walletLegacyId, accountLegacyId };
 }
 
-function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
+function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   const { walletLegacyId, accountLegacyId } = seedWalletAndAccount();
   store.transactions.push({
     id: 'tx-1',
@@ -283,7 +283,7 @@ function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
     dual_amounts_backfilled: false,
     manual_rate_reason: null,
     manual_rate_source: null,
-    legacy_transaction_id: opts.withlegacy ledger backend ? 'legacy-original-1' : null,
+    legacy_transaction_id: opts.withExternalLedger ? 'legacy-original-1' : null,
   });
   return { walletLegacyId, accountLegacyId };
 }
@@ -309,12 +309,12 @@ beforeEach(() => {
 
 describe('voidTransaction', () => {
   it('writes a reversing JE, flips status, stamps signature + field key version', async () => {
-    seedSplitTransaction({ withlegacy ledger backend: false });
+    seedSplitTransaction({ withExternalLedger: false });
 
     const result = await voidTransaction({
       txId: 'tx-1',
       orgId: ORG,
-      legacyJournalId: null, // skip legacy ledger backend path here; covered in dedicated test
+      legacyJournalId: null, // skip the ledger path here; covered in dedicated test
       date: '2026-05-21',
       encryptText,
       decryptText,
@@ -410,7 +410,7 @@ describe('voidTransaction', () => {
       dek_key_version: 2,
     });
     // One wallet leg is enough to drive the reversal; we only care about
-    // status flip semantics here, not legacy ledger backend.
+    // status flip semantics here, not the ledger.
     store.journal_entry_lines.push({
       id: 'jel-src',
       journal_entry_id: 'je-pair',
@@ -456,12 +456,12 @@ describe('voidTransaction', () => {
     expect(dest!.status).toBe('enc(VOID)');
   });
 
-  // legacy ledger backend-specific reversal tests removed 2026-06-13 — the legacy-ledger removal physically
-  // deleted the vendored ledger fork. Void no longer posts a legacy ledger backend reversal; the reversing
+  // the ledger-specific reversal tests removed 2026-06-13 — the legacy-ledger removal physically
+  // deleted the vendored ledger fork. Void no longer posts a the ledger reversal; the reversing
   // JE in the previous test ("writes a reversing JE …") IS the void path now.
 
   it('throws clearly when the caller has no signing-key wrap', async () => {
-    seedSplitTransaction({ withlegacy ledger backend: false });
+    seedSplitTransaction({ withExternalLedger: false });
     const noSign = vi.fn(() => null);
 
     await expect(

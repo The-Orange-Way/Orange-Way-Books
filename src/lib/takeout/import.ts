@@ -11,8 +11,8 @@ import {
   encryptOrganization,
   encryptAttachment,
 } from '@/lib/crypto-fields';
-// Phase 2 removal: takeout/import no longer provisions legacy ledger backend. Data restore
-// writes Postgres-only. The replayLegacyTemplates and legacy ledger backend-account creation
+// Phase 2 removal: takeout/import no longer provisions the ledger. Data restore
+// writes Postgres-only. The replayLegacyTemplates and the ledger-account creation
 // blocks below are stubbed; chart_of_accounts insert path needs follow-up
 // rewiring for the new schema (tracked as Phase 2.5 cleanup).
 import { TAKEOUT_VERSION, type TakeoutFile, type TakeoutLegacyAccount } from './schema';
@@ -40,7 +40,7 @@ function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
  * "Wipe all data" button in Admin.
  *
  * Does NOT delete the organization row itself (you keep the target org
- * to import into). legacy ledger backend ledger state on the server is not touched —
+ * to import into). the ledger ledger state on the server is not touched —
  * the legacy ledger accounts / journal become unreferenced and a subsequent
  * import will create fresh ones.
  */
@@ -104,7 +104,7 @@ const ZKA_TEMPLATE_CODES = [
 ];
 
 // Phase 2 (legacy-ledger removal): replayLegacyTemplates is a no-op. No server-side
-// legacy ledger backend templates exist anymore. The ZKA_TEMPLATE_CODES list is kept for
+// the ledger templates exist anymore. The ZKA_TEMPLATE_CODES list is kept for
 // reference but unused.
 async function replayLegacyTemplates(): Promise<void> {
   // intentionally empty
@@ -134,15 +134,15 @@ export interface ImportResult {
  * ZKA note: every row is re-encrypted with the current vault before insert.
  * The plaintext file is held in memory only; no plaintext hits the database.
  *
- * legacy ledger backend: the blind legacy ledger backend ledger is re-created during import so that new
+ * the ledger: the blind the ledger ledger is re-created during import so that new
  * transactions work immediately after restore. We create:
  *   1. A fresh blind journal, stored on organizations.external_journal_id
  *   2. One legacy ledger account per chart_of_accounts row (with new UUID ids,
  *      remapped via legacyAccountIdMap)
- *   3. The 10 ZKA_* templates (idempotent — global in legacy ledger backend)
- * Historical transactions are NOT replayed as legacy ledger backend postings; the journal
+ *   3. The 10 ZKA_* templates (idempotent — global in the ledger)
+ * Historical transactions are NOT replayed as the ledger postings; the journal
  * lines in Supabase are the source of truth for reports. New transactions
- * made after the import get posted to legacy ledger backend as normal.
+ * made after the import get posted to the ledger as normal.
  */
 export async function importTakeoutFile(
   file: TakeoutFile,
@@ -204,7 +204,7 @@ export async function importTakeoutFile(
   const paymentIdMap = new Map<string, string>();
   data.payment_requests.forEach((p) => paymentIdMap.set(p.id, crypto.randomUUID()));
 
-  // Phase 2 (legacy-ledger removal): legacy ledger backend journal provisioning + template replay
+  // Phase 2 (legacy-ledger removal): the ledger journal provisioning + template replay
   // both deleted. Data restore is Postgres-only.
 
   // ── Organization name ───────────────────────────────────────────────
@@ -265,13 +265,13 @@ export async function importTakeoutFile(
     progress('Wallets', walletsInserted, data.wallets.length);
   }
 
-  // ── legacy ledger account map (legacy ledger backend createAccount + Supabase row) ────────────
+  // ── legacy ledger account map (the ledger createAccount + Supabase row) ────────────
   let accountsInserted = 0;
   for (let i = 0; i < data.chart_of_accounts.length; i++) {
     const a = data.chart_of_accounts[i];
     const newLegacyId = legacyAccountIdMap.get(a.legacy_account_id)!;
     const normalBalance = inferNormalBalance(a);
-    // Phase 2 (legacy-ledger removal): legacy ledger backend createAccount deleted. Account row inserted
+    // Phase 2 (legacy-ledger removal): the ledger createAccount deleted. Account row inserted
     // directly into chart_of_accounts below (TODO follow-up: rewire this
     // block to use the new encryptChartOfAccount shape).
     const enc = await encryptChartOfAccount(

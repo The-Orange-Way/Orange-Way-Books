@@ -289,7 +289,7 @@ async function ensureUncategorizedAccounts(
 
 /**
  * Insert a fresh chart_of_accounts row. Mirrors the Admin "Add Account"
- * pattern (see Admin.tsx handleAdd) — we do NOT call legacy ledger backend's createAccount
+ * pattern (see Admin.tsx handleAdd) — we do NOT call the ledger's createAccount
  * here because the manual-add flow doesn't either; the legacy ledger account id is a
  * random UUID stored alongside the encrypted metadata, and the ledger
  * functions in OWB read from chart_of_accounts directly.

@@ -3,7 +3,7 @@
  * and the `ImportFromOrangeRailsWizard` (Mode 2 bundle upload).
  *
  * One canonical implementation per entity:
- *   - commitAccountsFromStaged   — Chart of Accounts → chart_of_accounts + legacy ledger backend
+ *   - commitAccountsFromStaged   — Chart of Accounts → chart_of_accounts + the ledger
  *   - commitContactsFromStaged   — Contacts → contacts table (encrypted)
  *   - commitJournalEntriesFromStaged — placeholder, returns a skip (see below)
  *

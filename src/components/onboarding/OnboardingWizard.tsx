@@ -166,7 +166,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       }
 
       // 5. Seed chart of accounts in Postgres. Post-Phase 1: pure DB inserts,
-      // no legacy ledger backend roundtrip. Fast enough to run inline (~1-2s for 43 accounts).
+      // no the ledger roundtrip. Fast enough to run inline (~1-2s for 43 accounts).
       // We still maintain the organizations.ledger_status state machine
       // (pending → provisioning → ready/failed) because the dashboard pill
       // reads from it. Without an explicit write to 'ready' the pill stays

@@ -3,7 +3,7 @@
  *
  * Extracted from OnboardingWizard so the LedgerStatusPill retry path can
  * re-run the same logic without duplicating the catalog. Post-Phase-1:
- * pure ZKA Postgres inserts (no legacy ledger backend roundtrip).
+ * pure ZKA Postgres inserts (no the ledger roundtrip).
  *
  * Pass `encryptText` from the caller's `useVault()` so the MEK stays in the
  * caller's React context — this module deliberately knows nothing about the

@@ -11,8 +11,8 @@
  *      the original). Encryption + dual-currency via buildJournalEntryLineInsert.
  *   4. Flip the original transactions row(s) to encrypted status='VOID'. For
  *      transfer pairs, both linked rows get flipped.
- *   5. (Phase 3 removed legacy ledger backend — the reversing posts are now purely client-side.)
- *      set (account legs for split, both legs for transfer). legacy ledger backend posting is
+ *   5. (Phase 3 removed the ledger — the reversing posts are now purely client-side.)
+ *      set (account legs for split, both legs for transfer). the ledger posting is
  *      best-effort, non-blocking — OWB's encrypted JE lines are the source of
  *      truth that ledger-engine reads.
  *
@@ -25,7 +25,7 @@
  *     original date. When period-lock enforcement ships, this branches
  *     to "void in original period if open; in current period if closed."
  *   - When legacy-server-minimal exposes the transactionVoid GraphQL mutation,
- *     the legacy ledger backend reversal path will switch to the direction-flip primitive
+ *     the the ledger reversal path will switch to the direction-flip primitive
  *     instead of posting fresh reversing transactions.
  */
 
@@ -39,7 +39,7 @@ import {
   FIELD_KEY_VERSION,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
-// Phase 2 removal: legacy ledger backend reversal posting deleted; Postgres reversing JE
+// Phase 2 removal: the ledger reversal posting deleted; Postgres reversing JE
 // is the single source of truth.
 import { writeAuditLog } from '@/lib/audit-logger';
 
@@ -63,7 +63,7 @@ export interface VoidTransactionParams {
   /** transactions.id of the row to void. */
   txId: string;
   orgId: string;
-  /** Org's legacy ledger backend blind-journal id. Null → skip legacy ledger backend reversals. */
+  /** Org's the ledger blind-journal id. Null → skip the ledger reversals. */
   legacyJournalId: string | null;
   /** Date for the reversing JE. Today's date in YYYY-MM-DD. */
   date: string;
@@ -208,7 +208,7 @@ export async function voidTransaction(
     .in('id', voidedIds);
   if (voidErr) throw voidErr;
 
-  // Phase 2 (legacy-ledger removal): the legacy ledger backend reversing-posting block (~100 lines)
+  // Phase 2 (legacy-ledger removal): the the ledger reversing-posting block (~100 lines)
   // lived here. Postgres-side reversing journal_entries + reversed lines
   // already written earlier in this function are now the single source of
   // truth. No legacy-ledger dual-write required.

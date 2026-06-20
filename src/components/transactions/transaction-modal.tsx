@@ -8,7 +8,7 @@
  *
  * Preserves existing plumbing:
  *   - ZKA encrypt on save via encryptTransaction
- *   - legacy ledger backend blind-proxy post via postTransaction (Standard only, new tx only)
+ *   - the ledger blind-proxy post via postTransaction (Standard only, new tx only)
  *   - Audit logging via writeAuditLog
  *   - Exchange rate via useExchangeRate
  *   - Attachment encryption via encryptAttachment
@@ -111,7 +111,7 @@ export interface TxEditInput {
    *  account_id — a single tx has BOTH a chart bucket and a contact. */
   contact_id?: string | null;
   /** journal_entries.id wrapper for split + transfer modes. NULL for standard
-   *  transactions that post directly to legacy ledger backend without a JE wrapper. */
+   *  transactions that post directly to the ledger without a JE wrapper. */
   journal_entry_id?: string | null;
 }
 
@@ -716,7 +716,7 @@ export default function TransactionModal({
     // here. Removed entirely. Postgres `transactions` row above is now the
     // single source of truth. Journal entry write-through to
     // journal_entries + journal_entry_lines for standard mode is still
-    // deferred — same TODO as before, just no longer paired with a legacy ledger backend leg.
+    // deferred — same TODO as before, just no longer paired with a the ledger leg.
   }
 
   // ── Split save ─────────────────────────────────────────────────────────────
@@ -729,11 +729,11 @@ export default function TransactionModal({
   //   - 1 journal_entries row, source_type='TRANSACTION_SPLIT', encrypted.
   //   - N+1 journal_entry_lines: 1 wallet leg + N account legs. All encrypted
   //     with dual-currency amounts via buildJournalEntryLineInsert.
-  //   - N legacy ledger backend 2-entry transactions, each posting one (wallet ↔ account) pair
-  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each legacy ledger backend tx's
+  //   - N the ledger 2-entry transactions, each posting one (wallet ↔ account) pair
+  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each the ledger tx's
   //     UUID threads back to its source jel row via journal_entry_lines.legacy_transaction_id.
   //
-  // Why N legacy ledger backend transactions and not one: legacy ledger backend tx_templates have a fixed entry
+  // Why N the ledger transactions and not one: the ledger tx_templates have a fixed entry
   // count at creation time. The 10 templates seeded at onboarding all have 2
   // entries. Posting N 2-entry transactions sharing the parent OWB transactions.id
   // gives us the equivalent of "one user event with N entries" without spinning
@@ -828,7 +828,7 @@ export default function TransactionModal({
 
     // Insert all lines in deterministic order (wallet first, then account legs
     // in the same order as validLines). We need the returned IDs in the same
-    // order to thread legacy ledger backend transaction UUIDs back per leg in Phase 4.
+    // order to thread the ledger transaction UUIDs back per leg in Phase 4.
     const lineInserts = [
       { journal_entry_id: journalEntryId, ...walletLineRes.insert },
       ...accountLineResults.map((alr) => ({
@@ -904,18 +904,18 @@ export default function TransactionModal({
 
     await uploadReceipts(txId);
 
-    // ── Phase 4: N legacy ledger backend 2-entry postings (one per split row) ───────────────
-    // Each wallet ↔ account pair is its own legacy ledger backend transaction. We reuse the
+    // ── Phase 4: N the ledger 2-entry postings (one per split row) ───────────────
+    // Each wallet ↔ account pair is its own the ledger transaction. We reuse the
     // existing ZKA_SALE (inflow) / ZKA_EXPENSE (outflow) templates rather than
     // creating a new "split" template per N.
     //
     // Failures are non-blocking — OWB's ledger-engine reads journal_entry_lines
-    // (which are already written above) as the source of truth, and the legacy ledger backend
+    // (which are already written above) as the source of truth, and the the ledger
     // mirror is recoverable on a later sync. We log to console so an operator
     // can replay if needed.
     // Phase 2 (legacy-ledger removal): the split-leg legacy-ledger dual-write block lived here.
     // Each Postgres journal_entry_line above is now the single source of truth;
-    // no legacy ledger backend leg, no legacy_transaction_id threading.
+    // no the ledger leg, no legacy_transaction_id threading.
   }
 
   // ── Transfer save ──────────────────────────────────────────────────────────
@@ -932,7 +932,7 @@ export default function TransactionModal({
   //   - 2 transactions rows linked via linked_transfer_id (pattern preserved
   //     so each wallet's statement shows its side independently), both pointing
   //     at the same journal_entry_id and the same legacy_transaction_id.
-  //   - 1 legacy ledger backend 2-entry transaction posted with ZKA_TRANSFER template: debit dest
+  //   - 1 the ledger 2-entry transaction posted with ZKA_TRANSFER template: debit dest
   //     wallet's external_account_id, credit source wallet's external_account_id.
   //
   // Edit semantics (T2.b lock): edit-in-place if no leg is RECONCILED;
@@ -940,7 +940,7 @@ export default function TransactionModal({
   // For v1 we re-write under the same JE id when editing (wipe lines, re-insert).
   //
   // Fee handling: pending — when fee > 0 and feeAccountId is set, an extra JE
-  // line + extra legacy ledger backend posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
+  // line + extra the ledger posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
   // Validation already blocks submit until feeSide + feeAccountId are picked,
   // so no data is lost; the fee posting is a follow-up.
   //
@@ -1131,7 +1131,7 @@ export default function TransactionModal({
     if (editingTx) {
       // Edit-in-place: update source side using the editingTx.id; find the
       // dest side via linked_transfer_id and update it too. Both share the
-      // same JE wrapper id and (after legacy ledger backend post below) the same legacy_transaction_id.
+      // same JE wrapper id and (after the ledger post below) the same legacy_transaction_id.
       srcId = editingTx.id;
       const { error: srcUpdErr } = await supabase
         .from('transactions')
@@ -1233,8 +1233,8 @@ export default function TransactionModal({
 
     await uploadReceipts(srcId);
 
-    // ── Phase 4: 1 legacy ledger backend 2-entry transaction (source credit ↔ dest debit) ──
-    // Reuses the ZKA_TRANSFER template seeded at onboarding. legacy ledger backend stores one
+    // ── Phase 4: 1 the ledger 2-entry transaction (source credit ↔ dest debit) ──
+    // Reuses the ZKA_TRANSFER template seeded at onboarding. the ledger stores one
     // transaction per OWB transfer event; both OWB transactions rows reference
     // the same legacy_transaction_id so void/audit can act on the pair.
     // Phase 2 (legacy-ledger removal): transfer's legacy-ledger dual-write block deleted.

@@ -2577,7 +2577,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               continue;
             }
             // Phase 2 (legacy-ledger removal): chart_of_accounts is Postgres-only.
-            // No legacy ledger backend provisioning step; row goes straight into the new schema.
+            // No the ledger provisioning step; row goes straight into the new schema.
             try {
               const enc = await encryptChartOfAccount({
                 account_name: name,
@@ -3397,7 +3397,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
             <li>Payment requests</li>
             <li><strong>Receipts</strong> (attachment file bytes, decrypted client-side and base64-encoded)</li>
           </ul>
-          <p className="mt-2"><strong>Created fresh on import:</strong> legacy ledger backend blind journal, legacy ledger accounts (with remapped ids), 10 ZKA_* posting templates — so new transactions post correctly after restore.</p>
+          <p className="mt-2"><strong>Created fresh on import:</strong> the ledger blind journal, legacy ledger accounts (with remapped ids), 10 ZKA_* posting templates — so new transactions post correctly after restore.</p>
         </div>
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
           <strong>Heads up:</strong> the exported file is <em>plaintext</em>. Decryption
@@ -3523,8 +3523,8 @@ function DataTab({ orgId }: { orgId: string | null }) {
           <p><strong>Import notes:</strong></p>
           <ul className="list-disc pl-5 text-xs">
             <li>By default the import refuses if the target org already has data. Tick force to wipe and replace.</li>
-            <li>New legacy ledger backend journal, accounts, and templates are created as part of the import — new transactions will post correctly afterwards.</li>
-            <li>Historical transactions are not replayed as legacy ledger backend postings. Reports read from the Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance Sheet look right immediately.</li>
+            <li>New the ledger journal, accounts, and templates are created as part of the import — new transactions will post correctly afterwards.</li>
+            <li>Historical transactions are not replayed as the ledger postings. Reports read from the Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance Sheet look right immediately.</li>
           </ul>
         </div>
 
@@ -3605,7 +3605,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
           <li><strong>Connector credentials</strong> — re-connect after import</li>
           <li><strong>Transaction links</strong> — wallet-to-wallet transfer pairs</li>
           <li><strong>Encrypted-mode export</strong> — ciphertext-only bundle for same-vault backups (complements the current plaintext mode)</li>
-          <li><strong>Historical legacy ledger backend replay</strong> — today we recreate journal + accounts + templates; old transaction postings remain Supabase-only (reports still read correctly from JE lines)</li>
+          <li><strong>Historical the ledger replay</strong> — today we recreate journal + accounts + templates; old transaction postings remain Supabase-only (reports still read correctly from JE lines)</li>
         </ul>
       </section>
 
