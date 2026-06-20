@@ -92,7 +92,7 @@ import {
   decryptOrgSettings,
   decryptOrganization,
 } from '@/lib/crypto-fields';
-// Phase 2 removal: legacy-ledger dual-write deleted from CSV import path.
+// Phase 2 removal: external-ledger dual-write deleted from CSV import path.
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { writeAuditLog } from '@/lib/audit-logger';
 import { voidTransaction } from '@/lib/transactions/void-transaction';
@@ -2124,7 +2124,7 @@ export default function Transactions() {
               continue;
             }
 
-            // Phase 2 (legacy-ledger removal): Postgres transactions insert is the
+            // Phase 2 (external-ledger removal): Postgres transactions insert is the
             // single source of truth for CSV imports.
             const encFields = await encryptTransaction(
               {

@@ -43,7 +43,7 @@ import {
   decryptContact,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
-// Phase 2 removal: legacy-ledger dual-write deleted. Transactions land in Postgres only.
+// Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
   TRANSFER_CLEARING_NAME,
@@ -761,7 +761,7 @@ export default function TransactionModal({
 
     await uploadReceipts(txId);
 
-    // Phase 2 (legacy-ledger removal): the standard-mode legacy-ledger dual-write block lived
+    // Phase 2 (external-ledger removal): the standard-mode external-ledger dual-write block lived
     // here. Removed entirely. Postgres `transactions` row above is now the
     // single source of truth. Journal entry write-through to
     // journal_entries + journal_entry_lines for standard mode is still
@@ -974,7 +974,7 @@ export default function TransactionModal({
     // (which are already written above) as the source of truth, and the ledger
     // mirror is recoverable on a later sync. We log to console so an operator
     // can replay if needed.
-    // Phase 2 (legacy-ledger removal): the split-leg legacy-ledger dual-write block lived here.
+    // Phase 2 (external-ledger removal): the split-leg external-ledger dual-write block lived here.
     // Each Postgres journal_entry_line above is now the single source of truth;
     // no the ledger leg, no legacy_transaction_id threading.
   }
@@ -1308,7 +1308,7 @@ export default function TransactionModal({
     // Reuses the ZKA_TRANSFER template seeded at onboarding. the ledger stores one
     // transaction per OWB transfer event; both OWB transactions rows reference
     // the same legacy_transaction_id so void/audit can act on the pair.
-    // Phase 2 (legacy-ledger removal): transfer's legacy-ledger dual-write block deleted.
+    // Phase 2 (external-ledger removal): transfer's external-ledger dual-write block deleted.
     // Postgres journal_entries + journal_entry_lines pair above is now the
     // single source of truth. linked_transfer_id still pairs source/dest
     // transactions; legacy_transaction_id is no longer set (column will be
