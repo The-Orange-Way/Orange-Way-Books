@@ -62,14 +62,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -90,7 +90,7 @@ serve(async (req) => {
     const jobId = typeof body.job_id === 'string' ? body.job_id.trim() : '';
     const mode = typeof body.mode === 'string' ? body.mode : '';
     const reason = typeof body.reason === 'string' ? body.reason.slice(0, 512) : null;
-    if (!jobId | !UUID_RE.test(jobId)) {
+    if (!jobId || !UUID_RE.test(jobId)) {
       return jsonResponse({ error: 'job_id is required' }, 400, cors);
     }
     if (mode !== 'abort_in_flight' && mode !== 'rollback_after_complete') {
@@ -102,7 +102,7 @@ serve(async (req) => {
       .select('id, org_id, status, new_dek_key_version, new_osk_key_version, previous_dek_key_version, previous_osk_key_version, rollback_expires_at, started_by')
       .eq('id', jobId)
       .maybeSingle();
-    if (jobErr | !jobRow) {
+    if (jobErr || !jobRow) {
       return jsonResponse({ error: 'Rotation job not found' }, 404, cors);
     }
     const job = jobRow as {
@@ -121,7 +121,7 @@ serve(async (req) => {
     }
 
     if (mode === 'abort_in_flight') {
-      if (job.status === 'complete' | job.status === 'aborted' | job.status === 'rolled_back') {
+      if (job.status === 'complete' || job.status === 'aborted' || job.status === 'rolled_back') {
         return jsonResponse(
           { error: `Job is already in status '${job.status}' — cannot abort.` },
           409, cors,
@@ -187,13 +187,13 @@ serve(async (req) => {
         409, cors,
       );
     }
-    if (!job.rollback_expires_at | new Date(job.rollback_expires_at) < new Date()) {
+    if (!job.rollback_expires_at || new Date(job.rollback_expires_at) < new Date()) {
       return jsonResponse(
         { error: 'The rollback window has expired. The previous keys were purged after 30 days.' },
         410, cors,
       );
     }
-    if (job.previous_dek_key_version === null | job.previous_osk_key_version === null) {
+    if (job.previous_dek_key_version === null || job.previous_osk_key_version === null) {
       return jsonResponse(
         { error: 'This key update has no previous version to roll back to (first-time setup).' },
         409, cors,

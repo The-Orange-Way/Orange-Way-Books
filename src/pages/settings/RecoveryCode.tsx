@@ -62,7 +62,7 @@ export default function RecoveryCode() {
         navigate('/app');
         return;
       }
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       const { data: memberships } = await supabase
         .from('org_members')
         .select('org_id, joined_at')

@@ -56,7 +56,7 @@ export async function constructEvent(options: ConstructEventOptions): Promise<Ev
   if (typeof rawBody !== "string") {
     throw new SignatureVerificationError("rawBody must be a string of the exact bytes received.");
   }
-  if (typeof secret !== "string" | secret.length === 0) {
+  if (typeof secret !== "string" || secret.length === 0) {
     throw new SignatureVerificationError("secret must be a non-empty string.");
   }
 
@@ -148,7 +148,7 @@ function parseV2Header(header: string): ParsedV2Header | null {
     const v = part.slice(eq + 1);
     if (k === "t") {
       const n = Number.parseInt(v, 10);
-      if (!Number.isFinite(n) | n <= 0) return null;
+      if (!Number.isFinite(n) || n <= 0) return null;
       timestamp = n;
     } else if (k === "v1") {
       signatures.push(v);
@@ -181,7 +181,7 @@ function parseEvent(rawBody: string, eventId: string): Event {
     throw new SignatureVerificationError("Webhook body is not valid JSON; cannot construct Event.");
   }
 
-  if (typeof parsed !== "object" | parsed === null) {
+  if (typeof parsed !== "object" || parsed === null) {
     throw new SignatureVerificationError("Webhook body is not a JSON object.");
   }
 
@@ -192,7 +192,7 @@ function parseEvent(rawBody: string, eventId: string): Event {
   if (type !== "sync.completed") {
     throw new SignatureVerificationError(`Unsupported webhook event type: ${String(type)}.`);
   }
-  if (typeof data !== "object" | data === null) {
+  if (typeof data !== "object" || data === null) {
     throw new SignatureVerificationError("Webhook body is missing 'data' object.");
   }
 

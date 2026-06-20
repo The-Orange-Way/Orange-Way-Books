@@ -62,7 +62,7 @@ async function exchangeCodeReal(code: string): Promise<FlashTokenResponse> {
   const clientId = Deno.env.get('FLASH_CLIENT_ID');
   const clientSecret = Deno.env.get('FLASH_CLIENT_SECRET');
   const redirectUri = Deno.env.get('FLASH_REDIRECT_URI');
-  if (!tokenUrl | !clientId | !clientSecret | !redirectUri) {
+  if (!tokenUrl || !clientId || !clientSecret || !redirectUri) {
     throw new Error('Flash OAuth env vars are not fully configured');
   }
 
@@ -98,14 +98,14 @@ Deno.serve(async (req: Request) => {
 
   // 1) Authenticate the caller.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
   }
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-  if (authErr | !caller) {
+  if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
   }
   const code = typeof parsed.code === 'string' ? parsed.code : '';
   const state = typeof parsed.state === 'string' ? parsed.state : '';
-  if (!code | !state) {
+  if (!code || !state) {
     return jsonResponse({ error: 'Missing code or state' }, 400, cors);
   }
 

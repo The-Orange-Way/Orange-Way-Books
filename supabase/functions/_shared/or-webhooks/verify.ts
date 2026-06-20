@@ -52,7 +52,7 @@ export async function computeHmacSha256Hex(secret: string, body: string): Promis
  * pair, so total time is a function of length only, not contents.
  */
 export function timingSafeEqualHex(a: string, b: string): boolean {
-  if (typeof a !== "string" | typeof b !== "string") return false;
+  if (typeof a !== "string" || typeof b !== "string") return false;
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) {

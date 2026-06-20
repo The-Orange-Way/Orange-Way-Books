@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { KeyRound, ShieldCheck, AlertTriangle, Copy, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
+import { LATEST_VAULT_KEY_VERSION } from '@/lib/vault';
 import { useToast } from '@/hooks/use-toast';
 
 type Step = 'enter-code' | 'new-password' | 'save-new-code';
@@ -94,7 +95,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       if (!user) throw new Error('Not signed in.');
 
       // Resolve active org (same logic as VaultContext.unlock)
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       const { data: memberships } = await supabase
         .from('org_members')
         .select('org_id, joined_at')
@@ -115,8 +116,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       const orgSalt = (settings as any)?.vault_salt;
       const vaultKeyVersion = (settings as any)?.vault_key_version ?? 1;
 
-      if (!orgSalt || vaultKeyVersion < 4) {
-        throw new Error('Recovery is not available for this vault (legacy version). Contact support.');
+      if (!orgSalt) {
+        throw new Error('Recovery is not available for this vault. Contact support.');
       }
 
       let out: { newEncMekCiphertext: string; newRecoveryCode: string; newRecoveryCiphertext: string; newVerifier: string };
@@ -172,7 +173,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           vault_verifier: out.newVerifier,
           enc_mek_ciphertext: out.newEncMekCiphertext,
           recovery_ciphertext: out.newRecoveryCiphertext,
-          vault_key_version: 4,
+          vault_key_version: LATEST_VAULT_KEY_VERSION,
         })
         .eq('org_id', activeOrgId);
       if (updErr) throw new Error(`Could not save recovery: ${updErr.message}`);

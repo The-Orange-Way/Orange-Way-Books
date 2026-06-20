@@ -46,14 +46,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -72,7 +72,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
     const jobId = typeof body.job_id === 'string' ? body.job_id.trim() : '';
-    if (!jobId | !UUID_RE.test(jobId)) {
+    if (!jobId || !UUID_RE.test(jobId)) {
       return jsonResponse({ error: 'job_id is required' }, 400, cors);
     }
 
@@ -81,7 +81,7 @@ serve(async (req) => {
       .select('id, org_id, status, new_dek_key_version, new_osk_key_version, started_by')
       .eq('id', jobId)
       .maybeSingle();
-    if (jobErr | !jobRow) {
+    if (jobErr || !jobRow) {
       return jsonResponse({ error: 'Rotation job not found' }, 404, cors);
     }
     const job = jobRow as {

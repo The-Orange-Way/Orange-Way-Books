@@ -115,7 +115,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           setOrgs(decrypted);
 
           // Determine active org
-          const stored = localStorage.getItem('owb_active_org');
+          const stored = localStorage.getItem('orangewaybooks.active_org');
           const validStored = stored && decrypted.some(o => o.id === stored);
           setActiveOrgId(validStored ? stored : (decrypted[0]?.id ?? null));
         }
@@ -192,7 +192,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
             onChange={(e) => {
               const newOrgId = e.target.value;
               if (newOrgId && newOrgId !== activeOrgId) {
-                localStorage.setItem('owb_active_org', newOrgId);
+                localStorage.setItem('orangewaybooks.active_org', newOrgId);
                 window.location.reload();
               }
             }}

@@ -62,14 +62,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -99,7 +99,7 @@ serve(async (req) => {
     // Quick vs Deep refresh. Default to 'quick' for back-compat
     // callers that don't supply the field.
     const refreshModeRaw = typeof body.refresh_mode === 'string' ? body.refresh_mode.trim() : 'quick';
-    if (!orgId | !UUID_RE.test(orgId)) {
+    if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
     if (!VALID_TRIGGERS.has(triggerType)) {
@@ -196,7 +196,7 @@ serve(async (req) => {
       })
       .select('id')
       .single();
-    if (insertErr | !inserted) {
+    if (insertErr || !inserted) {
       console.error('start-rekey-job insert failed:', insertErr);
       return jsonResponse(
         { error: 'Could not start the key update.' },

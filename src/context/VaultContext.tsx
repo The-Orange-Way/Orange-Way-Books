@@ -21,7 +21,7 @@ import {
   importAesGcmKey,
   wrapMekWithKey,
   unwrapMekWithKey,
-  deriveV4Kek,
+  deriveVaultV1Kek,
   deriveBlindIndexKeyFromMek,
   deriveOrCredsKeyFromMek,
   deriveOrTxnsKeyFromMek,
@@ -55,7 +55,7 @@ interface VaultContextType {
   decryptBlob: (ciphertext: Blob | ArrayBuffer) => Promise<ArrayBuffer>;
   // OrangeRails subkey helpers — used by the Connections page to encrypt
   // provider credentials, decrypt connection metadata, and hand keys
-  // in-transit to OR's or-sync edge function via bb-or-proxy.
+  // in-transit to OR's or-sync edge function via owb-or-proxy.
   encryptOrCipher: (plaintext: string) => Promise<string>;
   decryptOrCipher: (ciphertext: string) => Promise<string>;
   decryptOrTxnCipher: (ciphertext: string) => Promise<string>;
@@ -94,7 +94,7 @@ interface VaultContextType {
   }>;
   /**
    * Compute a deterministic HMAC-SHA256 blind index for a plaintext value.
-   * Only available for v4 vaults (returns null for older key versions or
+   * Only available for unlocked vaults (returns null otherwise or for
    * absent/empty values). Use this when writing hmac_* columns and when
    * building WHERE clauses to search encrypted fields.
    */
@@ -314,7 +314,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const keyRef = useRef<CryptoKey | null>(null);
   const blindIndexKeyRef = useRef<CryptoKey | null>(null);
-  // OrangeRails subkeys, derived alongside the MEK at v4 unlock.
+  // OrangeRails subkeys, derived alongside the MEK at unlock.
   const orCredsKeyRef = useRef<CryptoKey | null>(null);
   const orTxnsKeyRef = useRef<CryptoKey | null>(null);
   // Phase 4.4: raw MEK bytes + salt kept so loadOrgSigningKey can
@@ -343,7 +343,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!session?.user) throw new Error('Session not yet ready — please try again.');
     const user = session.user;
 
-    const stored = localStorage.getItem('owb_active_org');
+    const stored = localStorage.getItem('orangewaybooks.active_org');
     const { data: memberships, error: membershipsErr } = await supabase
       .from('org_members')
       .select('org_id, joined_at')
@@ -385,54 +385,41 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // the "C-G journey second-unlock fails" repro.)
     let passwordAttempted = false;
     try {
-      if (vaultKeyVersion >= 4 && orgSalt && encMekCiphertext) {
-        // v4: derive KEK from password, unwrap random MEK, derive blind index
-        // key from the MEK (so it's durable across password changes).
-        passwordAttempted = true;
-        const kek = await deriveV4Kek(password, user.id, orgSalt);
-        const mekRaw = await unwrapMekWithKey(encMekCiphertext, kek);
-        const mek = await importAesGcmKey(mekRaw);
-        const isValid = await verifyVaultPassword(password, user.id, verifier, orgSalt, vaultKeyVersion);
-        if (!isValid) throw new Error('Incorrect vault password');
-        const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSalt);
-        keyRef.current = mek;
-        blindIndexKeyRef.current = blindIndexKey;
-        // Phase 4.4: stash the raw MEK bytes + salt for on-demand signing-key
-        // unwrap. These are the same bytes the vault already holds — we
-        // are not creating new material, just retaining a handle for
-        // the pqc-secret-wrap HKDF derivation. Cleared on lock().
-        mekRawRef.current = mekRaw;
-        orgSaltRef.current = orgSalt;
+      if (!orgSalt || !encMekCiphertext) {
+        throw new Error('Vault setup incomplete: missing salt or wrapped MEK');
+      }
+      // Derive KEK from password, unwrap random MEK, derive blind index
+      // key from the MEK (so it's durable across password changes).
+      passwordAttempted = true;
+      const kek = await deriveVaultV1Kek(password, user.id, orgSalt);
+      const mekRaw = await unwrapMekWithKey(encMekCiphertext, kek);
+      const mek = await importAesGcmKey(mekRaw);
+      const isValid = await verifyVaultPassword(password, user.id, verifier, orgSalt, vaultKeyVersion);
+      if (!isValid) throw new Error('Incorrect vault password');
+      const blindIndexKey = await deriveBlindIndexKeyFromMek(mekRaw, orgSalt);
+      keyRef.current = mek;
+      blindIndexKeyRef.current = blindIndexKey;
+      // Stash the raw MEK bytes + salt for on-demand signing-key unwrap.
+      // These are the same bytes the vault already holds. We are not
+      // creating new material, just retaining a handle for the
+      // pqc-secret-wrap HKDF derivation. Cleared on lock().
+      mekRawRef.current = mekRaw;
+      orgSaltRef.current = orgSalt;
 
-        // Phase 4.1: make sure the user has a hybrid keypair published.
-        // Idempotent — the row is written exactly once, on the unlock
-        // where it's still missing. Failure MUST NOT block unlock; we
-        // swallow the rejection and retry next time. Phase 4.3 picks
-        // the missing-keypair case up in the invite pending-wrap flow.
-        try {
-          const mekForHkdf = await importMekForHkdf(mekRaw);
-          await ensureUserKeypair({
-            userId: user.id,
-            mek: mekForHkdf,
-            saltB64: orgSalt,
-            supabase: supabase as unknown as SupabaseKeypairClient,
-          });
-        } catch (e) {
-          console.warn('[vault] ensureUserKeypair failed; retry next unlock', e);
-        }
-      } else {
-        // v1/v2/v3: derive MEK directly from password (no MEK wrapping).
-        // NOTE: vault v3 → v4 is strictly opt-in via vault-migration.ts
-        // (Settings → Security). There is NO auto-migration on unlock,
-        // so a stable v3 verifier here means the unlock should succeed
-        // every time the same password is used. If you're seeing repro
-        // failures here, check `vault_key_version` in the DB directly.
-        passwordAttempted = true;
-        const isValid = await verifyVaultPassword(password, user.id, verifier, orgSalt, vaultKeyVersion);
-        if (!isValid) throw new Error('Incorrect vault password');
-        const key = await deriveKeyForVersion(password, user.id, orgSalt, vaultKeyVersion);
-        keyRef.current = key;
-        blindIndexKeyRef.current = null;
+      // Make sure the user has a hybrid keypair published. Idempotent:
+      // the row is written exactly once, on the unlock where it's still
+      // missing. Failure MUST NOT block unlock; we swallow the rejection
+      // and retry next time.
+      try {
+        const mekForHkdf = await importMekForHkdf(mekRaw);
+        await ensureUserKeypair({
+          userId: user.id,
+          mek: mekForHkdf,
+          saltB64: orgSalt,
+          supabase: supabase as unknown as SupabaseKeypairClient,
+        });
+      } catch (e) {
+        console.warn('[vault] ensureUserKeypair failed; retry next unlock', e);
       }
 
       // OrangeRails subkeys — derived from a separate Argon2id with a
@@ -567,7 +554,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // Blind index key is derived from the MEK (not password) so it survives
     // password changes and recovery.
     const vaultSalt = generateVaultSalt();
-    const kek = await deriveV4Kek(password, user.id, vaultSalt);
+    const kek = await deriveVaultV1Kek(password, user.id, vaultSalt);
 
     const mekRaw = generateMekBytes();
     const mek = await importAesGcmKey(mekRaw);
@@ -619,7 +606,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
     // Re-wrap MEK with the new password (same salt → all existing ciphertext stays valid).
     // Blind index key derives from MEK so it survives this rotation unchanged.
-    const newKek = await deriveV4Kek(newPassword, userId, orgSaltB64);
+    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
     const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
     const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
 
@@ -752,7 +739,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const mek = await importAesGcmKey(mekRaw);
 
     // 3. Re-wrap under the new password's KEK.
-    const newKek = await deriveV4Kek(newPassword, userId, orgSaltB64);
+    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
     const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
     const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
 
@@ -790,12 +777,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     userId: string;
   }) => {
     // 1. Unwrap MEK with current password's KEK — throws if current password is wrong.
-    const currentKek = await deriveV4Kek(currentPassword, userId, orgSaltB64);
+    const currentKek = await deriveVaultV1Kek(currentPassword, userId, orgSaltB64);
     const mekRaw = await unwrapMekWithKey(encMekCiphertext, currentKek);
     const mek = await importAesGcmKey(mekRaw);
 
     // 2. Re-wrap MEK with new password's KEK (same salt — blind index stays valid).
-    const newKek = await deriveV4Kek(newPassword, userId, orgSaltB64);
+    const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
     const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
     const newVerifier = await createVaultVerifier(newPassword, userId, orgSaltB64, LATEST_VAULT_KEY_VERSION);
 
@@ -864,7 +851,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const cached = signingKeysRef.current.get(orgId);
     if (cached) return cached;
     if (!mekRawRef.current || !orgSaltRef.current) {
-      // Locked vault or pre-v4 — no HKDF material available. Upstream
+      // Locked vault. No HKDF material available. Upstream
       // call sites skip signing in that case.
       return null;
     }

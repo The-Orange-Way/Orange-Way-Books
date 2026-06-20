@@ -79,14 +79,14 @@ Deno.serve(async (req: Request) => {
   }
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
   }
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-  if (authErr | !caller) {
+  if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
@@ -134,7 +134,7 @@ Deno.serve(async (req: Request) => {
     .select('id, plan, price_cents, currency, status')
     .eq('id', subId)
     .maybeSingle();
-  if (subErr | !sub) {
+  if (subErr || !sub) {
     return jsonResponse({ error: 'Subscription not found' }, 404, cors);
   }
 
@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
     })
     .select('id')
     .single();
-  if (insertErr | !inserted) {
+  if (insertErr || !inserted) {
     console.error('create-flash-payment insert error:', insertErr);
     return jsonResponse({ error: 'Failed to create payment record' }, 500, cors);
   }

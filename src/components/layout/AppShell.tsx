@@ -6,7 +6,6 @@ import { useUserOrg } from '@/hooks/useUserOrg';
 import { PendingRatesBanner } from '@/components/PendingRatesBanner';
 import { MaintenanceBanner } from '@/components/rekey/MaintenanceBanner';
 import { LedgerStatusPill } from '@/components/LedgerStatusPill';
-import { LegacyVaultBanner } from '@/components/LegacyVaultBanner';
 import { supabase } from '@/lib/supabase';
 
 export default function AppShell() {
@@ -27,7 +26,6 @@ export default function AppShell() {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <MaintenanceBanner orgId={orgId} currentUserId={userId} />
-      <LegacyVaultBanner orgId={orgId} />
       <PendingRatesBanner orgId={orgId} />
       <div className="flex flex-1">
         {/* Desktop sidebar — hidden on small viewports. */}

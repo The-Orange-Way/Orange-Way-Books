@@ -52,7 +52,7 @@ interface DisplayTx {
 }
 
 export interface TransactionListProps {
-  /** Caller invokes the bb-or-proxy `or-transactions-list` endpoint. */
+  /** Caller invokes the owb-or-proxy `or-transactions-list` endpoint. */
   fetchEncrypted: () => Promise<EncryptedTxRow[]>;
   /** Decrypts a single encrypted_payload (base64 IV+ciphertext) using ORT. */
   decrypt: (ciphertext: string) => Promise<string>;

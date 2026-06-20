@@ -13,12 +13,10 @@ project_id = "dvobnnkuyztabapttapc"
 # the config block in place caused `supabase functions deploy` runs to
 # attempt to push a non-existent function.
 
-[functions.or-proxy]
+[functions.owb-or-proxy]
 # Proxy to OrangeRails. Does its own JWT check + org membership lookup
 # in code; platform-level JWT gate disabled because the sb_publishable_*
 # anon key + ES256 user JWT combo regresses on the platform gate.
-# (Predecessors bb-or-proxy and vault-bridge were removed 2026-05-19
-# along with their cloud deploys — see audit H6.)
 verify_jwt = false
 
 [functions.exchange-rate-fetch]

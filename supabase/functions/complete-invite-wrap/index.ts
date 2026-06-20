@@ -60,7 +60,7 @@ interface WrappedDekPayload {
 }
 
 function isValidWrapPayload(v: unknown): v is WrappedDekPayload {
-  if (!v | typeof v !== 'object') return false;
+  if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.wrapped_dek === 'string' &&
@@ -87,14 +87,14 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -122,7 +122,7 @@ serve(async (req) => {
     const pendingInviteId = typeof body.pending_invite_id === 'string'
       ? body.pending_invite_id.trim()
       : '';
-    if (!pendingInviteId | !UUID_RE.test(pendingInviteId)) {
+    if (!pendingInviteId || !UUID_RE.test(pendingInviteId)) {
       return jsonResponse({ error: 'pending_invite_id must be a UUID' }, 400, cors);
     }
     if (!isValidWrapPayload(body.wrapped_dek)) {
@@ -189,7 +189,7 @@ serve(async (req) => {
       .select('id, name, is_system, org_id')
       .eq('id', pending.role_definition_id)
       .maybeSingle();
-    if (roleErr | !roleDef) {
+    if (roleErr || !roleDef) {
       console.error('complete-invite-wrap role lookup failed:', roleErr);
       return jsonResponse({ error: 'Role definition no longer exists' }, 500, cors);
     }

@@ -6,7 +6,7 @@ const L2 = 2;
 /**
  * Active field-level encryption key version stamped on every row our
  * encrypt helpers write. This is NOT the vault MEK / KEK version
- * (which lives in `vault.ts` as LATEST_VAULT_KEY_VERSION = 4) — that's
+ * (which lives in `vault.ts` as LATEST_VAULT_KEY_VERSION). That's
  * the password-derived KEK, which is one layer above the symmetric DEK
  * applied at the row/column level here. Callers that write encrypted
  * columns directly (status flips, key_version migrations) should import

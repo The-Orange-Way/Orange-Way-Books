@@ -99,7 +99,36 @@ for sha in "${LOCAL_SHAS[@]}"; do
 done
 [ "$FAIL" = "0" ] && green "✓ No private-host URLs in commits being pushed."
 
-# ---- Check 4: gitleaks on the prepared commits (if installed) ----
+# ---- Check 4: author + committer identity ----
+# Every commit being pushed must use a *@users.noreply.github.com address.
+# An ad-hoc `git config user.email` (or no config at all, falling back to
+# $USER@$HOSTNAME) is the leak pattern that put a tailnet hostname into
+# public history. This catches it before the next push.
+ALLOWED_IDENT_RE='@users\.noreply\.github\.com$'
+for sha in "${LOCAL_SHAS[@]}"; do
+  BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
+  RANGE="$BASE..$sha"
+  BAD_IDENT=$(git log "$RANGE" --format='%H %ae %ce' 2>/dev/null \
+    | awk -v re="$ALLOWED_IDENT_RE" '$2 !~ re || $3 !~ re { print }')
+  if [ -n "$BAD_IDENT" ]; then
+    red "✗ Commit author or committer email is not a GitHub noreply:"
+    echo "$BAD_IDENT" | head -10
+    red "  Fix with: git config user.email '<id>+<handle>@users.noreply.github.com'"
+    red "  Then rewrite history (filter-branch / filter-repo) and force-push."
+    FAIL=1
+  fi
+  # Also forbid Co-authored-by trailers naming private hosts / corporate domains.
+  TRAILER_LEAKS=$(git log --format='%B' "$RANGE" 2>/dev/null \
+    | grep -iE '^Co-authored-by:.*@(pop-os|tail[a-z0-9]+\.ts\.net|bitbooks\.com|abascal\.ca|thrivefaster\.ca|cursor\.com|lovable\.dev|gpt-engineer-app)' || true)
+  if [ -n "$TRAILER_LEAKS" ]; then
+    red "✗ Co-authored-by trailer leaks a private host / corporate domain:"
+    echo "$TRAILER_LEAKS" | head -10
+    FAIL=1
+  fi
+done
+[ "$FAIL" = "0" ] && green "✓ Commit identities look clean."
+
+# ---- Check 5: gitleaks on the prepared commits (if installed) ----
 if command -v gitleaks >/dev/null; then
   CFG=""
   [ -f .gitleaks.toml ] && CFG="--config .gitleaks.toml"

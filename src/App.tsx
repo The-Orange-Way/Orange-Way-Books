@@ -198,10 +198,10 @@ function VaultGate({ session }: { session: Session }) {
       // Honor stored active-org id only if the user is actually a member
       // of that org; otherwise fall back to the oldest membership and
       // persist it so every subsequent call uses the same org.
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       const storedIsValid = stored && memberships.some((m: any) => m.org_id === stored);
       if (!storedIsValid) {
-        localStorage.setItem('owb_active_org', memberships[0].org_id);
+        localStorage.setItem('orangewaybooks.active_org', memberships[0].org_id);
       }
 
       setNeedsOnboarding(false);
@@ -294,13 +294,13 @@ function AnalyticsNotice() {
       setShow(false);
       return;
     }
-    setShow(localStorage.getItem('bb_notice_dismissed') !== '1');
+    setShow(localStorage.getItem('orangewaybooks.notice_dismissed') !== '1');
   }, [location.pathname]);
   useEffect(() => {
     if (!show) return;
     const onScroll = () => {
       if (window.scrollY > 600) {
-        localStorage.setItem('bb_notice_dismissed', '1');
+        localStorage.setItem('orangewaybooks.notice_dismissed', '1');
         setShow(false);
       }
     };
@@ -308,7 +308,7 @@ function AnalyticsNotice() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [show]);
   if (!show) return null;
-  const dismiss = () => { localStorage.setItem('bb_notice_dismissed', '1'); setShow(false); };
+  const dismiss = () => { localStorage.setItem('orangewaybooks.notice_dismissed', '1'); setShow(false); };
   return (
     <div
       style={{
