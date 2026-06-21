@@ -1,4 +1,4 @@
--- Phase 1 (legacy-ledger removal redesign) — Migration 1/9: Drop the old accounting tables.
+-- Phase 1 (external-ledger removal redesign) — Migration 1/9: Drop the old accounting tables.
 --
 -- Migration plan tracked in commit history.
 --
