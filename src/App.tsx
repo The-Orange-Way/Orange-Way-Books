@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate, useLocation, Link } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
@@ -57,6 +57,7 @@ import CompareHub from '@/marketing/pages/CompareHub';
 import CompareStub from '@/marketing/pages/CompareStub';
 import DocsIndex from '@/marketing/pages/DocsIndex';
 import AiAgentsPage from '@/marketing/pages/AiAgents';
+import Privacy from '@/marketing/pages/Privacy';
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ function RootRouter() {
         <Route path="/compare/:slug" element={<CompareStub />} />
         <Route path="/docs" element={<DocsIndex />} />
         <Route path="/ai" element={<AiAgentsPage />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Route>
 
       {/* Auth pages */}
@@ -356,9 +358,17 @@ function AnalyticsNotice() {
         ×
       </button>
       <p style={{ margin: '0 0 10px 0', paddingRight: 18 }}>
-        Anonymous analytics —{' '}
+        Anonymous analytics:{' '}
         <strong style={{ color: '#fff' }}>no tracking, no profiles, no cookies.</strong> A session
-        cookie is set only if you sign in, and is deleted when you sign out.
+        cookie is set only if you sign in, and is deleted when you sign out.{' '}
+        <Link
+          to="/privacy"
+          onClick={dismiss}
+          style={{ color: '#F7931A', textDecoration: 'underline' }}
+        >
+          Privacy policy
+        </Link>
+        .
       </p>
       <button
         type="button"
