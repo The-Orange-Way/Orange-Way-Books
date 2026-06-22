@@ -82,7 +82,7 @@ function makeSupabase() {
     },
     from(table: string) {
       const t = table as TableName;
-      let filterEq: Record<string, unknown> = {};
+      const filterEq: Record<string, unknown> = {};
       let filterIn: { col: string; values: unknown[] } | null = null;
       let mode: 'list' | 'maybeSingle' | 'single' = 'list';
       let op: 'select' | 'insert' | 'update' | 'delete' = 'select';

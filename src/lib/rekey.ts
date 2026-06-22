@@ -940,7 +940,7 @@ async function fetchAllRows(
   const pageSize = BATCH_SIZE_ROWS;
   const out: Record<string, unknown>[] = [];
   let from = 0;
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     // Cast to any — Supabase typegen can't narrow on a dynamic table name
     // (BUSINESS_TABLES walks several tables in a loop). Runtime is correct.

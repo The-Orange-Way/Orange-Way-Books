@@ -14,7 +14,7 @@ import { buildCorsHeaders, jsonResponse } from '../_shared/http.ts';
 
 // ── Pluggable signature config ──────────────────────────────────────
 const SIGNATURE_HEADER = 'X-Flash-Signature'; // header carrying the HMAC
-const SIGNATURE_ALGO: 'HMAC-SHA256' = 'HMAC-SHA256'; // hash algorithm
+const SIGNATURE_ALGO = 'HMAC-SHA256' as const; // hash algorithm
 const SIGNATURE_ENCODING: 'hex' | 'base64' = 'hex'; // how the digest is encoded
 const SIGNATURE_PREFIX = ''; // e.g. 'sha256=' on some platforms
 // ────────────────────────────────────────────────────────────────────

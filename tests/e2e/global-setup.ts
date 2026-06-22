@@ -64,6 +64,5 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     );
   }
 
-  // eslint-disable-next-line no-console
   console.log('[playwright global-setup] all three services are reachable.');
 }
