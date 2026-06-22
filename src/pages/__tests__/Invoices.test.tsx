@@ -134,6 +134,17 @@ const { __INVOICES, __updateMock, __makeChain } = vi.hoisted(() => {
     const chain: any = {
       select: () => chain,
       eq: () => chain,
+      is: () => chain,
+      or: () => chain,
+      in: () => chain,
+      neq: () => chain,
+      gte: () => chain,
+      lte: () => chain,
+      // .contains() (PostgREST jsonb @> operator) and .not() (negation
+      // wrapper) were added to call sites after this stub was written.
+      // Keep them as chainable no-ops so tests reach their assertions.
+      contains: () => chain,
+      not: () => chain,
       order: () => chain,
       limit: () => chain,
       maybeSingle: () => Promise.resolve({ data: Array.isArray(data) ? null : data, error: null }),

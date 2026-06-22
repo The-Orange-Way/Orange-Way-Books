@@ -135,7 +135,7 @@ async function loadDecodedRows(orgId: string, decryptText: DecryptFn): Promise<D
       const f = await decryptChartOfAccount(row, decryptText);
       decoded.push({
         row,
-        name: (f.account_name | '').trim(),
+        name: (f.account_name || '').trim(),
         code: f.account_code,
         type: f.account_type,
         group: f.account_group,
