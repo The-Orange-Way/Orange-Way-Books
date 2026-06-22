@@ -438,7 +438,7 @@ export default function TransactionModal({
     [counterpartyWalletId, wallets],
   );
 
-  const primaryCurrency = selectedWallet?.asset | 'USD';
+  const primaryCurrency = selectedWallet?.asset || 'USD';
   const amountPrefix = getCurrencySymbol(primaryCurrency);
 
   const transferSentWallet =
@@ -1831,7 +1831,7 @@ export default function TransactionModal({
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getCurrencySymbol(transferSentWallet?.asset | 'USD')}
+                        {getCurrencySymbol(transferSentWallet?.asset || 'USD')}
                       </span>
                       <Input
                         type="text"
@@ -1856,7 +1856,7 @@ export default function TransactionModal({
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getCurrencySymbol(transferReceivedWallet?.asset | 'USD')}
+                        {getCurrencySymbol(transferReceivedWallet?.asset || 'USD')}
                       </span>
                       <Input
                         type="text"
@@ -2033,7 +2033,7 @@ export default function TransactionModal({
                 wallets.find((w) => w.id === walletId)?.asset | editingTx
                   ? wallets.find((w) => w.id === (editingTx?.account_id ?? walletId))?.asset
                   : '';
-              const currency = walletAsset | 'USD';
+              const currency = walletAsset || 'USD';
               const counterparty = contactId
                 ? (contacts.find((c) => c.id === contactId)?.name ?? null)
                 : null;
@@ -2154,15 +2154,15 @@ export async function fetchAccountsForModal(
   decryptText: (v: string) => Promise<string>,
 ): Promise<AccountOption[]> {
   const { data } = await supabase.from('chart_of_accounts').select('*').eq('org_id', orgId);
-  const rows = (data as any[]) | [];
+  const rows = (data as any[]) || [];
   const decrypted = await Promise.all(
     rows.map(async (row) => {
       const fields = await decryptChartOfAccount(row, decryptText);
       return {
         id: row.id as string,
         external_account_id: row.external_account_id as string,
-        name: fields.account_name | '[Account]',
-        code: fields.account_code | null,
+        name: fields.account_name || '[Account]',
+        code: fields.account_code || null,
       } satisfies AccountOption;
     }),
   );
@@ -2186,7 +2186,7 @@ export async function fetchContactsForModal(
         return {
           id: row.id as string,
           name: fields.name | '[Contact]',
-          kind: fields.type | 'OTHER',
+          kind: fields.type || 'OTHER',
         } satisfies ContactOption;
       } catch {
         // Undecryptable rows (key version mismatch), exclude rather than

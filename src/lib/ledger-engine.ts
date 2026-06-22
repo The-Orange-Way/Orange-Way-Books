@@ -159,7 +159,7 @@ export function computeAccountBalances(
     });
   }
 
-  return results.sort((a, b) => (a.accountCode | '').localeCompare(b.accountCode | ''));
+  return results.sort((a, b) => (a.accountCode || '').localeCompare(b.accountCode || ''));
 }
 
 // ---------------------------------------------------------------------------

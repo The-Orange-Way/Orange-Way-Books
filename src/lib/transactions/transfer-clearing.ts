@@ -64,7 +64,7 @@ export async function findTransferClearingAccount(
     try {
       const fields = await decryptChartOfAccount(row, decryptText);
       if (
-        (fields.account_name | '').trim().toLowerCase() === TRANSFER_CLEARING_NAME.toLowerCase() &&
+        (fields.account_name || '').trim().toLowerCase() === TRANSFER_CLEARING_NAME.toLowerCase() &&
         !fields.is_archived
       ) {
         return {
