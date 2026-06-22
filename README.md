@@ -27,7 +27,7 @@ Bookkeeping that assumes the people running the servers — including us — sho
 
 ## What this is, in one minute
 
-Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses. You enter your accounts, transactions, customers, vendors, payroll, and reports — the same things you'd enter into QuickBooks or Xero. What's different is that everything you type is encrypted on your computer before it leaves the browser. We hold the ciphertext; you hold the key. If our database is breached, an attacker gets opaque blobs and timestamps — not your books.
+Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses. You enter your accounts, transactions, customers, vendors, payroll, and reports: the same things you'd enter into QuickBooks or Xero. What's different is that everything sensitive you type is encrypted on your computer before it leaves the browser. We hold the ciphertext; you hold the key. If our database is breached, an attacker gets opaque blobs and timestamps, not your books. The "three honest caveats" below name exactly which metadata stays plaintext and which sub-processors still see what.
 
 **Three honest caveats.** This matters because every privacy product over-promises, and most people don't want to read the small print:
 
@@ -45,7 +45,7 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 Thirty-four years later, every mainstream business-accounting product still operates the way Finney warned against.
 
-**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Every single one stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. _"Bank-level encryption"_ means TLS in transit and AES at rest — with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
+**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Based on each vendor's published security documentation, every one of them stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. _"Bank-level encryption"_ means TLS in transit and AES at rest, with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
 
 That bargain made sense when "the cloud" was new. It makes less sense when:
 
@@ -75,7 +75,7 @@ We did not invent "encrypt the database." We are building **bookkeeping that ass
 
 Every other accounting product keeps the keys to read your books on its own servers. We keep only ciphertext plus transaction dates (needed so the server can answer "show me May" without reading the rows). If an attacker breaches our database, they get opaque blobs and row counts — not your margins.
 
-This is the same architectural pattern used by [Bitwarden](https://bitwarden.com/help/bitwarden-security-white-paper/), [1Password](https://agilebits.github.io/security-design/), [Proton](https://proton.me/security/end-to-end-encryption), and [Signal](https://signal.org/docs/) — applied, for the first time, to double-entry business accounting.
+This is the same architectural pattern used by [Bitwarden](https://bitwarden.com/help/bitwarden-security-white-paper/), [1Password](https://agilebits.github.io/security-design/), [Proton](https://proton.me/security/end-to-end-encryption), and [Signal](https://signal.org/docs/), applied as far as we know for the first time in open source to double-entry business accounting. If you find prior art that contradicts that claim, open an issue and we'll soften the wording further.
 
 ---
 
