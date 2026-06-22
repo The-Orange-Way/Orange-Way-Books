@@ -156,7 +156,7 @@ for sha in "${LOCAL_SHAS[@]}"; do
   fi
   # Also forbid Co-authored-by trailers naming private hosts / corporate domains.
   TRAILER_LEAKS=$(git log --format='%B' "$RANGE" 2>/dev/null \
-    | grep -iE '^Co-authored-by:.*@(pop-os|tail[a-z0-9]+\.ts\.net|bitbooks\.com|abascal\.ca|thrivefaster\.ca|cursor\.com|lovable\.dev|gpt-engineer-app)' || true)
+    | grep -iE '^Co-authored-by:.*@(pop-os|tail[a-z0-9]+\.ts\.net|bitbooks\.com|abascal\.ca|thrivefaster\.ca|tryfaster\.ca|cursor\.com|lovable\.dev|gpt-engineer-app)' || true)
   if [ -n "$TRAILER_LEAKS" ]; then
     red "✗ Co-authored-by trailer leaks a private host / corporate domain:"
     echo "$TRAILER_LEAKS" | head -10
