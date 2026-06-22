@@ -10,26 +10,32 @@
  *  Anything larger is either a mistake or hostile. */
 export const MAX_BODY_BYTES = 256 * 1024;
 
-/** Hardcoded prod fallback used when ALLOWED_ORIGINS is not set. Better to
- *  serve the canonical Vault origin than to fall back to a wildcard, which
- *  would echo "Access-Control-Allow-Origin: *" on credential-bearing
- *  endpoints. (H7 — 2026-05-19 audit.) */
-const PROD_FALLBACK_ORIGIN = 'https://books.orangeway.app';
-
 /** Build the CORS header set. Origins come from the `ALLOWED_ORIGINS`
- *  env var (comma-separated).
+ *  env var (comma-separated). The function is fully fail-closed:
  *
- *  Fail-closed behavior: when the request Origin does not appear in the
- *  allowlist, we OMIT the `Access-Control-Allow-Origin` header entirely.
- *  Browsers treat a missing header as a CORS denial — the preflight fails
- *  closed, the response is unusable. The 2026-05-16 audit's A7 finding
- *  noted that returning the canonical origin to an off-list caller is
- *  still surprising (the caller "sees" a successful CORS surface), even
- *  though it carries no credentials. Dropping the header removes that
- *  surprise. (2026-05-27 audit M7.)
+ *  - If ALLOWED_ORIGINS is unset OR empty, we OMIT
+ *    `Access-Control-Allow-Origin` for every request. Browsers treat the
+ *    missing header as a CORS denial, so cross-origin callers fail to read
+ *    the response. We also log a warning so a self-hoster who forgot to
+ *    configure the var sees a clear signal in the function logs instead of
+ *    a surprising "it just works" with an undocumented fallback origin.
+ *  - If ALLOWED_ORIGINS is set and the request Origin matches one of its
+ *    comma-separated entries exactly, we echo that Origin back. Otherwise
+ *    we omit the header.
  *
- *  When ALLOWED_ORIGINS is unset, fall back to PROD_FALLBACK_ORIGIN — that
- *  branch is for local-dev / Supabase-default ergonomics, not prod. */
+ *  Previous behavior fell back to a hardcoded prod origin when the env
+ *  var was unset. That was correct in spirit (better than `*`) but
+ *  surprising on read: a misconfigured self-hosted deployment got a
+ *  successful-looking CORS surface for a domain it had no relationship
+ *  to. Hardened 2026-06 to fail-closed.
+ *
+ *  Migration note: any self-hosted OWB deployment MUST set
+ *  ALLOWED_ORIGINS to the comma-separated list of origins its web app
+ *  serves from (e.g. "https://books.example.com" or
+ *  "http://localhost:5173" for local dev). The previous fallback was
+ *  not documented in `.env.example`, so any deployment relying on it
+ *  was already at risk of breaking the next time the prod origin
+ *  changed. */
 export function buildCorsHeaders(req: Request): Record<string, string> {
   const allowedEnv = (Deno.env.get('ALLOWED_ORIGINS') ?? '').trim();
   const origin = req.headers.get('Origin') ?? '';
@@ -40,25 +46,24 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
     Vary: 'Origin',
   };
 
-  if (allowedEnv) {
-    const list = allowedEnv
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (list.includes(origin)) {
-      headers['Access-Control-Allow-Origin'] = origin;
-    }
-    // No fallback when env IS set — origin must match exactly or no header.
-  } else {
-    // Fallback for local dev / preview deploys where ALLOWED_ORIGINS is unset.
-    // Echoing the prod origin to every caller is harmless (browsers still
-    // gate cross-origin reads when the echoed value does not match the actual
-    // caller) but it is a surprise to read. Production deploys MUST set
-    // ALLOWED_ORIGINS explicitly so this branch never fires. Surfaced in the
-    // 2026-06-11 full review (finding M3).
-    headers['Access-Control-Allow-Origin'] = PROD_FALLBACK_ORIGIN;
+  if (!allowedEnv) {
+    // Fail-closed: missing config means missing header. Log once per
+    // cold-start so a self-hoster sees the signal.
+    console.warn(
+      '[cors] ALLOWED_ORIGINS is unset. Cross-origin requests will fail CORS. ' +
+        'Set ALLOWED_ORIGINS in the Supabase Edge Function Secrets to a comma-' +
+        'separated list of origins your web app serves from.',
+    );
+    return headers;
   }
 
+  const list = allowedEnv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (list.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
   return headers;
 }
 
