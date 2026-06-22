@@ -540,7 +540,7 @@ export default function Transactions() {
     if (t <= 1) return [0];
     const windowSize = 5;
     let start = Math.max(0, p - Math.floor(windowSize / 2));
-    let end = Math.min(t - 1, start + windowSize - 1);
+    const end = Math.min(t - 1, start + windowSize - 1);
     start = Math.max(0, end - windowSize + 1);
     const nums: number[] = [];
     for (let i = start; i <= end; i++) nums.push(i);
@@ -670,7 +670,11 @@ export default function Transactions() {
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) {
+        n.delete(id);
+      } else {
+        n.add(id);
+      }
       return n;
     });
   };

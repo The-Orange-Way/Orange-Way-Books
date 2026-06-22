@@ -1438,9 +1438,9 @@ export default function Payments() {
   const handleImportRows = useCallback(
     async (importRows: ImportPreviewRow[]): Promise<ImportResult> => {
       if (!orgId) return { created: 0, skipped: 0, failed: 0, errors: ['No org'] };
-      let created = 0,
-        skipped = 0,
-        failed = 0;
+      let created = 0;
+      const skipped = 0;
+      let failed = 0;
       const errors: string[] = [];
       const warnings: string[] = [];
 

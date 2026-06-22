@@ -98,5 +98,6 @@ export default {
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- tailwind config loader uses CJS; ESM import here breaks the postcss pipeline
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
