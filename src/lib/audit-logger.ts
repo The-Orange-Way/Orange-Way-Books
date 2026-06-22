@@ -69,7 +69,7 @@ export async function writeAuditLog({
 
     await supabase.from('audit_logs').insert({
       org_id: orgId,
-      user_id: user?.id | null,
+      user_id: user?.id || null,
       action,
       entity_type: entityType,
       entity_id: entityId,

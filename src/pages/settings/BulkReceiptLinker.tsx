@@ -159,7 +159,7 @@ export default function BulkReceiptLinker() {
           externalId: m.externalId,
           file: f,
           fileName: f.name,
-          mimeType: f.type | null,
+          mimeType: f.type || null,
         };
       });
 

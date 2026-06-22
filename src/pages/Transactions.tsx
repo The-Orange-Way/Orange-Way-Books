@@ -308,7 +308,7 @@ export default function Transactions() {
       name?: string | null;
       key_version?: number | null;
     } | null;
-    setLegacyJournalId(orgData?.external_journal_id | null);
+    setLegacyJournalId(orgData?.external_journal_id || null);
     if (orgData) {
       const decOrg = await decryptOrganization(
         { name: orgData.name | '', key_version: orgData.key_version ?? null } as any,
@@ -322,8 +322,8 @@ export default function Transactions() {
         return {
           ...tx,
           ...fields,
-          status: fields.status | 'DRAFT',
-          cleared_status: fields.cleared_status | 'NOT_CLEARED',
+          status: fields.status || 'DRAFT',
+          cleared_status: fields.cleared_status || 'NOT_CLEARED',
         };
       }),
     );
@@ -397,7 +397,7 @@ export default function Transactions() {
   const walletMap = useMemo(() => {
     const m: Record<string, string> = {};
     wallets.forEach((w) => {
-      m[w.id] = w.encrypted_name | '[Encrypted]';
+      m[w.id] = w.encrypted_name || '[Encrypted]';
     });
     return m;
   }, [wallets]);
@@ -458,8 +458,8 @@ export default function Transactions() {
       }
       // Status filter
       if (statusFilter !== 'all') {
-        const s = tx.status | 'DRAFT';
-        const cs = tx.cleared_status | 'NOT_CLEARED';
+        const s = tx.status || 'DRAFT';
+        const cs = tx.cleared_status || 'NOT_CLEARED';
         switch (statusFilter) {
           case 'draft':
             if (s !== 'DRAFT') return false;
@@ -653,7 +653,7 @@ export default function Transactions() {
   const cycleCleared = async (id: string) => {
     const tx = txs.find((t) => t.id === id);
     if (!tx) return;
-    const s = tx.cleared_status | 'NOT_CLEARED';
+    const s = tx.cleared_status || 'NOT_CLEARED';
     if (s === 'RECONCILED') {
       toast.info('To unreconcile, open the wallet statement.');
       return;
@@ -1309,7 +1309,7 @@ export default function Transactions() {
                 {paged.map((tx) => {
                   const amt = Number(tx.amount);
                   const isIn = amt >= 0;
-                  const cleared = tx.cleared_status | 'NOT_CLEARED';
+                  const cleared = tx.cleared_status || 'NOT_CLEARED';
                   const isPosted = tx.status === 'POSTED';
                   return (
                     <TableRow
@@ -1403,7 +1403,7 @@ export default function Transactions() {
                             )}
                           </>
                         ) : (
-                          tx.to_from | '—'
+                          tx.to_from || '-'
                         )}
                       </TableCell>
                       <TableCell className="text-xs font-mono">{tx.ref_number || '—'}</TableCell>
@@ -1463,7 +1463,7 @@ export default function Transactions() {
             {paged.map((tx) => {
               const amt = Number(tx.amount);
               const isIn = amt >= 0;
-              const cleared = tx.cleared_status | 'NOT_CLEARED';
+              const cleared = tx.cleared_status || 'NOT_CLEARED';
               const isPosted = tx.status === 'POSTED';
               return (
                 <div
@@ -1963,7 +1963,7 @@ export default function Transactions() {
           legacyJournalId={legacyJournalId}
           wallets={wallets.map((w) => ({
             id: w.id,
-            encrypted_name: w.encrypted_name | '[Encrypted]',
+            encrypted_name: w.encrypted_name || '[Encrypted]',
             asset: w.asset,
             external_account_id: w.external_account_id ?? null,
           }))}
@@ -2071,7 +2071,7 @@ export default function Transactions() {
             .select('external_journal_id')
             .eq('id', orgId)
             .single();
-          const legacyJournalId = (orgRow as any)?.external_journal_id | null;
+          const legacyJournalId = (orgRow as any)?.external_journal_id || null;
 
           let created = 0,
             skipped = 0,
@@ -2132,7 +2132,7 @@ export default function Transactions() {
             // single source of truth for CSV imports.
             const encFields = await encryptTransaction(
               {
-                memo: row.data.memo | null,
+                memo: row.data.memo || null,
                 amount:
                   row.data.direction === 'INFLOW'
                     ? Math.abs(Number(row.data.amount))

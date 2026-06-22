@@ -1742,9 +1742,9 @@ export default function Reports() {
       }
       if (sRes.data) {
         const dec = await decryptOrgSettings(sRes.data, decryptText);
-        setPrimaryCurrency(dec.primary_currency | 'USD');
-        setSecondaryCurrency(dec.secondary_currency | null);
-        setBtcDisplay((dec.bitcoin_display as BitcoinDisplay) | 'sats');
+        setPrimaryCurrency(dec.primary_currency || 'USD');
+        setSecondaryCurrency(dec.secondary_currency || null);
+        setBtcDisplay((dec.bitcoin_display as BitcoinDisplay) || 'sats');
         setFramework(((sRes.data as any).accounting_framework as AuditFramework) | 'IFRS');
         setFxTranslationMethod(
           ((sRes.data as any).fx_translation_method as FxTranslationMethod) |
@@ -1785,8 +1785,8 @@ export default function Reports() {
             name: fields.account_name,
             code: fields.account_code,
             accountType: fields.account_type,
-            accountGroup: fields.account_group | '',
-            accountCategory: fields.account_category | null,
+            accountGroup: fields.account_group || '',
+            accountCategory: fields.account_category || null,
             parentAccountId: fields.parent_id ?? a.parent_id ?? null,
           };
         }),

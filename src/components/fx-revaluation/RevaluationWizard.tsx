@@ -78,7 +78,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
   }, []);
 
   const primaryCurrency = settings.primaryCurrency;
-  const framework = (settings as any).accounting_framework | 'IFRS';
+  const framework = (settings as any).accounting_framework || 'IFRS';
 
   const [step, setStep] = useState<WizardStep>('period');
   const [periodEnd, setPeriodEnd] = useState(() => {
@@ -132,8 +132,8 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
             name: fields.account_name,
             code: fields.account_code,
             accountType: fields.account_type,
-            accountGroup: fields.account_group | '',
-            accountCategory: fields.account_category | null,
+            accountGroup: fields.account_group || '',
+            accountCategory: fields.account_category || null,
           };
         }),
       );

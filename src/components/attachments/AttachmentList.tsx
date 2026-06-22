@@ -122,7 +122,7 @@ export function AttachmentList({
       await uploadAttachment(supabase, encryptText, orgId, {
         file,
         fileName: file.name,
-        mimeType: file.type | null,
+        mimeType: file.type || null,
         entityType,
         entityId,
       });
@@ -143,7 +143,7 @@ export function AttachmentList({
     try {
       const bytes = await downloadAttachment(supabase, decryptText, item.storage_path);
       const blob = new Blob([bytes.buffer as ArrayBuffer], {
-        type: item.mime_type | 'application/octet-stream',
+        type: item.mime_type || 'application/octet-stream',
       });
       const url = URL.createObjectURL(blob);
       // Open in a new tab. Browser uses the mime type to decide preview vs download.

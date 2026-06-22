@@ -32,13 +32,13 @@ export function parseCsvPayments(csvText: string): { rows: ImportPreviewRow[]; e
     return {
       rowIndex: i + 1,
       data: {
-        contact: data.contact | '',
-        amount: data.amount | '',
-        currency: (data.currency | 'USD').toUpperCase(),
-        type: data.type | 'Invoice',
-        vendor_ref: data['vendor ref'] | '',
-        description: data.description | '',
-        due_date: data['due date'] | '',
+        contact: data.contact || '',
+        amount: data.amount || '',
+        currency: (data.currency || 'USD').toUpperCase(),
+        type: data.type || 'Invoice',
+        vendor_ref: data['vendor ref'] || '',
+        description: data.description || '',
+        due_date: data['due date'] || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

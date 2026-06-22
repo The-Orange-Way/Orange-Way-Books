@@ -1019,11 +1019,11 @@ export default function JournalEntries() {
                 wallet_currency: fCurrency,
                 primary_currency: primaryCurrency,
                 date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name | null,
-                account_code: l.account_code | null,
-                description: l.description | null,
-                debit: parseFloat(l.debit) | 0,
-                credit: parseFloat(l.credit) | 0,
+                account_name: l.account_name || null,
+                account_code: l.account_code || null,
+                description: l.description || null,
+                debit: parseFloat(l.debit) || 0,
+                credit: parseFloat(l.credit) || 0,
               });
               return { journal_entry_id: editingEntry.id, ...enc };
             }),
@@ -1061,11 +1061,11 @@ export default function JournalEntries() {
                 wallet_currency: fCurrency,
                 primary_currency: primaryCurrency,
                 date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name | null,
-                account_code: l.account_code | null,
-                description: l.description | null,
-                debit: parseFloat(l.debit) | 0,
-                credit: parseFloat(l.credit) | 0,
+                account_name: l.account_name || null,
+                account_code: l.account_code || null,
+                description: l.description || null,
+                debit: parseFloat(l.debit) || 0,
+                credit: parseFloat(l.credit) || 0,
               });
               return { journal_entry_id: (je as any).id, ...enc };
             }),

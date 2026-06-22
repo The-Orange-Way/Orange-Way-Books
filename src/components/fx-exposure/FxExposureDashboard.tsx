@@ -74,8 +74,8 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
             name: fields.account_name,
             code: fields.account_code,
             accountType: fields.account_type,
-            accountGroup: fields.account_group | '',
-            accountCategory: fields.account_category | null,
+            accountGroup: fields.account_group || '',
+            accountCategory: fields.account_category || null,
           };
         }),
       );
