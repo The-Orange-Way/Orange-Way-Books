@@ -1368,7 +1368,7 @@ export default function Invoices() {
                 key={row.id}
                 className="bg-card border border-border rounded-lg p-3 cursor-pointer active:bg-muted/40"
                 onClick={() => void openEdit(row)}
-                data-testid="invoice-row"
+                data-testid="invoice-row-mobile"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2 min-w-0 flex-1">
@@ -1377,7 +1377,7 @@ export default function Invoices() {
                         checked={selected.has(row.id)}
                         onCheckedChange={() => toggleSelect(row.id)}
                         aria-label={`Select invoice ${row.invoice_number}`}
-                        data-testid={`invoice-select-${row.invoice_number}`}
+                        data-testid={`invoice-select-mobile-${row.invoice_number}`}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
