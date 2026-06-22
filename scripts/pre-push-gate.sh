@@ -77,7 +77,12 @@ if [ -x "$REPO_ROOT/scripts/pre-publish-scan.sh" ]; then
 fi
 
 # ---- Check 3: private-host / private-wiki URL leaks ----
-PRIVATE_PATTERN='wiki\.abascal|wiki\.bitbooks|bb-support|tail[a-z0-9]+\.ts\.net|100\.(91|94)\.[0-9]+\.[0-9]+|jarvis\.local|@bitbooks\.com|@abascal\.ca'
+# PRIVATE_PATTERN must stay in lockstep with .github/workflows/post-merge-identity-scan.yml's
+# PATTERN. The two scanners answer the same question on different surfaces
+# (local diff vs server-side commit metadata); any drift means one of them
+# reports clean for a string the other would flag. When changing this,
+# update the workflow too.
+PRIVATE_PATTERN='tail[a-z0-9]+\.ts\.net|\.tailnet|\.local\b|wiki\.abascal|wiki\.bitbooks|bb-support|jarvis\.local|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+|@bitbooks\.com|@abascal\.ca|pop-os'
 
 # Scan commits being pushed: messages + diff
 for sha in "${LOCAL_SHAS[@]}"; do
@@ -91,9 +96,9 @@ for sha in "${LOCAL_SHAS[@]}"; do
     FAIL=1
   fi
   # Diff content — exclude the gate itself (whose regex literally contains the patterns)
-  if git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+  if git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
     red "✗ Private-host URL leak in diff content:"
-    git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
+    git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
     FAIL=1
   fi
 done
