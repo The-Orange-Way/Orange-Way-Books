@@ -1,5 +1,16 @@
 import '@testing-library/jest-dom';
 
+// `src/lib/supabase.ts` throws at import time when VITE_SUPABASE_URL or
+// VITE_SUPABASE_PUBLISHABLE_KEY are unset. Tests that don't directly
+// touch Supabase still import modules that transitively import the
+// client, so without these stubs the entire suite refuses to load. The
+// values are intentionally non-functional ("test"/"test"): any test
+// that actually hits the network is expected to vi.mock the client.
+if (typeof import.meta !== 'undefined' && import.meta.env) {
+  import.meta.env.VITE_SUPABASE_URL ||= 'http://supabase.test';
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||= 'test-key';
+}
+
 // jsdom 20 (bundled with vitest 3.x at this dependency level) does not
 // implement Blob.prototype.arrayBuffer — added in jsdom 21. Polyfill it
 // here so that any test involving encryptBlob / decryptBlob works.

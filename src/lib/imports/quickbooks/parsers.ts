@@ -90,7 +90,7 @@ export async function parseTrialBalance(
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const rowNumber = headerIndex + index + 2;
     const account = row[accountIdx] ?? '';
-    if (!account.trim() | /^total\b/i.test(account)) return;
+    if (!account.trim() || /^total\b/i.test(account)) return;
     // QB appends an export-timestamp row at the bottom of reports, e.g.
     // "Tuesday, Apr 21, 2026 10:30:00 AM GMT-7 - Accrual Basis". Skip it.
     if (/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,\s+/i.test(account)) return;
@@ -158,13 +158,13 @@ export async function parseContacts(
     contacts.push({
       name,
       kind,
-      email: emailIdx === -1 ? null : row[emailIdx] | null,
-      phone: phoneIdx === -1 ? null : row[phoneIdx] | null,
-      street: streetIdx === -1 ? null : row[streetIdx] | null,
-      city: cityIdx === -1 ? null : row[cityIdx] | null,
-      state: stateIdx === -1 ? null : row[stateIdx] | null,
-      country: countryIdx === -1 ? null : row[countryIdx] | null,
-      zip: zipIdx === -1 ? null : row[zipIdx] | null,
+      email: emailIdx === -1 ? null : row[emailIdx] || null,
+      phone: phoneIdx === -1 ? null : row[phoneIdx] || null,
+      street: streetIdx === -1 ? null : row[streetIdx] || null,
+      city: cityIdx === -1 ? null : row[cityIdx] || null,
+      state: stateIdx === -1 ? null : row[stateIdx] || null,
+      country: countryIdx === -1 ? null : row[countryIdx] || null,
+      zip: zipIdx === -1 ? null : row[zipIdx] || null,
     });
   });
 
@@ -194,9 +194,9 @@ function buildJournalLine(row: string[], headers: string[]): ParsedJournalLine |
     accountCode: code,
     debit,
     credit,
-    nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] | null,
-    contactName: nameIdx === -1 ? null : row[nameIdx] | null,
-    memo: memoIdx === -1 ? null : row[memoIdx] | null,
+    nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] || null,
+    contactName: nameIdx === -1 ? null : row[nameIdx] || null,
+    memo: memoIdx === -1 ? null : row[memoIdx] || null,
   };
 }
 
@@ -235,7 +235,7 @@ export async function parseJournal(
     if (/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,\s+/i.test(dateCell)) return;
     if (/^total\b/i.test(firstCell)) return;
     const date = parseDate(dateCell);
-    const type = typeIdx === -1 ? null : row[typeIdx] | null;
+    const type = typeIdx === -1 ? null : row[typeIdx] || null;
     // A new journal entry requires BOTH date and type populated.
     // QuickBooks repeats the date on continuation rows of a multi-line entry
     // but only sets the type on the first row. The previous `type | !current`
@@ -255,7 +255,7 @@ export async function parseJournal(
         }),
         date: date!,
         type,
-        memo: memoIdx === -1 ? null : row[memoIdx] | null,
+        memo: memoIdx === -1 ? null : row[memoIdx] || null,
         lines: [],
       };
     }
@@ -313,7 +313,7 @@ export async function parseValidationReport(
     lines.push({
       accountName,
       amount: parseMoney(rawAmount),
-      nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] | null,
+      nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] || null,
     });
   }
   return { lines, errors: [] };

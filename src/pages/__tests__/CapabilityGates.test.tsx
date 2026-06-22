@@ -168,6 +168,12 @@ vi.mock('@/lib/supabase', () => {
       gte: () => chain,
       lte: () => chain,
       neq: () => chain,
+      // .contains() (PostgREST jsonb @> operator) and .not() (negation
+      // wrapper) were added to call sites after this stub was written.
+      // Keep them as chainable no-ops so component tests that exercise
+      // those query patterns reach their render assertions.
+      contains: () => chain,
+      not: () => chain,
       maybeSingle: () => Promise.resolve({ data: null, error: null }),
       single: () => Promise.resolve(result),
       then: (resolve: any, reject?: any) => Promise.resolve(result).then(resolve, reject),
