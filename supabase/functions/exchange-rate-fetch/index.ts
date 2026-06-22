@@ -117,7 +117,7 @@ type SourceKind =
 
 function deriveSourceKind(base: string, quote: string): SourceKind {
   if (base === quote) return 'IDENTITY';
-  if ((base === 'SATS' && quote === 'BTC') | (base === 'BTC' && quote === 'SATS')) return 'FIXED';
+  if ((base === 'SATS' && quote === 'BTC') || (base === 'BTC' && quote === 'SATS')) return 'FIXED';
   const bc = isCrypto(base);
   const qc = isCrypto(quote);
   if (bc && qc) return 'CRYPTO_CRYPTO';
@@ -148,9 +148,9 @@ serve(async (req) => {
     } = await callerClient.auth.getUser();
     rateLimitSubject = caller?.id
       ? `user:${caller.id}`
-      : `ip:${req.headers.get('x-forwarded-for')?.split(',')[0].trim() | 'unknown'}`;
+      : `ip:${req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'}`;
   } else {
-    rateLimitSubject = `ip:${req.headers.get('x-forwarded-for')?.split(',')[0].trim() | 'unknown'}`;
+    rateLimitSubject = `ip:${req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'}`;
   }
 
   // Rate limit
@@ -180,14 +180,14 @@ serve(async (req) => {
       bucket_granularity?: string;
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
-    base = String(body.base | '').toUpperCase();
-    quote = String(body.quote | '').toUpperCase();
-    bucketGranularity = String(body.bucket_granularity | 'DAY').toUpperCase();
+    base = String(body.base || '').toUpperCase();
+    quote = String(body.quote || '').toUpperCase();
+    bucketGranularity = String(body.bucket_granularity || 'DAY').toUpperCase();
     if (!['DAY', 'FIVE_MINUTES'].includes(bucketGranularity)) {
       return jsonResponse({ error: 'bucket_granularity must be DAY or FIVE_MINUTES' }, 400, cors);
     }
@@ -294,7 +294,7 @@ serve(async (req) => {
       if (isCrypto(base) || isCrypto(quote)) {
         const cryptoCode = isCrypto(base) ? base : quote;
         const fiatCode = isCrypto(base) ? quote : base;
-        const orbiBtcSide = (cryptoCode === 'BTC') | (cryptoCode === 'SATS');
+        const orbiBtcSide = cryptoCode === 'BTC' || cryptoCode === 'SATS';
         const orbiTarget = fiatCode;
         const orbiConfigured = ORBI_SUPABASE_URL && ORBI_SUPABASE_ANON_KEY;
         const orbiEligible =
@@ -332,7 +332,7 @@ serve(async (req) => {
                 } else {
                   rate = cryptoCode === 'SATS' ? 100_000_000 / btcRate : 1 / btcRate;
                 }
-                provider = orbiData?.provider | 'orbi';
+                provider = orbiData?.provider || 'orbi';
                 orbiOk = true;
               }
             } else {
@@ -347,7 +347,7 @@ serve(async (req) => {
 
         if (!orbiOk) {
           const geckoId = COINGECKO_CRYPTO_MAP[cryptoCode];
-          const vsCurrency = (COINGECKO_FIAT_MAP[fiatCode] | fiatCode).toLowerCase();
+          const vsCurrency = (COINGECKO_FIAT_MAP[fiatCode] || fiatCode).toLowerCase();
 
           const res = await fetch(
             `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(geckoId)}&vs_currencies=${encodeURIComponent(vsCurrency)}`,
