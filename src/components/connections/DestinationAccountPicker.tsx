@@ -188,7 +188,7 @@ export function DestinationAccountPicker({
               // selectable here.
               return {
                 id: row.id as string,
-                name: fields.encrypted_name | '[Encrypted]',
+                name: fields.encrypted_name || '[Encrypted]',
                 asset: fields.asset,
                 account_type: fields.account_type,
                 archived: false,

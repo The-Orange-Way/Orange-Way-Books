@@ -80,9 +80,9 @@ export default function AccountRegister() {
           try {
             const dec = await decryptChartOfAccount(acc as any, decryptText);
             if (!cancelled) {
-              setAccountName(dec.account_name | '(unnamed)');
-              setAccountCode(dec.account_code | '');
-              setAccountType(dec.account_type | null);
+              setAccountName(dec.account_name || '(unnamed)');
+              setAccountCode(dec.account_code || '');
+              setAccountType(dec.account_type || null);
             }
           } catch {
             if (!cancelled) setAccountName('(decrypt failed)');

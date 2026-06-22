@@ -464,18 +464,18 @@ function OrganizationTab({
       if (s) {
         const dec = await decryptOrgSettings(s, decryptText);
         setSettings({
-          primary_currency: dec.primary_currency | 'USD',
-          secondary_currency: dec.secondary_currency | null,
-          bitcoin_display: dec.bitcoin_display | 'sats',
-          fiscal_year_type: dec.fiscal_year_type | 'calendar',
-          fiscal_start_month: dec.fiscal_start_month | 1,
-          journal_lock_date: s.journal_lock_date | '',
-          date_format: dec.date_format | 'MM-DD-YYYY',
-          time_format: dec.time_format | '12h',
-          number_format: dec.number_format | 'us',
-          timezone: dec.timezone | Intl.DateTimeFormat().resolvedOptions().timeZone,
+          primary_currency: dec.primary_currency || 'USD',
+          secondary_currency: dec.secondary_currency || null,
+          bitcoin_display: dec.bitcoin_display || 'sats',
+          fiscal_year_type: dec.fiscal_year_type || 'calendar',
+          fiscal_start_month: dec.fiscal_start_month || 1,
+          journal_lock_date: s.journal_lock_date || '',
+          date_format: dec.date_format || 'MM-DD-YYYY',
+          time_format: dec.time_format || '12h',
+          number_format: dec.number_format || 'us',
+          timezone: dec.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           approval_threshold_amount: dec.approval_threshold_amount ?? null,
-          approval_threshold_currency: dec.approval_threshold_currency | '',
+          approval_threshold_currency: dec.approval_threshold_currency || '',
         });
       }
     })();
@@ -487,7 +487,7 @@ function OrganizationTab({
     const enc = await encryptOrgSettings(
       {
         primary_currency: settings.primary_currency,
-        secondary_currency: settings.secondary_currency | null,
+        secondary_currency: settings.secondary_currency || null,
         bitcoin_display: settings.bitcoin_display,
         fiscal_year_type: settings.fiscal_year_type,
         fiscal_start_month: settings.fiscal_start_month,
@@ -497,7 +497,7 @@ function OrganizationTab({
         timezone: settings.timezone,
         // T4 PR C, approval threshold. NULL when input is empty.
         approval_threshold_amount: settings.approval_threshold_amount,
-        approval_threshold_currency: settings.approval_threshold_currency | null,
+        approval_threshold_currency: settings.approval_threshold_currency || null,
       },
       encryptText,
     );
@@ -505,8 +505,8 @@ function OrganizationTab({
       {
         org_id: orgId,
         ...enc,
-        secondary_currency: enc.secondary_currency | null,
-        journal_lock_date: settings.journal_lock_date | null,
+        secondary_currency: enc.secondary_currency || null,
+        journal_lock_date: settings.journal_lock_date || null,
       },
       { onConflict: 'org_id' },
     );
@@ -543,7 +543,7 @@ function OrganizationTab({
         .single();
 
       if (orgError || !newOrg) {
-        toast.error(`Failed to create org: ${orgError?.message | 'Unknown error'}`);
+        toast.error(`Failed to create org: ${orgError?.message || 'Unknown error'}`);
         setAddSaving(false);
         return;
       }
@@ -1751,7 +1751,7 @@ function UsersTab({
         // Supabase wraps non-2xx responses in a FunctionsHttpError with
         // the raw Response on `context.response`. Read the JSON body
         // to surface the server-authored error copy.
-        let msg = error.message | 'Request failed';
+        let msg = error.message || 'Request failed';
         const ctx = (error as { context?: { response?: Response } }).context;
         if (ctx?.response) {
           try {
@@ -1872,7 +1872,7 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to extend access.';
+        let msg = error.message || 'Failed to extend access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
@@ -1952,7 +1952,7 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to grant support access.';
+        let msg = error.message || 'Failed to grant support access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
@@ -1995,7 +1995,7 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to end support access.';
+        let msg = error.message || 'Failed to end support access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
@@ -3383,7 +3383,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
                   account_name: name,
                   account_code: code | null,
                   account_type: row.data.type,
-                  account_sub_type: row.data.subtype | null,
+                  account_sub_type: row.data.subtype || null,
                   account_group: null, // legacy field; not in new schema
                   account_category: null, // legacy field; not in new schema
                   description: null,
@@ -3485,14 +3485,14 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
     const encrypted = await encryptContact(
       {
         name: form.name,
-        street: form.street | null,
-        city: form.city | null,
-        state: form.state | null,
-        zip: form.zip | null,
-        country: form.country | null,
-        email: form.email | null,
-        phone: form.phone | null,
-        type: form.type | null,
+        street: form.street || null,
+        city: form.city || null,
+        state: form.state || null,
+        zip: form.zip || null,
+        country: form.country || null,
+        email: form.email || null,
+        phone: form.phone || null,
+        type: form.type || null,
       },
       encryptText,
     );
@@ -3852,14 +3852,14 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
             const encrypted = await encryptContact(
               {
                 name,
-                street: row.data.street | null,
-                city: row.data.city | null,
-                state: row.data.state | null,
-                zip: row.data.zip | null,
-                country: row.data.country | null,
-                email: row.data.email | null,
-                phone: row.data.phone | null,
-                type: row.data.type | null,
+                street: row.data.street || null,
+                city: row.data.city || null,
+                state: row.data.state || null,
+                zip: row.data.zip || null,
+                country: row.data.country || null,
+                email: row.data.email || null,
+                phone: row.data.phone || null,
+                type: row.data.type || null,
               },
               encryptText,
             );
@@ -3931,8 +3931,8 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
           return decrypted
             .filter((a: any) => !a.is_archived)
             .map((a: any) => ({
-              code: a.account_code | a.id,
-              name: a.account_name | '(unnamed)',
+              code: a.account_code || a.id,
+              name: a.account_name || '(unnamed)',
             }));
         }}
         loadContactOptions={async () => {
@@ -3947,7 +3947,7 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
               decryptContact(c, decryptText).then((f) => ({ ...c, ...f })),
             ),
           );
-          return decrypted.map((c: any) => ({ code: c.id, name: c.name | '(unnamed)' }));
+          return decrypted.map((c: any) => ({ code: c.id, name: c.name || '(unnamed)' }));
         }}
       />
     </div>
@@ -4026,7 +4026,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
             id: c.id,
             connector_type: c.connector_type,
             label,
-            status: c.status | 'disconnected',
+            status: c.status || 'disconnected',
             last_sync: c.last_sync,
             config_encrypted: c.config_encrypted,
           };
@@ -4295,7 +4295,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
               <Input
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
-                placeholder={selectedDef?.name | 'My connection'}
+                placeholder={selectedDef?.name || 'My connection'}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 A friendly name for this connection.

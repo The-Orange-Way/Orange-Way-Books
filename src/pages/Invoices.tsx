@@ -298,9 +298,9 @@ export default function Invoices() {
           const fields = await decryptChartOfAccount(a, decryptText);
           return {
             id: a.id,
-            name: fields.account_name | '',
-            code: fields.account_code | null,
-            type: fields.account_type | '',
+            name: fields.account_name || '',
+            code: fields.account_code || null,
+            type: fields.account_type || '',
           };
         }),
       );
@@ -646,7 +646,7 @@ export default function Invoices() {
       // template substitutions. Falls back to sensible defaults so the
       // operator can send without configuring templates first.
       const vars = {
-        customer_name: payload.customer_name | 'there',
+        customer_name: payload.customer_name || 'there',
         invoice_number: payload.invoice_number,
         amount: formatAmount(payload.amount, payload.currency),
         currency: payload.currency,
