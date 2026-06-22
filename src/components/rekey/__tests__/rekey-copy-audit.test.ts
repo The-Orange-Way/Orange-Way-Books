@@ -11,7 +11,7 @@
  *
  * Scope: JSX text nodes and string literals inside the three sweep
  * files. We intentionally EXCLUDE:
- *   - Code comments (`//` and `/* ... *​/`)
+ *   - Code comments (`//` and `slash-star ... star-slash`)
  *   - Identifier-only occurrences inside imports / type-only code
  *     (`RekeyStage` is a type ident, not user copy — but we look for
  *     the lowercase `rotate`/`rotation`, which these don't contain)

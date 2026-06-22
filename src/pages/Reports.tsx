@@ -882,7 +882,7 @@ function exportReportCsv(
   },
 ): void {
   let headers: string[] = [];
-  let rows: (string | number)[][] = [];
+  const rows: (string | number)[][] = [];
 
   /** Same ledger units as transactions/payments CSV (sats for Bitcoins/Satoshis, else raw). */
   const csvAmt = (n: number) => transactionAmountNumericForCsv(n, reportCurrency, btcDisplay);
@@ -1022,7 +1022,7 @@ async function printReport(
   reportingNote?: string,
 ): Promise<void> {
   let headers: string[] = [];
-  let rows: (string | number)[][] = [];
+  const rows: (string | number)[][] = [];
 
   switch (reportType) {
     case 'pnl':

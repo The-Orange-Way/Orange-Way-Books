@@ -393,7 +393,7 @@ function UserAssignmentSection({
     // Resolve display name + email via the lookup-user-profiles edge
     // function. Wait for the session first so cold-start invocations
     // don't race the auth token being attached (401 on first render).
-    let profileMap: Record<string, { email: string; name: string }> = {};
+    const profileMap: Record<string, { email: string; name: string }> = {};
     if (userIds.length > 0) {
       try {
         await supabase.auth.getSession();

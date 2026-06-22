@@ -66,6 +66,7 @@ class FakeUserVaultKeys {
   }
 
   client(): SupabaseKeypairClient {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- closure needs the test-stub store instance, not the SupabaseClient `this` of the returned method
     const store = this;
     return {
       from(table) {

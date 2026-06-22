@@ -1481,7 +1481,7 @@ function UsersTab({
 
     // Try to look up user profiles via edge function (names + emails from auth.users)
     const userIds = rawMembers.map((m) => m.user_id);
-    let profileMap: Record<string, { email: string; name: string }> = {};
+    const profileMap: Record<string, { email: string; name: string }> = {};
     try {
       // Wait for the session so the first render doesn't fire the invoke
       // before the Authorization header is attached (401 silently yields
@@ -2942,7 +2942,11 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
   const toggleGroup = (name: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
       return next;
     });
   };
@@ -3464,7 +3468,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
   }, [orgId]);
 
   const filtered = useMemo(() => {
-    let r = contacts.filter((c) => !search | c.name.toLowerCase().includes(search.toLowerCase()));
+    const r = contacts.filter((c) => !search | c.name.toLowerCase().includes(search.toLowerCase()));
     r.sort((a, b) =>
       sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
     );

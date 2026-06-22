@@ -56,12 +56,6 @@ jobs:
 
       - name: Lint
         run: bun run lint
-        # Transitional soft-fail. The typescript-eslint 8.38 -> 8.61.1 bump
-        # (under eslint 10) made `bun run lint` run locally + in CI for the
-        # first time and surfaced 727 pre-existing problems that were
-        # latent while lint crashed at startup. Cleanup tracked in
-        # issue #20. Remove `continue-on-error: true` once #20 closes.
-        continue-on-error: true
 
       - name: Test
         run: bun run test
