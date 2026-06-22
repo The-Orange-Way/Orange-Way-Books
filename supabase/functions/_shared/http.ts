@@ -96,7 +96,7 @@ export async function readBoundedText(req: Request): Promise<string | null> {
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;

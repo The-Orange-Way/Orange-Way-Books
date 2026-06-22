@@ -32,7 +32,7 @@ let rpcResponse: { data: unknown; error: unknown } = { data: null, error: null }
 function makeSupabase() {
   return {
     from(table: string) {
-      let filterEq: Record<string, unknown> = {};
+      const filterEq: Record<string, unknown> = {};
       let filterIn: { col: string; values: unknown[] } | null = null;
       let mode: 'list' | 'maybeSingle' = 'list';
 
