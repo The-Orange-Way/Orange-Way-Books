@@ -1334,7 +1334,7 @@ export default function TransactionModal({
           continue;
         }
         const encFields = await encryptAttachment(
-          { file_name: r.name, mime_type: r.file.type | null },
+          { file_name: r.name, mime_type: r.file.type || null },
           encryptText,
         );
         await supabase.from('attachments').insert({
@@ -1930,9 +1930,9 @@ export default function TransactionModal({
                           : feeSide === 'dest'
                             ? counterpartyWallet
                             : null;
-                      const feeCurrency = feeWallet?.asset | primaryCurrency;
-                      const sourceName = selectedWallet?.encrypted_name | '[Source wallet]';
-                      const destName = counterpartyWallet?.encrypted_name | '[Destination wallet]';
+                      const feeCurrency = feeWallet?.asset || primaryCurrency;
+                      const sourceName = selectedWallet?.encrypted_name || '[Source wallet]';
+                      const destName = counterpartyWallet?.encrypted_name || '[Destination wallet]';
 
                       return (
                         <div className="mt-2 space-y-1">
@@ -2185,7 +2185,7 @@ export async function fetchContactsForModal(
         const fields = await decryptContact(row, decryptText);
         return {
           id: row.id as string,
-          name: fields.name | '[Contact]',
+          name: fields.name || '[Contact]',
           kind: fields.type || 'OTHER',
         } satisfies ContactOption;
       } catch {

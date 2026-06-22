@@ -441,8 +441,8 @@ function UserAssignmentSection({
     setMembers(
       (memberRows ?? []).map((m: any) => ({
         user_id: m.user_id,
-        email: profileMap[m.user_id]?.email | null,
-        name: profileMap[m.user_id]?.name | null,
+        email: profileMap[m.user_id]?.email || null,
+        name: profileMap[m.user_id]?.name || null,
       })),
     );
     setGrants(

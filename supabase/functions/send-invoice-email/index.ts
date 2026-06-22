@@ -189,7 +189,7 @@ serve(async (req) => {
 
     if (!resendResp.ok || !resendJson.id) {
       console.error('Resend send failed', resendResp.status, resendJson);
-      const msg = resendJson.message | 'Resend rejected the send';
+      const msg = resendJson.message || 'Resend rejected the send';
       return jsonResponse({ error: msg }, 502, cors);
     }
 

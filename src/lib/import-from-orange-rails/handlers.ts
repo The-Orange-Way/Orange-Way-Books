@@ -110,8 +110,8 @@ export async function commitAccountsFromStaged(
         account_name: name,
         account_code: code | null,
         account_type: row.data.type,
-        account_group: row.data.subtype | null,
-        account_category: row.data.category | null,
+        account_group: row.data.subtype || null,
+        account_category: row.data.category || null,
         is_archived: false,
       },
       encryptText,
@@ -175,14 +175,14 @@ export async function commitContactsFromStaged(
     const encrypted = await encryptContact(
       {
         name,
-        street: row.data.street | null,
-        city: row.data.city | null,
-        state: row.data.state | null,
-        zip: row.data.zip | null,
-        country: row.data.country | null,
-        email: row.data.email | null,
-        phone: row.data.phone | null,
-        type: row.data.type | null,
+        street: row.data.street || null,
+        city: row.data.city || null,
+        state: row.data.state || null,
+        zip: row.data.zip || null,
+        country: row.data.country || null,
+        email: row.data.email || null,
+        phone: row.data.phone || null,
+        type: row.data.type || null,
       },
       encryptText,
     );
@@ -257,11 +257,11 @@ export async function commitJournalEntriesFromStaged(
     const dec = await decryptJournalEntry(row as any, decryptText);
     existingKeys.add(
       [
-        (row as any).date | '',
-        dec.ref_number | '',
-        dec.memo | '',
-        (dec.status | 'DRAFT').toUpperCase(),
-        dec.currency | '',
+        (row as any).date || '',
+        dec.ref_number || '',
+        dec.memo || '',
+        (dec.status || 'DRAFT').toUpperCase(),
+        dec.currency || '',
       ].join('\x1f'),
     );
   }
@@ -368,11 +368,11 @@ export async function commitJournalEntriesFromStaged(
             wallet_currency: currency,
             primary_currency: primaryCurrency,
             date: dateStr,
-            account_name: l.account_name | null,
-            account_code: l.account_code | null,
-            description: l.description | null,
-            debit: parseFloat(l.debit) | 0,
-            credit: parseFloat(l.credit) | 0,
+            account_name: l.account_name || null,
+            account_code: l.account_code || null,
+            description: l.description || null,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0,
             encrypt: encryptText,
           });
           if (result.pending) {

@@ -106,7 +106,7 @@ export default function OpeningBalances() {
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const primaryCurrency = orgSettings.primaryCurrency | 'USD';
+  const primaryCurrency = orgSettings.primaryCurrency || 'USD';
 
   // Load decrypted chart of accounts
   useEffect(() => {
@@ -126,7 +126,7 @@ export default function OpeningBalances() {
               const dec = await decryptChartOfAccount(row, decryptText);
               return {
                 id: row.id as string,
-                name: dec.account_name | '(unnamed)',
+                name: dec.account_name || '(unnamed)',
                 code: dec.account_code ?? null,
                 archived: dec.is_archived ?? false,
               };

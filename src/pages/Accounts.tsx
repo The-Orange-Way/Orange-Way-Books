@@ -360,18 +360,18 @@ export default function Accounts() {
 
   const openEdit = (w: WalletRow) => {
     setEditing(w);
-    setName(w.encrypted_name | '');
+    setName(w.encrypted_name || '');
     setAsset(w.asset);
-    setWalletType(w.account_type | 'Exchange');
-    setInstitution(w.institution | '');
-    setIssuer(w.issuer | '');
+    setWalletType(w.account_type || 'Exchange');
+    setInstitution(w.institution || '');
+    setIssuer(w.issuer || '');
     setShowIssuer(!!w.issuer);
     initialFormRef.current = JSON.stringify({
-      name: w.encrypted_name | '',
+      name: w.encrypted_name || '',
       asset: w.asset,
-      walletType: w.account_type | 'Exchange',
-      institution: w.institution | '',
-      issuer: w.issuer | '',
+      walletType: w.account_type || 'Exchange',
+      institution: w.institution || '',
+      issuer: w.issuer || '',
       initialBalance: String(w.initial_balance ?? 0),
     });
     setDirty(false);
@@ -396,8 +396,8 @@ export default function Accounts() {
             initial_balance: editing.initial_balance ?? 0,
             asset,
             account_type: walletType,
-            connection_type: editing.connection_type | 'manual',
-            external_account_code: editing.external_account_code | null,
+            connection_type: editing.connection_type || 'manual',
+            external_account_code: editing.external_account_code || null,
           },
           encryptText,
         );

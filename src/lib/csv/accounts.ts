@@ -31,11 +31,11 @@ export function parseCsvAccounts(csvText: string): { rows: ImportPreviewRow[]; e
       rowIndex: i + 1,
       data: {
         name: data.name | '',
-        currency: (data.currency | '').toUpperCase(),
-        type: type | 'EXCHANGE',
-        institution: data.institution | '',
-        balance: data.balance | '0',
-        date: data.date | '',
+        currency: (data.currency || '').toUpperCase(),
+        type: type || 'EXCHANGE',
+        institution: data.institution || '',
+        balance: data.balance || '0',
+        date: data.date || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

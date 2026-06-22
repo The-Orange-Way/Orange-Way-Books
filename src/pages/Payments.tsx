@@ -549,7 +549,7 @@ export default function Payments() {
           .download(att.storage_path);
         if (error || !data) throw new Error(error?.message ?? 'No data returned');
         const decryptedBuf = await decryptBlob(data);
-        const mime = att.mime_type | 'application/octet-stream';
+        const mime = att.mime_type || 'application/octet-stream';
         const blob = new Blob([decryptedBuf], { type: mime });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -987,7 +987,7 @@ export default function Payments() {
           ...encrypted,
           due_date: formDueDate ? format(formDueDate, 'yyyy-MM-dd') : null,
           document_date: formDocDate ? format(formDocDate, 'yyyy-MM-dd') : null,
-          requested_by: user?.id | null,
+          requested_by: user?.id || null,
           encrypted_payee_email_snapshot: encPayeeEmail,
           encrypted_payee_phone_snapshot: encPayeePhone,
         } as any)
@@ -1005,7 +1005,7 @@ export default function Payments() {
               {
                 description: li.description.trim(),
                 amount: parseFloat(li.amount),
-                chart_of_accounts_id: li.accountId | null,
+                chart_of_accounts_id: li.accountId || null,
                 sort_order: idx,
               },
               encryptText,
@@ -1040,7 +1040,7 @@ export default function Payments() {
                     continue;
                   }
                   const encFileName = await encryptText(file.name);
-                  const encMime = await encryptText(file.type | 'application/octet-stream');
+                  const encMime = await encryptText(file.type || 'application/octet-stream');
                   await supabase.from('attachments').insert({
                     org_id: orgId,
                     entity_type: 'payment_request_line_item',
@@ -1050,7 +1050,7 @@ export default function Payments() {
                     storage_path: storagePath,
                     mime_type: encMime,
                     key_version: 2,
-                    uploaded_by: user?.id | null,
+                    uploaded_by: user?.id || null,
                   } as any);
                 } catch (attachErr) {
                   console.warn('Line-item attachment processing failed:', attachErr);
@@ -1461,13 +1461,13 @@ export default function Payments() {
           const encrypted = await encryptPaymentRequest(
             {
               payee,
-              description: row.data.description | null,
+              description: row.data.description || null,
               rejection_reason: null,
               amount: amt,
-              currency: row.data.currency | 'USD',
+              currency: row.data.currency || 'USD',
               status: 'PENDING',
-              request_type: row.data.type | 'Invoice',
-              vendor_ref: row.data.vendor_ref | null,
+              request_type: row.data.type || 'Invoice',
+              vendor_ref: row.data.vendor_ref || null,
               payment_address: null,
             },
             encryptText,
@@ -1477,7 +1477,7 @@ export default function Payments() {
             org_id: orgId,
             ref_number: refNum,
             ...encrypted,
-            due_date: row.data.due_date | null,
+            due_date: row.data.due_date || null,
             document_date: format(new Date(), 'yyyy-MM-dd'),
           });
           if (error) throw error;

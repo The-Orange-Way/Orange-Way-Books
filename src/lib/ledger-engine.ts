@@ -327,7 +327,7 @@ export function computeWalletBalances(
     const hasPrimary = primaryByWallet.has(w.id);
     return {
       walletId: w.id,
-      name: w.encrypted_name | '[Encrypted]',
+      name: w.encrypted_name || '[Encrypted]',
       asset: w.asset,
       walletType: w.account_type,
       initialBalance: initial,
