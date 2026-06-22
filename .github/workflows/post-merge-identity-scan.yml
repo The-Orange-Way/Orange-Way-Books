@@ -1,0 +1,87 @@
+name: Post-merge identity + leak scan
+
+# Scans every commit that just landed on a protected branch for private-
+# host strings in:
+#   - commit message body (Co-authored-by trailers, body text)
+#   - author name + email
+#   - committer name + email
+#
+# This catches the class of leak the pre-push gate cannot see: GitHub
+# auto-adds Co-authored-by trailers to squash / rebase merge commits at
+# merge time, and the trailer email comes from each contributor's local
+# git config. If a contributor's user.email contains a Tailscale tail-net
+# hostname or any other internal-only string, the merge commit silently
+# carries that string into public history.
+#
+# We learned this the hard way on 2026-06-19, when ~91 commits had to be
+# rewritten because a local git config carried `.ts.net` in user.email.
+# The pre-push gate at scripts/pre-push-gate.sh blocks the same class of
+# leak at push time on the contributor's laptop, but only if the gate is
+# installed. This workflow is the server-side belt to that suspenders.
+
+on:
+  push:
+    branches: [dev, prod]
+
+jobs:
+  identity-scan:
+    name: Identity + body scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with full history of the just-pushed commits
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine range to scan
+        id: range
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          # On a brand-new branch creation, github.event.before is a SHA of
+          # all zeros. Scan only the head commit in that case to avoid
+          # scanning the entire repo history every time a new branch lands.
+          ZERO="0000000000000000000000000000000000000000"
+          if [ "$BEFORE" = "$ZERO" ]; then
+            echo "range=$AFTER -1" >> "$GITHUB_OUTPUT"
+          else
+            echo "range=$BEFORE..$AFTER" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scan author + committer + body for private-host patterns
+        env:
+          # Pattern must stay in lockstep with scripts/pre-push-gate.sh's
+          # PRIVATE_PATTERN. The two scanners answer the same question on
+          # different surfaces (local diff vs server-side commit metadata);
+          # any drift means one of them reports clean for a string the
+          # other would flag. When adding or removing a term here, change
+          # it there too.
+          PATTERN: 'tail[a-z0-9]+\.ts\.net|\.tailnet|\.local\b|wiki\.abascal|wiki\.bitbooks|bb-support|jarvis\.local|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+|@bitbooks\.com|@abascal\.ca|pop-os'
+          RANGE: ${{ steps.range.outputs.range }}
+        run: |
+          set -euo pipefail
+          echo "Scanning range: $RANGE"
+          MATCHES=0
+          while IFS= read -r line; do
+            if echo "$line" | grep -nEi "$PATTERN" >/dev/null; then
+              echo "::error::Private-host pattern found in just-pushed commit metadata:"
+              echo "$line" | grep -nEi --color=never "$PATTERN" || true
+              MATCHES=$((MATCHES + 1))
+            fi
+          done < <(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')
+
+          if [ "$MATCHES" -gt 0 ]; then
+            echo "::error::Identity-scan failed: $MATCHES commit(s) carry private-host strings."
+            exit 1
+          fi
+          echo "Identity-scan clean: 0 commits carry private-host strings."
+
+      - name: Run repo tree pre-publish leak scan (defense in depth)
+        run: |
+          set -euo pipefail
+          if [ -x scripts/pre-publish-scan.sh ]; then
+            bash scripts/pre-publish-scan.sh
+          else
+            echo "scripts/pre-publish-scan.sh missing; skipping tree scan."
+          fi
