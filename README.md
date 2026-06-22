@@ -209,6 +209,7 @@ The project is managed with [Bun](https://bun.sh). CI runs `bun install --frozen
 | [`docs/OWB-MultiCurrency-Brain.md`](./docs/OWB-MultiCurrency-Brain.md) | Multi-currency, FX, IFRS vs. GAAP. The accountant-readable reference.                            |
 | [`docs/COMPETITIVE-ANALYSIS.md`](./docs/COMPETITIVE-ANALYSIS.md)       | Survey of role models across QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting. |
 | [`SECURITY.md`](./SECURITY.md)                                         | Threat model, cryptographic primitives, key rotation, disclosure policy.                         |
+| [`TERMS.md`](./TERMS.md)                                               | Placeholder Terms of Service (legal review pending).                                             |
 
 ---
 
