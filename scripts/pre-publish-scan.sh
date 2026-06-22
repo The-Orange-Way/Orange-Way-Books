@@ -227,7 +227,7 @@ scan "External contact names" \
      ""
 
 scan "Personal-domain emails" \
-     "@(bitbooks\\.com|abascal\\.ca|tryfaster\\.ca)" \
+     "@(bitbooks\\.com|abascal\\.ca|thrivefaster\\.ca|tryfaster\\.ca)" \
      "" \
      ""
 
