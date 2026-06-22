@@ -83,20 +83,46 @@ fi
 # reports clean for a string the other would flag. When changing this,
 # update the workflow too.
 PRIVATE_PATTERN='tail[a-z0-9]+\.ts\.net|\.tailnet|\.local\b|wiki\.abascal|wiki\.bitbooks|bb-support|jarvis\.local|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+|@bitbooks\.com|@abascal\.ca|pop-os'
+# Documentation-form scrub. Must stay in lockstep with
+# .github/workflows/post-merge-identity-scan.yml's DOC_SCRUB. Strips legitimate
+# prose like "100.64.0.0/10" (CGNAT base address in CIDR notation) before
+# the pattern match so a commit body documenting the regex does not
+# false-positive on itself.
+DOC_SCRUB='100\.64\.0\.0/[0-9]+'
+
+# Helper: a commit body can opt out of the pattern scan with a
+# `Scan-Exempt: <reason>` trailer. Use sparingly; intended for commits
+# whose body has to document the regex itself.
+commit_is_exempt() {
+  git log --format='%B' -1 "$1" 2>/dev/null | grep -iE '^Scan-Exempt:' >/dev/null
+}
 
 # Scan commits being pushed: messages + diff
 for sha in "${LOCAL_SHAS[@]}"; do
   # If pushing a brand-new branch, walk back to origin/dev (or origin/main) for the diff base.
   BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
   RANGE="$BASE..$sha"
-  # Commit messages
-  if git log --format='%H%n%s%n%b' "$RANGE" 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+  # Commit messages — scrub doc-forms first, skip Scan-Exempt commits
+  MSG_LEAKS=""
+  while read -r commit_sha; do
+    [ -z "$commit_sha" ] && continue
+    if commit_is_exempt "$commit_sha"; then
+      yellow "  (commit $commit_sha carries Scan-Exempt trailer; skipping message scan)"
+      continue
+    fi
+    body=$(git log --format='%H%n%s%n%b' -1 "$commit_sha" 2>/dev/null)
+    scrubbed=$(printf '%s' "$body" | sed -E "s|${DOC_SCRUB}||g")
+    if printf '%s' "$scrubbed" | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+      MSG_LEAKS="${MSG_LEAKS}${MSG_LEAKS:+$'\n'}$(printf '%s' "$body" | grep -nEi --color=always "$PRIVATE_PATTERN")"
+    fi
+  done < <(git rev-list "$RANGE" 2>/dev/null)
+  if [ -n "$MSG_LEAKS" ]; then
     red "✗ Private-host URL leak in commit messages:"
-    git log --format='%H%n%s%n%b' "$RANGE" | grep -nEi --color=always "$PRIVATE_PATTERN"
+    printf '%s\n' "$MSG_LEAKS"
     FAIL=1
   fi
   # Diff content — exclude the gate itself (whose regex literally contains the patterns)
-  if git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+  if git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' 2>/dev/null | sed -E "s|${DOC_SCRUB}||g" | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
     red "✗ Private-host URL leak in diff content:"
     git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
     FAIL=1
