@@ -250,7 +250,7 @@ export async function commitStagedImportPayload(
 
       const fields: JournalEntryFields = {
         memo: group.memo,
-        ref_number: group.refNumber | null,
+        ref_number: group.refNumber || null,
         currency: group.currency,
         exchange_rate: null,
         status: group.status,

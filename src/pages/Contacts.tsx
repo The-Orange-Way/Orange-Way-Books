@@ -132,7 +132,7 @@ export default function ContactsPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rows
-      .filter((r) => (typeFilter === 'all') | ((r.type | 'OTHER').toUpperCase() === typeFilter))
+      .filter((r) => typeFilter === 'all' || (r.type || 'OTHER').toUpperCase() === typeFilter)
       .filter((r) => {
         if (!term) return true;
         return (
@@ -148,7 +148,7 @@ export default function ContactsPage() {
   const countByKind = useMemo(() => {
     const acc: Record<string, number> = { CUSTOMER: 0, VENDOR: 0, EMPLOYEE: 0, OTHER: 0 };
     for (const r of rows) {
-      const k = (r.type | 'OTHER').toUpperCase();
+      const k = (r.type || 'OTHER').toUpperCase();
       acc[k] = (acc[k] ?? 0) + 1;
     }
     return acc;
@@ -176,13 +176,13 @@ export default function ContactsPage() {
         {
           name: trimmed,
           street: null,
-          city: form.city | null,
+          city: form.city || null,
           state: null,
           zip: null,
-          country: form.country | null,
-          email: form.email | null,
-          phone: form.phone | null,
-          type: form.type | 'OTHER',
+          country: form.country || null,
+          email: form.email || null,
+          phone: form.phone || null,
+          type: form.type || 'OTHER',
         },
         encryptText,
       );
@@ -521,7 +521,7 @@ export default function ContactsPage() {
             <label className="block text-sm">
               <span className="text-muted-foreground text-xs">Type</span>
               <Select
-                value={(form.type | 'OTHER').toUpperCase()}
+                value={(form.type || 'OTHER').toUpperCase()}
                 onValueChange={(v) => setForm({ ...form, type: v })}
               >
                 <SelectTrigger>
@@ -541,14 +541,14 @@ export default function ContactsPage() {
                 <span className="text-muted-foreground text-xs">Email</span>
                 <Input
                   value={form.email ?? ''}
-                  onChange={(e) => setForm({ ...form, email: e.target.value | null })}
+                  onChange={(e) => setForm({ ...form, email: e.target.value || null })}
                 />
               </label>
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">Phone</span>
                 <Input
                   value={form.phone ?? ''}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value | null })}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value || null })}
                 />
               </label>
             </div>
@@ -557,14 +557,14 @@ export default function ContactsPage() {
                 <span className="text-muted-foreground text-xs">City</span>
                 <Input
                   value={form.city ?? ''}
-                  onChange={(e) => setForm({ ...form, city: e.target.value | null })}
+                  onChange={(e) => setForm({ ...form, city: e.target.value || null })}
                 />
               </label>
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">Country</span>
                 <Input
                   value={form.country ?? ''}
-                  onChange={(e) => setForm({ ...form, country: e.target.value | null })}
+                  onChange={(e) => setForm({ ...form, country: e.target.value || null })}
                 />
               </label>
             </div>

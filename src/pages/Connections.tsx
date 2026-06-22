@@ -439,7 +439,7 @@ export default function Connections() {
           try {
             const fields = await decryptWallet(row, decryptText);
             const id = row.id as string;
-            const name = fields.encrypted_name | '[Encrypted]';
+            const name = fields.encrypted_name || '[Encrypted]';
             byId.set(id, name);
             walletsById.set(id, {
               id,
@@ -505,7 +505,7 @@ export default function Connections() {
         // user can review the full set in the Edit Mapping dialog.
         const firstId = accountIds[0];
         const accountName = firstId ? (accountLookup.byId.get(firstId) ?? null) : null;
-        return { currency: w.currency | w.label | '?', accountName };
+        return { currency: w.currency || w.label || '?', accountName };
       });
   }
 
@@ -692,7 +692,7 @@ export default function Connections() {
       const existingIds = lookupRouting(mappingIndex, conn.id, w.external_wallet_id);
       return {
         external_wallet_id: w.external_wallet_id,
-        currency: w.currency | w.label | '?',
+        currency: w.currency || w.label || '?',
         label: w.label,
         initialAccountId: existingIds[0] ?? null,
       };

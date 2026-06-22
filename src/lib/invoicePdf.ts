@@ -40,7 +40,7 @@ export function openInvoicePrint(payload: InvoiceSharePayload, opts: PrintOption
     .map(
       (l) => `
     <tr>
-      <td class="desc">${esc(l.description | '—')}</td>
+      <td class="desc">${esc(l.description || '-')}</td>
       <td class="qty">${l.quantity != null ? l.quantity : ''}</td>
       <td class="unit">${l.unit_price != null ? fmt(l.unit_price, payload.currency) : ''}</td>
       <td class="amt">${fmt(l.amount, payload.currency)}</td>

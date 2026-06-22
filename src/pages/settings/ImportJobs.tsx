@@ -129,7 +129,7 @@ export default function ImportJobs() {
             try {
               const json = await decryptText(r.encrypted_manifest);
               const m = JSON.parse(json);
-              const files = (m.files | []) as Array<{ name: string }>;
+              const files = (m.files || []) as Array<{ name: string }>;
               manifest_summary = files.map((f) => f.name).join(', ');
             } catch {
               manifest_summary = null;

@@ -40,11 +40,11 @@ function recordToRowData(record: Record<string, string>): Record<string, string>
 
 export function journalGroupKey(data: Record<string, string>): string {
   return [
-    (data.je_date | '').trim(),
+    (data.je_date || '').trim(),
     (data['je_ref_#'] ?? '').trim(),
-    (data.je_memo | '').trim(),
-    (data.je_status | 'DRAFT').trim().toUpperCase(),
-    parseJournalCurrencyLabel(data.wallet_currency | ''),
+    (data.je_memo || '').trim(),
+    (data.je_status || 'DRAFT').trim().toUpperCase(),
+    parseJournalCurrencyLabel(data.wallet_currency || ''),
   ].join('\x1f');
 }
 

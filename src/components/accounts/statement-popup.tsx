@@ -187,7 +187,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     const end = dateRange.end;
     const priorSum = visibleTxs
       .filter((t) => (start ? t.date < start : false))
-      .reduce((s, t) => s + (t.amount | 0), 0);
+      .reduce((s, t) => s + (t.amount || 0), 0);
     const within = visibleTxs.filter((t) => {
       if (start && t.date < start) return false;
       if (end && t.date > end) return false;
@@ -203,8 +203,8 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   const withRunning = useMemo(() => {
     let running = startingBalance;
     return inPeriod.map((t) => {
-      running += t.amount | 0;
-      const amt = t.amount | 0;
+      running += t.amount || 0;
+      const amt = t.amount || 0;
       return {
         ...t,
         debit: amt > 0 ? amt : null,
@@ -236,7 +236,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   // Reconciliation computed values
   const checkedTotal = useMemo(() => {
     if (!reconcileMode) return 0;
-    return withRunning.filter((t) => checkedIds.has(t.id)).reduce((s, t) => s + (t.amount | 0), 0);
+    return withRunning.filter((t) => checkedIds.has(t.id)).reduce((s, t) => s + (t.amount || 0), 0);
   }, [withRunning, checkedIds, reconcileMode]);
 
   const reconcileBalanceNum = useMemo(() => {
@@ -478,7 +478,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     (format: 'csv' | 'pdf') => {
       if (!wallet) return;
       const headers = ['Date', 'Ref#', 'Description', 'Debit', 'Credit', 'Running Balance'];
-      const name = wallet.encrypted_name | 'Wallet';
+      const name = wallet.encrypted_name || 'Wallet';
       if (format === 'csv') {
         exportToCsv(`${name}-statement`, headers, exportRows);
       } else {

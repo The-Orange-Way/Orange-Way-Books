@@ -142,10 +142,10 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
           bitcoin_display: bitcoinDisplay,
           fiscal_year_type: null,
           fiscal_start_month: null,
-          date_format: reportingData.dateFormat | calendarData.dateFormat,
-          time_format: reportingData.timeFormat | null,
+          date_format: reportingData.dateFormat || calendarData.dateFormat,
+          time_format: reportingData.timeFormat || null,
           number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',
-          timezone: reportingData.timezone | null,
+          timezone: reportingData.timezone || null,
         },
         encryptText,
       );
