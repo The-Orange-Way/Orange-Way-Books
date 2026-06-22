@@ -77,6 +77,7 @@ EXEMPT_GENERIC=(
   "scripts/pre-publish-scan.sh"
   ".github/PULL_REQUEST_TEMPLATE.md"
   ".github/workflows/leak-check.yml"
+  ".github/workflows/post-merge-identity-scan.yml"
   "docs/CONTRIBUTING.md"
   # Pre-push gate scripts: the gate's private-host regex enumerates
   # exactly the strings the scanner is looking for; install-hooks.sh
