@@ -9,13 +9,28 @@
 useDefault = true
 
 [allowlist]
-description = "Confirmed false positives — Orange Way Books"
+description = "Confirmed false positives, Orange Way Books"
 paths = [
-  # Test fixtures with intentionally-fake credentials live under
-  # /__tests__/ subdirs; add specific paths here if gitleaks flags
-  # any of them. Empty for now — extend on first false positive.
+  # No path-based exemptions; specific regexes below are more precise
+  # than blanketing entire test directories.
 ]
 
 # Allowlist specific known-safe constants and public tokens.
 # Add patterns here as gitleaks flags them; document why each is safe.
-regexes = []
+regexes = [
+  # Fider feedback widget websiteToken. Public client-side identifier
+  # baked into every page's HTML; the token only routes feedback to
+  # the right Fider project. Not a secret.
+  '''DDeepTdV9PqTVJs4H3ZhZccw''',
+
+  # Crypto algorithm + algorithm-version names. They appear as
+  # describe() labels, constants, and `key_algorithm` field values.
+  # They identify the algorithm, not key material.
+  '''hybrid-x25519-mlkem768''',
+  '''x25519-mlkem768-v\d+''',
+  '''HYBRID_KEM_V\d+\b''',
+
+  # XKCD 936 test password used in vault unit tests. Intentionally
+  # obvious so nobody mistakes it for a real credential.
+  '''correct-horse-battery-staple''',
+]

@@ -1,10 +1,5 @@
 import type { QuickBooksFileType } from './types';
-import {
-  firstWorksheet,
-  loadWorkbook,
-  rowValues,
-  type WorkbookSource,
-} from './workbook';
+import { firstWorksheet, loadWorkbook, rowValues, type WorkbookSource } from './workbook';
 
 const REPORT_PATTERNS: Array<[QuickBooksFileType, RegExp]> = [
   ['TRIAL_BALANCE', /\btrial\s+balance\b/i],
@@ -25,7 +20,9 @@ export function detectQuickBooksFileTypeFromRows(rows: string[][]): QuickBooksFi
   return 'UNKNOWN';
 }
 
-export async function fingerprintQuickBooksWorkbook(source: WorkbookSource): Promise<QuickBooksFileType> {
+export async function fingerprintQuickBooksWorkbook(
+  source: WorkbookSource,
+): Promise<QuickBooksFileType> {
   const workbook = await loadWorkbook(source);
   const worksheet = firstWorksheet(workbook);
   const rows = [1, 2, 3, 4, 5].map((rowNumber) => rowValues(worksheet, rowNumber));

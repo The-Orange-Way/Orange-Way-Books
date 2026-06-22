@@ -38,7 +38,10 @@ Deno.serve(async (req: Request) => {
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+  const {
+    data: { user: caller },
+    error: authErr,
+  } = await callerClient.auth.getUser();
   if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
@@ -83,10 +86,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ connected: false, expiresAt: null, scopes: null }, 200, cors);
   }
   const connected = new Date(tokenRow.expires_at).getTime() > Date.now();
-  return jsonResponse({
-    connected,
-    expiresAt: tokenRow.expires_at,
-    scopes: tokenRow.scopes ?? [],
-    updatedAt: tokenRow.updated_at,
-  }, 200, cors);
+  return jsonResponse(
+    {
+      connected,
+      expiresAt: tokenRow.expires_at,
+      scopes: tokenRow.scopes ?? [],
+      updatedAt: tokenRow.updated_at,
+    },
+    200,
+    cors,
+  );
 });

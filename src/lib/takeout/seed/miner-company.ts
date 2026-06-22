@@ -77,7 +77,10 @@ const U = () => crypto.randomUUID();
 
 // ── Canonical chart of accounts (matches OnboardingWizard) ───────────
 interface AccountDef {
-  code: string; name: string; type: string; group: string;
+  code: string;
+  name: string;
+  type: string;
+  group: string;
   normal: 'DEBIT' | 'CREDIT';
 }
 // accountType uses PascalCase — the Insights Expenses card does a
@@ -87,49 +90,181 @@ interface AccountDef {
 // the working-capital filter (`includes('cash'|'bank'|'receivable'|
 // 'payable'|'credit card')`) without overlap.
 const ACCOUNTS: AccountDef[] = [
-  { code: '1000', name: 'Accounts',                 type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1100', name: 'Cash & Bank',             type: 'Asset',     group: 'Bank',                    normal: 'DEBIT' },
-  { code: '1110', name: 'Fiat Cash Accounts',       type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1120', name: 'Digital Asset Accounts',   type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1200', name: 'Accounts Receivable',     type: 'Asset',     group: 'Accounts Receivable',     normal: 'DEBIT' },
-  { code: '1300', name: 'Prepaid Expenses',        type: 'Asset',     group: 'Prepaid Expenses',        normal: 'DEBIT' },
-  { code: '1305', name: 'Inventory',               type: 'Asset',     group: 'Inventory',               normal: 'DEBIT' },
-  { code: '1500', name: 'Transfer Clearing',       type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1600', name: 'Equipment',               type: 'Asset',     group: 'Equipment',               normal: 'DEBIT' },
-  { code: '1700', name: 'Other Assets',            type: 'Asset',     group: 'Other Assets',            normal: 'DEBIT' },
-  { code: '2000', name: 'Liabilities',             type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2100', name: 'Current Liabilities',     type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2110', name: 'Accounts Payable',        type: 'Liability', group: 'Accounts Payable',        normal: 'CREDIT' },
-  { code: '2120', name: 'Credit Cards',            type: 'Liability', group: 'Credit Cards',            normal: 'CREDIT' },
-  { code: '2130', name: 'Sales Tax Payable',       type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2140', name: 'Payroll Liabilities',     type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2200', name: 'Long-Term Liabilities',   type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '2210', name: 'Notes Payable',           type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '2220', name: 'Mortgage Payable',        type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '3000', name: "Owner's Equity",          type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3100', name: 'Starting Balance',        type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3200', name: 'Retained Earnings',       type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3300', name: 'Dividends Paid',          type: 'Equity',    group: 'Equity',                  normal: 'DEBIT' },
-  { code: '4000', name: 'Sales',                   type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4100', name: 'Sales Revenue',           type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4200', name: 'Service Revenue',         type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4300', name: 'Interest Income',         type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4400', name: 'Other Income',            type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4500', name: 'Gain on Sale of Assets',  type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4600', name: 'Unrealized Gains',        type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '5000', name: 'Cost of Goods Sold',      type: 'Expense',   group: 'Cost of Sales',           normal: 'DEBIT' },
-  { code: '5200', name: 'Salaries & Wages',        type: 'Expense',   group: 'Payroll',                 normal: 'DEBIT' },
-  { code: '5300', name: 'Rent Expense',            type: 'Expense',   group: 'Rent',                    normal: 'DEBIT' },
-  { code: '5400', name: 'Utilities',               type: 'Expense',   group: 'Utilities',               normal: 'DEBIT' },
-  { code: '5500', name: 'Insurance',               type: 'Expense',   group: 'Insurance',               normal: 'DEBIT' },
-  { code: '5600', name: 'Depreciation',            type: 'Expense',   group: 'Depreciation',            normal: 'DEBIT' },
-  { code: '5700', name: 'Marketing & Advertising', type: 'Expense',   group: 'Marketing',               normal: 'DEBIT' },
-  { code: '5800', name: 'Professional Services',   type: 'Expense',   group: 'Professional Services',   normal: 'DEBIT' },
-  { code: '5900', name: 'Travel & Entertainment',  type: 'Expense',   group: 'Travel',                  normal: 'DEBIT' },
-  { code: '5950', name: 'Bank & Transaction Fees', type: 'Expense',   group: 'Bank Fees',               normal: 'DEBIT' },
-  { code: '5960', name: 'Loss on Sale of Assets',  type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
-  { code: '5970', name: 'Unrealized Losses',       type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
-  { code: '5980', name: 'Other Expenses',          type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
+  { code: '1000', name: 'Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1100', name: 'Cash & Bank', type: 'Asset', group: 'Bank', normal: 'DEBIT' },
+  { code: '1110', name: 'Fiat Cash Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1120', name: 'Digital Asset Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  {
+    code: '1200',
+    name: 'Accounts Receivable',
+    type: 'Asset',
+    group: 'Accounts Receivable',
+    normal: 'DEBIT',
+  },
+  {
+    code: '1300',
+    name: 'Prepaid Expenses',
+    type: 'Asset',
+    group: 'Prepaid Expenses',
+    normal: 'DEBIT',
+  },
+  { code: '1305', name: 'Inventory', type: 'Asset', group: 'Inventory', normal: 'DEBIT' },
+  { code: '1500', name: 'Transfer Clearing', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1600', name: 'Equipment', type: 'Asset', group: 'Equipment', normal: 'DEBIT' },
+  { code: '1700', name: 'Other Assets', type: 'Asset', group: 'Other Assets', normal: 'DEBIT' },
+  {
+    code: '2000',
+    name: 'Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2100',
+    name: 'Current Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2110',
+    name: 'Accounts Payable',
+    type: 'Liability',
+    group: 'Accounts Payable',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2120',
+    name: 'Credit Cards',
+    type: 'Liability',
+    group: 'Credit Cards',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2130',
+    name: 'Sales Tax Payable',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2140',
+    name: 'Payroll Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2200',
+    name: 'Long-Term Liabilities',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2210',
+    name: 'Notes Payable',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2220',
+    name: 'Mortgage Payable',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  { code: '3000', name: "Owner's Equity", type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3100', name: 'Starting Balance', type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3200', name: 'Retained Earnings', type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3300', name: 'Dividends Paid', type: 'Equity', group: 'Equity', normal: 'DEBIT' },
+  { code: '4000', name: 'Sales', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  { code: '4100', name: 'Sales Revenue', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  { code: '4200', name: 'Service Revenue', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  {
+    code: '4300',
+    name: 'Interest Income',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  { code: '4400', name: 'Other Income', type: 'Income', group: 'Other Income', normal: 'CREDIT' },
+  {
+    code: '4500',
+    name: 'Gain on Sale of Assets',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  {
+    code: '4600',
+    name: 'Unrealized Gains',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  {
+    code: '5000',
+    name: 'Cost of Goods Sold',
+    type: 'Expense',
+    group: 'Cost of Sales',
+    normal: 'DEBIT',
+  },
+  { code: '5200', name: 'Salaries & Wages', type: 'Expense', group: 'Payroll', normal: 'DEBIT' },
+  { code: '5300', name: 'Rent Expense', type: 'Expense', group: 'Rent', normal: 'DEBIT' },
+  { code: '5400', name: 'Utilities', type: 'Expense', group: 'Utilities', normal: 'DEBIT' },
+  { code: '5500', name: 'Insurance', type: 'Expense', group: 'Insurance', normal: 'DEBIT' },
+  { code: '5600', name: 'Depreciation', type: 'Expense', group: 'Depreciation', normal: 'DEBIT' },
+  {
+    code: '5700',
+    name: 'Marketing & Advertising',
+    type: 'Expense',
+    group: 'Marketing',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5800',
+    name: 'Professional Services',
+    type: 'Expense',
+    group: 'Professional Services',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5900',
+    name: 'Travel & Entertainment',
+    type: 'Expense',
+    group: 'Travel',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5950',
+    name: 'Bank & Transaction Fees',
+    type: 'Expense',
+    group: 'Bank Fees',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5960',
+    name: 'Loss on Sale of Assets',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5970',
+    name: 'Unrealized Losses',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5980',
+    name: 'Other Expenses',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
 ];
 
 export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
@@ -206,8 +341,16 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
 
   // ── Contacts ─────────────────────────────────────────────────────────
   const c = (name: string, type: string, email?: string | null): TakeoutContact => ({
-    id: U(), name, type, email: email ?? null, phone: null,
-    street: null, city: null, state: null, zip: null, country: 'US',
+    id: U(),
+    name,
+    type,
+    email: email ?? null,
+    phone: null,
+    street: null,
+    city: null,
+    state: null,
+    zip: null,
+    country: 'US',
   });
   const contactPacPower = c('Pacific Power Co.', 'Vendor', 'billing@pacpower.example');
   const contactFoundry = c('Foundry USA Pool', 'Vendor', 'payouts@foundry.example');
@@ -222,9 +365,16 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   const contactMiningCorp = c('MiningCorp Holdings', 'Customer', 'ar@miningcorp.example');
 
   const contacts: TakeoutContact[] = [
-    contactPacPower, contactFoundry, contactCryptoHost, contactBitmain,
-    contactMesaMining, contactSafeTech, contactProfServ,
-    contactTechStartup, contactDataCenter, contactMiningCorp,
+    contactPacPower,
+    contactFoundry,
+    contactCryptoHost,
+    contactBitmain,
+    contactMesaMining,
+    contactSafeTech,
+    contactProfServ,
+    contactTechStartup,
+    contactDataCenter,
+    contactMiningCorp,
   ];
 
   // ── Transactions + JEs ───────────────────────────────────────────────
@@ -251,10 +401,10 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   }): string {
     const jeId = U();
     const jeDate = new Date(args.date + 'T00:00:00Z');
-    const btcRate = btcRateForDate(jeDate);          // USD per BTC
+    const btcRate = btcRateForDate(jeDate); // USD per BTC
     const amountUsd = round2(args.amountUsd);
-    const amountBtc = round8(amountUsd / btcRate);   // BTC equivalent
-    const postedRate = round8(1 / btcRate);          // BTC per USD
+    const amountBtc = round8(amountUsd / btcRate); // BTC equivalent
+    const postedRate = round8(1 / btcRate); // BTC per USD
     journal_entries.push({
       id: jeId,
       date: args.date,
@@ -427,7 +577,9 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
 
   // ── Monthly opex ─────────────────────────────────────────────────────
   function eachMonthOfFirst(dayOfMonth: number, fn: (date: Date) => void) {
-    const cursor = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), dayOfMonth));
+    const cursor = new Date(
+      Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), dayOfMonth),
+    );
     while (cursor <= now) {
       if (cursor >= startDate) fn(new Date(cursor));
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
@@ -439,13 +591,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     const base = 19000 + (date.getUTCMonth() >= 5 && date.getUTCMonth() <= 8 ? 4200 : 0);
     const usd = base + (rand() - 0.5) * 1600;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Electricity — Pacific Power',
     });
     postJE({
-      date: iso(date), memo: 'Electricity bill', ref: null,
-      drCode: '5400', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Electricity bill',
+      ref: null,
+      drCode: '5400',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -453,13 +613,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   eachMonthOfFirst(8, (date) => {
     const usd = 2800 + (rand() - 0.5) * 120;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Colo hosting — CryptoHost',
     });
     postJE({
-      date: iso(date), memo: 'Colo hosting', ref: null,
-      drCode: '5980', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Colo hosting',
+      ref: null,
+      drCode: '5980',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -467,13 +635,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   eachMonthOfFirst(10, (date) => {
     const usd = 1200;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Equipment insurance',
     });
     postJE({
-      date: iso(date), memo: 'Equipment insurance', ref: null,
-      drCode: '5500', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Equipment insurance',
+      ref: null,
+      drCode: '5500',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -481,13 +657,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   eachMonthOfFirst(15, (date) => {
     const usd = 15000 + (rand() - 0.5) * 500;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Monthly payroll',
     });
     postJE({
-      date: iso(date), memo: 'Salaries & wages', ref: null,
-      drCode: '5200', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Salaries & wages',
+      ref: null,
+      drCode: '5200',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -495,13 +679,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   eachMonthOfFirst(20, (date) => {
     const usd = 800;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Bookkeeping services',
     });
     postJE({
-      date: iso(date), memo: 'Professional services', ref: null,
-      drCode: '5800', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Professional services',
+      ref: null,
+      drCode: '5800',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -510,13 +702,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     if (rand() > 0.4) return;
     const usd = 450 + rand() * 800;
     pushTx({
-      date: iso(date), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -usd, usd_value: usd,
+      date: iso(date),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -usd,
+      usd_value: usd,
       memo: 'Digital ad spend',
     });
     postJE({
-      date: iso(date), memo: 'Marketing', ref: null,
-      drCode: '5700', crCode: '1100', amountUsd: usd,
+      date: iso(date),
+      memo: 'Marketing',
+      ref: null,
+      drCode: '5700',
+      crCode: '1100',
+      amountUsd: usd,
     });
   });
 
@@ -530,13 +730,21 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     // Maintenance
     const maintUsd = 7500 + (rand() - 0.5) * 900;
     pushTx({
-      date: iso(qDate), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -maintUsd, usd_value: maintUsd,
+      date: iso(qDate),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -maintUsd,
+      usd_value: maintUsd,
       memo: 'Quarterly preventive maintenance',
     });
     postJE({
-      date: iso(qDate), memo: 'Quarterly maintenance', ref: `MAINT-Q${quarterCount}`,
-      drCode: '5980', crCode: '1100', amountUsd: maintUsd,
+      date: iso(qDate),
+      memo: 'Quarterly maintenance',
+      ref: `MAINT-Q${quarterCount}`,
+      drCode: '5980',
+      crCode: '1100',
+      amountUsd: maintUsd,
     });
 
     // BTC sale to USD to cover cash needs
@@ -544,31 +752,51 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     const price = btcPrice(m * 30);
     const saleUsd = btcSold * price;
     pushTx({
-      date: iso(qDate), walletId: walletColdStorageId,
-      type: 'TRANSFER', asset: 'BTC', amount: -btcSold, usd_value: saleUsd,
+      date: iso(qDate),
+      walletId: walletColdStorageId,
+      type: 'TRANSFER',
+      asset: 'BTC',
+      amount: -btcSold,
+      usd_value: saleUsd,
       memo: 'BTC sale to cover opex',
     });
     pushTx({
-      date: iso(qDate), walletId: walletOperatingId,
-      type: 'TRANSFER', asset: 'USD', amount: saleUsd, usd_value: saleUsd,
+      date: iso(qDate),
+      walletId: walletOperatingId,
+      type: 'TRANSFER',
+      asset: 'USD',
+      amount: saleUsd,
+      usd_value: saleUsd,
       memo: 'USD proceeds from BTC sale',
     });
     postJE({
-      date: iso(qDate), memo: 'BTC to USD conversion', ref: `BTC-SALE-Q${quarterCount}`,
-      drCode: '1100', crCode: '1120', amountUsd: saleUsd,
+      date: iso(qDate),
+      memo: 'BTC to USD conversion',
+      ref: `BTC-SALE-Q${quarterCount}`,
+      drCode: '1100',
+      crCode: '1120',
+      amountUsd: saleUsd,
     });
 
     // Hardware upgrade — only in quarters 2 and 4
     if (quarterCount === 2 || quarterCount === 4) {
       const hwUsd = 45000 + rand() * 18000;
       pushTx({
-        date: iso(addDays(qDate, 2)), walletId: null,
-        type: 'EXPENSE', asset: 'USD', amount: -hwUsd, usd_value: hwUsd,
+        date: iso(addDays(qDate, 2)),
+        walletId: null,
+        type: 'EXPENSE',
+        asset: 'USD',
+        amount: -hwUsd,
+        usd_value: hwUsd,
         memo: 'ASIC expansion — hardware upgrade',
       });
       postJE({
-        date: iso(addDays(qDate, 2)), memo: 'Hardware upgrade', ref: `HW-Q${quarterCount}`,
-        drCode: '1600', crCode: '2120', amountUsd: hwUsd,
+        date: iso(addDays(qDate, 2)),
+        memo: 'Hardware upgrade',
+        ref: `HW-Q${quarterCount}`,
+        drCode: '1600',
+        crCode: '2120',
+        amountUsd: hwUsd,
       });
     }
 
@@ -577,25 +805,40 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
       date: iso(addDays(qDate, 30)),
       memo: 'Quarterly depreciation — ASIC fleet',
       ref: `DEPR-Q${quarterCount}`,
-      drCode: '5600', crCode: '1600', amountUsd: 18000,
+      drCode: '5600',
+      crCode: '1600',
+      amountUsd: 18000,
     });
 
     // Credit card pay-down (monthly-ish, grouped here)
     const ccPayment = 35000 + rand() * 10000;
     pushTx({
-      date: iso(addDays(qDate, 10)), walletId: walletOperatingId,
-      type: 'EXPENSE', asset: 'USD', amount: -ccPayment, usd_value: ccPayment,
+      date: iso(addDays(qDate, 10)),
+      walletId: walletOperatingId,
+      type: 'EXPENSE',
+      asset: 'USD',
+      amount: -ccPayment,
+      usd_value: ccPayment,
       memo: 'Credit card payment',
     });
     postJE({
-      date: iso(addDays(qDate, 10)), memo: 'Credit card payment', ref: null,
-      drCode: '2120', crCode: '1100', amountUsd: ccPayment,
+      date: iso(addDays(qDate, 10)),
+      memo: 'Credit card payment',
+      ref: null,
+      drCode: '2120',
+      crCode: '1100',
+      amountUsd: ccPayment,
     });
   }
 
   // ── Open receivables at "today" (hosting invoices not yet paid) ──────
   // Makes Working Capital > cash-on-hand and Receivables > 0.
-  const openInvoices: Array<{ contact: TakeoutContact; usd: number; daysAgo: number; ref: string }> = [
+  const openInvoices: Array<{
+    contact: TakeoutContact;
+    usd: number;
+    daysAgo: number;
+    ref: string;
+  }> = [
     { contact: contactTechStartup, usd: 9600, daysAgo: 8, ref: 'INV-2026-041' },
     { contact: contactDataCenter, usd: 3200, daysAgo: 14, ref: 'INV-2026-038' },
     { contact: contactMiningCorp, usd: 5200, daysAgo: 21, ref: 'INV-2026-034' },
@@ -729,7 +972,8 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
       id: U(),
       payee: 'Bitcoin Miami 2026 — Sponsorship',
       description: 'Booth + branding package',
-      rejection_reason: 'Exceeds annual marketing budget; revisit at next board cycle with co-sponsor.',
+      rejection_reason:
+        'Exceeds annual marketing budget; revisit at next board cycle with co-sponsor.',
       amount: 18500,
       currency: 'USD',
       status: 'REJECTED',
@@ -743,16 +987,20 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   ];
 
   const data: TakeoutData = {
-    organizations: [{
-      id: orgId,
-      name: 'Sierra Bitcoin Mining Co.',
-      external_journal_id: null,
-    }],
-    org_settings: [{
-      bitcoin_display: 'sats',
-      primary_currency: 'BTC',
-      secondary_currency: 'USD',
-    }],
+    organizations: [
+      {
+        id: orgId,
+        name: 'Sierra Bitcoin Mining Co.',
+        external_journal_id: null,
+      },
+    ],
+    org_settings: [
+      {
+        bitcoin_display: 'sats',
+        primary_currency: 'BTC',
+        secondary_currency: 'USD',
+      },
+    ],
     wallets,
     chart_of_accounts,
     contacts,

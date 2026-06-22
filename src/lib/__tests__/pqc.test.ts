@@ -30,9 +30,9 @@
  * ------------------------------------------------------------------
  */
 
-import { describe, it, expect } from "vitest";
-import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
-import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
+import { describe, it, expect } from 'vitest';
+import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
+import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import {
   HYBRID_KEM_CIPHERTEXT_BYTES,
   HYBRID_KEM_PUBLIC_KEY_BYTES,
@@ -44,15 +44,15 @@ import {
   hybridEncapsulate,
   sign,
   verify,
-} from "../pqc";
+} from '../pqc';
 
 // ------------------------------------------------------------------
 // Small helpers.
 // ------------------------------------------------------------------
 
 function hex(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += b.toString(16).padStart(2, "0");
+  let s = '';
+  for (const b of bytes) s += b.toString(16).padStart(2, '0');
   return s;
 }
 
@@ -66,14 +66,14 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 // Hybrid KEM round-trip.
 // ------------------------------------------------------------------
 
-describe("pqc: hybrid KEM round-trip", () => {
-  it("produces keypairs of the expected sizes", () => {
+describe('pqc: hybrid KEM round-trip', () => {
+  it('produces keypairs of the expected sizes', () => {
     const kp = generateHybridKemKeyPair();
     expect(kp.publicKey.length).toBe(HYBRID_KEM_PUBLIC_KEY_BYTES);
     expect(kp.secretKey.length).toBe(HYBRID_KEM_SECRET_KEY_BYTES);
   });
 
-  it("shared secret decapsulates to the same bytes (5 iterations)", () => {
+  it('shared secret decapsulates to the same bytes (5 iterations)', () => {
     for (let i = 0; i < 5; i++) {
       const { publicKey, secretKey } = generateHybridKemKeyPair();
       const { ciphertext, sharedSecret } = hybridEncapsulate(publicKey);
@@ -85,11 +85,11 @@ describe("pqc: hybrid KEM round-trip", () => {
     }
   });
 
-  it("rejects malformed public keys with a clear error", () => {
+  it('rejects malformed public keys with a clear error', () => {
     expect(() => hybridEncapsulate(new Uint8Array(100))).toThrow(/must be 1216 bytes/);
   });
 
-  it("rejects malformed secret keys with a clear error", () => {
+  it('rejects malformed secret keys with a clear error', () => {
     const { publicKey } = generateHybridKemKeyPair();
     const { ciphertext } = hybridEncapsulate(publicKey);
     expect(() => hybridDecapsulate(new Uint8Array(100), ciphertext)).toThrow(/must be 2432 bytes/);
@@ -100,40 +100,40 @@ describe("pqc: hybrid KEM round-trip", () => {
 // ML-DSA-65 round-trip and tamper-detection.
 // ------------------------------------------------------------------
 
-describe("pqc: ML-DSA-65 sign / verify", () => {
-  it("verifies a legitimate signature", () => {
+describe('pqc: ML-DSA-65 sign / verify', () => {
+  it('verifies a legitimate signature', () => {
     const { publicKey, secretKey } = generateSigKeyPair();
     expect(publicKey.length).toBe(ML_DSA_65.publicKeyBytes);
     expect(secretKey.length).toBe(ML_DSA_65.secretKeyBytes);
 
-    const message = new TextEncoder().encode("orange rails, quantum safe");
+    const message = new TextEncoder().encode('orange rails, quantum safe');
     const signature = sign(secretKey, message);
     expect(signature.length).toBe(ML_DSA_65.signatureBytes);
 
     expect(verify(publicKey, message, signature)).toBe(true);
   });
 
-  it("rejects a tampered message", () => {
+  it('rejects a tampered message', () => {
     const { publicKey, secretKey } = generateSigKeyPair();
-    const message = new TextEncoder().encode("intact message");
+    const message = new TextEncoder().encode('intact message');
     const signature = sign(secretKey, message);
     const tampered = new Uint8Array(message);
     tampered[0] ^= 0x01;
     expect(verify(publicKey, tampered, signature)).toBe(false);
   });
 
-  it("rejects a tampered signature", () => {
+  it('rejects a tampered signature', () => {
     const { publicKey, secretKey } = generateSigKeyPair();
-    const message = new TextEncoder().encode("intact signature about to be flipped");
+    const message = new TextEncoder().encode('intact signature about to be flipped');
     const signature = sign(secretKey, message);
     const tampered = new Uint8Array(signature);
     tampered[10] ^= 0x01;
     expect(verify(publicKey, message, tampered)).toBe(false);
   });
 
-  it("returns false (never throws) on malformed inputs", () => {
+  it('returns false (never throws) on malformed inputs', () => {
     const { publicKey, secretKey } = generateSigKeyPair();
-    const message = new TextEncoder().encode("anything");
+    const message = new TextEncoder().encode('anything');
     const shortPub = new Uint8Array(100);
     const shortSig = new Uint8Array(50);
     expect(verify(shortPub, message, sign(secretKey, message))).toBe(false);
@@ -147,8 +147,8 @@ describe("pqc: ML-DSA-65 sign / verify", () => {
 // the file header for source URLs and extraction procedure.
 // ------------------------------------------------------------------
 
-import kemKat from "./fixtures/nist-acvp-ml-kem-768.json";
-import dsaKat from "./fixtures/nist-acvp-ml-dsa-65.json";
+import kemKat from './fixtures/nist-acvp-ml-kem-768.json';
+import dsaKat from './fixtures/nist-acvp-ml-dsa-65.json';
 
 function hexToBytes(h: string): Uint8Array {
   if (h.length % 2 !== 0) throw new Error(`odd hex length: ${h.length}`);

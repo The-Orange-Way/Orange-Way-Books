@@ -44,9 +44,7 @@ const navItems: NavItem[] = [
     path: '/app/transactions',
     icon: ArrowLeftRight,
     exact: false,
-    children: [
-      { title: 'Journal Entries', path: '/app/journal', icon: BookOpen, exact: false },
-    ],
+    children: [{ title: 'Journal Entries', path: '/app/journal', icon: BookOpen, exact: false }],
   },
   { title: 'Cash flow', path: '/app/cash-flow', icon: TrendingUp, exact: false },
   { title: 'Reports', path: '/app/reports', icon: BarChart3, exact: false },
@@ -81,8 +79,13 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
 
     const fetchOrgs = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { if (isActive) setLoading(false); return; }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          if (isActive) setLoading(false);
+          return;
+        }
 
         if (isActive) {
           setUserEmail(user.email | '');
@@ -95,9 +98,12 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           .from('org_members')
           .select('org_id')
           .eq('user_id', user.id);
-        if (error || !memberships?.length) { if (isActive) setLoading(false); return; }
+        if (error || !memberships?.length) {
+          if (isActive) setLoading(false);
+          return;
+        }
 
-        const orgIds = memberships.map(m => m.org_id);
+        const orgIds = memberships.map((m) => m.org_id);
 
         // Load all org records
         const { data: orgRows } = await supabase
@@ -110,13 +116,13 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
             orgRows.map(async (org) => {
               const dec = await decryptOrganization(org, decryptText);
               return { id: org.id, name: dec.name };
-            })
+            }),
           );
           setOrgs(decrypted);
 
           // Determine active org
           const stored = localStorage.getItem('orangewaybooks.active_org');
-          const validStored = stored && decrypted.some(o => o.id === stored);
+          const validStored = stored && decrypted.some((o) => o.id === stored);
           setActiveOrgId(validStored ? stored : (decrypted[0]?.id ?? null));
         }
       } catch (error) {
@@ -127,7 +133,9 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
     };
 
     void fetchOrgs();
-    return () => { isActive = false; };
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   // Close profile dropdown on outside click
@@ -160,13 +168,25 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
   return (
     <aside
       className="flex flex-col sticky top-0 min-h-screen bg-white"
-      style={{ width: 230, borderRight: '1px solid var(--color-border)', fontSize: 13, fontWeight: 500 }}
+      style={{
+        width: 230,
+        borderRight: '1px solid var(--color-border)',
+        fontSize: 13,
+        fontWeight: 500,
+      }}
     >
       {/* Logo */}
       <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--color-brand-orange)', fontSize: 18 }}>🔒</span>
-          <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--color-gray-900)' }}>
+          <span
+            style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: 15,
+              fontWeight: 700,
+              color: 'var(--color-gray-900)',
+            }}
+          >
             Orange Way Books
           </span>
         </div>
@@ -198,7 +218,9 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
             }}
           >
             {orgs.map((org) => (
-              <option key={org.id} value={org.id}>{org.name}</option>
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
             ))}
             {orgs.length === 0 && <option value="">No organizations</option>}
           </select>
@@ -253,14 +275,20 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           ) : (
             <Lock className="w-4 h-4 text-vault-locked" />
           )}
-          <span className={`text-xs font-medium ${isUnlocked ? 'text-vault-unlocked' : 'text-vault-locked'}`}>
+          <span
+            className={`text-xs font-medium ${isUnlocked ? 'text-vault-unlocked' : 'text-vault-locked'}`}
+          >
             Vault {isUnlocked ? 'Unlocked' : 'Locked'}
           </span>
         </div>
       </div>
 
       {/* Profile section */}
-      <div ref={profileRef} className="relative" style={{ borderTop: '1px solid var(--color-border)', padding: '10px 12px' }}>
+      <div
+        ref={profileRef}
+        className="relative"
+        style={{ borderTop: '1px solid var(--color-border)', padding: '10px 12px' }}
+      >
         <button
           className="w-full flex items-center gap-2.5"
           onClick={() => setProfileOpen(!profileOpen)}
@@ -270,23 +298,36 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           <div
             className="flex items-center justify-center flex-shrink-0"
             style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--color-gray-300)', color: 'var(--color-gray-700)',
-              fontSize: 13, fontWeight: 700,
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: 'var(--color-gray-300)',
+              color: 'var(--color-gray-700)',
+              fontSize: 13,
+              fontWeight: 700,
             }}
           >
             {getInitials(userName)}
           </div>
           <div className="flex-1 text-left min-w-0">
-            <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-gray-700)' }}>
+            <div
+              className="truncate"
+              style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-gray-700)' }}
+            >
               {userName || 'User'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-gray-400)' }}>Member</div>
           </div>
           {profileOpen ? (
-            <ChevronUp className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-gray-400)' }} />
+            <ChevronUp
+              className="w-4 h-4 flex-shrink-0"
+              style={{ color: 'var(--color-gray-400)' }}
+            />
           ) : (
-            <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-gray-400)' }} />
+            <ChevronDown
+              className="w-4 h-4 flex-shrink-0"
+              style={{ color: 'var(--color-gray-400)' }}
+            />
           )}
         </button>
 
@@ -334,7 +375,11 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
             ))}
             <button
               className="w-full flex items-center gap-2 transition-colors"
-              style={{ padding: '8px 12px', fontSize: 13, borderTop: '1px solid var(--color-border)' }}
+              style={{
+                padding: '8px 12px',
+                fontSize: 13,
+                borderTop: '1px solid var(--color-border)',
+              }}
               onClick={handleLogout}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--color-brand-orange)';

@@ -35,13 +35,13 @@ import Flash from '@/pages/admin/flash/Flash';
 import FlashCallback from '@/pages/admin/flash/FlashCallback';
 import ChangeVaultPassword from '@/pages/settings/ChangeVaultPassword';
 import RecoveryCode from '@/pages/settings/RecoveryCode';
-import MasterRecovery from "@/pages/settings/MasterRecovery";
-import OpeningBalances from "@/pages/settings/OpeningBalances";
-import Periods from "@/pages/settings/Periods";
-import BulkReceiptLinker from "@/pages/settings/BulkReceiptLinker";
-import ImportFromOr from "@/pages/settings/ImportFromOr";
-import ImportJobs from "@/pages/settings/ImportJobs";
-import DemoData from "@/pages/settings/DemoData";
+import MasterRecovery from '@/pages/settings/MasterRecovery';
+import OpeningBalances from '@/pages/settings/OpeningBalances';
+import Periods from '@/pages/settings/Periods';
+import BulkReceiptLinker from '@/pages/settings/BulkReceiptLinker';
+import ImportFromOr from '@/pages/settings/ImportFromOr';
+import ImportJobs from '@/pages/settings/ImportJobs';
+import DemoData from '@/pages/settings/DemoData';
 import Security from '@/pages/settings/Security';
 
 // Public marketing surface — readable by AI crawlers and search engines.
@@ -77,7 +77,9 @@ function RootRouter() {
     // identifying telemetry" stance. Events stay anonymous per-tab even
     // when telemetry is enabled (SaaS builds); self-hosted builds skip
     // PostHog initialization entirely. See src/main.tsx.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isActive) return;
       setSession(session);
       setSessionLoaded(true);
@@ -135,7 +137,10 @@ function RootRouter() {
       <Route path="/connections" element={<Navigate to="/app/connections" replace />} />
       <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
       <Route path="/settings/security" element={<Navigate to="/app/settings/security" replace />} />
-      <Route path="/settings/change-password" element={<Navigate to="/app/settings/change-password" replace />} />
+      <Route
+        path="/settings/change-password"
+        element={<Navigate to="/app/settings/change-password" replace />}
+      />
       <Route path="/settings/roles" element={<Navigate to="/app/admin?tab=roles" replace />} />
 
       <Route path="*" element={<NotFound />} />
@@ -221,7 +226,9 @@ function VaultGate({ session }: { session: Session }) {
 
   // New user: onboarding wizard (Step 0 = vault password creation)
   if (needsOnboarding) {
-    return <OnboardingWizard userId={session.user.id} onComplete={() => setNeedsOnboarding(false)} />;
+    return (
+      <OnboardingWizard userId={session.user.id} onComplete={() => setNeedsOnboarding(false)} />
+    );
   }
 
   // Returning user: vault unlock screen
@@ -304,13 +311,21 @@ function AnalyticsNotice() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [show]);
   if (!show) return null;
-  const dismiss = () => { localStorage.setItem('orangewaybooks.notice_dismissed', '1'); setShow(false); };
+  const dismiss = () => {
+    localStorage.setItem('orangewaybooks.notice_dismissed', '1');
+    setShow(false);
+  };
   return (
     <div
       style={{
-        position: 'fixed', left: 20, bottom: 20, zIndex: 9999,
-        maxWidth: 320, padding: '14px 16px',
-        background: '#0F172A', color: '#FAFAF9',
+        position: 'fixed',
+        left: 20,
+        bottom: 20,
+        zIndex: 9999,
+        maxWidth: 320,
+        padding: '14px 16px',
+        background: '#0F172A',
+        color: '#FAFAF9',
         borderRadius: 14,
         boxShadow: '0 12px 32px rgba(0,0,0,0.28), 0 2px 6px rgba(0,0,0,0.18)',
         font: "12.5px/1.5 -apple-system, 'Plus Jakarta Sans', system-ui, sans-serif",
@@ -325,23 +340,39 @@ function AnalyticsNotice() {
         onClick={dismiss}
         aria-label="Close"
         style={{
-          position: 'absolute', top: 6, right: 8,
-          background: 'transparent', color: '#94A3B8', border: 0,
-          fontSize: 18, lineHeight: 1, padding: '4px 6px',
-          cursor: 'pointer', borderRadius: 6,
+          position: 'absolute',
+          top: 6,
+          right: 8,
+          background: 'transparent',
+          color: '#94A3B8',
+          border: 0,
+          fontSize: 18,
+          lineHeight: 1,
+          padding: '4px 6px',
+          cursor: 'pointer',
+          borderRadius: 6,
         }}
-      >×</button>
+      >
+        ×
+      </button>
       <p style={{ margin: '0 0 10px 0', paddingRight: 18 }}>
         Anonymous analytics —{' '}
-        <strong style={{ color: '#fff' }}>no tracking, no profiles, no cookies.</strong>{' '}
-        A session cookie is set only if you sign in, and is deleted when you sign out.
+        <strong style={{ color: '#fff' }}>no tracking, no profiles, no cookies.</strong> A session
+        cookie is set only if you sign in, and is deleted when you sign out.
       </p>
       <button
         type="button"
         onClick={dismiss}
         style={{
-          background: '#F7931A', color: '#fff', border: 0, borderRadius: 8,
-          padding: '6px 14px', font: 'inherit', fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
+          background: '#F7931A',
+          color: '#fff',
+          border: 0,
+          borderRadius: 8,
+          padding: '6px 14px',
+          font: 'inherit',
+          fontWeight: 600,
+          fontSize: 12.5,
+          cursor: 'pointer',
         }}
       >
         Got it

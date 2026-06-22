@@ -47,8 +47,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
 const ALLOWED_WRAP_ALGOS = new Set<string>(['hybrid-x25519-mlkem768']);
@@ -93,7 +92,10 @@ serve(async (req) => {
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
     if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
@@ -119,9 +121,8 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
-    const pendingInviteId = typeof body.pending_invite_id === 'string'
-      ? body.pending_invite_id.trim()
-      : '';
+    const pendingInviteId =
+      typeof body.pending_invite_id === 'string' ? body.pending_invite_id.trim() : '';
     if (!pendingInviteId || !UUID_RE.test(pendingInviteId)) {
       return jsonResponse({ error: 'pending_invite_id must be a UUID' }, 400, cors);
     }
@@ -154,9 +155,7 @@ serve(async (req) => {
       );
     }
     if (new Date(pending.expires_at).getTime() < Date.now()) {
-      await adminClient.from('pending_invites')
-        .update({ status: 'expired' })
-        .eq('id', pending.id);
+      await adminClient.from('pending_invites').update({ status: 'expired' }).eq('id', pending.id);
       return jsonResponse({ error: 'Invite has expired' }, 410, cors);
     }
     if (!pending.recipient_user_id) {
@@ -167,10 +166,11 @@ serve(async (req) => {
       );
     }
 
-    const { data: canInvite, error: capErr } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: pending.org_id },
-    );
+    const { data: canInvite, error: capErr } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: pending.org_id,
+    });
     if (capErr) {
       console.error('complete-invite-wrap capability check failed:', capErr);
       return jsonResponse({ error: 'Failed to authorize caller' }, 500, cors);
@@ -225,7 +225,8 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingKey) {
-      const { error: updErr } = await adminClient.from('org_keys')
+      const { error: updErr } = await adminClient
+        .from('org_keys')
         .update({
           wrapped_dek: wrapPayload.wrapped_dek,
           iv: wrapPayload.iv,
@@ -276,8 +277,11 @@ serve(async (req) => {
       if (insErr) {
         console.error('complete-invite-wrap insert org_keys failed:', insErr);
         if (!existingMember) {
-          await adminClient.from('org_members').delete()
-            .eq('org_id', orgId).eq('user_id', targetUserId);
+          await adminClient
+            .from('org_members')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('user_id', targetUserId);
         }
         return jsonResponse({ error: 'Failed to record wrapped key' }, 500, cors);
       }
@@ -306,7 +310,8 @@ serve(async (req) => {
     }
 
     // 4) flip pending_invite -> wrapped.
-    const { error: statusErr } = await adminClient.from('pending_invites')
+    const { error: statusErr } = await adminClient
+      .from('pending_invites')
       .update({ status: 'wrapped' })
       .eq('id', pending.id);
     if (statusErr) {
@@ -320,12 +325,12 @@ serve(async (req) => {
         user_id: targetUserId,
         event: 'user.wrap_completed',
         metadata: {
-          actor_user_id:      caller.id,
-          target_user_id:     targetUserId,
-          org_id:             orgId,
+          actor_user_id: caller.id,
+          target_user_id: targetUserId,
+          org_id: orgId,
           role_definition_id: roleDef.id,
-          wrap_algo:          wrapPayload.wrap_algo,
-          pending_invite_id:  pending.id,
+          wrap_algo: wrapPayload.wrap_algo,
+          pending_invite_id: pending.id,
         },
       });
       if (auditErr) {
@@ -335,12 +340,16 @@ serve(async (req) => {
       console.warn('complete-invite-wrap audit insert threw:', err);
     }
 
-    return jsonResponse({
-      ok: true,
-      user_id: targetUserId,
-      org_id: orgId,
-      role_name: roleDef.name,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        ok: true,
+        user_id: targetUserId,
+        org_id: orgId,
+        role_name: roleDef.name,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('complete-invite-wrap error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

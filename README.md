@@ -31,27 +31,27 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 **Three honest caveats.** This matters because every privacy product over-promises, and most people don't want to read the small print:
 
-1. **The app can't read your books — but your bank still keeps its own records.** When you connect a bank or exchange, the bank already has its copy of your transactions. We never see your bank login or the bank's plaintext data. But the categories, memos, journal entries, account names, customer records, vendor contracts, and balances *you* enter into the app are encrypted on your device and unreadable to anyone but you.
-2. **Anyone you grant access can read what they're allowed to read.** If you invite your accountant, they get keys to the rows you share. The privacy guarantee is against *the operator and any future buyer of the company*, not against people you intentionally invite.
+1. **The app can't read your books — but your bank still keeps its own records.** When you connect a bank or exchange, the bank already has its copy of your transactions. We never see your bank login or the bank's plaintext data. But the categories, memos, journal entries, account names, customer records, vendor contracts, and balances _you_ enter into the app are encrypted on your device and unreadable to anyone but you.
+2. **Anyone you grant access can read what they're allowed to read.** If you invite your accountant, they get keys to the rows you share. The privacy guarantee is against _the operator and any future buyer of the company_, not against people you intentionally invite.
 3. **On-chain transactions remain on-chain.** Bitcoin's blockchain is public by design. We don't change that. The privacy boundary is the bookkeeping layer: your business interpretation of those transactions (memos, account assignments, internal notes) is what we cannot read.
 
 ---
 
 ## Why this exists
 
-> *"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization — and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations. The computer can be used as a tool to liberate and protect people, rather than to control them."*
+> _"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization — and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations. The computer can be used as a tool to liberate and protect people, rather than to control them."_
 >
 > — **Hal Finney**, cypherpunks mailing list, November 1992
 
 Thirty-four years later, every mainstream business-accounting product still operates the way Finney warned against.
 
-**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Every single one stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. *"Bank-level encryption"* means TLS in transit and AES at rest — with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
+**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Every single one stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. _"Bank-level encryption"_ means TLS in transit and AES at rest — with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
 
 That bargain made sense when "the cloud" was new. It makes less sense when:
 
 - **[LastPass was breached in 2022.](https://en.wikipedia.org/wiki/LastPass_2022_data_breach)** Encrypted vaults exfiltrated; master passwords brute-forced for years afterward. Federal prosecutors later [linked a $150 million crypto heist](https://krebsonsecurity.com/2025/03/feds-link-150m-cyberheist-to-2022-lastpass-hacks/) directly to that breach. What saved most users was strong passwords — not the vendor's architecture.
 - **Intuit killed Mint in 2024**, forcing 3.6 million users to migrate or lose years of history under a 90-day deadline. Vendor risk is your risk.
-- **Change Healthcare paid a $22M ransom in 2024** after attackers walked off with records on 100 million Americans. *"Bank-level encryption"* is a marketing phrase, not an architectural claim.
+- **Change Healthcare paid a $22M ransom in 2024** after attackers walked off with records on 100 million Americans. _"Bank-level encryption"_ is a marketing phrase, not an architectural claim.
 - **Your business runs on Bitcoin** — a money system designed to remove trusted third parties — while your **books** still sit on a third party who can read them.
 
 **Orange Way Books flips the model.** The browser holds the password. It derives a key that never leaves the device. Before anything touches the server, everything sensitive is encrypted. Reports and balances are computed in your browser, after unlock, using the key the server has never seen.
@@ -62,16 +62,16 @@ We did not invent "encrypt the database." We are building **bookkeeping that ass
 
 ## How it's different
 
-|  | QuickBooks | Xero | FreshBooks | Wave | Sage | NetSuite | **Orange Way Books** |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Open source | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Self-hostable | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Bitcoin-native (on-chain + Lightning) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Server can read your chart of accounts | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **✗** |
-| Server can read your journal entries | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **✗** |
-| Server can read your payroll and vendor contracts | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **✗** |
-| Cannot be shut down by an acquirer | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
-| Published open threat model | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
+|                                                   | QuickBooks | Xero | FreshBooks | Wave | Sage | NetSuite | **Orange Way Books** |
+| ------------------------------------------------- | :--------: | :--: | :--------: | :--: | :--: | :------: | :------------------: |
+| Open source                                       |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
+| Self-hostable                                     |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
+| Bitcoin-native (on-chain + Lightning)             |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
+| Server can read your chart of accounts            |     ✓      |  ✓   |     ✓      |  ✓   |  ✓   |    ✓     |        **✗**         |
+| Server can read your journal entries              |     ✓      |  ✓   |     ✓      |  ✓   |  ✓   |    ✓     |        **✗**         |
+| Server can read your payroll and vendor contracts |     ✓      |  ✓   |     ✓      |  ✓   |  ✓   |    ✓     |        **✗**         |
+| Cannot be shut down by an acquirer                |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
+| Published open threat model                       |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
 
 Every other accounting product keeps the keys to read your books on its own servers. We keep only ciphertext plus transaction dates (needed so the server can answer "show me May" without reading the rows). If an attacker breaches our database, they get opaque blobs and row counts — not your margins.
 
@@ -199,16 +199,16 @@ The project is managed with [Bun](https://bun.sh). CI runs `bun install --frozen
 
 ## Documentation
 
-| Doc | What's in it |
-|-----|--------------|
-| [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md) | Map of every doc and when to read which. Start here. |
-| [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) | Commit-message conventions, PR style, branch model, security rules. |
-| [`docs/OWB-ENTERPRISE-SECURITY.md`](./docs/OWB-ENTERPRISE-SECURITY.md) | System overview, data flow, what's encrypted vs. plaintext. |
-| [`docs/OWB-MULTIUSER-DESIGN.md`](./docs/OWB-MULTIUSER-DESIGN.md) | Multi-user organization design (roles, key hierarchy, invite + revoke). |
-| [`docs/OWB-USER-MANAGEMENT-ZKA.md`](./docs/OWB-USER-MANAGEMENT-ZKA.md) | Track-D multi-user spec (per-org key, hybrid post-quantum wrap, custody options). |
-| [`docs/OWB-MultiCurrency-Brain.md`](./docs/OWB-MultiCurrency-Brain.md) | Multi-currency, FX, IFRS vs. GAAP. The accountant-readable reference. |
-| [`docs/COMPETITIVE-ANALYSIS.md`](./docs/COMPETITIVE-ANALYSIS.md) | Survey of role models across QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting. |
-| [`SECURITY.md`](./SECURITY.md) | Threat model, cryptographic primitives, key rotation, disclosure policy. |
+| Doc                                                                    | What's in it                                                                                     |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md)         | Map of every doc and when to read which. Start here.                                             |
+| [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)                       | Commit-message conventions, PR style, branch model, security rules.                              |
+| [`docs/OWB-ENTERPRISE-SECURITY.md`](./docs/OWB-ENTERPRISE-SECURITY.md) | System overview, data flow, what's encrypted vs. plaintext.                                      |
+| [`docs/OWB-MULTIUSER-DESIGN.md`](./docs/OWB-MULTIUSER-DESIGN.md)       | Multi-user organization design (roles, key hierarchy, invite + revoke).                          |
+| [`docs/OWB-USER-MANAGEMENT-ZKA.md`](./docs/OWB-USER-MANAGEMENT-ZKA.md) | Track-D multi-user spec (per-org key, hybrid post-quantum wrap, custody options).                |
+| [`docs/OWB-MultiCurrency-Brain.md`](./docs/OWB-MultiCurrency-Brain.md) | Multi-currency, FX, IFRS vs. GAAP. The accountant-readable reference.                            |
+| [`docs/COMPETITIVE-ANALYSIS.md`](./docs/COMPETITIVE-ANALYSIS.md)       | Survey of role models across QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting. |
+| [`SECURITY.md`](./SECURITY.md)                                         | Threat model, cryptographic primitives, key rotation, disclosure policy.                         |
 
 ---
 
@@ -216,11 +216,11 @@ The project is managed with [Bun](https://bun.sh). CI runs `bun install --frozen
 
 Orange Way Books stands on thirty-five years of cypherpunk thought.
 
-- **Satoshi Nakamoto**, Bitcoin whitepaper (2008) — *"electronic cash without going through a financial institution."* [[bitcoin.org]](https://bitcoin.org/bitcoin.pdf)
-- **Eric Hughes**, *A Cypherpunk's Manifesto* (1993) — *"Privacy is the power to selectively reveal oneself to the world… Cypherpunks write code."* [[activism.net]](https://www.activism.net/cypherpunk/manifesto.html)
-- **Tim May**, *The Crypto Anarchist Manifesto* (1988) — *"A specter is haunting the modern world, the specter of crypto anarchy."* [[Nakamoto Institute]](https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/)
-- **Phil Zimmermann**, *Why I Wrote PGP* (1991) — *"It's personal. It's private. And it's no one's business but yours."* [[philzimmermann.com]](https://philzimmermann.com/EN/essays/WhyIWrotePGP.html)
-- **Hal Finney**, cypherpunks list (1992) — *"The computer can be used as a tool to liberate and protect people, rather than to control them."* [[Nakamoto Institute]](https://nakamotoinstitute.org/finney/)
+- **Satoshi Nakamoto**, Bitcoin whitepaper (2008) — _"electronic cash without going through a financial institution."_ [[bitcoin.org]](https://bitcoin.org/bitcoin.pdf)
+- **Eric Hughes**, _A Cypherpunk's Manifesto_ (1993) — _"Privacy is the power to selectively reveal oneself to the world… Cypherpunks write code."_ [[activism.net]](https://www.activism.net/cypherpunk/manifesto.html)
+- **Tim May**, _The Crypto Anarchist Manifesto_ (1988) — _"A specter is haunting the modern world, the specter of crypto anarchy."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/)
+- **Phil Zimmermann**, _Why I Wrote PGP_ (1991) — _"It's personal. It's private. And it's no one's business but yours."_ [[philzimmermann.com]](https://philzimmermann.com/EN/essays/WhyIWrotePGP.html)
+- **Hal Finney**, cypherpunks list (1992) — _"The computer can be used as a tool to liberate and protect people, rather than to control them."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/finney/)
 
 ---
 
@@ -237,4 +237,4 @@ Apache-2.0 — see [`LICENSE`](./LICENSE). Apache was chosen specifically for it
 
 ---
 
-*Orange Way Books — because "trust us with everything" is not a business model for your books.*
+_Orange Way Books — because "trust us with everything" is not a business model for your books._

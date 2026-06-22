@@ -26,17 +26,8 @@
  *     (the same AES-GCM ciphertext stored on the row).
  */
 
-import {
-  ML_DSA_65,
-  generateSigKeyPair,
-  sign as mlDsaSign,
-  verify as mlDsaVerify,
-} from '@/lib/pqc';
-import {
-  DEFAULT_WRAP_ALGORITHM,
-  KEY_WRAP_STRATEGIES,
-  base64ToBytes,
-} from '@/lib/key-wrapping';
+import { ML_DSA_65, generateSigKeyPair, sign as mlDsaSign, verify as mlDsaVerify } from '@/lib/pqc';
+import { DEFAULT_WRAP_ALGORITHM, KEY_WRAP_STRATEGIES, base64ToBytes } from '@/lib/key-wrapping';
 
 // ---------------------------------------------------------------------------
 // Local base64 helpers — kept inline so this module has no cross-module
@@ -101,8 +92,7 @@ const AES_GCM_IV_BYTES = 12;
  */
 function extractIvFromWrap(wrapped: Uint8Array, privateKeyBytes: number): Uint8Array {
   // Layout (see key-wrapping.ts): kemCt | iv[12] | (privateKey + tag[16]).
-  const ivOffset =
-    wrapped.length - AES_GCM_IV_BYTES - privateKeyBytes - DATA_KEY_BYTES_TAG;
+  const ivOffset = wrapped.length - AES_GCM_IV_BYTES - privateKeyBytes - DATA_KEY_BYTES_TAG;
   if (ivOffset < 0) {
     throw new Error(`signing-key wrap blob too short: ${wrapped.length} bytes`);
   }
@@ -180,18 +170,18 @@ export async function generateAndWrapSigningKey(
     wrapped.set(ct, kemCt.length + iv.length);
 
     wraps.push({
-      user_id:             w.userId,
+      user_id: w.userId,
       wrapped_private_key: bytesToBase64(wrapped),
-      iv:                  bytesToBase64(iv),
-      wrap_algo:           WRAP_ALGO_LABEL,
-      key_version:         keyVersion,
+      iv: bytesToBase64(iv),
+      wrap_algo: WRAP_ALGO_LABEL,
+      key_version: keyVersion,
     });
   }
 
   return {
-    publicKeyB64:   bytesToBase64(kp.publicKey),
+    publicKeyB64: bytesToBase64(kp.publicKey),
     keyVersion,
-    algorithm:      'ml-dsa-65',
+    algorithm: 'ml-dsa-65',
     wraps,
     privateKeyBytes: kp.secretKey,
   };
@@ -267,7 +257,7 @@ export function signMutation(
   const sig = mlDsaSign(handle.privateKeyBytes, payloadBytes);
   return {
     signature_b64: bytesToBase64(sig),
-    key_version:   handle.keyVersion,
+    key_version: handle.keyVersion,
   };
 }
 

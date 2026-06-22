@@ -104,7 +104,9 @@ export function parseCsvJournalEntries(
 
   const headerLower = new Set(headers.map((h) => h.toLowerCase()));
   if (!headerLower.has('je date') || !headerLower.has('wallet currency')) {
-    errors.push('CSV must include "JE date" and "Wallet Currency" columns. Download the sample file to match the format.');
+    errors.push(
+      'CSV must include "JE date" and "Wallet Currency" columns. Download the sample file to match the format.',
+    );
     return { rows: [], errors };
   }
 
@@ -130,9 +132,11 @@ export function parseCsvJournalEntries(
     if ((hasDebit || hasCredit) && !data.account_name?.trim()) {
       rowErrors.push('Account name is required when there is a Debit or Credit amount');
     }
-    if (data.account_name?.trim() && (hasDebit | hasCredit)) {
+    if (data.account_name?.trim() && hasDebit | hasCredit) {
       if (!accountNames.has(data.account_name.trim().toLowerCase())) {
-        rowErrors.push(`Account "${data.account_name.trim()}" not found. Use Admin > Chart of Accounts names.`);
+        rowErrors.push(
+          `Account "${data.account_name.trim()}" not found. Use Admin > Chart of Accounts names.`,
+        );
       }
     }
 

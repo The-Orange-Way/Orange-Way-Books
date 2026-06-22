@@ -5,9 +5,9 @@
 export class SignatureVerificationError extends Error {
   public readonly code: string;
 
-  constructor(message: string, code = "signature_verification_failed") {
+  constructor(message: string, code = 'signature_verification_failed') {
     super(message);
-    this.name = "SignatureVerificationError";
+    this.name = 'SignatureVerificationError';
     this.code = code;
     // Restore prototype chain (needed when targeting older runtimes).
     Object.setPrototypeOf(this, new.target.prototype);
@@ -21,8 +21,8 @@ export class SignatureVerificationError extends Error {
  */
 export class TimestampToleranceExceededError extends SignatureVerificationError {
   constructor(message: string) {
-    super(message, "timestamp_tolerance_exceeded");
-    this.name = "TimestampToleranceExceededError";
+    super(message, 'timestamp_tolerance_exceeded');
+    this.name = 'TimestampToleranceExceededError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -33,8 +33,8 @@ export class TimestampToleranceExceededError extends SignatureVerificationError 
  */
 export class MissingSignatureError extends SignatureVerificationError {
   constructor(message: string) {
-    super(message, "missing_signature");
-    this.name = "MissingSignatureError";
+    super(message, 'missing_signature');
+    this.name = 'MissingSignatureError';
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

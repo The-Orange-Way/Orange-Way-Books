@@ -9,14 +9,14 @@
  *   - Unknown algorithm string is rejected with a clear error.
  */
 
-import { describe, it, expect } from "vitest";
-import { generateHybridKemKeyPair } from "../pqc";
+import { describe, it, expect } from 'vitest';
+import { generateHybridKemKeyPair } from '../pqc';
 import {
   DEFAULT_WRAP_ALGORITHM,
   KEY_WRAP_STRATEGIES,
   base64ToBytes,
   wrapDataKeyForRecipients,
-} from "../key-wrapping";
+} from '../key-wrapping';
 
 function randomDataKey(): Uint8Array {
   const out = new Uint8Array(32);
@@ -30,8 +30,8 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
-describe("key-wrapping: hybrid-x25519-mlkem768", () => {
-  it("each of three recipients unwraps to the same data key", async () => {
+describe('key-wrapping: hybrid-x25519-mlkem768', () => {
+  it('each of three recipients unwraps to the same data key', async () => {
     const dataKey = randomDataKey();
     const recipients = [0, 1, 2].map((i) => {
       const kp = generateHybridKemKeyPair();
@@ -60,8 +60,8 @@ describe("key-wrapping: hybrid-x25519-mlkem768", () => {
     const bob = generateHybridKemKeyPair();
 
     const rows = await wrapDataKeyForRecipients(dataKey, [
-      { userId: "alice", publicKey: alice.publicKey },
-      { userId: "bob", publicKey: bob.publicKey },
+      { userId: 'alice', publicKey: alice.publicKey },
+      { userId: 'bob', publicKey: bob.publicKey },
     ]);
 
     const strategy = KEY_WRAP_STRATEGIES[DEFAULT_WRAP_ALGORITHM];
@@ -70,18 +70,18 @@ describe("key-wrapping: hybrid-x25519-mlkem768", () => {
     await expect(strategy.unwrapForSelf(bobRow, alice.secretKey)).rejects.toBeDefined();
   });
 
-  it("rejects an unknown algorithm", async () => {
+  it('rejects an unknown algorithm', async () => {
     const dataKey = randomDataKey();
     const kp = generateHybridKemKeyPair();
     await expect(
-      wrapDataKeyForRecipients(dataKey, [{ userId: "x", publicKey: kp.publicKey }], "made-up"),
+      wrapDataKeyForRecipients(dataKey, [{ userId: 'x', publicKey: kp.publicKey }], 'made-up'),
     ).rejects.toThrow(/unknown key-wrap algorithm/);
   });
 
-  it("rejects a mis-sized data key", async () => {
+  it('rejects a mis-sized data key', async () => {
     const kp = generateHybridKemKeyPair();
     await expect(
-      wrapDataKeyForRecipients(new Uint8Array(16), [{ userId: "x", publicKey: kp.publicKey }]),
+      wrapDataKeyForRecipients(new Uint8Array(16), [{ userId: 'x', publicKey: kp.publicKey }]),
     ).rejects.toThrow(/data key must be 32 bytes/);
   });
 });

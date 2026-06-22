@@ -60,13 +60,19 @@ serve(async (req) => {
     // The function RETURNS TABLE — Supabase surfaces that as an array.
     const first = Array.isArray(data) ? data[0] : data;
     const expiredRoles = Number((first as { expired_roles?: unknown })?.expired_roles ?? 0);
-    const expiredSessions = Number((first as { expired_sessions?: unknown })?.expired_sessions ?? 0);
+    const expiredSessions = Number(
+      (first as { expired_sessions?: unknown })?.expired_sessions ?? 0,
+    );
 
-    return jsonResponse({
-      ok: true,
-      expired_roles: expiredRoles,
-      expired_sessions: expiredSessions,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        ok: true,
+        expired_roles: expiredRoles,
+        expired_sessions: expiredSessions,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('sweep-expired-roles error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

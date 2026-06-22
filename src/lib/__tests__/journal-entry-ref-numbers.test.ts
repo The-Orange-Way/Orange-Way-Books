@@ -46,10 +46,16 @@ describe('parseImportRefNumber', () => {
     expect(parseImportRefNumber('WAVE-1402')).toEqual({ source: 'wave', externalId: '1402' });
   });
   it('parses QB prefix', () => {
-    expect(parseImportRefNumber('QB-abc-123')).toEqual({ source: 'quickbooks', externalId: 'abc-123' });
+    expect(parseImportRefNumber('QB-abc-123')).toEqual({
+      source: 'quickbooks',
+      externalId: 'abc-123',
+    });
   });
   it('parses OR prefix', () => {
-    expect(parseImportRefNumber('OR-x7k2m9')).toEqual({ source: 'orange_rails', externalId: 'x7k2m9' });
+    expect(parseImportRefNumber('OR-x7k2m9')).toEqual({
+      source: 'orange_rails',
+      externalId: 'x7k2m9',
+    });
   });
   it('returns null for internal ref numbers', () => {
     expect(parseImportRefNumber('JE-2025-0042')).toBeNull();
@@ -59,7 +65,10 @@ describe('parseImportRefNumber', () => {
     expect(parseImportRefNumber('OPEN-BAL-2024-01-01')).toBeNull();
   });
   it('handles external IDs with embedded hyphens', () => {
-    expect(parseImportRefNumber('QB-abc-123-xyz')).toEqual({ source: 'quickbooks', externalId: 'abc-123-xyz' });
+    expect(parseImportRefNumber('QB-abc-123-xyz')).toEqual({
+      source: 'quickbooks',
+      externalId: 'abc-123-xyz',
+    });
   });
 });
 

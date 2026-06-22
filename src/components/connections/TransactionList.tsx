@@ -130,7 +130,9 @@ export function TransactionList({
     }
   }, [fetchEncrypted, decrypt]);
 
-  useEffect(() => { void load(); }, [load, refreshKey]);
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
 
   // Phase 5: once decrypted rows are available AND we have routing context,
   // ask OWB which OR external_ids already have a corresponding ledger row.
@@ -156,13 +158,17 @@ export function TransactionList({
       return;
     }
     void findImportedOrTxIds(Array.from(walletIdSet), orConnectionId, orExternalIds)
-      .then((set) => { if (!cancelled) setImportedIds(set); })
+      .then((set) => {
+        if (!cancelled) setImportedIds(set);
+      })
       .catch((err) => {
         // Badge lookup is decorative — log but never block the row render.
         console.warn('[TransactionList] findImportedOrTxIds failed:', err);
         if (!cancelled) setImportedIds(new Set());
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [rows, orConnectionId, resolveDestinationWalletId]);
 
   // Memoize the imported set into a stable callback the row component can
@@ -182,9 +188,7 @@ export function TransactionList({
 
   if (error) {
     return (
-      <div className="text-xs text-destructive py-2">
-        Failed to load transactions: {error}
-      </div>
+      <div className="text-xs text-destructive py-2">Failed to load transactions: {error}</div>
     );
   }
 
@@ -208,7 +212,7 @@ export function TransactionList({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <TransactionRow
               key={r.rowId}
               tx={r}
@@ -265,9 +269,12 @@ function TransactionRow({
     <TableRow>
       <TableCell className="text-xs whitespace-nowrap">{date}</TableCell>
       <TableCell className="text-right text-xs whitespace-nowrap">
-        <span className={`inline-flex items-center gap-1 font-medium ${isIn ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
+        <span
+          className={`inline-flex items-center gap-1 font-medium ${isIn ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}
+        >
           <Icon className="w-3 h-3" />
-          {sign}{amountText}
+          {sign}
+          {amountText}
         </span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">
@@ -301,8 +308,11 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   } catch {
     return iso;

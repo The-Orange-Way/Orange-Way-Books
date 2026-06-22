@@ -32,12 +32,12 @@ function chipTooltip(
   secondaryCurrency: string | null,
 ): string {
   const nativeLine = formatAmount(w.currentBalance, w.asset);
-  const primaryLine = w.balancePrimary != null
-    ? ` · ${formatAmount(w.balancePrimary, primaryCurrency)}`
-    : '';
-  const secondaryLine = (secondaryRate != null && w.balancePrimary != null && secondaryCurrency)
-    ? ` · ≈${formatAmount(w.balancePrimary * secondaryRate, secondaryCurrency)}`
-    : '';
+  const primaryLine =
+    w.balancePrimary != null ? ` · ${formatAmount(w.balancePrimary, primaryCurrency)}` : '';
+  const secondaryLine =
+    secondaryRate != null && w.balancePrimary != null && secondaryCurrency
+      ? ` · ≈${formatAmount(w.balancePrimary * secondaryRate, secondaryCurrency)}`
+      : '';
   return `${row.label}: ${nativeLine}${primaryLine}${secondaryLine} (${row.percent.toFixed(0)}%)`;
 }
 
@@ -51,10 +51,7 @@ export function WalletsInsightsCard({
   const { formatAmount } = useFormatCurrency();
   const { rate: secondaryRate } = useSecondaryDisplayRate(primaryCurrency, secondaryCurrency);
 
-  const weighted = useMemo(
-    () => wallets.filter((w) => primaryWeight(w) > 1e-9),
-    [wallets],
-  );
+  const weighted = useMemo(() => wallets.filter((w) => primaryWeight(w) > 1e-9), [wallets]);
 
   const baseSlices = useMemo(
     () => weighted.map((w) => ({ label: w.name, value: primaryWeight(w) })),
@@ -64,16 +61,16 @@ export function WalletsInsightsCard({
   const donutViews = useMemo(() => buildDonutSliceViews(baseSlices), [baseSlices]);
 
   const totalPrimary = useMemo(
-    () => weighted.reduce((s, w) => {
-      const bal = w.balancePrimary ?? w.currentBalance;
-      return s + Math.max(0, bal);
-    }, 0),
+    () =>
+      weighted.reduce((s, w) => {
+        const bal = w.balancePrimary ?? w.currentBalance;
+        return s + Math.max(0, bal);
+      }, 0),
     [weighted],
   );
 
-  const totalSecondary = (secondaryRate != null && secondaryCurrency)
-    ? totalPrimary * secondaryRate
-    : null;
+  const totalSecondary =
+    secondaryRate != null && secondaryCurrency ? totalPrimary * secondaryRate : null;
 
   return (
     <section className="owb-insights-card" aria-labelledby="owb-insights-wallets-title">
@@ -86,13 +83,11 @@ export function WalletsInsightsCard({
         </Link>
       </div>
       <p className="owb-insights-card-caption">
-        Hover a chip for balance ·{' '}
-        <Link to={balanceSheetHref}>Balance sheet</Link>
+        Hover a chip for balance · <Link to={balanceSheetHref}>Balance sheet</Link>
       </p>
       {wallets.length === 0 ? (
         <p className="owb-insights-card-empty">
-          No accounts yet.{' '}
-          <Link to={walletsHref}>Add an account</Link> to see balances here.
+          No accounts yet. <Link to={walletsHref}>Add an account</Link> to see balances here.
         </p>
       ) : donutViews.length === 0 ? (
         <p className="owb-insights-card-empty">No balances to chart yet.</p>
@@ -105,7 +100,10 @@ export function WalletsInsightsCard({
                 {formatAmount(totalPrimary, primaryCurrency)}
               </span>
               {totalSecondary != null && secondaryCurrency && (
-                <span className="owb-donut-center-secondary" style={{ fontSize: '0.65em', display: 'block', opacity: 0.6 }}>
+                <span
+                  className="owb-donut-center-secondary"
+                  style={{ fontSize: '0.65em', display: 'block', opacity: 0.6 }}
+                >
                   ≈{formatAmount(totalSecondary, secondaryCurrency)}
                 </span>
               )}
@@ -120,9 +118,20 @@ export function WalletsInsightsCard({
                   key={w.walletId}
                   role="listitem"
                   className="owb-donut-chip"
-                  title={chipTooltip(row, w, formatAmount, primaryCurrency, secondaryRate, secondaryCurrency)}
+                  title={chipTooltip(
+                    row,
+                    w,
+                    formatAmount,
+                    primaryCurrency,
+                    secondaryRate,
+                    secondaryCurrency,
+                  )}
                 >
-                  <span className="owb-donut-chip-dot" style={{ background: row.color }} aria-hidden="true" />
+                  <span
+                    className="owb-donut-chip-dot"
+                    style={{ background: row.color }}
+                    aria-hidden="true"
+                  />
                   <span className="owb-donut-chip-name">{row.label}</span>
                   <span className="owb-donut-chip-pct">{row.percent.toFixed(0)}%</span>
                 </span>

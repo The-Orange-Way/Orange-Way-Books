@@ -38,9 +38,9 @@
  *     const result = await fetchFromExistingProvider(...);  // fallback
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { PinnedRateResult, SourceKind } from "./rate-resolver";
-import type { BucketGranularity } from "./buckets";
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { PinnedRateResult, SourceKind } from './rate-resolver';
+import type { BucketGranularity } from './buckets';
 
 // ---- ORBI client singleton ----
 
@@ -54,13 +54,13 @@ function getORBIClient(): SupabaseClient {
 
   if (!url || !key) {
     throw new Error(
-      "ORBI not configured: VITE_ORBI_SUPABASE_URL and VITE_ORBI_SUPABASE_ANON_KEY must be set at build time."
+      'ORBI not configured: VITE_ORBI_SUPABASE_URL and VITE_ORBI_SUPABASE_ANON_KEY must be set at build time.',
     );
   }
 
   orbiClient = createClient(url, key, {
     auth: { persistSession: false },
-    global: { headers: { "x-orbi-client": "v3-vault/0.1.0" } },
+    global: { headers: { 'x-orbi-client': 'v3-vault/0.1.0' } },
   });
   return orbiClient;
 }
@@ -74,15 +74,18 @@ function getORBIClient(): SupabaseClient {
  * the BTC rate by 1e8 (since 1 BTC = 100,000,000 sats), so a BTC/USD rate of
  * $76,000 becomes a SATS/USD rate of $0.00076.
  */
-function mapToORBIPair(base: string, quote: string): { source: string; target: string; satsMultiplier: number } | null {
+function mapToORBIPair(
+  base: string,
+  quote: string,
+): { source: string; target: string; satsMultiplier: number } | null {
   const b = base.toUpperCase();
   const q = quote.toUpperCase();
 
   // BTC and SATS both map to BTC in ORBI; SATS uses a 1e-8 multiplier
-  if (b === "BTC") return { source: "BTC", target: q, satsMultiplier: 1 };
-  if (b === "SATS") return { source: "BTC", target: q, satsMultiplier: 1e-8 };
+  if (b === 'BTC') return { source: 'BTC', target: q, satsMultiplier: 1 };
+  if (b === 'SATS') return { source: 'BTC', target: q, satsMultiplier: 1e-8 };
   // Stablecoin → USD direct
-  if (b === "USDT" | b === "USDC" | b === "DAI") {
+  if ((b === 'USDT') | (b === 'USDC') | (b === 'DAI')) {
     return { source: b, target: q, satsMultiplier: 1 };
   }
   // We don't handle FIAT-FIAT, IDENTITY, or FIXED here — those are OWB's existing
@@ -95,11 +98,11 @@ function deriveSourceKindForORBI(base: string, quote: string): SourceKind {
   const b = base.toUpperCase();
   const q = quote.toUpperCase();
   // ORBI handles BTC↔fiat (CRYPTO_FIAT) and stablecoin↔fiat (also CRYPTO_FIAT to OWB)
-  if (b === "BTC" | b === "SATS" | b === "USDT" | b === "USDC" | b === "DAI") {
-    return "CRYPTO_FIAT";
+  if ((b === 'BTC') | (b === 'SATS') | (b === 'USDT') | (b === 'USDC') | (b === 'DAI')) {
+    return 'CRYPTO_FIAT';
   }
   // Should not reach here given mapToORBIPair's gate, but type-safe fallback
-  return "FIAT_FIAT";
+  return 'FIAT_FIAT';
 }
 
 // ---- Bucket math (matches ORBI methodology §3.2) ----
@@ -131,14 +134,14 @@ export async function fetchFromORBI(
 
   const client = getORBIClient();
   const { data, error } = await client
-    .from("exchange_rates")
-    .select("id, rate, bucket_ts, tier, provider_count, composite, composite_via")
-    .eq("source_currency", pair.source)
-    .eq("target_currency", pair.target)
-    .eq("product", "ORBI-M")
-    .eq("granularity", "1m")
-    .eq("status", "CONFIRMED")
-    .eq("bucket_ts", bucketTsIso)
+    .from('exchange_rates')
+    .select('id, rate, bucket_ts, tier, provider_count, composite, composite_via')
+    .eq('source_currency', pair.source)
+    .eq('target_currency', pair.target)
+    .eq('product', 'ORBI-M')
+    .eq('granularity', '1m')
+    .eq('status', 'CONFIRMED')
+    .eq('bucket_ts', bucketTsIso)
     .maybeSingle();
 
   if (error) {
@@ -156,8 +159,10 @@ export async function fetchFromORBI(
     rate: adjustedRate,
     rateId: data.id,
     bucketTs: data.bucket_ts,
-    bucketGranularity: "M" as BucketGranularity, // ORBI-M = 1-minute bucket
-    provider: data.composite ? `orbi-composite (${data.composite_via})` : `orbi (tier ${data.tier}, ${data.provider_count} sources)`,
+    bucketGranularity: 'M' as BucketGranularity, // ORBI-M = 1-minute bucket
+    provider: data.composite
+      ? `orbi-composite (${data.composite_via})`
+      : `orbi (tier ${data.tier}, ${data.provider_count} sources)`,
     sourceKind: deriveSourceKindForORBI(base, quote),
     pending: false,
     stale: false,
@@ -177,14 +182,14 @@ export async function fetchLatestFromORBI(
 
   const client = getORBIClient();
   const { data, error } = await client
-    .from("exchange_rates")
-    .select("id, rate, bucket_ts, tier, provider_count, composite, composite_via")
-    .eq("source_currency", pair.source)
-    .eq("target_currency", pair.target)
-    .eq("product", "ORBI-M")
-    .eq("granularity", "1m")
-    .eq("status", "CONFIRMED")
-    .order("bucket_ts", { ascending: false })
+    .from('exchange_rates')
+    .select('id, rate, bucket_ts, tier, provider_count, composite, composite_via')
+    .eq('source_currency', pair.source)
+    .eq('target_currency', pair.target)
+    .eq('product', 'ORBI-M')
+    .eq('granularity', '1m')
+    .eq('status', 'CONFIRMED')
+    .order('bucket_ts', { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -197,8 +202,10 @@ export async function fetchLatestFromORBI(
     rate: adjustedRate,
     rateId: data.id,
     bucketTs: data.bucket_ts,
-    bucketGranularity: "M" as BucketGranularity,
-    provider: data.composite ? `orbi-composite (${data.composite_via})` : `orbi (tier ${data.tier}, ${data.provider_count} sources)`,
+    bucketGranularity: 'M' as BucketGranularity,
+    provider: data.composite
+      ? `orbi-composite (${data.composite_via})`
+      : `orbi (tier ${data.tier}, ${data.provider_count} sources)`,
     sourceKind: deriveSourceKindForORBI(base, quote),
     pending: false,
     stale: true, // "latest" is by definition older than the current minute
@@ -217,9 +224,12 @@ export function isORBISupported(base: string, quote: string): boolean {
  * Health probe — confirms the ORBI client can reach the database. Useful for
  * a settings/admin page showing rate-source availability.
  */
-export async function orbiHealthCheck(): Promise<{ reachable: boolean; latestRateAt: string | null }> {
+export async function orbiHealthCheck(): Promise<{
+  reachable: boolean;
+  latestRateAt: string | null;
+}> {
   try {
-    const latest = await fetchLatestFromORBI("BTC", "USD");
+    const latest = await fetchLatestFromORBI('BTC', 'USD');
     return { reachable: true, latestRateAt: latest?.bucketTs ?? null };
   } catch {
     return { reachable: false, latestRateAt: null };

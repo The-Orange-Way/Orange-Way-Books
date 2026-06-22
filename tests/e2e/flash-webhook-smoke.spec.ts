@@ -26,7 +26,8 @@ import { test, expect } from '@playwright/test';
 import { createHmac } from 'node:crypto';
 
 const SECRET = process.env.FLASH_WEBHOOK_SECRET ?? '';
-const WEBHOOK_URL = process.env.FLASH_WEBHOOK_URL ?? (process.env.OWB_E2E_SUPABASE_URL + '/functions/v1/flash-webhook');
+const WEBHOOK_URL =
+  process.env.FLASH_WEBHOOK_URL ?? process.env.OWB_E2E_SUPABASE_URL + '/functions/v1/flash-webhook';
 
 // Unsigned + wrong-sig tests always run (no secret needed). The signed
 // test skips when FLASH_WEBHOOK_SECRET is absent.
@@ -35,7 +36,11 @@ function signBody(body: string, secret: string): string {
   return createHmac('sha256', secret).update(body).digest('hex');
 }
 
-async function postRaw(url: string, body: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string }> {
+async function postRaw(
+  url: string,
+  body: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: string }> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },

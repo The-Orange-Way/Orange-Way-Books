@@ -32,18 +32,24 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 async function aesGcmEncryptBase64(plaintext: string, dek: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey(
-    'raw', dek as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'],
+    'raw',
+    dek as BufferSource,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
   );
   const iv = new Uint8Array(12);
   crypto.getRandomValues(iv);
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv: iv as BufferSource },
-      key, new TextEncoder().encode(plaintext) as BufferSource,
+      key,
+      new TextEncoder().encode(plaintext) as BufferSource,
     ),
   );
   const out = new Uint8Array(iv.length + ct.length);
-  out.set(iv, 0); out.set(ct, iv.length);
+  out.set(iv, 0);
+  out.set(ct, iv.length);
   return bytesToBase64(out);
 }
 
@@ -52,10 +58,16 @@ async function aesGcmDecryptBase64(b64: string, dek: Uint8Array): Promise<string
   const iv = combined.subarray(0, 12);
   const ct = combined.subarray(12);
   const key = await crypto.subtle.importKey(
-    'raw', dek as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'],
+    'raw',
+    dek as BufferSource,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
   );
   const pt = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource }, key, ct as BufferSource,
+    { name: 'AES-GCM', iv: iv as BufferSource },
+    key,
+    ct as BufferSource,
   );
   return new TextDecoder().decode(pt);
 }
@@ -74,7 +86,9 @@ describe('rekey — DEK wrap for 3 members', () => {
       generateHybridKemKeyPair(),
     ];
 
-    const wrapped = await Promise.all(members.map((m) => strategy.wrapForRecipient(newDek, m.publicKey)));
+    const wrapped = await Promise.all(
+      members.map((m) => strategy.wrapForRecipient(newDek, m.publicKey)),
+    );
 
     for (let i = 0; i < members.length; i++) {
       const recovered = await strategy.unwrapForSelf(wrapped[i], members[i].secretKey);
@@ -147,8 +161,10 @@ describe('rekey — abort-state invariants', () => {
     if (!strategy) throw new Error('default strategy missing');
 
     const recipient = generateHybridKemKeyPair();
-    const oldDek = new Uint8Array(32); crypto.getRandomValues(oldDek);
-    const newDek = new Uint8Array(32); crypto.getRandomValues(newDek);
+    const oldDek = new Uint8Array(32);
+    crypto.getRandomValues(oldDek);
+    const newDek = new Uint8Array(32);
+    crypto.getRandomValues(newDek);
 
     const oldWrap = await strategy.wrapForRecipient(oldDek, recipient.publicKey);
     const newWrap = await strategy.wrapForRecipient(newDek, recipient.publicKey);

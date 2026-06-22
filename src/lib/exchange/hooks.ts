@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchRate, resolvePinnedRate, getSecondaryDisplayRate, type RateResult, type PinnedRateResult } from './rate-resolver';
+import {
+  fetchRate,
+  resolvePinnedRate,
+  getSecondaryDisplayRate,
+  type RateResult,
+  type PinnedRateResult,
+} from './rate-resolver';
 
 // ── useExchangeRate — extended shape (back-compat) ────────────────────────────
 
@@ -35,13 +41,23 @@ export function useExchangeRate(
 
   useEffect(() => {
     if (!base || !quote) {
-      setRate(null); setLoading(false); setStale(false);
-      setPending(false); setAsOf(null); setProvider(null); setError(null);
+      setRate(null);
+      setLoading(false);
+      setStale(false);
+      setPending(false);
+      setAsOf(null);
+      setProvider(null);
+      setError(null);
       return;
     }
     if (base.toUpperCase() === quote.toUpperCase()) {
-      setRate(1); setLoading(false); setStale(false);
-      setPending(false); setAsOf(date ?? null); setProvider('identity'); setError(null);
+      setRate(1);
+      setLoading(false);
+      setStale(false);
+      setPending(false);
+      setAsOf(date ?? null);
+      setProvider('identity');
+      setError(null);
       return;
     }
 
@@ -61,14 +77,26 @@ export function useExchangeRate(
       })
       .catch((err) => {
         if (callId !== abortRef.current) return;
-        setRate(null); setStale(false); setPending(true);
-        setAsOf(null); setProvider(null);
+        setRate(null);
+        setStale(false);
+        setPending(true);
+        setAsOf(null);
+        setProvider(null);
         setError(err instanceof Error ? err.message : 'Failed to fetch rate');
         setLoading(false);
       });
   }, [base, quote, date, refreshKey]);
 
-  return { rate, loading, stale, pending, asOf, provider, error, refresh: () => setRefreshKey(k => k + 1) };
+  return {
+    rate,
+    loading,
+    stale,
+    pending,
+    asOf,
+    provider,
+    error,
+    refresh: () => setRefreshKey((k) => k + 1),
+  };
 }
 
 // ── useSecondaryDisplayRate ───────────────────────────────────────────────────
@@ -101,7 +129,11 @@ export function useSecondaryDisplayRate(
 
   useEffect(() => {
     if (!primary || !secondary || primary.toUpperCase() === secondary.toUpperCase()) {
-      setRate(null); setLoading(false); setStale(false); setPending(false); setError(null);
+      setRate(null);
+      setLoading(false);
+      setStale(false);
+      setPending(false);
+      setError(null);
       return;
     }
 
@@ -112,7 +144,11 @@ export function useSecondaryDisplayRate(
     getSecondaryDisplayRate({ primary, secondary, at })
       .then((result) => {
         if (callId !== abortRef.current) return;
-        if (!result) { setRate(null); setLoading(false); return; }
+        if (!result) {
+          setRate(null);
+          setLoading(false);
+          return;
+        }
         setRate(result.pending ? null : result.rate);
         setStale(result.stale);
         setPending(result.pending);
@@ -120,11 +156,13 @@ export function useSecondaryDisplayRate(
       })
       .catch((err) => {
         if (callId !== abortRef.current) return;
-        setRate(null); setStale(false); setPending(true);
+        setRate(null);
+        setStale(false);
+        setPending(true);
         setError(err instanceof Error ? err.message : 'Failed to fetch rate');
         setLoading(false);
       });
   }, [primary, secondary, at, refreshKey]);
 
-  return { rate, loading, stale, pending, error, refresh: () => setRefreshKey(k => k + 1) };
+  return { rate, loading, stale, pending, error, refresh: () => setRefreshKey((k) => k + 1) };
 }

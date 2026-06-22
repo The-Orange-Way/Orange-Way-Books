@@ -75,7 +75,12 @@ function authorized(req: Request): boolean {
   return false;
 }
 
-async function resendSend(to: string, subject: string, text: string, html: string | null): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+async function resendSend(
+  to: string,
+  subject: string,
+  text: string,
+  html: string | null,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const body: Record<string, unknown> = {
     from: RESEND_FROM,
     to: [to],
@@ -125,10 +130,7 @@ async function drain(): Promise<Report> {
         .eq('id', row.id);
       report.sent++;
     } else {
-      await admin
-        .from('pending_admin_emails')
-        .update({ status: 'failed' })
-        .eq('id', row.id);
+      await admin.from('pending_admin_emails').update({ status: 'failed' }).eq('id', row.id);
       report.failed++;
       report.errors.push(`${row.id}: ${result.error}`);
     }

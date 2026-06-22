@@ -125,13 +125,9 @@ export async function deriveBlindIndexKey(mek: CryptoKey, saltB64: string): Prom
     256,
   );
 
-  return crypto.subtle.importKey(
-    'raw',
-    rawBits,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+  return crypto.subtle.importKey('raw', rawBits, { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
 }
 
 /**

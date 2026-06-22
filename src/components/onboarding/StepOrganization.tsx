@@ -1,6 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -68,10 +74,14 @@ export default function StepOrganization({ data, onChange, onNext, onBack }: Pro
             value={data.primaryCurrency}
             onValueChange={(v) => onChange({ ...data, primaryCurrency: v })}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {currencies.map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -88,7 +98,10 @@ export default function StepOrganization({ data, onChange, onNext, onBack }: Pro
               {btcDisplayOptions.map((o) => (
                 <div key={o.value} className="flex items-center gap-2">
                   <RadioGroupItem value={o.value} id={`btc-primary-${o.value}`} />
-                  <Label htmlFor={`btc-primary-${o.value}`} className="font-mono text-sm cursor-pointer">
+                  <Label
+                    htmlFor={`btc-primary-${o.value}`}
+                    className="font-mono text-sm cursor-pointer"
+                  >
                     {o.label}
                   </Label>
                 </div>
@@ -99,8 +112,12 @@ export default function StepOrganization({ data, onChange, onNext, onBack }: Pro
       </div>
 
       <div className="flex gap-3">
-        <Button type="button" variant="outline" onClick={onBack} className="flex-1">Back</Button>
-        <Button type="button" onClick={onNext} disabled={!isValid} className="flex-1">Continue</Button>
+        <Button type="button" variant="outline" onClick={onBack} className="flex-1">
+          Back
+        </Button>
+        <Button type="button" onClick={onNext} disabled={!isValid} className="flex-1">
+          Continue
+        </Button>
       </div>
     </div>
   );

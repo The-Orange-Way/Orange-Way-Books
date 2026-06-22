@@ -7,10 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import {
-  bulkLinkAttachmentsByImportExternalId,
-  type BulkLinkInput,
-} from '../attachments';
+import { bulkLinkAttachmentsByImportExternalId, type BulkLinkInput } from '../attachments';
 
 // Mock supabase client that records inserts + serves canned JE lookups
 function makeMockSupabase(matches: Record<string, string | null>) {
@@ -74,7 +71,8 @@ function makeMockSupabase(matches: Record<string, string | null>) {
 }
 
 const fakeEncrypt = async (plaintext: string) => `cipher(${plaintext})`;
-const fakeBlindIndex = async (v: string | null | undefined) => (v ? `hmac(${v.toLowerCase()})` : null);
+const fakeBlindIndex = async (v: string | null | undefined) =>
+  v ? `hmac(${v.toLowerCase()})` : null;
 
 function fakeFile(name: string, size = 100): File {
   return new File([new Uint8Array(size)], name, { type: 'application/pdf' });
@@ -96,7 +94,11 @@ describe('bulkLinkAttachmentsByImportExternalId', () => {
     ];
 
     const results = await bulkLinkAttachmentsByImportExternalId(
-      client, fakeEncrypt, fakeBlindIndex, 'org-1', inputs,
+      client,
+      fakeEncrypt,
+      fakeBlindIndex,
+      'org-1',
+      inputs,
     );
 
     expect(results).toHaveLength(1);
@@ -121,7 +123,11 @@ describe('bulkLinkAttachmentsByImportExternalId', () => {
     ];
 
     const results = await bulkLinkAttachmentsByImportExternalId(
-      client, fakeEncrypt, fakeBlindIndex, 'org-1', inputs,
+      client,
+      fakeEncrypt,
+      fakeBlindIndex,
+      'org-1',
+      inputs,
     );
 
     expect(results[0].status).toBe('no_match');
@@ -132,12 +138,22 @@ describe('bulkLinkAttachmentsByImportExternalId', () => {
     const { client, inserts } = makeMockSupabase({});
 
     const inputs: BulkLinkInput[] = [
-      { source: 'wave', externalId: '1402', file: fakeFile('a.pdf'), fileName: 'a.pdf', mimeType: 'application/pdf' },
+      {
+        source: 'wave',
+        externalId: '1402',
+        file: fakeFile('a.pdf'),
+        fileName: 'a.pdf',
+        mimeType: 'application/pdf',
+      },
     ];
 
     const lockedBlindIndex = async () => null;
     const results = await bulkLinkAttachmentsByImportExternalId(
-      client, fakeEncrypt, lockedBlindIndex, 'org-1', inputs,
+      client,
+      fakeEncrypt,
+      lockedBlindIndex,
+      'org-1',
+      inputs,
     );
 
     expect(results[0].status).toBe('error');
@@ -153,13 +169,35 @@ describe('bulkLinkAttachmentsByImportExternalId', () => {
     const { client, inserts } = makeMockSupabase(matches);
 
     const inputs: BulkLinkInput[] = [
-      { source: 'wave', externalId: '1', file: fakeFile('a.pdf'), fileName: 'a.pdf', mimeType: 'application/pdf' },
-      { source: 'wave', externalId: '2', file: fakeFile('b.pdf'), fileName: 'b.pdf', mimeType: 'application/pdf' },
-      { source: 'wave', externalId: '3', file: fakeFile('c.pdf'), fileName: 'c.pdf', mimeType: 'application/pdf' },
+      {
+        source: 'wave',
+        externalId: '1',
+        file: fakeFile('a.pdf'),
+        fileName: 'a.pdf',
+        mimeType: 'application/pdf',
+      },
+      {
+        source: 'wave',
+        externalId: '2',
+        file: fakeFile('b.pdf'),
+        fileName: 'b.pdf',
+        mimeType: 'application/pdf',
+      },
+      {
+        source: 'wave',
+        externalId: '3',
+        file: fakeFile('c.pdf'),
+        fileName: 'c.pdf',
+        mimeType: 'application/pdf',
+      },
     ];
 
     const results = await bulkLinkAttachmentsByImportExternalId(
-      client, fakeEncrypt, fakeBlindIndex, 'org-1', inputs,
+      client,
+      fakeEncrypt,
+      fakeBlindIndex,
+      'org-1',
+      inputs,
     );
 
     expect(results.map((r) => r.status)).toEqual(['attached', 'no_match', 'attached']);
@@ -172,11 +210,21 @@ describe('bulkLinkAttachmentsByImportExternalId', () => {
     const { client } = makeMockSupabase(matches);
 
     const inputs: BulkLinkInput[] = [
-      { source: 'wave', externalId: 'ABC-123', file: fakeFile('a.pdf'), fileName: 'a.pdf', mimeType: 'application/pdf' },
+      {
+        source: 'wave',
+        externalId: 'ABC-123',
+        file: fakeFile('a.pdf'),
+        fileName: 'a.pdf',
+        mimeType: 'application/pdf',
+      },
     ];
 
     const results = await bulkLinkAttachmentsByImportExternalId(
-      client, fakeEncrypt, fakeBlindIndex, 'org-1', inputs,
+      client,
+      fakeEncrypt,
+      fakeBlindIndex,
+      'org-1',
+      inputs,
     );
 
     expect(results[0].status).toBe('attached');

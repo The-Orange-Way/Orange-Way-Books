@@ -39,17 +39,24 @@ export function openRecoveryBackup({
   }
 
   const esc = (s: string) =>
-    s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+    s.replace(
+      /[&<>"]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
+    );
 
   const orgLabel = orgName ? esc(orgName) : '(Your organization)';
   const dateLabel = generatedAt.toLocaleString();
 
-  const rows = words.map((w, i) => `
+  const rows = words
+    .map(
+      (w, i) => `
     <div class="word">
       <span class="num">${i + 1}.</span>
       <span class="text">${esc(w)}</span>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 
   const html = `<!doctype html>
 <html lang="en">

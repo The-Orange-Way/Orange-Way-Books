@@ -97,9 +97,10 @@ export async function parseTrialBalance(
     const { code, name } = splitCodeAndName(account);
     const debit = debitIdx === -1 ? '0' : parseMoney(row[debitIdx] ?? '');
     const credit = creditIdx === -1 ? '0' : parseMoney(row[creditIdx] ?? '');
-    const balance = balanceIdx === -1
-      ? String(Number(debit) - Number(credit))
-      : parseMoney(row[balanceIdx] ?? '');
+    const balance =
+      balanceIdx === -1
+        ? String(Number(debit) - Number(credit))
+        : parseMoney(row[balanceIdx] ?? '');
     if (!name) {
       errors.push({ file, row: rowNumber, message: 'Account name is empty.' });
       return;
@@ -126,7 +127,12 @@ export async function parseContacts(
   const errors: QuickBooksParseError[] = [];
   const contacts: ParsedContact[] = [];
   if (headerIndex === -1) {
-    return { contacts, errors: [{ file, message: 'Contact file missing Name / Customer / Vendor / Employee header.' }] };
+    return {
+      contacts,
+      errors: [
+        { file, message: 'Contact file missing Name / Customer / Vendor / Employee header.' },
+      ],
+    };
   }
 
   const headers = rows[headerIndex];
@@ -152,23 +158,20 @@ export async function parseContacts(
     contacts.push({
       name,
       kind,
-      email: emailIdx === -1 ? null : (row[emailIdx] | null),
-      phone: phoneIdx === -1 ? null : (row[phoneIdx] | null),
-      street: streetIdx === -1 ? null : (row[streetIdx] | null),
-      city: cityIdx === -1 ? null : (row[cityIdx] | null),
-      state: stateIdx === -1 ? null : (row[stateIdx] | null),
-      country: countryIdx === -1 ? null : (row[countryIdx] | null),
-      zip: zipIdx === -1 ? null : (row[zipIdx] | null),
+      email: emailIdx === -1 ? null : row[emailIdx] | null,
+      phone: phoneIdx === -1 ? null : row[phoneIdx] | null,
+      street: streetIdx === -1 ? null : row[streetIdx] | null,
+      city: cityIdx === -1 ? null : row[cityIdx] | null,
+      state: stateIdx === -1 ? null : row[stateIdx] | null,
+      country: countryIdx === -1 ? null : row[countryIdx] | null,
+      zip: zipIdx === -1 ? null : row[zipIdx] | null,
     });
   });
 
   return { contacts, errors };
 }
 
-function buildJournalLine(
-  row: string[],
-  headers: string[],
-): ParsedJournalLine | null {
+function buildJournalLine(row: string[], headers: string[]): ParsedJournalLine | null {
   const accountIdx = columnIndex(headers, ['account', 'account name']);
   const debitIdx = columnIndex(headers, ['debit']);
   const creditIdx = columnIndex(headers, ['credit']);
@@ -176,7 +179,7 @@ function buildJournalLine(
   const currencyIdx = columnIndex(headers, ['currency', 'native currency']);
   const nameIdx = columnIndex(headers, ['name', 'contact', 'customer', 'vendor']);
   const memoIdx = columnIndex(headers, ['memo', 'description']);
-  const accountRaw = accountIdx === -1 ? '' : row[accountIdx] ?? '';
+  const accountRaw = accountIdx === -1 ? '' : (row[accountIdx] ?? '');
   if (!accountRaw.trim()) return null;
   const { code, name } = splitCodeAndName(accountRaw);
   let debit = debitIdx === -1 ? '0' : parseMoney(row[debitIdx] ?? '');
@@ -191,9 +194,9 @@ function buildJournalLine(
     accountCode: code,
     debit,
     credit,
-    nativeCurrency: currencyIdx === -1 ? null : (row[currencyIdx] | null),
-    contactName: nameIdx === -1 ? null : (row[nameIdx] | null),
-    memo: memoIdx === -1 ? null : (row[memoIdx] | null),
+    nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] | null,
+    contactName: nameIdx === -1 ? null : row[nameIdx] | null,
+    memo: memoIdx === -1 ? null : row[memoIdx] | null,
   };
 }
 
@@ -208,7 +211,10 @@ export async function parseJournal(
   const errors: QuickBooksParseError[] = [];
   const journalEntries: ParsedJournalEntry[] = [];
   if (headerIndex === -1) {
-    return { journalEntries, errors: [{ file, message: 'Journal missing Date and Account headers.' }] };
+    return {
+      journalEntries,
+      errors: [{ file, message: 'Journal missing Date and Account headers.' }],
+    };
   }
 
   const headers = rows[headerIndex];
@@ -229,7 +235,7 @@ export async function parseJournal(
     if (/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,\s+/i.test(dateCell)) return;
     if (/^total\b/i.test(firstCell)) return;
     const date = parseDate(dateCell);
-    const type = typeIdx === -1 ? null : (row[typeIdx] | null);
+    const type = typeIdx === -1 ? null : row[typeIdx] | null;
     // A new journal entry requires BOTH date and type populated.
     // QuickBooks repeats the date on continuation rows of a multi-line entry
     // but only sets the type on the first row. The previous `type | !current`
@@ -238,7 +244,7 @@ export async function parseJournal(
 
     if (isNewEntry) {
       if (current) journalEntries.push(current);
-      const refRaw = refIdx === -1 ? '' : row[refIdx] ?? '';
+      const refRaw = refIdx === -1 ? '' : (row[refIdx] ?? '');
       const sequence = journalEntries.length + 1;
       current = {
         refNum: buildJournalRefNum({
@@ -249,7 +255,7 @@ export async function parseJournal(
         }),
         date: date!,
         type,
-        memo: memoIdx === -1 ? null : (row[memoIdx] | null),
+        memo: memoIdx === -1 ? null : row[memoIdx] | null,
         lines: [],
       };
     }
@@ -293,7 +299,7 @@ export async function parseValidationReport(
   }
   const headers = rows[headerIndex];
   const accountLookup = columnIndex(headers, ['account', 'account name', 'name']);
-  const accountIdx = implicitFirstColumn | accountLookup === -1 ? 0 : accountLookup;
+  const accountIdx = implicitFirstColumn | (accountLookup === -1) ? 0 : accountLookup;
   const amountIdx = columnIndex(headers, ['amount', 'balance', 'total']);
   const currencyIdx = columnIndex(headers, ['currency']);
   const lines: ParsedValidationReportLine[] = [];
@@ -307,13 +313,17 @@ export async function parseValidationReport(
     lines.push({
       accountName,
       amount: parseMoney(rawAmount),
-      nativeCurrency: currencyIdx === -1 ? null : (row[currencyIdx] | null),
+      nativeCurrency: currencyIdx === -1 ? null : row[currencyIdx] | null,
     });
   }
   return { lines, errors: [] };
 }
 
-export async function readWorkbookCellText(source: WorkbookSource, row: number, column: number): Promise<string> {
+export async function readWorkbookCellText(
+  source: WorkbookSource,
+  row: number,
+  column: number,
+): Promise<string> {
   const workbook = await loadWorkbook(source);
   const worksheet = firstWorksheet(workbook);
   return cellToString(worksheet.getRow(row).getCell(column).value);
