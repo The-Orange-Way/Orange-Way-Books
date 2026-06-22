@@ -11,11 +11,14 @@ This NOTICE file is provided under Apache 2.0 Section 4(d). The
 list below is a courtesy subset highlighting notable upstream
 projects whose code ships in this distribution; it does NOT
 purport to be a complete attribution of every dependency. The
-authoritative attribution surface is the license metadata of
-every package resolved from package.json, which can be
-enumerated with `bunx license-checker --production --json`.
-Upstream NOTICE files (where present) are propagated as-is by
-the build tooling that consumes those packages.
+authoritative attribution surface is the auto-generated file
+`dist/third-party-licenses.txt`, emitted by every production
+build via `scripts/third-party-licenses-plugin.ts`. That file
+enumerates every package in the resolved production dependency
+graph along with each package's license metadata and license
+text where the upstream ships one. Distributions and downstream
+packagers should propagate `dist/third-party-licenses.txt`
+alongside this NOTICE.
 
 ---
 
@@ -54,9 +57,10 @@ upstream copyright holders:
     Copyright (c) PostHog Inc.
     Licensed under the MIT License.
 
-For a machine-readable enumeration of every dependency and its
-license, run `bunx license-checker --production --summary` (or the
-equivalent `pnpm licenses list`). The output of that command is
-the authoritative attribution surface; this file lists only the
-upstream projects whose code ships meaningfully in the client
-bundle or the Edge Function runtime.
+For the exhaustive, machine-generated list of every dependency
+and its license (including license text where the upstream
+ships one), see `dist/third-party-licenses.txt` after running
+`bun run build`. That file is the authoritative attribution
+surface; this NOTICE lists only the upstream projects whose
+code ships meaningfully in the client bundle or the Edge
+Function runtime.
