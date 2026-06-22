@@ -48,7 +48,11 @@ export default function FlashCallback() {
         }
         // Clear any stale localStorage hint left from the Layer-1 build —
         // status is now read server-side via the flash-status function.
-        try { localStorage.removeItem(LS_FLASH_STATUS_HINT); } catch { /* noop */ }
+        try {
+          localStorage.removeItem(LS_FLASH_STATUS_HINT);
+        } catch {
+          /* noop */
+        }
         setState('ok');
         setTimeout(() => navigate('/app/admin/flash', { replace: true }), 1500);
       } catch (err) {
@@ -68,15 +72,15 @@ export default function FlashCallback() {
             <h2 className="text-lg font-semibold text-card-foreground mb-1">
               Connecting to Flash…
             </h2>
-            <p className="text-sm text-muted-foreground">Exchanging authorization code for tokens.</p>
+            <p className="text-sm text-muted-foreground">
+              Exchanging authorization code for tokens.
+            </p>
           </>
         )}
         {state === 'ok' && (
           <>
             <CheckCircle2 className="w-10 h-10 mx-auto text-green-600 mb-4" />
-            <h2 className="text-lg font-semibold text-card-foreground mb-1">
-              Connected to Flash
-            </h2>
+            <h2 className="text-lg font-semibold text-card-foreground mb-1">Connected to Flash</h2>
             <p className="text-sm text-muted-foreground">Redirecting back…</p>
           </>
         )}
@@ -89,7 +93,10 @@ export default function FlashCallback() {
             <p className="text-sm text-muted-foreground mb-6">
               {errorMsg ?? 'Something went wrong.'}
             </p>
-            <Button variant="outline" onClick={() => navigate('/app/admin/flash', { replace: true })}>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/app/admin/flash', { replace: true })}
+            >
               Back to admin
             </Button>
           </>

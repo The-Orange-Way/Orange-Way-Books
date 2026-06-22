@@ -82,7 +82,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
       'Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free.',
     h1: 'Orange Way Books — Zero-Knowledge Bitcoin Accounting',
     summary:
-      "Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed. Multi-currency BTC and fiat with historical exchange rates. Real server-side double-entry ledger. IFRS and US GAAP. Capability-based RBAC. ML-DSA-65 post-quantum signing keys. Full data takeout. Self-hostable.",
+      'Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed. Multi-currency BTC and fiat with historical exchange rates. Real server-side double-entry ledger. IFRS and US GAAP. Capability-based RBAC. ML-DSA-65 post-quantum signing keys. Full data takeout. Self-hostable.',
     jsonLd: [breadcrumb([{ name: 'Home', path: '/' }])],
   },
   {
@@ -245,8 +245,7 @@ export const COMPARE_ROUTES: PublicRouteMeta[] = (
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: 'Orange Way Books',
-      description:
-        'Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses.',
+      description: 'Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses.',
       brand: { '@type': 'Brand', name: 'Orange Way Books' },
       url: SITE_URL,
       review: {
@@ -264,7 +263,4 @@ export const COMPARE_ROUTES: PublicRouteMeta[] = (
   ],
 }));
 
-export const ALL_PRERENDER_ROUTES: PublicRouteMeta[] = [
-  ...PUBLIC_ROUTES,
-  ...COMPARE_ROUTES,
-];
+export const ALL_PRERENDER_ROUTES: PublicRouteMeta[] = [...PUBLIC_ROUTES, ...COMPARE_ROUTES];

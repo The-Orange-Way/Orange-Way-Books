@@ -56,8 +56,12 @@ describe('isCredentialError — S10 rate-limit policy boundary', () => {
   });
 
   it('does NOT flag transient network / RLS errors as credential failures', () => {
-    expect(isCredentialError(new Error('Could not load your organization. Please try again.'))).toBe(false);
-    expect(isCredentialError(new Error('Could not load vault settings. Please try again.'))).toBe(false);
+    expect(
+      isCredentialError(new Error('Could not load your organization. Please try again.')),
+    ).toBe(false);
+    expect(isCredentialError(new Error('Could not load vault settings. Please try again.'))).toBe(
+      false,
+    );
     expect(isCredentialError(new Error('TypeError: Failed to fetch'))).toBe(false);
   });
 

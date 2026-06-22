@@ -27,16 +27,16 @@ export interface InvoiceCandidate {
 }
 
 export interface DepositInput {
-  amount: number;            // positive deposit amount in tx currency
+  amount: number; // positive deposit amount in tx currency
   currency: string;
-  date: string;              // ISO date
+  date: string; // ISO date
   /** Optional counterparty/payor name from the bank import (encrypted_metadata.counterparty). */
   counterparty: string | null;
 }
 
 export interface RankedMatch {
   candidate: InvoiceCandidate;
-  score: number;             // 0..1, higher = better
+  score: number; // 0..1, higher = better
   reasons: {
     amount: number;
     customer: number;
@@ -44,17 +44,17 @@ export interface RankedMatch {
   };
 }
 
-const W_AMOUNT = 0.60;
+const W_AMOUNT = 0.6;
 const W_CUSTOMER = 0.25;
 const W_DATE = 0.15;
 
 function amountScore(deposit: number, invoice: number): number {
   if (invoice <= 0) return 0;
   const diff = Math.abs(deposit - invoice);
-  if (diff < 0.005) return 1;                       // exact within rounding
+  if (diff < 0.005) return 1; // exact within rounding
   const ratio = diff / invoice;
-  if (ratio >= 1) return 0;                         // >100% off
-  return Math.max(0, 1 - ratio);                    // linear falloff
+  if (ratio >= 1) return 0; // >100% off
+  return Math.max(0, 1 - ratio); // linear falloff
 }
 
 function normalizeName(s: string): string {
@@ -83,7 +83,7 @@ function customerScore(counterparty: string | null, customer: string): number {
 
 function dateScore(depositDate: string, candidate: InvoiceCandidate): number {
   const ref = candidate.due_date | candidate.issue_date;
-  if (!ref) return 0.3;                             // unknown — small bias
+  if (!ref) return 0.3; // unknown — small bias
   const a = Date.parse(depositDate);
   const b = Date.parse(ref);
   if (!Number.isFinite(a) || !Number.isFinite(b)) return 0.3;

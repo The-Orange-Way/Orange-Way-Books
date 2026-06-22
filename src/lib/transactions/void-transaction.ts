@@ -58,7 +58,6 @@ type SignMutationFn = (
   orgId: string,
 ) => { signature_b64: string; key_version: number } | null;
 
-
 export interface VoidTransactionParams {
   /** transactions.id of the row to void. */
   txId: string;
@@ -80,9 +79,7 @@ export interface VoidTransactionResult {
   voidedTransactionIds: string[];
 }
 
-export async function voidTransaction(
-  p: VoidTransactionParams,
-): Promise<VoidTransactionResult> {
+export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTransactionResult> {
   // ── Phase 1: load original ───────────────────────────────────────────
   const { data: origTx, error: origTxErr } = await supabase
     .from('transactions')
@@ -119,9 +116,7 @@ export async function voidTransaction(
   // ── Phase 2: decrypt original entries ─────────────────────────────────
   const origJeDec = await decryptJournalEntry(origJe, p.decryptText);
   const origLineDecs = await Promise.all(
-    origLines.map((l: any) =>
-      decryptJournalEntryLine(l, p.decryptText).then((dec) => ({ dec })),
-    ),
+    origLines.map((l: any) => decryptJournalEntryLine(l, p.decryptText).then((dec) => ({ dec }))),
   );
 
   // ── Phase 3: create reversing JE ──────────────────────────────────────
@@ -181,9 +176,7 @@ export async function voidTransaction(
   // reversal JE id + the void status, then stamp it on each affected row.
   // The verifier reads each row and can reconstruct the same payload bytes.
   await p.loadOrgSigningKey(p.orgId);
-  const voidSigBytes = new TextEncoder().encode(
-    `${p.orgId}|void|${reversalJeId}|${p.date}`,
-  );
+  const voidSigBytes = new TextEncoder().encode(`${p.orgId}|void|${reversalJeId}|${p.date}`);
   const voidSig = p.signMutation(voidSigBytes, p.orgId);
   if (!voidSig) {
     throw new Error(
@@ -208,10 +201,10 @@ export async function voidTransaction(
     .in('id', voidedIds);
   if (voidErr) throw voidErr;
 
-  // Phase 2 (legacy-ledger removal): the ledger reversing-posting block (~100 lines)
+  // Phase 2 (external-ledger removal): the ledger reversing-posting block (~100 lines)
   // lived here. Postgres-side reversing journal_entries + reversed lines
   // already written earlier in this function are now the single source of
-  // truth. No legacy-ledger dual-write required.
+  // truth. No external-ledger dual-write required.
 
   // ── Phase 7: audit ────────────────────────────────────────────────────
   writeAuditLog({
@@ -219,9 +212,7 @@ export async function voidTransaction(
     action: 'VOID',
     entityType: 'transaction',
     entityId: origTx.id,
-    summary: `Voided transaction ${origTx.id.slice(0, 8)}${
-      p.reason ? `: ${p.reason}` : ''
-    }`,
+    summary: `Voided transaction ${origTx.id.slice(0, 8)}${p.reason ? `: ${p.reason}` : ''}`,
     after: {
       reversal_journal_entry_id: reversalJeId,
       voided_transaction_ids: voidedIds,

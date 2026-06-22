@@ -91,9 +91,7 @@ export class MergeAmountMismatchError extends Error {
  * Returns the RPC result on success; throws MergeAmountMismatchError
  * when the deposit and placeholder amounts diverge beyond tolerance.
  */
-export async function mergeWithPlaceholder(
-  p: MergeWithPlaceholderParams,
-): Promise<MergeResult> {
+export async function mergeWithPlaceholder(p: MergeWithPlaceholderParams): Promise<MergeResult> {
   // 1. Load the placeholder row (we need invoice_id + amount_applied
   //    to (a) decide tolerance and (b) build the signing payload).
   const { data: placeholderRow, error: phErr } = await (supabase as any)

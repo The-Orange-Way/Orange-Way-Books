@@ -13,10 +13,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildCorsHeaders, jsonResponse } from '../_shared/http.ts';
 
 // ── Pluggable signature config ──────────────────────────────────────
-const SIGNATURE_HEADER = 'X-Flash-Signature';        // header carrying the HMAC
+const SIGNATURE_HEADER = 'X-Flash-Signature'; // header carrying the HMAC
 const SIGNATURE_ALGO: 'HMAC-SHA256' = 'HMAC-SHA256'; // hash algorithm
-const SIGNATURE_ENCODING: 'hex' | 'base64' = 'hex';  // how the digest is encoded
-const SIGNATURE_PREFIX = '';                         // e.g. 'sha256=' on some platforms
+const SIGNATURE_ENCODING: 'hex' | 'base64' = 'hex'; // how the digest is encoded
+const SIGNATURE_PREFIX = ''; // e.g. 'sha256=' on some platforms
 // ────────────────────────────────────────────────────────────────────
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -28,7 +28,9 @@ const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 });
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -51,9 +53,10 @@ async function verifySignature(rawBody: string, presentedSig: string | null): Pr
     return false;
   }
   if (!presentedSig) return false;
-  const presented = SIGNATURE_PREFIX && presentedSig.startsWith(SIGNATURE_PREFIX)
-    ? presentedSig.slice(SIGNATURE_PREFIX.length)
-    : presentedSig;
+  const presented =
+    SIGNATURE_PREFIX && presentedSig.startsWith(SIGNATURE_PREFIX)
+      ? presentedSig.slice(SIGNATURE_PREFIX.length)
+      : presentedSig;
 
   const key = await crypto.subtle.importKey(
     'raw',
@@ -62,12 +65,19 @@ async function verifySignature(rawBody: string, presentedSig: string | null): Pr
     false,
     ['sign'],
   );
-  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody)));
+  const mac = new Uint8Array(
+    await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody)),
+  );
   const computed = SIGNATURE_ENCODING === 'hex' ? bytesToHex(mac) : bytesToBase64(mac);
   return timingSafeEqual(computed.toLowerCase(), presented.toLowerCase());
 }
 
-async function logEvent(eventType: string, externalReference: string | null, payload: unknown, signature: string | null) {
+async function logEvent(
+  eventType: string,
+  externalReference: string | null,
+  payload: unknown,
+  signature: string | null,
+) {
   await admin.from('flash_payment_events').insert({
     event_type: eventType,
     external_reference: externalReference,
@@ -93,9 +103,12 @@ async function applyCompleted(externalReference: string, payload: any) {
   }
   if (payment.status === 'completed') return; // idempotent
 
-  const paidAt = typeof payload?.paidAt === 'string'
-    ? payload.paidAt
-    : (typeof payload?.paid_at === 'string' ? payload.paid_at : new Date().toISOString());
+  const paidAt =
+    typeof payload?.paidAt === 'string'
+      ? payload.paidAt
+      : typeof payload?.paid_at === 'string'
+        ? payload.paid_at
+        : new Date().toISOString();
 
   const fees = payload?.fees ?? payload ?? {};
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -139,7 +152,10 @@ async function applyCompleted(externalReference: string, payload: any) {
   }
 }
 
-async function applyFailureOrExpiry(externalReference: string, eventType: 'payment.failed' | 'payment.expired') {
+async function applyFailureOrExpiry(
+  externalReference: string,
+  eventType: 'payment.failed' | 'payment.expired',
+) {
   const payment = await findPayment(externalReference);
   if (!payment) return;
   const next = eventType === 'payment.failed' ? 'failed' : 'expired';
@@ -189,25 +205,34 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405, cors);
 
   const rawBody = await req.text();
-  const presentedSig = req.headers.get(SIGNATURE_HEADER) ?? req.headers.get(SIGNATURE_HEADER.toLowerCase());
+  const presentedSig =
+    req.headers.get(SIGNATURE_HEADER) ?? req.headers.get(SIGNATURE_HEADER.toLowerCase());
   const ok = await verifySignature(rawBody, presentedSig);
   if (!ok) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
   let payload: any;
-  try { payload = JSON.parse(rawBody); } catch {
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
     return jsonResponse({ error: 'Body must be JSON' }, 400, cors);
   }
 
-  const eventType: string = typeof payload?.event_type === 'string'
-    ? payload.event_type
-    : (typeof payload?.type === 'string' ? payload.type : 'unknown');
+  const eventType: string =
+    typeof payload?.event_type === 'string'
+      ? payload.event_type
+      : typeof payload?.type === 'string'
+        ? payload.type
+        : 'unknown';
   const externalReference: string | null =
-    typeof payload?.externalReference === 'string' ? payload.externalReference
-    : typeof payload?.external_reference === 'string' ? payload.external_reference
-    : typeof payload?.data?.externalReference === 'string' ? payload.data.externalReference
-    : null;
+    typeof payload?.externalReference === 'string'
+      ? payload.externalReference
+      : typeof payload?.external_reference === 'string'
+        ? payload.external_reference
+        : typeof payload?.data?.externalReference === 'string'
+          ? payload.data.externalReference
+          : null;
 
   // Always log the event for audit. Even unknown event types land here.
   await logEvent(eventType, externalReference, payload, presentedSig);

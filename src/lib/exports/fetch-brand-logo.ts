@@ -12,7 +12,10 @@ export function getFallbackBrandLogoDataUri(): string {
 
 export async function fetchBrandLogoDataUri(): Promise<string> {
   try {
-    const res = await fetch('/brand-logo.png', { credentials: 'same-origin', cache: 'force-cache' });
+    const res = await fetch('/brand-logo.png', {
+      credentials: 'same-origin',
+      cache: 'force-cache',
+    });
     if (!res.ok) {
       return getFallbackBrandLogoDataUri();
     }

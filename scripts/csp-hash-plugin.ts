@@ -27,7 +27,8 @@ import { createHash } from 'node:crypto';
 import type { Plugin } from 'vite';
 
 const INLINE_SCRIPT_RE = /<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
-const CSP_META_RE = /<meta\s+http-equiv\s*=\s*"Content-Security-Policy"[^>]*content\s*=\s*"([\s\S]*?)"\s*\/?>/i;
+const CSP_META_RE =
+  /<meta\s+http-equiv\s*=\s*"Content-Security-Policy"[^>]*content\s*=\s*"([\s\S]*?)"\s*\/?>/i;
 const SCRIPT_SRC_RE = /(script-src\s+)([^;]+)(;|$)/i;
 
 function hashScript(body: string): string {

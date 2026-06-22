@@ -57,7 +57,9 @@ export default function RecoveryCode() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate('/app');
         return;
@@ -90,7 +92,8 @@ export default function RecoveryCode() {
     if (stage !== 'display' && stage !== 'verify') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = 'Your new recovery code has not been verified saved. Closing this page now will lock you out next time you forget your password.';
+      e.returnValue =
+        'Your new recovery code has not been verified saved. Closing this page now will lock you out next time you forget your password.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -109,7 +112,9 @@ export default function RecoveryCode() {
     return (
       <div className="max-w-2xl p-6">
         <div className="rounded-lg border border-border bg-card p-5">
-          <p className="text-sm text-muted-foreground">Unlock your vault to manage your recovery code.</p>
+          <p className="text-sm text-muted-foreground">
+            Unlock your vault to manage your recovery code.
+          </p>
         </div>
       </div>
     );
@@ -165,8 +170,8 @@ export default function RecoveryCode() {
   const handleConfirmVerify = () => {
     if (!newCode) return;
     const words = newCode.split(' ');
-    const allMatch = verifyPositions.every((pos, i) =>
-      verifyInputs[i].trim().toLowerCase() === words[pos]
+    const allMatch = verifyPositions.every(
+      (pos, i) => verifyInputs[i].trim().toLowerCase() === words[pos],
     );
     if (!allMatch) {
       setVerifyError('One or more words do not match. Check your saved copy and try again.');
@@ -196,8 +201,8 @@ export default function RecoveryCode() {
           Recovery code
         </h1>
         <p className="text-sm text-muted-foreground">
-          Your recovery code unlocks your vault if you ever forget your vault password.
-          It is the only backup that works without your password — keep it somewhere safe.
+          Your recovery code unlocks your vault if you ever forget your vault password. It is the
+          only backup that works without your password — keep it somewhere safe.
         </p>
       </div>
 
@@ -215,32 +220,54 @@ export default function RecoveryCode() {
 
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
             <p className="font-medium text-foreground">Why you cannot view the existing code</p>
-            <p>By design, only an encrypted form of your code is stored on the server. The original code was shown once during setup and never persisted. If you have lost track of it, generate a new one below.</p>
+            <p>
+              By design, only an encrypted form of your code is stored on the server. The original
+              code was shown once during setup and never persisted. If you have lost track of it,
+              generate a new one below.
+            </p>
           </div>
 
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-medium mb-1">Generating a new code invalidates the old one.</p>
-              <p>Any copy of your old recovery code (in a password manager, on paper, etc.) stops working the moment you click below. Make sure you can save the new one safely before continuing.</p>
+              <p>
+                Any copy of your old recovery code (in a password manager, on paper, etc.) stops
+                working the moment you click below. Make sure you can save the new one safely before
+                continuing.
+              </p>
             </div>
           </div>
 
           <div className="flex items-start gap-2">
-            <Checkbox id="ack" checked={confirmAck} onCheckedChange={(v) => setConfirmAck(Boolean(v))} />
+            <Checkbox
+              id="ack"
+              checked={confirmAck}
+              onCheckedChange={(v) => setConfirmAck(Boolean(v))}
+            />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
-              I understand the old code stops working and I am ready to save the new one immediately.
+              I understand the old code stops working and I am ready to save the new one
+              immediately.
             </Label>
           </div>
 
-          {error && <p className="text-sm text-destructive flex items-start gap-1"><AlertTriangle className="w-4 h-4 mt-0.5" />{error}</p>}
+          {error && (
+            <p className="text-sm text-destructive flex items-start gap-1">
+              <AlertTriangle className="w-4 h-4 mt-0.5" />
+              {error}
+            </p>
+          )}
 
           <Button
             onClick={handleGenerate}
             disabled={!confirmAck || submitting}
             data-testid="generate-recovery-code"
           >
-            {submitting ? 'Generating…' : hasRecoveryCipher ? 'Generate a new recovery code' : 'Generate recovery code'}
+            {submitting
+              ? 'Generating…'
+              : hasRecoveryCipher
+                ? 'Generate a new recovery code'
+                : 'Generate recovery code'}
           </Button>
         </section>
       )}
@@ -253,10 +280,19 @@ export default function RecoveryCode() {
           </div>
           <p className="text-xs text-muted-foreground">Shown once. Copy or write it down now.</p>
 
-          <div className="rounded-md border border-primary/40 bg-background p-4 grid grid-cols-3 gap-2" data-testid="new-recovery-code-grid">
+          <div
+            className="rounded-md border border-primary/40 bg-background p-4 grid grid-cols-3 gap-2"
+            data-testid="new-recovery-code-grid"
+          >
             {newCode.split(' ').map((word, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-sm" data-testid={`new-recovery-word-${i}`}>
-                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">{i + 1}.</span>
+              <div
+                key={i}
+                className="flex items-center gap-1.5 text-sm"
+                data-testid={`new-recovery-word-${i}`}
+              >
+                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">
+                  {i + 1}.
+                </span>
                 <span className="font-mono font-medium">{word}</span>
               </div>
             ))}
@@ -264,7 +300,15 @@ export default function RecoveryCode() {
 
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-              {copied ? <><Check className="w-4 h-4 mr-1" /> Copied</> : <><Copy className="w-4 h-4 mr-1" /> Copy all 12 words</>}
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-1" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1" /> Copy all 12 words
+                </>
+              )}
             </Button>
             <Button
               type="button"
@@ -287,7 +331,10 @@ export default function RecoveryCode() {
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-medium mb-1">This is your only backup.</p>
-              <p>Save it offline (password manager, paper, hardware token). It will not be shown again.</p>
+              <p>
+                Save it offline (password manager, paper, hardware token). It will not be shown
+                again.
+              </p>
             </div>
           </div>
 
@@ -298,7 +345,10 @@ export default function RecoveryCode() {
       )}
 
       {stage === 'verify' && newCode && (
-        <section className="rounded-lg border border-border bg-card p-5 space-y-4" data-testid="settings-recovery-verify-block">
+        <section
+          className="rounded-lg border border-border bg-card p-5 space-y-4"
+          data-testid="settings-recovery-verify-block"
+        >
           <h2 className="text-base font-semibold text-card-foreground">Prove you saved it</h2>
           <p className="text-sm text-muted-foreground">
             Type the words at the positions below from your saved copy.
@@ -326,11 +376,19 @@ export default function RecoveryCode() {
           </div>
           {verifyError && (
             <p className="text-sm text-destructive flex items-start gap-1">
-              <AlertTriangle className="w-4 h-4 mt-0.5" />{verifyError}
+              <AlertTriangle className="w-4 h-4 mt-0.5" />
+              {verifyError}
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setStage('display')}>Back to code</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex-1"
+              onClick={() => setStage('display')}
+            >
+              Back to code
+            </Button>
             <Button
               type="button"
               className="flex-1"
@@ -350,9 +408,12 @@ export default function RecoveryCode() {
             <h2 className="text-base font-semibold text-card-foreground">Recovery code rotated</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Your previous recovery code no longer works. Use the new one if you ever need to recover your vault.
+            Your previous recovery code no longer works. Use the new one if you ever need to recover
+            your vault.
           </p>
-          <Button variant="outline" onClick={() => navigate('/app/settings/security')}>Back to security settings</Button>
+          <Button variant="outline" onClick={() => navigate('/app/settings/security')}>
+            Back to security settings
+          </Button>
         </section>
       )}
     </div>

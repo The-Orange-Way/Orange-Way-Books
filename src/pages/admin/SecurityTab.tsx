@@ -19,12 +19,16 @@ export function SecurityTab({ orgId }: SecurityTabProps) {
       .select('vault_key_version')
       .eq('org_id', orgId)
       .maybeSingle();
-    const kv = (settings as { vault_key_version?: number | null } | null)?.vault_key_version ?? LATEST_VAULT_KEY_VERSION;
+    const kv =
+      (settings as { vault_key_version?: number | null } | null)?.vault_key_version ??
+      LATEST_VAULT_KEY_VERSION;
     setKeyVersion(kv);
     setLoading(false);
   }, [orgId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   if (loading || keyVersion === null) {
     return (
@@ -44,10 +48,9 @@ export function SecurityTab({ orgId }: SecurityTabProps) {
         </h3>
       </div>
       <p className="text-sm text-muted-foreground">
-        Your vault uses Argon2id (memory-hard key derivation, OWASP 2023
-        parameters) with the random-MEK wrapping pattern. Password changes
-        re-wrap the master key instead of re-encrypting every row. Future
-        format upgrades will appear here when available.
+        Your vault uses Argon2id (memory-hard key derivation, OWASP 2023 parameters) with the
+        random-MEK wrapping pattern. Password changes re-wrap the master key instead of
+        re-encrypting every row. Future format upgrades will appear here when available.
       </p>
     </div>
   );

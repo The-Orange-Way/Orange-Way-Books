@@ -73,7 +73,10 @@ const U = () => crypto.randomUUID();
 
 // ── Canonical chart of accounts (matches OnboardingWizard) ───────────
 interface AccountDef {
-  code: string; name: string; type: string; group: string;
+  code: string;
+  name: string;
+  type: string;
+  group: string;
   normal: 'DEBIT' | 'CREDIT';
 }
 // accountType uses PascalCase — the Insights Expenses card does a
@@ -83,49 +86,181 @@ interface AccountDef {
 // the working-capital filter (`includes('cash'|'bank'|'receivable'|
 // 'payable'|'credit card')`) without overlap.
 const ACCOUNTS: AccountDef[] = [
-  { code: '1000', name: 'Accounts',                 type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1100', name: 'Cash & Bank',             type: 'Asset',     group: 'Bank',                    normal: 'DEBIT' },
-  { code: '1110', name: 'Fiat Cash Accounts',       type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1120', name: 'Digital Asset Accounts',   type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1200', name: 'Accounts Receivable',     type: 'Asset',     group: 'Accounts Receivable',     normal: 'DEBIT' },
-  { code: '1300', name: 'Prepaid Expenses',        type: 'Asset',     group: 'Prepaid Expenses',        normal: 'DEBIT' },
-  { code: '1305', name: 'Inventory',               type: 'Asset',     group: 'Inventory',               normal: 'DEBIT' },
-  { code: '1500', name: 'Transfer Clearing',       type: 'Asset',     group: 'Cash',                    normal: 'DEBIT' },
-  { code: '1600', name: 'Equipment',               type: 'Asset',     group: 'Equipment',               normal: 'DEBIT' },
-  { code: '1700', name: 'Other Assets',            type: 'Asset',     group: 'Other Assets',            normal: 'DEBIT' },
-  { code: '2000', name: 'Liabilities',             type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2100', name: 'Current Liabilities',     type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2110', name: 'Accounts Payable',        type: 'Liability', group: 'Accounts Payable',        normal: 'CREDIT' },
-  { code: '2120', name: 'Credit Cards',            type: 'Liability', group: 'Credit Cards',            normal: 'CREDIT' },
-  { code: '2130', name: 'Sales Tax Payable',       type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2140', name: 'Payroll Liabilities',     type: 'Liability', group: 'Current Liabilities',     normal: 'CREDIT' },
-  { code: '2200', name: 'Long-Term Liabilities',   type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '2210', name: 'Notes Payable',           type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '2220', name: 'Mortgage Payable',        type: 'Liability', group: 'Long-Term Liabilities',   normal: 'CREDIT' },
-  { code: '3000', name: "Owner's Equity",          type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3100', name: 'Starting Balance',        type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3200', name: 'Retained Earnings',       type: 'Equity',    group: 'Equity',                  normal: 'CREDIT' },
-  { code: '3300', name: 'Dividends Paid',          type: 'Equity',    group: 'Equity',                  normal: 'DEBIT' },
-  { code: '4000', name: 'Sales',                   type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4100', name: 'Sales Revenue',           type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4200', name: 'Service Revenue',         type: 'Income',    group: 'Revenue',                 normal: 'CREDIT' },
-  { code: '4300', name: 'Interest Income',         type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4400', name: 'Other Income',            type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4500', name: 'Gain on Sale of Assets',  type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '4600', name: 'Unrealized Gains',        type: 'Income',    group: 'Other Income',            normal: 'CREDIT' },
-  { code: '5000', name: 'Cost of Goods Sold',      type: 'Expense',   group: 'Cost of Sales',           normal: 'DEBIT' },
-  { code: '5200', name: 'Salaries & Wages',        type: 'Expense',   group: 'Payroll',                 normal: 'DEBIT' },
-  { code: '5300', name: 'Rent Expense',            type: 'Expense',   group: 'Rent',                    normal: 'DEBIT' },
-  { code: '5400', name: 'Utilities',               type: 'Expense',   group: 'Utilities',               normal: 'DEBIT' },
-  { code: '5500', name: 'Insurance',               type: 'Expense',   group: 'Insurance',               normal: 'DEBIT' },
-  { code: '5600', name: 'Depreciation',            type: 'Expense',   group: 'Depreciation',            normal: 'DEBIT' },
-  { code: '5700', name: 'Marketing & Advertising', type: 'Expense',   group: 'Marketing',               normal: 'DEBIT' },
-  { code: '5800', name: 'Professional Services',   type: 'Expense',   group: 'Professional Services',   normal: 'DEBIT' },
-  { code: '5900', name: 'Travel & Entertainment',  type: 'Expense',   group: 'Travel',                  normal: 'DEBIT' },
-  { code: '5950', name: 'Bank & Transaction Fees', type: 'Expense',   group: 'Bank Fees',               normal: 'DEBIT' },
-  { code: '5960', name: 'Loss on Sale of Assets',  type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
-  { code: '5970', name: 'Unrealized Losses',       type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
-  { code: '5980', name: 'Other Expenses',          type: 'Expense',   group: 'Other Expenses',          normal: 'DEBIT' },
+  { code: '1000', name: 'Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1100', name: 'Cash & Bank', type: 'Asset', group: 'Bank', normal: 'DEBIT' },
+  { code: '1110', name: 'Fiat Cash Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1120', name: 'Digital Asset Accounts', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  {
+    code: '1200',
+    name: 'Accounts Receivable',
+    type: 'Asset',
+    group: 'Accounts Receivable',
+    normal: 'DEBIT',
+  },
+  {
+    code: '1300',
+    name: 'Prepaid Expenses',
+    type: 'Asset',
+    group: 'Prepaid Expenses',
+    normal: 'DEBIT',
+  },
+  { code: '1305', name: 'Inventory', type: 'Asset', group: 'Inventory', normal: 'DEBIT' },
+  { code: '1500', name: 'Transfer Clearing', type: 'Asset', group: 'Cash', normal: 'DEBIT' },
+  { code: '1600', name: 'Equipment', type: 'Asset', group: 'Equipment', normal: 'DEBIT' },
+  { code: '1700', name: 'Other Assets', type: 'Asset', group: 'Other Assets', normal: 'DEBIT' },
+  {
+    code: '2000',
+    name: 'Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2100',
+    name: 'Current Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2110',
+    name: 'Accounts Payable',
+    type: 'Liability',
+    group: 'Accounts Payable',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2120',
+    name: 'Credit Cards',
+    type: 'Liability',
+    group: 'Credit Cards',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2130',
+    name: 'Sales Tax Payable',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2140',
+    name: 'Payroll Liabilities',
+    type: 'Liability',
+    group: 'Current Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2200',
+    name: 'Long-Term Liabilities',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2210',
+    name: 'Notes Payable',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  {
+    code: '2220',
+    name: 'Mortgage Payable',
+    type: 'Liability',
+    group: 'Long-Term Liabilities',
+    normal: 'CREDIT',
+  },
+  { code: '3000', name: "Owner's Equity", type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3100', name: 'Starting Balance', type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3200', name: 'Retained Earnings', type: 'Equity', group: 'Equity', normal: 'CREDIT' },
+  { code: '3300', name: 'Dividends Paid', type: 'Equity', group: 'Equity', normal: 'DEBIT' },
+  { code: '4000', name: 'Sales', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  { code: '4100', name: 'Sales Revenue', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  { code: '4200', name: 'Service Revenue', type: 'Income', group: 'Revenue', normal: 'CREDIT' },
+  {
+    code: '4300',
+    name: 'Interest Income',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  { code: '4400', name: 'Other Income', type: 'Income', group: 'Other Income', normal: 'CREDIT' },
+  {
+    code: '4500',
+    name: 'Gain on Sale of Assets',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  {
+    code: '4600',
+    name: 'Unrealized Gains',
+    type: 'Income',
+    group: 'Other Income',
+    normal: 'CREDIT',
+  },
+  {
+    code: '5000',
+    name: 'Cost of Goods Sold',
+    type: 'Expense',
+    group: 'Cost of Sales',
+    normal: 'DEBIT',
+  },
+  { code: '5200', name: 'Salaries & Wages', type: 'Expense', group: 'Payroll', normal: 'DEBIT' },
+  { code: '5300', name: 'Rent Expense', type: 'Expense', group: 'Rent', normal: 'DEBIT' },
+  { code: '5400', name: 'Utilities', type: 'Expense', group: 'Utilities', normal: 'DEBIT' },
+  { code: '5500', name: 'Insurance', type: 'Expense', group: 'Insurance', normal: 'DEBIT' },
+  { code: '5600', name: 'Depreciation', type: 'Expense', group: 'Depreciation', normal: 'DEBIT' },
+  {
+    code: '5700',
+    name: 'Marketing & Advertising',
+    type: 'Expense',
+    group: 'Marketing',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5800',
+    name: 'Professional Services',
+    type: 'Expense',
+    group: 'Professional Services',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5900',
+    name: 'Travel & Entertainment',
+    type: 'Expense',
+    group: 'Travel',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5950',
+    name: 'Bank & Transaction Fees',
+    type: 'Expense',
+    group: 'Bank Fees',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5960',
+    name: 'Loss on Sale of Assets',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5970',
+    name: 'Unrealized Losses',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
+  {
+    code: '5980',
+    name: 'Other Expenses',
+    type: 'Expense',
+    group: 'Other Expenses',
+    normal: 'DEBIT',
+  },
 ];
 
 export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
@@ -202,24 +337,46 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
 
   // ── Contacts ─────────────────────────────────────────────────────────
   const c = (name: string, type: string, email?: string | null): TakeoutContact => ({
-    id: U(), name, type, email: email ?? null, phone: null,
-    street: null, city: null, state: null, zip: null, country: 'US',
+    id: U(),
+    name,
+    type,
+    email: email ?? null,
+    phone: null,
+    street: null,
+    city: null,
+    state: null,
+    zip: null,
+    country: 'US',
   });
   const contactBeanfield = c('Beanfield Co-op', 'Vendor', 'orders@beanfield.example');
   const contactHappyCow = c('Happy Cow Dairy', 'Vendor', 'deliveries@happycow.example');
   const contactPacPower = c('Pacific Power Co.', 'Vendor', 'billing@pacpower.example');
   const contactFibreNet = c('FibreNet Internet', 'Vendor', 'billing@fibrenet.example');
-  const contactDowntownHoldings = c('Downtown Holdings', 'Vendor', 'leases@downtownholdings.example');
+  const contactDowntownHoldings = c(
+    'Downtown Holdings',
+    'Vendor',
+    'leases@downtownholdings.example',
+  );
   const contactSafeTech = c('SafeTech Insurance', 'Vendor', 'policies@safetech.example');
   const contactBrewEquipment = c('Brew Equipment Co.', 'Vendor', 'sales@brewequipment.example');
 
   const contactReGround = c('ReGround Compost Co.', 'Customer', 'pickups@reground.example');
-  const contactArtisanMarket = c('Local Artisan Market', 'Customer', 'buying@artisanmarket.example');
+  const contactArtisanMarket = c(
+    'Local Artisan Market',
+    'Customer',
+    'buying@artisanmarket.example',
+  );
 
   const contacts: TakeoutContact[] = [
-    contactBeanfield, contactHappyCow, contactPacPower, contactFibreNet,
-    contactDowntownHoldings, contactSafeTech, contactBrewEquipment,
-    contactReGround, contactArtisanMarket,
+    contactBeanfield,
+    contactHappyCow,
+    contactPacPower,
+    contactFibreNet,
+    contactDowntownHoldings,
+    contactSafeTech,
+    contactBrewEquipment,
+    contactReGround,
+    contactArtisanMarket,
   ];
 
   // ── Transactions + JEs ───────────────────────────────────────────────
@@ -248,10 +405,10 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
   }): string {
     const jeId = U();
     const jeDate = new Date(args.date + 'T00:00:00Z');
-    const btcRate = btcRateForDate(jeDate);         // USD per BTC
+    const btcRate = btcRateForDate(jeDate); // USD per BTC
     const amountUsd = round2(args.amountUsd);
-    const amountBtc = round8(amountUsd / btcRate);  // BTC equivalent
-    const postedRate = round8(1 / btcRate);         // BTC per USD
+    const amountBtc = round8(amountUsd / btcRate); // BTC equivalent
+    const postedRate = round8(1 / btcRate); // BTC per USD
     journal_entries.push({
       id: jeId,
       date: args.date,
@@ -473,7 +630,9 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
 
   // ── Monthly opex ─────────────────────────────────────────────────────
   function eachMonthOfDay(dayOfMonth: number, fn: (date: Date) => void) {
-    const cursor = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), dayOfMonth));
+    const cursor = new Date(
+      Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), dayOfMonth),
+    );
     while (cursor <= now) {
       if (cursor >= startDate) fn(new Date(cursor));
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
@@ -637,7 +796,12 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
   }
 
   // ── Open receivables at "today" (wholesale invoices) ─────────────────
-  const openInvoices: Array<{ contact: TakeoutContact; usd: number; daysAgo: number; ref: string }> = [
+  const openInvoices: Array<{
+    contact: TakeoutContact;
+    usd: number;
+    daysAgo: number;
+    ref: string;
+  }> = [
     { contact: contactArtisanMarket, usd: 320, daysAgo: 11, ref: 'INV-WS-042' },
     { contact: contactReGround, usd: 180, daysAgo: 18, ref: 'INV-GR-029' },
   ];
@@ -785,16 +949,20 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
   ];
 
   const data: TakeoutData = {
-    organizations: [{
-      id: orgId,
-      name: 'Common Grounds Coffee Co.',
-      external_journal_id: null,
-    }],
-    org_settings: [{
-      bitcoin_display: 'sats',
-      primary_currency: 'BTC',
-      secondary_currency: 'USD',
-    }],
+    organizations: [
+      {
+        id: orgId,
+        name: 'Common Grounds Coffee Co.',
+        external_journal_id: null,
+      },
+    ],
+    org_settings: [
+      {
+        bitcoin_display: 'sats',
+        primary_currency: 'BTC',
+        secondary_currency: 'USD',
+      },
+    ],
     wallets,
     chart_of_accounts,
     contacts,

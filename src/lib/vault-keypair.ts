@@ -109,20 +109,14 @@ function extractIvFromEncryptedString(b64: string): string {
  * freshly-generated keypair. Extracted so `ensureUserKeypair` and the
  * future 4.3 invite flow can share the same encoding logic.
  */
-async function buildUserVaultKeysRow(
-  mek: CryptoKey,
-  saltB64: string,
-): Promise<UserVaultKeysRow> {
+async function buildUserVaultKeysRow(mek: CryptoKey, saltB64: string): Promise<UserVaultKeysRow> {
   const wrapKey = await derivePqcSecretWrapKey(mek, saltB64);
   const kem = generateHybridKemKeyPair();
 
   // Wrap the hybrid secret key with the MEK-derived subkey. encryptString
   // is AES-256-GCM with a fresh random IV — same wire format used for
   // every other vault ciphertext in this repo.
-  const encrypted_private_key = await encryptString(
-    bytesToBase64(kem.secretKey),
-    wrapKey,
-  );
+  const encrypted_private_key = await encryptString(bytesToBase64(kem.secretKey), wrapKey);
 
   return {
     public_key_b64: bytesToBase64(kem.publicKey),
@@ -203,9 +197,7 @@ export interface RewrapUserKeypairArgs {
   supabase: SupabaseKeypairClient;
 }
 
-export type RewrapUserKeypairResult =
-  | { rewrapped: false; reason: 'no-row' }
-  | { rewrapped: true };
+export type RewrapUserKeypairResult = { rewrapped: false; reason: 'no-row' } | { rewrapped: true };
 
 /**
  * Re-wrap the user's hybrid private key with a new MEK. Used by the
@@ -246,10 +238,7 @@ export async function rewrapUserKeypair(
   // Unwrap under the old MEK, then re-wrap under the new MEK.
   const oldWrapKey = await derivePqcSecretWrapKey(oldMek, saltB64);
   const newWrapKey = await derivePqcSecretWrapKey(newMek, saltB64);
-  const secretKeyB64 = await decryptString(
-    existing.data.encrypted_private_key,
-    oldWrapKey,
-  );
+  const secretKeyB64 = await decryptString(existing.data.encrypted_private_key, oldWrapKey);
   const newEncrypted = await encryptString(secretKeyB64, newWrapKey);
 
   // Atomic UPDATE on the existing row. No DELETE + INSERT.

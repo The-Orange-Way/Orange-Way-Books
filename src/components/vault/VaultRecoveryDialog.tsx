@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,8 +64,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
     if (step === 'save-new-code' && !savedCheckbox) {
       const ok = window.confirm(
         'You have not confirmed that you saved your new recovery code. ' +
-        'If you close now, you will lose it and could be permanently locked out ' +
-        'next time you forget your password. Close anyway?'
+          'If you close now, you will lose it and could be permanently locked out ' +
+          'next time you forget your password. Close anyway?',
       );
       if (!ok) return;
     }
@@ -91,7 +98,9 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
     setError('');
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('Not signed in.');
 
       // Resolve active org (same logic as VaultContext.unlock)
@@ -120,7 +129,12 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         throw new Error('Recovery is not available for this vault. Contact support.');
       }
 
-      let out: { newEncMekCiphertext: string; newRecoveryCode: string; newRecoveryCiphertext: string; newVerifier: string };
+      let out: {
+        newEncMekCiphertext: string;
+        newRecoveryCode: string;
+        newRecoveryCiphertext: string;
+        newVerifier: string;
+      };
 
       if (codeKind === 'master') {
         // S14 master-code path: look up the user's master record + the
@@ -139,7 +153,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         if (!master || !wrapRow) {
           throw new Error(
             'No master recovery code is set up for this organization. ' +
-            'Use your per-org recovery code instead, or contact support.'
+              'Use your per-org recovery code instead, or contact support.',
           );
         }
         out = await recoverOrgWithMasterCode({
@@ -211,7 +225,12 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
   }, [savedCheckbox, onClose, resetAll]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -221,9 +240,11 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
             {step === 'save-new-code' && 'Save your new recovery code'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'enter-code' && 'Enter the 12 words you saved when you first set up your vault.'}
+            {step === 'enter-code' &&
+              'Enter the 12 words you saved when you first set up your vault.'}
             {step === 'new-password' && 'Your data will be re-wrapped under this password.'}
-            {step === 'save-new-code' && 'This new code replaces the old one. Save it somewhere safe before closing.'}
+            {step === 'save-new-code' &&
+              'This new code replaces the old one. Save it somewhere safe before closing.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -260,7 +281,12 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 ? 'Your master code unlocks any organization you have enrolled.'
                 : 'The 12-word code shown when you set up this organization.'}
             </p>
-            {error && <p className="text-sm text-destructive flex items-start gap-1"><AlertTriangle className="w-4 h-4 mt-0.5" />{error}</p>}
+            {error && (
+              <p className="text-sm text-destructive flex items-start gap-1">
+                <AlertTriangle className="w-4 h-4 mt-0.5" />
+                {error}
+              </p>
+            )}
           </div>
         )}
 
@@ -290,13 +316,21 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               <ShieldCheck className="w-3.5 h-3.5 mt-0.5 text-primary" />
               Your existing encrypted data stays valid. Only the wrap is replaced.
             </p>
-            {error && <p className="text-sm text-destructive flex items-start gap-1"><AlertTriangle className="w-4 h-4 mt-0.5" />{error}</p>}
+            {error && (
+              <p className="text-sm text-destructive flex items-start gap-1">
+                <AlertTriangle className="w-4 h-4 mt-0.5" />
+                {error}
+              </p>
+            )}
           </div>
         )}
 
         {step === 'save-new-code' && result && (
           <div className="space-y-3">
-            <div className="rounded-md border border-primary/40 bg-primary/5 p-3 font-mono text-sm leading-7 break-words" data-testid="new-recovery-code">
+            <div
+              className="rounded-md border border-primary/40 bg-primary/5 p-3 font-mono text-sm leading-7 break-words"
+              data-testid="new-recovery-code"
+            >
               {result.newRecoveryCode}
             </div>
             <div className="flex gap-2">
@@ -309,13 +343,21 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-medium mb-1">Save this somewhere offline.</p>
-                <p>If you forget your password again and lose this code, your data is unrecoverable. We cannot reset it for you.</p>
+                <p>
+                  If you forget your password again and lose this code, your data is unrecoverable.
+                  We cannot reset it for you.
+                </p>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Checkbox id="saved" checked={savedCheckbox} onCheckedChange={(v) => setSavedCheckbox(Boolean(v))} />
+              <Checkbox
+                id="saved"
+                checked={savedCheckbox}
+                onCheckedChange={(v) => setSavedCheckbox(Boolean(v))}
+              />
               <Label htmlFor="saved" className="text-sm leading-tight cursor-pointer">
-                I have saved my new recovery code in a safe place (password manager, paper backup, etc.)
+                I have saved my new recovery code in a safe place (password manager, paper backup,
+                etc.)
               </Label>
             </div>
           </div>
@@ -324,7 +366,9 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         <DialogFooter>
           {step === 'enter-code' && (
             <>
-              <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
+              <Button type="button" variant="ghost" onClick={handleClose}>
+                Cancel
+              </Button>
               <Button type="button" onClick={handleSubmitCode} disabled={!codeLooksValid}>
                 Continue
               </Button>
@@ -332,8 +376,19 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           )}
           {step === 'new-password' && (
             <>
-              <Button type="button" variant="ghost" onClick={() => setStep('enter-code')} disabled={submitting}>Back</Button>
-              <Button type="button" onClick={handleSubmitNewPassword} disabled={!passwordOk || submitting}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep('enter-code')}
+                disabled={submitting}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmitNewPassword}
+                disabled={!passwordOk || submitting}
+              >
                 {submitting ? 'Recovering…' : 'Recover vault'}
               </Button>
             </>

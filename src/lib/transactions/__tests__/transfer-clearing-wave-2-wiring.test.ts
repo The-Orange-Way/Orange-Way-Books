@@ -37,9 +37,7 @@ function makeSupabase() {
         return chain;
       },
       then(onFulfilled: (v: { data: unknown; error: null }) => unknown) {
-        const rows = store[table].filter(
-          (row) => filterOrg === null || row.org_id === filterOrg,
-        );
+        const rows = store[table].filter((row) => filterOrg === null || row.org_id === filterOrg);
         return Promise.resolve({ data: rows, error: null }).then(onFulfilled);
       },
     };

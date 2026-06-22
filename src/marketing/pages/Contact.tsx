@@ -17,8 +17,8 @@ export default function Contact() {
       <article className="max-w-2xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-6">Contact</h1>
         <p className="text-muted-foreground mb-10">
-          Orange Way Books is an open-source project. The fastest way to reach
-          us is through the channels below.
+          Orange Way Books is an open-source project. The fastest way to reach us is through the
+          channels below.
         </p>
 
         <div className="space-y-6">

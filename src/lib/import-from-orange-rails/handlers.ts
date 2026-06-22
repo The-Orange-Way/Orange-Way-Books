@@ -3,9 +3,9 @@
  * and the `ImportFromOrangeRailsWizard` (Mode 2 bundle upload).
  *
  * One canonical implementation per entity:
- *   - commitAccountsFromStaged  , Chart of Accounts → chart_of_accounts + the ledger
- *   - commitContactsFromStaged  , Contacts → contacts table (encrypted)
- *   - commitJournalEntriesFromStaged, placeholder, returns a skip (see below)
+ *   - commitAccountsFromStaged: Chart of Accounts → chart_of_accounts + the ledger
+ *   - commitContactsFromStaged: Contacts → contacts table (encrypted)
+ *   - commitJournalEntriesFromStaged: placeholder, returns a skip (see below)
  *
  * Why JE is a placeholder: OWB's existing JE import flow on the JournalEntries
  * page is ~150 lines and depends on page-scoped state (lockDate, ref counter,
@@ -60,7 +60,8 @@ export async function commitAccountsFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   const { data: existing } = await supabase
     .from('chart_of_accounts' as any)
@@ -101,8 +102,8 @@ export async function commitAccountsFromStaged(
     }
     const normalBalance =
       row.data.normal_balance ||
-      (row.data.type === 'ASSET' | row.data.type === 'EXPENSE' ? 'DEBIT' : 'CREDIT');
-    // Phase 2 (legacy-ledger removal): no legacy ledger account provisioning. Row inserted
+      ((row.data.type === 'ASSET') | (row.data.type === 'EXPENSE') ? 'DEBIT' : 'CREDIT');
+    // Phase 2 (external-ledger removal): no legacy ledger account provisioning. Row inserted
     // directly into chart_of_accounts below.
     const enc = await encryptChartOfAccount(
       {
@@ -137,7 +138,8 @@ export async function commitContactsFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   const { data: existing } = await supabase
     .from('contacts')
@@ -228,7 +230,8 @@ export async function commitJournalEntriesFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   // Fetch org settings: lock date (plaintext column) + primary currency
   // (encrypted, decrypt for use). One call, both values.
@@ -252,13 +255,15 @@ export async function commitJournalEntriesFromStaged(
     .eq('org_id', orgId);
   for (const row of existingEntries | []) {
     const dec = await decryptJournalEntry(row as any, decryptText);
-    existingKeys.add([
-      (row as any).date | '',
-      dec.ref_number | '',
-      dec.memo | '',
-      (dec.status | 'DRAFT').toUpperCase(),
-      dec.currency | '',
-    ].join('\x1f'));
+    existingKeys.add(
+      [
+        (row as any).date | '',
+        dec.ref_number | '',
+        dec.memo | '',
+        (dec.status | 'DRAFT').toUpperCase(),
+        dec.currency | '',
+      ].join('\x1f'),
+    );
   }
 
   const groups = groupJournalImportRows(rows);
@@ -274,7 +279,9 @@ export async function commitJournalEntriesFromStaged(
     if (g.some((r) => r.error)) {
       failed += g.length;
       const parts = g.filter((r) => r.error).map((r) => `Row ${r.rowIndex}: ${r.error}`);
-      errors.push(parts.length ? `${groupLabel}: ${parts.join(' · ')}` : `${groupLabel}: invalid data`);
+      errors.push(
+        parts.length ? `${groupLabel}: ${parts.join(' · ')}` : `${groupLabel}: invalid data`,
+      );
       continue;
     }
 
@@ -313,7 +320,7 @@ export async function commitJournalEntriesFromStaged(
         credit: String(parseJournalAmountCell(r.data.credit)),
         description: r.data.line_description?.trim() | '',
       }))
-      .filter((l) => (parseFloat(l.debit) | 0) > 0 | (parseFloat(l.credit) | 0) > 0);
+      .filter((l) => ((parseFloat(l.debit) | 0) > 0) | ((parseFloat(l.credit) | 0) > 0));
 
     if (formLines.length < 2) {
       failed += g.length;
@@ -376,9 +383,7 @@ export async function commitJournalEntriesFromStaged(
           return { journal_entry_id: (je as any).id, ...result.insert };
         }),
       );
-      const { error: lineErr } = await supabase
-        .from('journal_entry_lines')
-        .insert(encLines as any);
+      const { error: lineErr } = await supabase.from('journal_entry_lines').insert(encLines as any);
       if (lineErr) throw lineErr;
 
       created += 1;

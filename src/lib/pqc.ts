@@ -25,11 +25,11 @@
  * See docs/OrangeRails-PQC.md for the threat model and migration path.
  */
 
-import { x25519 } from "@noble/curves/ed25519.js";
-import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
-import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
-import { hkdf } from "@noble/hashes/hkdf.js";
-import { sha256 } from "@noble/hashes/sha2.js";
+import { x25519 } from '@noble/curves/ed25519.js';
+import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
+import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
+import { hkdf } from '@noble/hashes/hkdf.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 // ------------------------------------------------------------------
 // Sizes — derived from the standards, asserted at runtime.
@@ -50,7 +50,7 @@ export const HYBRID_KEM_V1 = Object.freeze({
   /** Length of the hybrid KEM shared secret (derived via HKDF-SHA-256). */
   sharedSecretBytes: 32,
   /** HKDF-SHA-256 info string — bump this when the combiner output changes. */
-  hkdfInfo: "orangerails-hybrid-kem-v1",
+  hkdfInfo: 'orangerails-hybrid-kem-v1',
 } as const);
 
 export const HYBRID_KEM_PUBLIC_KEY_BYTES =
@@ -114,10 +114,10 @@ export function generateHybridKemKeyPair(): HybridKemKeyPair {
   const xPub = x25519.getPublicKey(xSec);
   const mlkem = ml_kem768.keygen();
 
-  assertLength("X25519 public key", xPub, HYBRID_KEM_V1.x25519PublicKeyBytes);
-  assertLength("X25519 secret key", xSec, HYBRID_KEM_V1.x25519SecretKeyBytes);
-  assertLength("ML-KEM-768 public key", mlkem.publicKey, HYBRID_KEM_V1.mlkemPublicKeyBytes);
-  assertLength("ML-KEM-768 secret key", mlkem.secretKey, HYBRID_KEM_V1.mlkemSecretKeyBytes);
+  assertLength('X25519 public key', xPub, HYBRID_KEM_V1.x25519PublicKeyBytes);
+  assertLength('X25519 secret key', xSec, HYBRID_KEM_V1.x25519SecretKeyBytes);
+  assertLength('ML-KEM-768 public key', mlkem.publicKey, HYBRID_KEM_V1.mlkemPublicKeyBytes);
+  assertLength('ML-KEM-768 secret key', mlkem.secretKey, HYBRID_KEM_V1.mlkemSecretKeyBytes);
 
   return {
     publicKey: concat(xPub, mlkem.publicKey),
@@ -161,7 +161,7 @@ export interface HybridKemCiphertext {
  * primitives is later broken.
  */
 export function hybridEncapsulate(recipientPublicKey: Uint8Array): HybridKemCiphertext {
-  assertLength("hybrid KEM public key", recipientPublicKey, HYBRID_KEM_PUBLIC_KEY_BYTES);
+  assertLength('hybrid KEM public key', recipientPublicKey, HYBRID_KEM_PUBLIC_KEY_BYTES);
 
   const recipientX25519Pub = recipientPublicKey.subarray(0, HYBRID_KEM_V1.x25519PublicKeyBytes);
   const recipientMlkemPub = recipientPublicKey.subarray(HYBRID_KEM_V1.x25519PublicKeyBytes);
@@ -172,8 +172,8 @@ export function hybridEncapsulate(recipientPublicKey: Uint8Array): HybridKemCiph
 
   const { cipherText: mlkemCt, sharedSecret: ssPq } = ml_kem768.encapsulate(recipientMlkemPub);
 
-  assertLength("X25519 ephemeral public key", ephemeralPub, HYBRID_KEM_V1.x25519PublicKeyBytes);
-  assertLength("ML-KEM-768 ciphertext", mlkemCt, HYBRID_KEM_V1.mlkemCipherTextBytes);
+  assertLength('X25519 ephemeral public key', ephemeralPub, HYBRID_KEM_V1.x25519PublicKeyBytes);
+  assertLength('ML-KEM-768 ciphertext', mlkemCt, HYBRID_KEM_V1.mlkemCipherTextBytes);
 
   return {
     ciphertext: concat(ephemeralPub, mlkemCt),
@@ -191,8 +191,8 @@ export function hybridEncapsulate(recipientPublicKey: Uint8Array): HybridKemCiph
  * must rely on AEAD for integrity, not on this function throwing.
  */
 export function hybridDecapsulate(secretKey: Uint8Array, ciphertext: Uint8Array): Uint8Array {
-  assertLength("hybrid KEM secret key", secretKey, HYBRID_KEM_SECRET_KEY_BYTES);
-  assertLength("hybrid KEM ciphertext", ciphertext, HYBRID_KEM_CIPHERTEXT_BYTES);
+  assertLength('hybrid KEM secret key', secretKey, HYBRID_KEM_SECRET_KEY_BYTES);
+  assertLength('hybrid KEM ciphertext', ciphertext, HYBRID_KEM_CIPHERTEXT_BYTES);
 
   const x25519Sec = secretKey.subarray(0, HYBRID_KEM_V1.x25519SecretKeyBytes);
   const mlkemSec = secretKey.subarray(HYBRID_KEM_V1.x25519SecretKeyBytes);
@@ -218,16 +218,16 @@ export interface SigKeyPair {
 /** Generate a fresh ML-DSA-65 signing keypair. */
 export function generateSigKeyPair(): SigKeyPair {
   const kp = ml_dsa65.keygen();
-  assertLength("ML-DSA-65 public key", kp.publicKey, ML_DSA_65.publicKeyBytes);
-  assertLength("ML-DSA-65 secret key", kp.secretKey, ML_DSA_65.secretKeyBytes);
+  assertLength('ML-DSA-65 public key', kp.publicKey, ML_DSA_65.publicKeyBytes);
+  assertLength('ML-DSA-65 secret key', kp.secretKey, ML_DSA_65.secretKeyBytes);
   return { publicKey: kp.publicKey, secretKey: kp.secretKey };
 }
 
 /** Sign a message with an ML-DSA-65 secret key. */
 export function sign(secretKey: Uint8Array, message: Uint8Array): Uint8Array {
-  assertLength("ML-DSA-65 secret key", secretKey, ML_DSA_65.secretKeyBytes);
+  assertLength('ML-DSA-65 secret key', secretKey, ML_DSA_65.secretKeyBytes);
   const sig = ml_dsa65.sign(message, secretKey);
-  assertLength("ML-DSA-65 signature", sig, ML_DSA_65.signatureBytes);
+  assertLength('ML-DSA-65 signature', sig, ML_DSA_65.signatureBytes);
   return sig;
 }
 

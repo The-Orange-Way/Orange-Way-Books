@@ -85,7 +85,10 @@ Deno.serve(async (req: Request) => {
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+  const {
+    data: { user: caller },
+    error: authErr,
+  } = await callerClient.auth.getUser();
   if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
@@ -107,7 +110,9 @@ Deno.serve(async (req: Request) => {
   if (raw === null) return jsonResponse({ error: 'Body too large' }, 413, cors);
   let parsed: { subscriptionId?: string } = {};
   if (raw.trim().length > 0) {
-    try { parsed = JSON.parse(raw); } catch {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
       return jsonResponse({ error: 'Body must be JSON' }, 400, cors);
     }
   }
@@ -151,12 +156,16 @@ Deno.serve(async (req: Request) => {
       .limit(1);
     const row = existing?.[0];
     if (row && row.status === 'pending' && row.flash_payment_link_url) {
-      return jsonResponse({
-        flashPaymentId: row.id,
-        url: row.flash_payment_link_url,
-        externalReference: row.external_reference,
-        idempotent: true,
-      }, 200, cors);
+      return jsonResponse(
+        {
+          flashPaymentId: row.id,
+          url: row.flash_payment_link_url,
+          externalReference: row.external_reference,
+          idempotent: true,
+        },
+        200,
+        cors,
+      );
     }
   }
 
@@ -204,9 +213,13 @@ Deno.serve(async (req: Request) => {
     console.error('create-flash-payment link update error:', updateErr);
   }
 
-  return jsonResponse({
-    flashPaymentId: inserted.id,
-    url: link.url,
-    externalReference,
-  }, 200, cors);
+  return jsonResponse(
+    {
+      flashPaymentId: inserted.id,
+      url: link.url,
+      externalReference,
+    },
+    200,
+    cors,
+  );
 });

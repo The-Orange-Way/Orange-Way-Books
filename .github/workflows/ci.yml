@@ -29,10 +29,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # The project is managed with Bun (bun.lockb, bunfig.toml).
+      # The project is managed with Bun (bun.lock, bunfig.toml).
       # The older workflow used `npm ci` which broke on every dep add
-      # because the build system updates bun.lockb, not package-lock.json.
-      # bun.lockb is the single source of truth.
+      # because Bun updates `bun.lock`, not package-lock.json.
+      # `bun.lock` is the single source of truth.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -41,11 +41,26 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Format check is enforced (no continue-on-error). After PR 0 lands the
+      # tree is prettier-clean and the pre-commit hook keeps it that way, so
+      # a red format check means someone committed without the hook
+      # installed. The shell wrapper prints an actionable fix on failure
+      # rather than leaving a contributor staring at "exit code 1".
+      - name: Format check
+        run: |
+          if ! bun run format:check; then
+            echo ""
+            echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
+            exit 1
+          fi
+
       - name: Lint
         run: bun run lint
-        # Don't fail the whole CI on lint warnings yet — the codebase
-        # is young, warnings are noise, and a false-red CI trains
-        # everyone to ignore the signal.
+        # Transitional soft-fail. The typescript-eslint 8.38 -> 8.61.1 bump
+        # (under eslint 10) made `bun run lint` run locally + in CI for the
+        # first time and surfaced 727 pre-existing problems that were
+        # latent while lint crashed at startup. Cleanup tracked in
+        # issue #20. Remove `continue-on-error: true` once #20 closes.
         continue-on-error: true
 
       - name: Test

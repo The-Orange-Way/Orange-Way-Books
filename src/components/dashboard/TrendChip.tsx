@@ -6,14 +6,10 @@ export interface TrendChipProps {
 }
 
 export function TrendChip({ trend }: TrendChipProps) {
-  const Icon =
-    trend.direction === 'up' ? ArrowUp
-    : trend.direction === 'down' ? ArrowDown
-    : Minus;
+  const Icon = trend.direction === 'up' ? ArrowUp : trend.direction === 'down' ? ArrowDown : Minus;
 
   const pctLabel =
-    trend.pct == null ? 'new'
-    : `${trend.pct >= 0 ? '+' : ''}${trend.pct.toFixed(1)}%`;
+    trend.pct == null ? 'new' : `${trend.pct >= 0 ? '+' : ''}${trend.pct.toFixed(1)}%`;
 
   return (
     <span

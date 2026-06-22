@@ -37,12 +37,18 @@ interface FakeIp {
 }
 
 interface FakeTx {
-  id: string; org_id: string; account_id: string;
-  amount: number; date: string;
+  id: string;
+  org_id: string;
+  account_id: string;
+  amount: number;
+  date: string;
 }
 
 interface FakeInvoice {
-  id: string; org_id: string; amount: number; status: string;
+  id: string;
+  org_id: string;
+  amount: number;
+  status: string;
 }
 
 let store: {
@@ -74,14 +80,39 @@ function makeSupabase() {
 
       const t = table as keyof typeof store;
       const api: any = {
-        select() { return api; },
-        eq(c: string, v: unknown) { filterEq[c] = v; return api; },
-        in(c: string, v: unknown[]) { filterIn = { col: c, values: v }; return api; },
-        maybeSingle() { mode = 'maybeSingle'; return runRead(); },
-        single() { mode = 'single'; return runWriteOrRead(); },
-        insert(r: any) { op = 'insert'; insertRow = r; return api; },
-        update(p: any) { op = 'update'; updatePatch = p; return api; },
-        delete() { op = 'delete'; return runDelete(); },
+        select() {
+          return api;
+        },
+        eq(c: string, v: unknown) {
+          filterEq[c] = v;
+          return api;
+        },
+        in(c: string, v: unknown[]) {
+          filterIn = { col: c, values: v };
+          return api;
+        },
+        maybeSingle() {
+          mode = 'maybeSingle';
+          return runRead();
+        },
+        single() {
+          mode = 'single';
+          return runWriteOrRead();
+        },
+        insert(r: any) {
+          op = 'insert';
+          insertRow = r;
+          return api;
+        },
+        update(p: any) {
+          op = 'update';
+          updatePatch = p;
+          return api;
+        },
+        delete() {
+          op = 'delete';
+          return runDelete();
+        },
         then(onFulfilled: (v: any) => unknown) {
           if (op === 'insert' && mode === 'list') return runInsert().then(onFulfilled);
           if (op === 'update') return runUpdate().then(onFulfilled);
@@ -141,14 +172,16 @@ function makeSupabase() {
           .reduce((a, r) => a + r.amount_applied, 0);
         if (inv) inv.status = sum >= inv.amount ? 'PAID' : 'PARTIAL';
         return Promise.resolve({
-          data: [{
-            payment_id: ipId,
-            invoice_status: inv?.status ?? 'PARTIAL',
-            total_applied: sum,
-            invoice_amount: inv?.amount ?? 0,
-            je_posted: true,
-            je_id: 'je-x',
-          }],
+          data: [
+            {
+              payment_id: ipId,
+              invoice_status: inv?.status ?? 'PARTIAL',
+              total_applied: sum,
+              invoice_amount: inv?.amount ?? 0,
+              je_posted: true,
+              je_id: 'je-x',
+            },
+          ],
           error: null,
         });
       }
@@ -158,12 +191,17 @@ function makeSupabase() {
         if (!ip) return Promise.resolve({ data: null, error: { message: 'not found' } });
         if (ip.transaction_id === args.p_new_transaction_id && ip.is_placeholder === false) {
           return Promise.resolve({
-            data: [{
-              payment_id: ip.id, invoice_id: ip.invoice_id,
-              new_transaction_id: args.p_new_transaction_id,
-              superseded_transaction_id: null,
-              je_reversed_id: null, je_posted_id: null, noop: true,
-            }],
+            data: [
+              {
+                payment_id: ip.id,
+                invoice_id: ip.invoice_id,
+                new_transaction_id: args.p_new_transaction_id,
+                superseded_transaction_id: null,
+                je_reversed_id: null,
+                je_posted_id: null,
+                noop: true,
+              },
+            ],
             error: null,
           });
         }
@@ -175,12 +213,17 @@ function makeSupabase() {
         ip.signature_b64 = args.p_signature_b64 as string;
         ip.signature_key_version = args.p_signature_key_version as number;
         return Promise.resolve({
-          data: [{
-            payment_id: ip.id, invoice_id: ip.invoice_id,
-            new_transaction_id: args.p_new_transaction_id,
-            superseded_transaction_id: oldTx,
-            je_reversed_id: 'je-rev', je_posted_id: 'je-fresh', noop: false,
-          }],
+          data: [
+            {
+              payment_id: ip.id,
+              invoice_id: ip.invoice_id,
+              new_transaction_id: args.p_new_transaction_id,
+              superseded_transaction_id: oldTx,
+              je_reversed_id: 'je-rev',
+              je_posted_id: 'je-fresh',
+              noop: false,
+            },
+          ],
           error: null,
         });
       }
@@ -190,21 +233,28 @@ function makeSupabase() {
 }
 
 vi.mock('@/lib/supabase', () => ({
-  get supabase() { return makeSupabase(); },
+  get supabase() {
+    return makeSupabase();
+  },
 }));
 
 vi.mock('@/lib/crypto-fields', async () => {
-  const real = await vi.importActual<typeof import('@/lib/crypto-fields')>(
-    '@/lib/crypto-fields',
-  );
+  const real = await vi.importActual<typeof import('@/lib/crypto-fields')>('@/lib/crypto-fields');
   return {
     ...real,
     encryptTransaction: vi.fn(async (fields: any) => ({
-      memo: `enc:${fields.memo}`, encrypted_amount: `enc:${fields.amount}`,
-      encrypted_usd_value: null, encrypted_exchange_rate: null,
-      asset: `enc:${fields.asset}`, type: `enc:${fields.type}`,
-      status: `enc:${fields.status}`, cleared_status: `enc:${fields.cleared_status}`,
-      amount: 0, usd_value: null, exchange_rate: null, key_version: 2,
+      memo: `enc:${fields.memo}`,
+      encrypted_amount: `enc:${fields.amount}`,
+      encrypted_usd_value: null,
+      encrypted_exchange_rate: null,
+      asset: `enc:${fields.asset}`,
+      type: `enc:${fields.type}`,
+      status: `enc:${fields.status}`,
+      cleared_status: `enc:${fields.cleared_status}`,
+      amount: 0,
+      usd_value: null,
+      exchange_rate: null,
+      key_version: 2,
     })),
     encryptNumber: vi.fn(async (v: number | null) => (v == null ? null : `enc:n:${v}`)),
   };
@@ -244,12 +294,20 @@ describe('record + merge integration', () => {
   it('mark paid → import deposit → merge: full lifecycle ends in one canonical row', async () => {
     // 1. Mark paid creates the placeholder.
     const recorded = await recordPlaceholderPayment({
-      invoiceId: INV, amount: 100, walletId: WALLET,
-      walletLegacyAccountId: 'legacy-w-1', asset: 'USD',
-      appliedAt: '2026-05-20', memo: 'Customer confirmed by email',
-      orgId: ORG, invoiceAmount: 100, invoiceNumber: 'INV-001',
-      encryptText: ctx.encryptText, decryptText: ctx.decryptText,
-      loadOrgSigningKey: ctx.loadOrgSigningKey, signMutation: ctx.signMutation,
+      invoiceId: INV,
+      amount: 100,
+      walletId: WALLET,
+      walletLegacyAccountId: 'legacy-w-1',
+      asset: 'USD',
+      appliedAt: '2026-05-20',
+      memo: 'Customer confirmed by email',
+      orgId: ORG,
+      invoiceAmount: 100,
+      invoiceNumber: 'INV-001',
+      encryptText: ctx.encryptText,
+      decryptText: ctx.decryptText,
+      loadOrgSigningKey: ctx.loadOrgSigningKey,
+      signMutation: ctx.signMutation,
     });
     expect(recorded.reused).toBe(false);
     expect(store.invoice_payments).toHaveLength(1);
@@ -262,8 +320,11 @@ describe('record + merge integration', () => {
     //    the fake store — the real import path is out of scope.
     const realTxId = 'tx-bank-import';
     store.transactions.push({
-      id: realTxId, org_id: ORG, account_id: WALLET,
-      amount: 100, date: '2026-05-21',
+      id: realTxId,
+      org_id: ORG,
+      account_id: WALLET,
+      amount: 100,
+      date: '2026-05-21',
     });
 
     // 3. Merge UI fires.
