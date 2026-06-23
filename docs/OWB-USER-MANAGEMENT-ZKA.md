@@ -1,4 +1,4 @@
-# Orange Way Books — User management & zero-knowledge keys (Track D)
+# Orange Way Books: User management & zero-knowledge keys (Track D)
 
 > **Pitch:** Orange Way Books: Open-source accounting where not even the developer can see your books. Self-host it, audit the code, own your data.  
 > Cryptographic primitive changed from RSA-OAEP-4096 to **hybrid post-quantum KEM (X25519 + ML-KEM-768)** plus ML-DSA-65 for the optional Org Signing Key. Capability-based role engine (replacing the fixed 8-role set) and detailed stress tests now live in the companion **`OWB-MULTIUSER-DESIGN.md`**. This doc retains the Track D framing + DDL sketches; read both together.
@@ -6,9 +6,9 @@
 **GitHub:** `The-Orange-Way/Orange-Way-Books`  
 **License:** Open source (Apache 2.0)
 
-**Single spec** for multi-user Vault: roles, per-org encryption keys, invites, revocation, optional custody, and support access — without breaking ZKA (server never sees readable books).
+**Single spec** for multi-user Vault: roles, per-org encryption keys, invites, revocation, optional custody, and support access, without breaking ZKA (server never sees readable books).
 
-**Audience:** Product, engineers, and agents. **Status:** Blueprint — foundation pieces (per-org `org_keys`, hybrid-KEM wrap) are **not** all in the active release branches yet; check `dev` for current integration work and `prod` for deployed reality; see **§1** below.
+**Audience:** Product, engineers, and agents. **Status:** Blueprint, foundation pieces (per-org `org_keys`, hybrid-KEM wrap) are **not** all in the active release branches yet; check `dev` for current integration work and `prod` for deployed reality; see **§1** below.
 
 **Also known as:** Track D (role-scoped keys). This doc is the canonical Track D specification in the repo.
 
@@ -18,14 +18,14 @@
 
 ## 1. Repository reality check
 
-| Topic                                              | In repo **today** This spec **targets**                                     |
-| -------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Vault key                                          | Argon2id v4 (see `src/lib/vault.ts`).                                       | No change.                                                                                                                 |
-| Per-org DEK + `org_keys`                           | **Not** in migrations at time of consolidation — **add** when implementing. | One org DEK (AES-256); wrapped per member via hybrid KEM.                                                                  |
-| Hybrid KEM wrap (Bitwarden-style invite, PQC-safe) | Not yet implemented.                                                        | `user_vault_keys` + Owner wraps DEK with invitee's hybrid public key (X25519 + ML-KEM-768).                                |
-| `org_members.role`                                 | Column exists; RLS is mostly "any org member".                              | **Capability-based RLS** via `capabilities` + `role_definitions` + `role_capabilities` (see `OWB-MULTIUSER-DESIGN.md` §2). |
-| `payment_requests`                                 | Tables + authorship migration exist.                                        | Wire **capability checks** (`payments.approve`, `payments.pay`) to approve / pay state machine + UI.                       |
-| Admin invites                                      | UI / flow partial — must create real membership + key grants.               | Full invite + hybrid-KEM wrap pipeline.                                                                                    |
+| Topic                                              | In repo **today** This spec **targets**                                    |
+| -------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Vault key                                          | Argon2id v4 (see `src/lib/vault.ts`).                                      | No change.                                                                                                                 |
+| Per-org DEK + `org_keys`                           | **Not** in migrations at time of consolidation, **add** when implementing. | One org DEK (AES-256); wrapped per member via hybrid KEM.                                                                  |
+| Hybrid KEM wrap (Bitwarden-style invite, PQC-safe) | Not yet implemented.                                                       | `user_vault_keys` + Owner wraps DEK with invitee's hybrid public key (X25519 + ML-KEM-768).                                |
+| `org_members.role`                                 | Column exists; RLS is mostly "any org member".                             | **Capability-based RLS** via `capabilities` + `role_definitions` + `role_capabilities` (see `OWB-MULTIUSER-DESIGN.md` §2). |
+| `payment_requests`                                 | Tables + authorship migration exist.                                       | Wire **capability checks** (`payments.approve`, `payments.pay`) to approve / pay state machine + UI.                       |
+| Admin invites                                      | UI / flow partial, must create real membership + key grants.               | Full invite + hybrid-KEM wrap pipeline.                                                                                    |
 
 Do not assume migrations exist until they land in `supabase/migrations/`.
 
@@ -43,14 +43,14 @@ The fix is **one org data key (DEK)** encrypted for each member, plus **server g
 
 ---
 
-## 3. Plain English — ZKA user management
+## 3. Plain English, ZKA user management
 
 ### Two problems
 
-1. **Gate (who may call the API)** — Supabase Auth + RLS: “Is this logged-in user in this org?” The server sees identity and membership, **not** the vault password.
-2. **Key (who can decrypt)** — Only the browser after unlock. “Who holds a **wrapped copy** of the org DEK?” defines crypto access.
+1. **Gate (who may call the API)**, Supabase Auth + RLS: “Is this logged-in user in this org?” The server sees identity and membership, **not** the vault password.
+2. **Key (who can decrypt)**, Only the browser after unlock. “Who holds a **wrapped copy** of the org DEK?” defines crypto access.
 
-**Zero-knowledge preserved:** Server stores ciphertext, wrapped keys, public keys, role names, expiries — not plaintext books. **Hard re-key** still runs in a **trusted browser** (usually Owner); server only receives new ciphertext.
+**Zero-knowledge preserved:** Server stores ciphertext, wrapped keys, public keys, role names, expiries, not plaintext books. **Hard re-key** still runs in a **trusted browser** (usually Owner); server only receives new ciphertext.
 
 ### Soft revoke vs hard re-key
 
@@ -65,22 +65,22 @@ The fix is **one org data key (DEK)** encrypted for each member, plus **server g
 
 ### Systems compared
 
-| System                           | Key model                | Sharing                                                    | Revocation |
-| -------------------------------- | ------------------------ | ---------------------------------------------------------- | ---------- |
-| **Bitwarden** Org symmetric key  | RSA-OAEP wrap per member | Re-wrap / remove grant — **no** full re-encrypt by default |
-| **Proton Drive** Per-share / PGP | Address keys             | Remove share — strong, heavy stack                         |
-| **Tresorit** Folder keys         | RSA wrap                 | **New key + re-encrypt** — strongest, expensive            |
-| **1Password** Per-vault keys     | SRP wrapping             | Re-wrap                                                    |
+| System                           | Key model                | Sharing                                                   | Revocation |
+| -------------------------------- | ------------------------ | --------------------------------------------------------- | ---------- |
+| **Bitwarden** Org symmetric key  | RSA-OAEP wrap per member | Re-wrap / remove grant, **no** full re-encrypt by default |
+| **Proton Drive** Per-share / PGP | Address keys             | Remove share, strong, heavy stack                         |
+| **Tresorit** Folder keys         | RSA wrap                 | **New key + re-encrypt**, strongest, expensive            |
+| **1Password** Per-vault keys     | SRP wrapping             | Re-wrap                                                   |
 
 ### Choice for Orange Way Books
 
-**Bitwarden-style core with post-quantum safety:** one **org DEK**, wrapped per member using a **hybrid KEM (X25519 + ML-KEM-768)** — Owner wraps the DEK for an invitee **without knowing their vault password**. The hybrid combiner (HKDF-SHA-256) means an attacker needs to break **both** X25519 **and** ML-KEM-768 to recover a wrap, so we stay safe even if either primitive is later weakened. **Soft revoke** matches Bitwarden's practical model.
+**Bitwarden-style core with post-quantum safety:** one **org DEK**, wrapped per member using a **hybrid KEM (X25519 + ML-KEM-768)**, Owner wraps the DEK for an invitee **without knowing their vault password**. The hybrid combiner (HKDF-SHA-256) means an attacker needs to break **both** X25519 **and** ML-KEM-768 to recover a wrap, so we stay safe even if either primitive is later weakened. **Soft revoke** matches Bitwarden's practical model.
 
 **Why not RSA-OAEP-4096?** RSA is quantum-vulnerable, and retrofitting post-quantum crypto later is expensive. Going with hybrid KEM up front avoids a future cutover.
 
 **Tresorit-style when needed:** **hard re-key** on Owner action or high-risk revoke (compromised device, support session ended).
 
-**Why not separate “data keys per folder”?** In accounting, **Auditor** and **Accountant** both need **broad read** of the same ledger. Splitting keys per folder adds huge complexity for little gain; the important split is **read vs write** and **who may approve vs pay** (RLS + optional signing key — see below).
+**Why not separate “data keys per folder”?** In accounting, **Auditor** and **Accountant** both need **broad read** of the same ledger. Splitting keys per folder adds huge complexity for little gain; the important split is **read vs write** and **who may approve vs pay** (RLS + optional signing key, see below).
 
 ---
 
@@ -102,11 +102,11 @@ Org DEK (random AES-256, never on server plaintext)
 Application rows  →  encrypt / decrypt with Org DEK (in browser)
 ```
 
-**Password change:** Re-wrap the **hybrid private key** with new MEK; **Org DEK unchanged** — no full data re-encrypt (same pattern as "re-wrap DEK only" in advanced designs).
+**Password change:** Re-wrap the **hybrid private key** with new MEK; **Org DEK unchanged**, no full data re-encrypt (same pattern as "re-wrap DEK only" in advanced designs).
 
-**Optional later — org signing key:** ECDSA key only wrapped for **write-capable** roles; **Auditor** never receives it — **cryptographic** enforcement of read-only in addition to RLS + UI. Phased after DEK + RLS ship.
+**Optional later, org signing key:** ECDSA key only wrapped for **write-capable** roles; **Auditor** never receives it, **cryptographic** enforcement of read-only in addition to RLS + UI. Phased after DEK + RLS ship.
 
-**Earlier draft note:** Some docs used “OK + HKDF(DEK)” — equivalent to a single **Org DEK** for row crypto; HKDF subkeys can be added if you need key separation without extra user-facing complexity.
+**Earlier draft note:** Some docs used “OK + HKDF(DEK)”, equivalent to a single **Org DEK** for row crypto; HKDF subkeys can be added if you need key separation without extra user-facing complexity.
 
 ### Key inventory
 
@@ -134,40 +134,40 @@ See `orange-rails/src/lib/pqc.ts` for the reference implementation of `hybridEnc
 
 ---
 
-## 6. Roles — additive model
+## 6. Roles, additive model
 
 **One** `org_members` row per (user, org). **Many** roles via **`org_member_roles`** (one row per role grant). Effective permissions = **union** of roles (QuickBooks-style bill pay split: approver / payer / clerk).
 
 Example canonical roles (tune names in migration `CHECK`):
 
-| Role                                                                                   | Typical powers |
-| -------------------------------------------------------------------------------------- | -------------- |
-| **Owner** Full decrypt, write, user + key management                                   |
-| **Admin** Write + users; keys policy per product                                       |
-| **Accountant** Full financial write                                                    |
-| **Member** Create/edit own work; **limited** delete/archive / closed period — RLS + UI |
-| **PaymentsApprover** Approve payment requests                                          |
-| **PaymentsPayer** Mark paid / execute pay step                                         |
-| **Auditor** Read-only; **time-bounded** `expires_at`                                   |
-| **OWBSupport** **Scoped** + short TTL; never combined with other roles                 |
+| Role                                                                                  | Typical powers |
+| ------------------------------------------------------------------------------------- | -------------- |
+| **Owner** Full decrypt, write, user + key management                                  |
+| **Admin** Write + users; keys policy per product                                      |
+| **Accountant** Full financial write                                                   |
+| **Member** Create/edit own work; **limited** delete/archive / closed period, RLS + UI |
+| **PaymentsApprover** Approve payment requests                                         |
+| **PaymentsPayer** Mark paid / execute pay step                                        |
+| **Auditor** Read-only; **time-bounded** `expires_at`                                  |
+| **OWBSupport** **Scoped** + short TTL; never combined with other roles                |
 
 **Separation of duties:** UI warning if same user is both Approver and Payer (configurable per org).
 
-**Read-only — three layers:** (1) Optional signing key withheld from Auditor. (2) RLS denies writes. (3) UI hides write actions.
+**Read-only, three layers:** (1) Optional signing key withheld from Auditor. (2) RLS denies writes. (3) UI hides write actions.
 
 ---
 
-## 7. Schema (target — implement in migrations)
+## 7. Schema (target, implement in migrations)
 
 **Tables / changes (names may be adjusted in PR):**
 
-- **`org_member_roles`** — `(org_id, user_id, role, granted_by, granted_at, expires_at, revoked_at)` with `UNIQUE(org_id, user_id, role)` where not revoked.
-- **`user_vault_keys`** — `user_id`, `public_key_b64` (X25519 ‖ ML-KEM-768), `encrypted_private_key` (+ IV), algorithm string. One row per user (or versioned if rotating).
-- **`org_keys`** — `org_id`, `user_id`, wrapped DEK (+ IV), `key_version`, optional `grant_scope` (`full` | `read_only` | `support_scoped`), `granted_by`, `expires_at`, `revoked_at`.
-- **`org_custody`** (paid tier) — Shamir metadata, encrypted Share C, tier enum, etc.
-- **`support_sessions`** — scoped support DEK wrap, TTL, revoke.
-- **`key_rotation_jobs`** (optional) — resumable hard re-key progress.
-- **`key_audit_log`** (optional) — grant / revoke / rotate events (may merge with existing `audit_logs` policy).
+- **`org_member_roles`**, `(org_id, user_id, role, granted_by, granted_at, expires_at, revoked_at)` with `UNIQUE(org_id, user_id, role)` where not revoked.
+- **`user_vault_keys`**, `user_id`, `public_key_b64` (X25519 ‖ ML-KEM-768), `encrypted_private_key` (+ IV), algorithm string. One row per user (or versioned if rotating).
+- **`org_keys`**, `org_id`, `user_id`, wrapped DEK (+ IV), `key_version`, optional `grant_scope` (`full` | `read_only` | `support_scoped`), `granted_by`, `expires_at`, `revoked_at`.
+- **`org_custody`** (paid tier), Shamir metadata, encrypted Share C, tier enum, etc.
+- **`support_sessions`**, scoped support DEK wrap, TTL, revoke.
+- **`key_rotation_jobs`** (optional), resumable hard re-key progress.
+- **`key_audit_log`** (optional), grant / revoke / rotate events (may merge with existing `audit_logs` policy).
 
 **RLS:** Replace “member of org” with “member of org **and** role satisfies capability for this operation **and** grant not expired/revoked.”
 
@@ -175,13 +175,13 @@ Example canonical roles (tune names in migration `CHECK`):
 
 ## 8. Flows (summary)
 
-1. **Owner creates org** — Generate Org DEK; generate user hybrid keypair (X25519 + ML-KEM-768); MEK-wrap the hybrid private key; wrap Org DEK with own hybrid public key via `hybridEncapsulate`; store rows; encrypt data with Org DEK as today.
-2. **Owner invites** — Invite email (or Nostr later) → invitee signs up, sets vault, uploads hybrid public key → **Owner client** unwraps Org DEK, re-wraps for invitee's hybrid public key via `hybridEncapsulate`, writes `org_keys` + `org_member_roles`. **Owner must be online** for wrap (Bitwarden pattern).
-3. **Auditor** — Gets Org DEK grant + **no** signing key if implemented; RLS read-only.
-4. **Soft revoke** — Delete `org_keys` row + roles + `org_members` for that user; audit.
-5. **Hard re-key** — New Org DEK; re-wrap all members; batch decrypt old / encrypt new per table; bump `key_version`; optional logout everyone first.
-6. **Support** — Owner issues **scoped** key + short `expires_at`; sweep removes access; consider enqueue hard re-key if support had live decrypt capability.
-7. **Custody (paid)** — 2-of-3 Shamir for recovery key that protects wrapped Org DEK backup; use **audited** SSS library; ops runbook for releasing custodian share — **not** only code.
+1. **Owner creates org**, Generate Org DEK; generate user hybrid keypair (X25519 + ML-KEM-768); MEK-wrap the hybrid private key; wrap Org DEK with own hybrid public key via `hybridEncapsulate`; store rows; encrypt data with Org DEK as today.
+2. **Owner invites**, Invite email (or Nostr later) → invitee signs up, sets vault, uploads hybrid public key → **Owner client** unwraps Org DEK, re-wraps for invitee's hybrid public key via `hybridEncapsulate`, writes `org_keys` + `org_member_roles`. **Owner must be online** for wrap (Bitwarden pattern).
+3. **Auditor**, Gets Org DEK grant + **no** signing key if implemented; RLS read-only.
+4. **Soft revoke**, Delete `org_keys` row + roles + `org_members` for that user; audit.
+5. **Hard re-key**, New Org DEK; re-wrap all members; batch decrypt old / encrypt new per table; bump `key_version`; optional logout everyone first.
+6. **Support**, Owner issues **scoped** key + short `expires_at`; sweep removes access; consider enqueue hard re-key if support had live decrypt capability.
+7. **Custody (paid)**, 2-of-3 Shamir for recovery key that protects wrapped Org DEK backup; use **audited** SSS library; ops runbook for releasing custodian share, **not** only code.
 
 ---
 
@@ -202,14 +202,14 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 ## 10. Security properties
 
-| Property                        | How                                                                     |
-| ------------------------------- | ----------------------------------------------------------------------- |
-| Server never reads books        | Org DEK only in browser; server stores wraps + ciphertext               |
-| Distinct vault passwords        | Each user's MEK unwraps only their hybrid private key                   |
-| Invite without sharing password | Hybrid-KEM wrap of Org DEK to invitee's public key                      |
-| Post-quantum safety             | X25519 + ML-KEM-768 combiner — breaks require defeating both primitives |
-| Revoke                          | Soft = remove wrap; hard = new DEK + re-encrypt                         |
-| Optional stronger read-only     | signing key withheld from Auditor + RLS + UI                            |
+| Property                        | How                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| Server never reads books        | Org DEK only in browser; server stores wraps + ciphertext              |
+| Distinct vault passwords        | Each user's MEK unwraps only their hybrid private key                  |
+| Invite without sharing password | Hybrid-KEM wrap of Org DEK to invitee's public key                     |
+| Post-quantum safety             | X25519 + ML-KEM-768 combiner, breaks require defeating both primitives |
+| Revoke                          | Soft = remove wrap; hard = new DEK + re-encrypt                        |
+| Optional stronger read-only     | signing key withheld from Auditor + RLS + UI                           |
 
 ---
 
@@ -217,7 +217,7 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 - Viewer / reports-only: live decrypt vs snapshot-only?
 - Org ownership transfer: wrap-only handoff flow?
-- Multi-org: already in UI — confirm one hybrid key per user (recommended) vs per org.
+- Multi-org: already in UI, confirm one hybrid key per user (recommended) vs per org.
 - Session: auto-lock after idle for unwrapped keys?
 - KYC / policy for releasing paid-tier custodian share.
 - Billing: custody as add-on line vs bundle.
@@ -227,23 +227,23 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 ## 12. References
 
-- Bitwarden security whitepaper — bitwarden.com/help/bitwarden-security-white-paper/
-- NIST FIPS 203 (ML-KEM) — csrc.nist.gov/pubs/fips/203/final
-- NIST FIPS 204 (ML-DSA) — csrc.nist.gov/pubs/fips/204/final
-- RFC 7748 (X25519) — datatracker.ietf.org/doc/html/rfc7748
-- `@noble/post-quantum` — github.com/paulmillr/noble-post-quantum
-- `@noble/curves` — github.com/paulmillr/noble-curves
-- MDN `wrapKey` — developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/wrapKey
+- Bitwarden security whitepaper, bitwarden.com/help/bitwarden-security-white-paper/
+- NIST FIPS 203 (ML-KEM), csrc.nist.gov/pubs/fips/203/final
+- NIST FIPS 204 (ML-DSA), csrc.nist.gov/pubs/fips/204/final
+- RFC 7748 (X25519), datatracker.ietf.org/doc/html/rfc7748
+- `@noble/post-quantum`, github.com/paulmillr/noble-post-quantum
+- `@noble/curves`, github.com/paulmillr/noble-curves
+- MDN `wrapKey`, developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/wrapKey
 - Shamir: use an **audited** library (e.g. reviewed SSS port); do not roll crypto.
 
 ---
 
 ## 13. Related docs
 
-- **`docs/OWB-MULTIUSER-DESIGN.md`** — Capability-based role engine, 9 role presets, 12 stress-test scenarios, invite/revoke/re-key sequence diagrams, monetization levers, phased delivery. **Read alongside this doc — it carries the post-RSA cryptographic design.**
-- **`docs/COMPETITIVE-ANALYSIS.md`** — Survey of 8 accounting platforms (QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting) with cited patterns.
-- **`docs/OWB-ZKA-BRIDGE.md`** — Tracks for ledger storage, ledger engine, and encryption wiring + pointer to this Track D spec and research.
-- **`docs/DOCUMENTATION-INDEX.md`** — Full doc map.
+- **`docs/OWB-MULTIUSER-DESIGN.md`**, Capability-based role engine, 9 role presets, 12 stress-test scenarios, invite/revoke/re-key sequence diagrams, monetization levers, phased delivery. **Read alongside this doc, it carries the post-RSA cryptographic design.**
+- **`docs/COMPETITIVE-ANALYSIS.md`**, Survey of 8 accounting platforms (QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting) with cited patterns.
+- **`docs/OWB-ZKA-BRIDGE.md`**, Tracks for ledger storage, ledger engine, and encryption wiring + pointer to this Track D spec and research.
+- **`docs/DOCUMENTATION-INDEX.md`**, Full doc map.
 
 ---
 
@@ -251,7 +251,7 @@ Each phase should leave **`dev`** deployable to staging and keep the `dev` → `
 
 ### What is DDL? (plain English)
 
-**DDL** means **Data Definition Language** — the kind of SQL that **defines** database objects (tables, columns, indexes, constraints), not the kind that inserts business rows (`INSERT` / `UPDATE`). When engineers say “DDL sketch,” they mean: **here is roughly what tables we need** so migrations can be written and reviewed **before** anyone ships production SQL.
+**DDL** means **Data Definition Language**, the kind of SQL that **defines** database objects (tables, columns, indexes, constraints), not the kind that inserts business rows (`INSERT` / `UPDATE`). When engineers say “DDL sketch,” they mean: **here is roughly what tables we need** so migrations can be written and reviewed **before** anyone ships production SQL.
 
 **Important:** The blocks below are **sketches only**. They are **not** applied migrations. Real PRs must add files under `supabase/migrations/`, match existing RLS style, add indexes, and reconcile names with whatever already exists (`org_members`, etc.).
 
@@ -281,7 +281,7 @@ CREATE INDEX org_member_roles_org_user_idx
   WHERE revoked_at IS NULL;
 ```
 
-**Product note:** Today `org_members.role` may still exist — migrations might **migrate** data into `org_member_roles` then drop or deprecate the old column (design choice).
+**Product note:** Today `org_members.role` may still exist, migrations might **migrate** data into `org_member_roles` then drop or deprecate the old column (design choice).
 
 ---
 
@@ -327,7 +327,7 @@ CREATE INDEX org_keys_org_active_idx
 
 ---
 
-### Sketch: paid custody metadata (Shamir tier — optional table)
+### Sketch: paid custody metadata (Shamir tier, optional table)
 
 ```sql
 CREATE TABLE public.org_custody (
@@ -387,7 +387,7 @@ CREATE TABLE public.key_rotation_jobs (
 
 ---
 
-### Sketch: key-operation audit (optional — may merge with `audit_logs`)
+### Sketch: key-operation audit (optional, may merge with `audit_logs`)
 
 ```sql
 CREATE TABLE public.key_audit_log (
@@ -408,7 +408,7 @@ CREATE TABLE public.key_audit_log (
 Policies today often use `org_id IN (SELECT org_id FROM org_members WHERE user_id = auth.uid())`. Track D extends that with role capability, for example:
 
 ```sql
--- Example pattern — NOT drop-in for every table until role matrix is final.
+-- Example pattern, NOT drop-in for every table until role matrix is final.
 CREATE POLICY example_insert_requires_writer_role
   ON public.some_table
   FOR INSERT TO authenticated
@@ -428,4 +428,4 @@ Replace `some_table` / role lists per table after the **role matrix** is frozen 
 
 ---
 
-**Updated:** append this appendix when implementing — bump the **Updated** date in the doc header if you change §14.
+**Updated:** append this appendix when implementing, bump the **Updated** date in the doc header if you change §14.
