@@ -281,7 +281,7 @@ export default function Dashboard() {
 
   const fmtPrimary = (amount: number | null, asset?: string) => {
     if (amount == null) return '—';
-    return formatAmount(amount, asset | primaryCurrency);
+    return formatAmount(amount, asset || primaryCurrency);
   };
 
   // Closing-rate secondary display for KPI cards and working capital
@@ -562,7 +562,7 @@ export default function Dashboard() {
             {txs.slice(0, 5).map((tx) => {
               const wallet = wallets.find((w) => w.id === tx.account_id);
               const walletName = (wallet as any)?.name ?? 'Unassigned';
-              const isPositive = (tx.type === 'income') | (tx.type === 'deposit') | (tx.amount > 0);
+              const isPositive = tx.type === 'income' || tx.type === 'deposit' || tx.amount > 0;
               return (
                 <li
                   key={tx.id}
@@ -570,7 +570,7 @@ export default function Dashboard() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate text-foreground">
-                      {tx.memo?.trim() | 'Untitled transaction'}
+                      {tx.memo?.trim() || 'Untitled transaction'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {format(new Date(tx.date), 'MMM d, yyyy')} · {walletName}

@@ -252,13 +252,14 @@ export default function Accounts() {
     return wallets.filter((w) => {
       if (!showArchived && w.archived) return false;
       if (showArchived && !w.archived) return false;
-      if (filterType.length && !filterType.includes(w.account_type | '')) return false;
+      if (filterType.length && !filterType.includes(w.account_type || '')) return false;
       if (filterCurrency.length && !filterCurrency.includes(w.asset)) return false;
-      if (filterInstitution.length && !filterInstitution.includes(w.institution | '')) return false;
+      if (filterInstitution.length && !filterInstitution.includes(w.institution || ''))
+        return false;
       if (search) {
         const term = search.toLowerCase();
-        const n = (w.encrypted_name | '').toLowerCase();
-        const inst = (w.institution | '').toLowerCase();
+        const n = (w.encrypted_name || '').toLowerCase();
+        const inst = (w.institution || '').toLowerCase();
         if (!n.includes(term) && !inst.includes(term) && !w.asset.toLowerCase().includes(term))
           return false;
       }
@@ -595,7 +596,7 @@ export default function Accounts() {
         let walletAsset = w.asset;
         try {
           const wFields = await decryptWallet(w, decryptText);
-          walletAsset = wFields.asset | w.asset;
+          walletAsset = wFields.asset || w.asset;
         } catch {
           // fallback to raw
         }
@@ -636,7 +637,7 @@ export default function Accounts() {
       toast.success(`Created ${created} opening balance transaction${created === 1 ? '' : 's'}.`);
       await fetchWallets();
     } catch (err: any) {
-      toast.error('Backfill failed: ' + (err?.message | String(err)));
+      toast.error('Backfill failed: ' + (err?.message || String(err)));
     } finally {
       setBackfilling(false);
       setBackfillOpen(false);
@@ -678,8 +679,8 @@ export default function Accounts() {
         snapshot.map(async (w) => {
           try {
             // d) External-source stub (still refresh rate either way)
-            const ct = (w.connection_type | '').toLowerCase();
-            const isExternal = (ct === 'exchange') | (ct === 'bank');
+            const ct = (w.connection_type || '').toLowerCase();
+            const isExternal = ct === 'exchange' || ct === 'bank';
             if (isExternal) {
               await syncExternalWallet(w);
             }
@@ -716,7 +717,7 @@ export default function Accounts() {
       }
     } catch (err: any) {
       console.error('[Accounts] refresh failed:', err);
-      toast.error('Refresh failed: ' + (err?.message | String(err)));
+      toast.error('Refresh failed: ' + (err?.message || String(err)));
     } finally {
       // e) Re-read wallet list
       await fetchWallets();
@@ -1047,7 +1048,7 @@ export default function Accounts() {
                         </Badge>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground truncate">
-                        {[w.account_type, w.institution].filter(Boolean).join(' · ') | '—'}
+                        {[w.account_type, w.institution].filter(Boolean).join(' · ') || '—'}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -1358,7 +1359,7 @@ export default function Accounts() {
             .select('*')
             .eq('org_id', orgId);
           const decryptedExisting = await Promise.all(
-            (existing | []).map(async (w: any) => {
+            (existing || []).map(async (w: any) => {
               const fields = await decryptWallet(w, decryptText);
               return fields.encrypted_name;
             }),
@@ -1392,10 +1393,10 @@ export default function Accounts() {
               ...enc,
             } as any);
             if (error) {
-              const msg = error.message | '';
+              const msg = error.message || '';
               if (
-                msg.toLowerCase().includes('already exists') |
-                msg.toLowerCase().includes('duplicate') |
+                msg.toLowerCase().includes('already exists') ||
+                msg.toLowerCase().includes('duplicate') ||
                 msg.includes('23505')
               ) {
                 skipped++;

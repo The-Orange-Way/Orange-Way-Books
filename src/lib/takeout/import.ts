@@ -28,10 +28,10 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
 }
 
 function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
-  if ((acct.normal_balance === 'DEBIT') | (acct.normal_balance === 'CREDIT'))
+  if (acct.normal_balance === 'DEBIT' || acct.normal_balance === 'CREDIT')
     return acct.normal_balance;
   const t = acct.account_type.toUpperCase();
-  if ((t === 'ASSET') | (t === 'EXPENSE')) return 'DEBIT';
+  if (t === 'ASSET' || t === 'EXPENSE') return 'DEBIT';
   return 'CREDIT';
 }
 

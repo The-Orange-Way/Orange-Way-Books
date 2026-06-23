@@ -200,7 +200,7 @@ export function buildReportHierarchyRoots(
     if (!row) {
       return true;
     }
-    return !row.parentId | !allowedIds.has(row.parentId);
+    return !row.parentId || !allowedIds.has(row.parentId);
   });
 
   rootIds.sort((a, b) => {

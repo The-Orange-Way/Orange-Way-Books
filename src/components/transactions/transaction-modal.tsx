@@ -204,7 +204,7 @@ function parseAmount(raw: string): number | null {
 // an editable input. Round-trip through toFixed(8) and strip trailing zeros.
 function formatAmountForInput(n: number): string {
   if (!Number.isFinite(n) || n === 0) return '0';
-  return n.toFixed(8).replace(/\.?0+$/, '') | '0';
+  return n.toFixed(8).replace(/\.?0+$/, '') || '0';
 }
 
 function createBlankSplitLines(): SplitLine[] {
@@ -271,7 +271,7 @@ export default function TransactionModal({
       // a journal_entry_id pointing at a multi-leg JE or a linked_transfer_id
       // pointing at a sibling row.
       setMode('standard');
-      setWalletId(editingTx.account_id | '');
+      setWalletId(editingTx.account_id || '');
       setDirection(Number(editingTx.amount) >= 0 ? 'IN' : 'OUT');
       // Restore the account picked when this row was created. Falls back to
       // empty string for legacy rows (account_id null), those still show
@@ -290,7 +290,7 @@ export default function TransactionModal({
       setDate(editingTx.date ? new Date(`${editingTx.date}T12:00:00`) : new Date());
       setTime('');
       setShowTime(false);
-      setMemo(editingTx.memo | '');
+      setMemo(editingTx.memo || '');
       setReceipts([]);
       setErrors({});
 
@@ -358,13 +358,15 @@ export default function TransactionModal({
           // Resolve wallet name (plaintext on WalletOption.encrypted_name field).
           const walletName = wallets.find((w) => w.id === editingTx.account_id)?.encrypted_name;
           const accountLegs = decryptedLines.filter(
-            (l) => !walletName | ((l.account_name | '').trim() !== walletName.trim()),
+            (l) => !walletName || (l.account_name || '').trim() !== walletName.trim(),
           );
           if (accountLegs.length >= 2) {
             // Map account_name back to AccountOption.id via the prop list.
             const namedAccounts = accountLegs
               .map((leg) => {
-                const acct = accounts.find((a) => a.name.trim() === (leg.account_name | '').trim());
+                const acct = accounts.find(
+                  (a) => a.name.trim() === (leg.account_name || '').trim(),
+                );
                 if (!acct) return null;
                 const lineAmt = Math.max(leg.debit ?? 0, leg.credit ?? 0);
                 return {
@@ -402,7 +404,7 @@ export default function TransactionModal({
       };
     } else {
       setMode('standard');
-      setWalletId(wallets[0]?.id | '');
+      setWalletId(wallets[0]?.id || '');
       setDirection('OUT');
       setAccountId('');
       setContactId('');
@@ -430,11 +432,11 @@ export default function TransactionModal({
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const selectedWallet = useMemo(
-    () => wallets.find((w) => w.id === walletId) | null,
+    () => wallets.find((w) => w.id === walletId) || null,
     [walletId, wallets],
   );
   const counterpartyWallet = useMemo(
-    () => wallets.find((w) => w.id === counterpartyWalletId) | null,
+    () => wallets.find((w) => w.id === counterpartyWalletId) || null,
     [counterpartyWalletId, wallets],
   );
 
@@ -664,7 +666,7 @@ export default function TransactionModal({
 
     const encFields = await encryptTransaction(
       {
-        memo: memo | null,
+        memo: memo || null,
         amount: signedAmt,
         usd_value: null,
         exchange_rate: null,
@@ -724,10 +726,10 @@ export default function TransactionModal({
       // Persist the chart-of-accounts pick so Edit Transaction can restore
       // the dropdown next time the row is opened. Empty string → null
       // (rows without an account assignment, e.g. transfers).
-      account_id: accountId | null,
+      account_id: accountId || null,
       // Customer / vendor / employee, independent of account_id. Optional
       // even on standard transactions; OR imports leave it null.
-      contact_id: contactId | null,
+      contact_id: contactId || null,
       date: dateStr,
       linked_transfer_id: null,
       ...encFields,
@@ -803,7 +805,7 @@ export default function TransactionModal({
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
-        memo: memo | null,
+        memo: memo || null,
         ref_number: null,
         currency: walletCurrency,
         exchange_rate: null,
@@ -852,7 +854,7 @@ export default function TransactionModal({
       credit: walletCredit,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
-      description: memo | `Split across ${validLines.length} accounts`,
+      description: memo || `Split across ${validLines.length} accounts`,
       encrypt: encryptText,
     });
 
@@ -896,7 +898,7 @@ export default function TransactionModal({
     // ── Phase 3: transactions row, linked to the wrapper JE ───────────────
     const encFields = await encryptTransaction(
       {
-        memo: memo | null,
+        memo: memo || null,
         amount: signedAmt,
         usd_value: null,
         exchange_rate: null,
@@ -1033,7 +1035,7 @@ export default function TransactionModal({
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
-        memo: memo | null,
+        memo: memo || null,
         ref_number: null,
         currency: sourceAsset, // primary currency for the JE; dest line carries its own native currency
         exchange_rate: null,
@@ -1096,7 +1098,7 @@ export default function TransactionModal({
       credit: 0,
       account_name: destWallet.encrypted_name,
       account_code: null,
-      description: memo | `Transfer from ${sourceWallet.encrypted_name}`,
+      description: memo || `Transfer from ${sourceWallet.encrypted_name}`,
       encrypt: encryptText,
     });
     const clearingDestCreditLine = await buildJournalEntryLineInsert({
@@ -1107,7 +1109,7 @@ export default function TransactionModal({
       credit: Math.abs(receivedValue),
       account_name: transferClearing.account_name,
       account_code: null,
-      description: memo | `Transfer clearing (in ${destAsset})`,
+      description: memo || `Transfer clearing (in ${destAsset})`,
       encrypt: encryptText,
     });
     const clearingSrcDebitLine = await buildJournalEntryLineInsert({
@@ -1118,7 +1120,7 @@ export default function TransactionModal({
       credit: 0,
       account_name: transferClearing.account_name,
       account_code: null,
-      description: memo | `Transfer clearing (out ${sourceAsset})`,
+      description: memo || `Transfer clearing (out ${sourceAsset})`,
       encrypt: encryptText,
     });
     const srcWalletCreditLine = await buildJournalEntryLineInsert({
@@ -1129,7 +1131,7 @@ export default function TransactionModal({
       credit: Math.abs(sentValue),
       account_name: sourceWallet.encrypted_name,
       account_code: null,
-      description: memo | `Transfer to ${destWallet.encrypted_name}`,
+      description: memo || `Transfer to ${destWallet.encrypted_name}`,
       encrypt: encryptText,
     });
 
@@ -1147,7 +1149,7 @@ export default function TransactionModal({
     // ── Phase 3: 2 transactions rows linked via linked_transfer_id ────────
     const srcEnc = await encryptTransaction(
       {
-        memo: memo | null,
+        memo: memo || null,
         amount: -Math.abs(sentValue),
         usd_value: null,
         exchange_rate: null,
@@ -1163,7 +1165,7 @@ export default function TransactionModal({
     );
     const destEnc = await encryptTransaction(
       {
-        memo: memo | null,
+        memo: memo || null,
         amount: Math.abs(receivedValue),
         usd_value: null,
         exchange_rate: null,
@@ -1613,11 +1615,12 @@ export default function TransactionModal({
                   </Select>
                 </div>
               </div>
-              {errors.wallet | errors.counterparty && (
-                <div className="text-xs text-destructive">
-                  {errors.wallet || errors.counterparty}
-                </div>
-              )}
+              {errors.wallet ||
+                (errors.counterparty && (
+                  <div className="text-xs text-destructive">
+                    {errors.wallet || errors.counterparty}
+                  </div>
+                ))}
             </div>
 
             {/* Row 3, Amount + Account (Standard) / Amount (Split) / Sent + Received (Transfer) */}
@@ -1845,7 +1848,7 @@ export default function TransactionModal({
                         className="pl-7 pr-14 h-10 font-mono"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        {transferSentWallet?.asset | ''}
+                        {transferSentWallet?.asset || ''}
                       </span>
                     </div>
                     {errors.sent && <div className="text-xs text-destructive">{errors.sent}</div>}
@@ -1870,7 +1873,7 @@ export default function TransactionModal({
                         className="pl-7 pr-14 h-10 font-mono"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        {transferReceivedWallet?.asset | ''}
+                        {transferReceivedWallet?.asset || ''}
                       </span>
                     </div>
                     {errors.received && (
@@ -1999,11 +2002,12 @@ export default function TransactionModal({
                               </Select>
                             </div>
                           </div>
-                          {errors.feeSide | errors.feeAccount && (
-                            <div className="text-xs text-destructive">
-                              {errors.feeSide || errors.feeAccount}
-                            </div>
-                          )}
+                          {errors.feeSide ||
+                            (errors.feeAccount && (
+                              <div className="text-xs text-destructive">
+                                {errors.feeSide || errors.feeAccount}
+                              </div>
+                            ))}
                         </div>
                       );
                     })()}
@@ -2030,7 +2034,7 @@ export default function TransactionModal({
               const parsed = parseAmount(amount);
               if (!parsed || parsed <= 0) return null;
               const walletAsset =
-                wallets.find((w) => w.id === walletId)?.asset | editingTx
+                wallets.find((w) => w.id === walletId)?.asset || editingTx
                   ? wallets.find((w) => w.id === (editingTx?.account_id ?? walletId))?.asset
                   : '';
               const currency = walletAsset || 'USD';
@@ -2178,7 +2182,7 @@ export async function fetchContactsForModal(
   decryptText: (v: string) => Promise<string>,
 ): Promise<ContactOption[]> {
   const { data } = await supabase.from('contacts').select('*').eq('org_id', orgId);
-  const rows = (data as any[]) | [];
+  const rows = (data as any[]) || [];
   const decrypted = await Promise.all(
     rows.map(async (row) => {
       try {

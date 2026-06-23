@@ -501,7 +501,7 @@ async function loadExistingContactNames(orgId: string, decrypt: DecryptFn): Prom
     try {
       const fields = await decryptContact(row as never, decrypt);
       const name = fields.name?.trim().toLowerCase();
-      const type = (fields.type | '').toUpperCase();
+      const type = (fields.type || '').toUpperCase();
       if (name && type) out.add(`${type}:${name}`);
     } catch {
       // Ignore undecryptable rows.
@@ -679,7 +679,7 @@ async function commitJournalEntryBatch(
     for (const line of entry.lines) {
       const routed = applyFallbackRouting(line, fallbacks);
       const built = await buildJournalEntryLineInsert({
-        wallet_currency: line.nativeCurrency | primaryCurrency,
+        wallet_currency: line.nativeCurrency || primaryCurrency,
         primary_currency: primaryCurrency,
         date: entry.date,
         debit: Number(line.debit),
@@ -762,7 +762,7 @@ async function commitJournalEntriesPerEntry(
       for (const line of entry.lines) {
         const routed = applyFallbackRouting(line, fallbacks);
         const built = await buildJournalEntryLineInsert({
-          wallet_currency: line.nativeCurrency | primaryCurrency,
+          wallet_currency: line.nativeCurrency || primaryCurrency,
           primary_currency: primaryCurrency,
           date: entry.date,
           debit: Number(line.debit),

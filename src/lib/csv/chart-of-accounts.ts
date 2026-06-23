@@ -33,23 +33,23 @@ export function parseCsvChartOfAccounts(csvText: string): {
   const rows: ImportPreviewRow[] = parsed.map((data, i) => {
     const rowErrors: string[] = [];
     if (!data.name?.trim()) rowErrors.push('Name is required');
-    const type = (data.type | '').toUpperCase();
+    const type = (data.type || '').toUpperCase();
     if (!type) rowErrors.push('Type is required');
     else if (!VALID_TYPES.includes(type)) rowErrors.push(`Invalid type: ${data.type}`);
 
-    const normalBalance = (data['normal balance'] | '').toUpperCase();
-    const defaultNormal = (type === 'ASSET') | (type === 'EXPENSE') ? 'DEBIT' : 'CREDIT';
+    const normalBalance = (data['normal balance'] || '').toUpperCase();
+    const defaultNormal = type === 'ASSET' || type === 'EXPENSE' ? 'DEBIT' : 'CREDIT';
 
     return {
       rowIndex: i + 1,
       data: {
-        name: data.name | '',
-        code: data.code | '',
+        name: data.name || '',
+        code: data.code || '',
         type: type,
-        subtype: data.subtype | '',
-        normal_balance: normalBalance | defaultNormal,
-        category: data.category | '',
-        description: data.description | '',
+        subtype: data.subtype || '',
+        normal_balance: normalBalance || defaultNormal,
+        category: data.category || '',
+        description: data.description || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

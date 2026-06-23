@@ -266,7 +266,7 @@ export async function buildTakeoutFile(
 
 /** Triggers a browser download for the takeout JSON. */
 export function downloadTakeout(file: TakeoutFile): void {
-  const safeName = file._meta.sourceOrgName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() | 'org';
+  const safeName = file._meta.sourceOrgName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'org';
   const today = new Date().toISOString().slice(0, 10);
   const filename = `owb-${safeName}-${today}-plaintext.json`;
   const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });

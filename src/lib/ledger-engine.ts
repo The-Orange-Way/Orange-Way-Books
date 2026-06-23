@@ -74,7 +74,7 @@ export interface DateRange {
 
 function isDebitNormal(accountType: string): boolean {
   const t = accountType.toLowerCase();
-  return (t === 'asset') | (t === 'expense');
+  return t === 'asset' || t === 'expense';
 }
 
 function normalBalance(debits: number, credits: number, accountType: string): number {
@@ -185,11 +185,11 @@ export function computeKPIs(balances: AccountBalance[]): KPIs {
     // Accept both 'revenue' and 'income' — QuickBooks-style charts of
     // accounts (including Orange Way Books' default seed) label top-level
     // revenue accounts as INCOME; some imports use REVENUE.
-    if ((t === 'revenue') | (t === 'income')) {
+    if (t === 'revenue' || t === 'income') {
       revenue += b.balance;
     } else if (t === 'expense') {
       totalExpenses += b.balance;
-      if ((g === 'cost of goods sold') | (g === 'cogs') | (g === 'cost of sales')) {
+      if (g === 'cost of goods sold' || g === 'cogs' || g === 'cost of sales') {
         costOfSales += b.balance;
       }
     }
@@ -293,7 +293,7 @@ export function computeWalletBalances(
   const txByWallet = new Map<string, number>();
   for (const tx of transactions) {
     if (!tx.account_id) continue;
-    txByWallet.set(tx.account_id, (txByWallet.get(tx.account_id) | 0) + Number(tx.amount));
+    txByWallet.set(tx.account_id, (txByWallet.get(tx.account_id) || 0) + Number(tx.amount));
   }
 
   // Build external_account_id → account_id map for JE-line primary balance
@@ -316,13 +316,13 @@ export function computeWalletBalances(
       if (!line.accountId || line.amountPrimary == null || line.ratePending) continue;
       const wId = accountToWallet.get(line.accountId);
       if (!wId) continue;
-      primaryByWallet.set(wId, (primaryByWallet.get(wId) | 0) + line.amountPrimary);
+      primaryByWallet.set(wId, (primaryByWallet.get(wId) || 0) + line.amountPrimary);
     }
   }
 
   return wallets.map((w) => {
     const initial = Number(w.initial_balance) | 0;
-    const txTotal = round2(txByWallet.get(w.id) | 0);
+    const txTotal = round2(txByWallet.get(w.id) || 0);
     const nativeBalance = round2(initial + txTotal);
     const hasPrimary = primaryByWallet.has(w.id);
     return {
@@ -515,7 +515,7 @@ export function computeGeneralLedger(
   const filtered = lines
     .filter((l) => l.accountId && journalLineInDateRange(l.date, dateRange))
     .sort(
-      (a, b) => a.date.localeCompare(b.date) | a.journalEntryId.localeCompare(b.journalEntryId),
+      (a, b) => a.date.localeCompare(b.date) || a.journalEntryId.localeCompare(b.journalEntryId),
     );
 
   // Running balance per account
@@ -526,7 +526,7 @@ export function computeGeneralLedger(
     const info = accountMap.get(line.accountId!);
     if (!info) continue;
 
-    const current = runningBalances.get(line.accountId!) | 0;
+    const current = runningBalances.get(line.accountId!) || 0;
     const delta = isDebitNormal(info.accountType)
       ? (Number(line.debit) | 0) - (Number(line.credit) | 0)
       : (Number(line.credit) | 0) - (Number(line.debit) | 0);
@@ -562,7 +562,7 @@ export function classifyAccountForCashFlow(b: AccountBalance): CashFlowBucket | 
   const t = b.accountType.toLowerCase();
   const g = b.accountGroup.toLowerCase();
 
-  if ((t === 'revenue') | (t === 'expense')) {
+  if (t === 'revenue' || t === 'expense') {
     return 'operating';
   }
   if (t === 'asset') {

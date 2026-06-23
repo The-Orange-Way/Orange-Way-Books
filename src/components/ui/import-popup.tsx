@@ -38,10 +38,10 @@ function friendlyImportCatchMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
   if (
-    lower.includes('atob') |
-    lower.includes('decode') |
-    lower.includes('base64') |
-    lower.includes('invalidcharactererror') |
+    lower.includes('atob') ||
+    lower.includes('decode') ||
+    lower.includes('base64') ||
+    lower.includes('invalidcharactererror') ||
     lower.includes('incorrectly encoded')
   ) {
     return 'Could not read your saved wallets in the browser. Refresh the page, unlock your vault again, then try importing. If this keeps happening, contact support.';
@@ -276,10 +276,10 @@ export function ImportPopup({
                       {columns.map((c) => {
                         const key = c.toLowerCase().replace(/ /g, '_');
                         const val =
-                          row.data[key] |
-                          row.data[c.toLowerCase().replace(/ /g, ' ')] |
-                          row.data[c.toLowerCase()] |
-                          row.data[c] |
+                          row.data[key] ||
+                          row.data[c.toLowerCase().replace(/ /g, ' ')] ||
+                          row.data[c.toLowerCase()] ||
+                          row.data[c] ||
                           '—';
                         return (
                           <td

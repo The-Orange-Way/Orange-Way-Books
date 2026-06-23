@@ -198,7 +198,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
     setError(null);
     try {
       // Insert the run record (draft status)
-      const result = await postRevaluation(preview, orgId, userId, notes | undefined);
+      const result = await postRevaluation(preview, orgId, userId, notes || undefined);
 
       // Create the main revaluation JE
       const jeDate = preview.periodEnd;

@@ -350,8 +350,8 @@ export default function Invoices() {
       const q = search.trim().toLowerCase();
       rows = rows.filter(
         (r) =>
-          r.invoice_number.toLowerCase().includes(q) |
-          r.customer_name.toLowerCase().includes(q) |
+          r.invoice_number.toLowerCase().includes(q) ||
+          r.customer_name.toLowerCase().includes(q) ||
           (r.memo ?? '').toLowerCase().includes(q),
       );
     }
@@ -466,12 +466,12 @@ export default function Invoices() {
       const enc = await encryptInvoice(
         {
           customer_name: formCustomerName,
-          customer_email_snapshot: formCustomerEmail | null,
-          customer_phone_snapshot: formCustomerPhone | null,
-          customer_address: formCustomerAddress | null,
-          memo: formMemo | null,
-          internal_notes: formInternalNotes | null,
-          payment_instructions: formPaymentInstructions | null,
+          customer_email_snapshot: formCustomerEmail || null,
+          customer_phone_snapshot: formCustomerPhone || null,
+          customer_address: formCustomerAddress || null,
+          memo: formMemo || null,
+          internal_notes: formInternalNotes || null,
+          payment_instructions: formPaymentInstructions || null,
           void_reason: null,
           write_off_reason: null,
           amount: formTotal,
@@ -652,7 +652,7 @@ export default function Invoices() {
         currency: payload.currency,
         due_date: payload.due_date ? format(new Date(payload.due_date), 'PP') : 'on receipt',
         share_url: share.shareUrl,
-        org_name: orgPublicName | 'Orange Way Books',
+        org_name: orgPublicName || 'Orange Way Books',
         memo: payload.memo ?? '',
       };
       setEmailTo(payload.customer_email ?? '');
@@ -834,9 +834,9 @@ export default function Invoices() {
         amount: amt,
         walletId: wallet.id,
         walletLegacyAccountId: wallet.external_account_id,
-        asset: wallet.asset | recordPayRow.currency,
+        asset: wallet.asset || recordPayRow.currency,
         appliedAt: format(recordPayDate, 'yyyy-MM-dd'),
-        memo: recordPayMemo.trim() | null,
+        memo: recordPayMemo.trim() || null,
         orgId,
         invoiceAmount: recordPayRow.amount,
         invoiceNumber: recordPayRow.invoice_number,
@@ -992,7 +992,7 @@ export default function Invoices() {
       for (const id of selected) {
         const row = invoices.find((r) => r.id === id);
         if (!row) continue;
-        if ((row.status === 'VOIDED') | (row.status === 'PAID') | (row.status === 'WRITTEN_OFF'))
+        if (row.status === 'VOIDED' || row.status === 'PAID' || row.status === 'WRITTEN_OFF')
           continue;
         const { error } = await (supabase as any)
           .from('invoices')
@@ -1345,16 +1345,17 @@ export default function Invoices() {
                         <X className="w-3.5 h-3.5" />
                       </Button>
                     )}
-                    {(row.status === 'DRAFT') | (row.status === 'VOIDED') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleDelete(row)}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </Button>
-                    )}
+                    {row.status === 'DRAFT' ||
+                      (row.status === 'VOIDED' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDelete(row)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      ))}
                   </TableCell>
                 </TableRow>
               ))}
@@ -1442,17 +1443,18 @@ export default function Invoices() {
                       <X className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  {(row.status === 'DRAFT') | (row.status === 'VOIDED') && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => void handleDelete(row)}
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  )}
+                  {row.status === 'DRAFT' ||
+                    (row.status === 'VOIDED' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => void handleDelete(row)}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    ))}
                 </div>
               </div>
             ))}

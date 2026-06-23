@@ -116,7 +116,7 @@ serve(async (req) => {
     }
     let body: { pending_invite_id?: string; wrapped_dek?: unknown };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }

@@ -246,7 +246,7 @@ function CapabilityChecklist({
         </div>
       </div>
       <div className="p-4 max-h-[calc(100vh-400px)] overflow-y-auto space-y-4">
-        {capsLoading | roleCapsLoading ? (
+        {capsLoading || roleCapsLoading ? (
           <div className="text-sm text-muted-foreground">Loading permissions…</div>
         ) : (
           <>
@@ -279,39 +279,40 @@ function CapabilityChecklist({
               </button>
             )}
 
-            {editable | showAllCaps && (
-              <div>
-                {[...byFeature.entries()].map(([feature, capsInFeature]) => (
-                  <div key={feature}>
-                    <FeatureHeader feature={feature} />
-                    <div className="space-y-1.5">
-                      {capsInFeature.map((c) => (
-                        <label
-                          key={c.key}
-                          className={`flex items-start gap-2 py-1.5 px-2 rounded hover:bg-accent/50 ${
-                            editable ? 'cursor-pointer' : 'cursor-default opacity-90'
-                          }`}
-                        >
-                          <Checkbox
-                            checked={effective.has(c.key)}
-                            onCheckedChange={() => toggle(c.key)}
-                            disabled={!editable}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1 min-w-0">
-                            {/* User-facing label is the plain-English description.
+            {editable ||
+              (showAllCaps && (
+                <div>
+                  {[...byFeature.entries()].map(([feature, capsInFeature]) => (
+                    <div key={feature}>
+                      <FeatureHeader feature={feature} />
+                      <div className="space-y-1.5">
+                        {capsInFeature.map((c) => (
+                          <label
+                            key={c.key}
+                            className={`flex items-start gap-2 py-1.5 px-2 rounded hover:bg-accent/50 ${
+                              editable ? 'cursor-pointer' : 'cursor-default opacity-90'
+                            }`}
+                          >
+                            <Checkbox
+                              checked={effective.has(c.key)}
+                              onCheckedChange={() => toggle(c.key)}
+                              disabled={!editable}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              {/* User-facing label is the plain-English description.
                                 We intentionally do NOT render c.key, signing key, or Scoped-DEK
                                 badges — those are internal cryptography primitives
                                 that accountants and bookkeepers don't need to see. */}
-                            <div className="text-sm">{c.description}</div>
-                          </div>
-                        </label>
-                      ))}
+                              <div className="text-sm">{c.description}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              ))}
           </>
         )}
       </div>

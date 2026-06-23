@@ -261,7 +261,7 @@ function TransactionRow({
       : typeof p.amount === 'number'
         ? `${formatMoney(p.amount)} ${p.currency ?? ''}`.trim()
         : '—';
-  const memo = p.description | p.counterparty | (p.type ? capitalize(p.type) : '');
+  const memo = p.description || p.counterparty || (p.type ? capitalize(p.type) : '');
 
   const routedAccountName = resolveRouting ? resolveRouting(p.source_wallet_id) : null;
 
@@ -278,7 +278,7 @@ function TransactionRow({
         </span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">
-        {memo | <span className="italic">no memo</span>}
+        {memo || <span className="italic">no memo</span>}
       </TableCell>
       <TableCell className="text-xs whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">

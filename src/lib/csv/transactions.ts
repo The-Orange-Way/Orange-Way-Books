@@ -39,7 +39,7 @@ export function parseCsvTransactions(csvText: string): {
     const rowErrors: string[] = [];
     if (!data.date?.trim()) rowErrors.push('Date is required');
     if (!data.wallet?.trim()) rowErrors.push('Wallet is required');
-    const rawDir = (data.direction | '').toLowerCase().trim();
+    const rawDir = (data.direction || '').toLowerCase().trim();
     const direction = DIRECTION_MAP[rawDir];
     if (!rawDir) rowErrors.push('Direction is required');
     else if (!direction) rowErrors.push(`Invalid direction: ${data.direction}`);
@@ -49,13 +49,13 @@ export function parseCsvTransactions(csvText: string): {
     return {
       rowIndex: i + 1,
       data: {
-        date: data.date | '',
-        wallet: data.wallet | '',
-        direction: direction | rawDir.toUpperCase(),
-        amount: data.amount | '',
-        account: data.account | '',
-        contact: data.contact | '',
-        memo: data.memo | '',
+        date: data.date || '',
+        wallet: data.wallet || '',
+        direction: direction || rawDir.toUpperCase(),
+        amount: data.amount || '',
+        account: data.account || '',
+        contact: data.contact || '',
+        memo: data.memo || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };
