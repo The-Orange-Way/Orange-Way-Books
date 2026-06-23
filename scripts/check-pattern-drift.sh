@@ -8,51 +8,85 @@
 # surfaces (pre-push diff vs post-merge tip); if any pair drifts, one
 # scanner silently lets through what the other would catch.
 #
+# Output policy: on agreement, prints "OK" per label and exits 0. On
+# drift, prints the *labels* that diverge plus the SHA-256 fingerprint
+# of each side so a maintainer can confirm the diff without echoing
+# the actual regex bodies into CI stdout (this script runs in
+# `ci.yml`, whose logs are public on a public-launch repo). Full
+# bodies are visible only when run locally with VERBOSE=1.
+#
 # Run locally before pushing; also wired into CI.
 
 set -euo pipefail
 
 GATE='scripts/pre-push-gate.sh'
 WORKFLOW='.github/workflows/post-merge-identity-scan.yml'
+VERBOSE="${VERBOSE:-0}"
 
 fail=0
+
+# Extract a single-quoted shell-style assignment. Handles values that
+# themselves contain single quotes via the standard bash escape form
+# '...'\''...'. Use python rather than sed so the quote handling is
+# explicit and easy to audit.
+extract_quoted() {
+  local file="$1"
+  local prefix_regex="$2"
+  python3 - "$file" "$prefix_regex" <<'PY'
+import re, sys
+path, pat = sys.argv[1], sys.argv[2]
+with open(path, encoding='utf-8') as f:
+    for line in f:
+        m = re.match(pat + r"'((?:[^'\\]|\\.|'\\''')*)'", line)
+        if m:
+            print(m.group(1))
+            sys.exit(0)
+sys.exit(0)
+PY
+}
+
+fingerprint() {
+  printf '%s' "$1" | sha256sum | awk '{print substr($1,1,16)}'
+}
 
 check_pair() {
   local label="$1"
   local gate_value="$2"
   local workflow_value="$3"
   if [ -z "$gate_value" ] || [ -z "$workflow_value" ]; then
-    echo "ERROR: could not extract $label from one or both files" >&2
-    echo "  gate length: ${#gate_value}" >&2
-    echo "  workflow length: ${#workflow_value}" >&2
+    echo "ERROR: could not extract $label (gate ${#gate_value} chars, workflow ${#workflow_value} chars)" >&2
     fail=1
     return
   fi
+  local gf wf
+  gf=$(fingerprint "$gate_value")
+  wf=$(fingerprint "$workflow_value")
   if [ "$gate_value" = "$workflow_value" ]; then
-    echo "$label drift check: pre-push gate and post-merge workflow agree."
+    echo "$label: OK (sha256:$gf)"
   else
-    echo "$label drift detected." >&2
-    echo "" >&2
-    echo "  $GATE $label:" >&2
-    echo "    $gate_value" >&2
-    echo "" >&2
-    echo "  $WORKFLOW $label:" >&2
-    echo "    $workflow_value" >&2
-    echo "" >&2
+    echo "$label: DRIFT" >&2
+    echo "  $GATE       sha256:$gf, ${#gate_value} chars" >&2
+    echo "  $WORKFLOW   sha256:$wf, ${#workflow_value} chars" >&2
+    if [ "$VERBOSE" = "1" ]; then
+      echo "  gate value:     $gate_value" >&2
+      echo "  workflow value: $workflow_value" >&2
+    else
+      echo "  Set VERBOSE=1 locally to print full values; CI keeps them off-log." >&2
+    fi
     fail=1
   fi
 }
 
-gate_pattern=$(grep -E "^PRIVATE_PATTERN=" "$GATE" | sed -E "s/^PRIVATE_PATTERN='([^']+)'/\1/")
-workflow_pattern=$(grep -E "^[[:space:]]+PATTERN: " "$WORKFLOW" | head -1 | sed -E "s/^[[:space:]]+PATTERN: '([^']+)'/\1/")
+gate_pattern=$(extract_quoted "$GATE" '^PRIVATE_PATTERN=')
+workflow_pattern=$(extract_quoted "$WORKFLOW" '^\s+PATTERN: ')
 check_pair "PATTERN" "$gate_pattern" "$workflow_pattern"
 
-gate_cgnat=$(grep -E "^DOC_STRIP_CGNAT=" "$GATE" | sed -E "s/^DOC_STRIP_CGNAT='([^']+)'/\1/")
-workflow_cgnat=$(grep -E "^[[:space:]]+DOC_STRIP_CGNAT: " "$WORKFLOW" | head -1 | sed -E "s/^[[:space:]]+DOC_STRIP_CGNAT: '([^']+)'/\1/")
+gate_cgnat=$(extract_quoted "$GATE" '^DOC_STRIP_CGNAT=')
+workflow_cgnat=$(extract_quoted "$WORKFLOW" '^\s+DOC_STRIP_CGNAT: ')
 check_pair "DOC_STRIP_CGNAT" "$gate_cgnat" "$workflow_cgnat"
 
-gate_alt=$(grep -E "^DOC_STRIP_REGEX_ALT=" "$GATE" | sed -E "s/^DOC_STRIP_REGEX_ALT='([^']+)'/\1/")
-workflow_alt=$(grep -E "^[[:space:]]+DOC_STRIP_REGEX_ALT: " "$WORKFLOW" | head -1 | sed -E "s/^[[:space:]]+DOC_STRIP_REGEX_ALT: '([^']+)'/\1/")
+gate_alt=$(extract_quoted "$GATE" '^DOC_STRIP_REGEX_ALT=')
+workflow_alt=$(extract_quoted "$WORKFLOW" '^\s+DOC_STRIP_REGEX_ALT: ')
 check_pair "DOC_STRIP_REGEX_ALT" "$gate_alt" "$workflow_alt"
 
 if [ $fail -ne 0 ]; then
