@@ -8,7 +8,7 @@ export const SITE_URL = 'https://books.orangeway.app';
 export const SITE_NAME = 'Orange Way Books';
 export const SITE_TAGLINE = 'Zero-Knowledge Bitcoin Accounting';
 export const SITE_DESCRIPTION =
-  'Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device — the server cannot read them. Multi-currency, double-entry, IFRS/GAAP-ready.';
+  'Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device, the server cannot read them. Multi-currency, double-entry, IFRS/GAAP-ready.';
 
 export const ORG_JSON_LD = {
   '@context': 'https://schema.org',
