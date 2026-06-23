@@ -1261,7 +1261,7 @@ function OrganizationTab({
 // function accepts a `role_definition_id` UUID, creates the auth user
 // (if new), inserts the `org_members` membership row, and inserts the
 // `org_member_roles` capability grant in one shot. The legacy
-// `org_members.role` column still exists but we no longer write to it —
+// `org_members.role` column still exists but we no longer write to it
 // it falls through to its schema default until the schema default is dropped
 // the column.
 //
@@ -1603,7 +1603,7 @@ function UsersTab({
     // whether the recipient has a keypair yet) and sends the Supabase
     // Auth invite email. The Owner's client picks up ready_to_wrap rows
     // via realtime and finalizes the hybrid-KEM wrap (see the
-    // PendingWrapBanner effect below). This keeps the UI flow simple —
+    // PendingWrapBanner effect below). This keeps the UI flow simple
     // one call, one success toast, per-recipient wraps happen
     // asynchronously.
     // Auditor invites carry an ISO expires_at. For
@@ -1675,7 +1675,7 @@ function UsersTab({
    * Soft revoke: call admin-update-user with action=soft_revoke. The
    * edge function flips revoked_at on every active grant and deletes
    * the org_members row; the D9 trigger then drops the org_keys wrap
-   * and writes the audit event. The user keeps their auth account —
+   * and writes the audit event. The user keeps their auth account
    * they just lose access to THIS org.
    *
    * Hard re-key (rotate the org DEK so cached browser-tab keys no
@@ -3605,11 +3605,11 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
               pageData.map((c) => (
                 <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                   <td className="px-4 py-3 font-medium">{c.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.street || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.state || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.zip || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.country || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.street || '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.city || '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.state || '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.zip || '-'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.country || '-'}</td>
                   <td className="px-4 py-3 flex gap-2">
                     {canWriteContacts && (
                       <button
@@ -4582,7 +4582,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
         </div>
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
           <strong>Heads up:</strong> the exported file is <em>plaintext</em>. Decryption happens in
-          your browser before the download, so the server never sees plaintext — but the file itself
+          your browser before the download, so the server never sees plaintext, but the file itself
           does. Treat it like a password: don&apos;t email it, don&apos;t upload it to shared
           drives.
         </div>
@@ -5103,7 +5103,7 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
                     </TableCell>
                     <TableCell className="text-xs">{r.entity_type}</TableCell>
                     <TableCell className="text-sm">
-                      {r.summary | <span className="text-muted-foreground">—</span>}
+                      {r.summary | <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">
                       {r.ip_address || ''}
@@ -5394,7 +5394,7 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
                     <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(c.closed_at), 'yyyy-MM-dd HH:mm')}
                     </TableCell>
-                    <TableCell className="text-sm">{c.note || '—'}</TableCell>
+                    <TableCell className="text-sm">{c.note || '-'}</TableCell>
                     <TableCell>
                       {hasUnlockCap && (
                         <Button variant="outline" size="sm" onClick={() => handleReopen(c)}>
@@ -5593,7 +5593,7 @@ function BetaAllowlistTab() {
                           {format(new Date(r.invitation_sent_at), 'yyyy-MM-dd')}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-xs">
@@ -5602,7 +5602,7 @@ function BetaAllowlistTab() {
                           Signed up
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{r.note ?? ''}</TableCell>

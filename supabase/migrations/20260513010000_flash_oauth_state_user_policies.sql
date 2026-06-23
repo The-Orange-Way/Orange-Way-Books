@@ -1,5 +1,5 @@
 -- ============================================================
--- Flash Wave 1 — allow authenticated users to insert + select
+-- Flash Wave 1, allow authenticated users to insert + select
 -- their own flash_oauth_state rows.
 -- ============================================================
 -- The scaffold migration created flash_oauth_state with RLS enabled

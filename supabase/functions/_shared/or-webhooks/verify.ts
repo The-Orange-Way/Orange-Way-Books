@@ -1,7 +1,7 @@
 /**
  * Web Crypto primitives for HMAC-SHA-256 webhook verification.
  *
- * No Node-specific imports — uses globalThis.crypto.subtle so the same
+ * No Node-specific imports, uses globalThis.crypto.subtle so the same
  * code runs in Node 18+, Deno, Bun, Cloudflare Workers, and browsers.
  */
 

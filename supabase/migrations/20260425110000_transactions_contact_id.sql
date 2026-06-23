@@ -1,5 +1,5 @@
 -- ============================================================
--- transactions.contact_id — customer / vendor / employee FK
+-- transactions.contact_id, customer / vendor / employee FK
 -- ============================================================
 -- Adds the FK that lets the Edit Transaction modal track WHO the
 -- transaction was with (customer, vendor, employee, other) as a
@@ -15,7 +15,7 @@
 --
 -- ZK posture: contact_id is plaintext UUID, consistent with
 -- account_id and account_id. Server learns "tx X was with contact Y"
--- but Y carries no business semantics — name + email + address all
+-- but Y carries no business semantics, name + email + address all
 -- stay encrypted on contacts.
 --
 -- Existing rows stay NULL. The Phase 5 import bridge does NOT

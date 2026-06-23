@@ -1,8 +1,8 @@
 /**
- * AccountingFramework — Org Settings section for framework + translation method.
+ * AccountingFramework, Org Settings section for framework + translation method.
  *
  * Writes accounting_framework and fx_translation_method as plaintext columns
- * on org_settings (no ZKA encryption needed — these are configuration, not financials).
+ * on org_settings (no ZKA encryption needed, these are configuration, not financials).
  */
 
 import { useState, useEffect } from 'react';
@@ -22,13 +22,13 @@ const FRAMEWORK_OPTIONS: { value: AuditFramework; label: string; description: st
     value: 'IFRS',
     label: 'IFRS',
     description:
-      'IAS 21 — The Effects of Changes in Foreign Exchange Rates. Default for companies outside the United States.',
+      'IAS 21, The Effects of Changes in Foreign Exchange Rates. Default for companies outside the United States.',
   },
   {
     value: 'US_GAAP',
     label: 'US GAAP',
     description:
-      'ASC 830 — Foreign Currency Matters. Required for US-registered entities filing under GAAP.',
+      'ASC 830, Foreign Currency Matters. Required for US-registered entities filing under GAAP.',
   },
   {
     value: 'IFRS_AND_GAAP',
@@ -218,7 +218,7 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
           <li>Secondary currency translation in the Reports page</li>
         </ul>
         <p className="mt-1">
-          Framework setting does <em>not</em> affect the underlying journal entries — those are
+          Framework setting does <em>not</em> affect the underlying journal entries, those are
           always immutably pinned at posting-date rates regardless of which standard you choose.
         </p>
       </div>

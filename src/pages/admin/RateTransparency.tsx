@@ -46,7 +46,7 @@ function staleBadge(rateDateStr: string) {
 }
 
 function sourceLabel(row: RateRow) {
-  if (row.manual_rate_source) return `Manual — ${row.manual_rate_source}`;
+  if (row.manual_rate_source) return `Manual, ${row.manual_rate_source}`;
   if (row.provider === 'coingecko') return 'Auto (CoinGecko)';
   if (row.provider === 'openexchangerates') return 'Auto (OXR)';
   if (row.provider === 'identity') return 'Identity (1:1)';
@@ -55,7 +55,7 @@ function sourceLabel(row: RateRow) {
 }
 
 /**
- * Rate Transparency — Admin tab showing all exchange rates used.
+ * Rate Transparency, Admin tab showing all exchange rates used.
  * Shows staleness badges (red >7 days), source (auto vs manual), and audit log.
  * Gated to OWNER role by the Admin page that renders it.
  */
@@ -67,7 +67,7 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
   const fetchRates = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
-    // exchange_rates is a shared cache table — no org_id column.
+    // exchange_rates is a shared cache table, no org_id column.
     // Fetch rates that have been used by this org's journal lines.
     const { data } = await supabase
       .from('exchange_rates')
@@ -231,7 +231,7 @@ export function RateTransparency({ orgId }: RateTransparencyProps) {
                       className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate"
                       title={r.manual_rate_reason ?? ''}
                     >
-                      {r.manual_rate_reason ?? '—'}
+                      {r.manual_rate_reason ?? '-'}
                     </td>
                   )}
                 </tr>

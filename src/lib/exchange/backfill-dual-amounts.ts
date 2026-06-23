@@ -8,7 +8,7 @@
  *
  * ZKA note: encryption/decryption happen entirely in the browser. The
  * server only ever sees ciphertext. Rate fetching sends {pair, date}
- * metadata — same L2 privacy baseline as existing plaintext dates.
+ * metadata, same L2 privacy baseline as existing plaintext dates.
  */
 
 import { supabase } from '@/lib/supabase';

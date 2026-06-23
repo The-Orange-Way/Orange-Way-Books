@@ -1,12 +1,12 @@
 /**
- * Invoices page (I4) — list, filter, bulk actions.
+ * Invoices page (I4), list, filter, bulk actions.
  *
  * These tests prove the list page renders decrypted invoices, that the
  * plaintext status filter narrows the table, that clicking a row opens the
  * edit dialog, and that bulk-action selection + Send/Void/Export-CSV work.
  *
  * ZKA invariant: every assertion below references values that come back from
- * the mocked `decryptInvoice` helper — never from a Supabase column directly.
+ * the mocked `decryptInvoice` helper, never from a Supabase column directly.
  * If a future refactor accidentally reads ciphertext-as-plaintext from the
  * row, these tests will fail because they only stub `decryptInvoice`.
  */
@@ -192,7 +192,7 @@ vi.mock('@/lib/supabase', () => {
   };
 });
 
-// sonner toast — silence in tests but allow spying.
+// sonner toast, silence in tests but allow spying.
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -257,7 +257,7 @@ describe('Invoices page (I4)', () => {
 
   it('bulk-void writes status=VOIDED only for non-PAID/VOIDED selections', async () => {
     await renderAndWait();
-    // Select INV-001 (DRAFT) + INV-003 (PAID — should be skipped by the
+    // Select INV-001 (DRAFT) + INV-003 (PAID, should be skipped by the
     // handler's status guard, NOT silently flipped to VOIDED).
     fireEvent.click(screen.getByTestId('invoice-select-INV-001'));
     fireEvent.click(screen.getByTestId('invoice-select-INV-003'));
@@ -270,7 +270,7 @@ describe('Invoices page (I4)', () => {
     await waitFor(() => {
       expect(updateMock).toHaveBeenCalled();
     });
-    // Exactly one update call (for INV-001). INV-003 is PAID — guard skips it.
+    // Exactly one update call (for INV-001). INV-003 is PAID, guard skips it.
     expect(updateMock).toHaveBeenCalledTimes(1);
     const updatePayload = updateMock.mock.calls[0][0];
     expect(updatePayload.status).toBe('VOIDED');
@@ -290,7 +290,7 @@ describe('Invoices page (I4)', () => {
     expect(headers).toContain('Customer');
     expect(headers).toContain('Amount');
     // Customer column must contain the DECRYPTED name, never an encrypted
-    // blob — proves the ZKA invariant holds end-to-end through the export.
+    // blob, proves the ZKA invariant holds end-to-end through the export.
     const customers = rows.map((r: any[]) => r[4]);
     expect(customers).toEqual(
       expect.arrayContaining(['Acme Corp', 'Beta LLC', 'Gamma Inc', 'Delta Co']),

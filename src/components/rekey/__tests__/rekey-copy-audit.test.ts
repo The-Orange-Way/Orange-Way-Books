@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.5 polish — customer-facing copy audit.
+ * Phase 4.5 polish, customer-facing copy audit.
  *
  * The D31 copy pass replaces every customer-facing use of "rotate" /
  * "rotation" with "refresh" wording (customer phrase: "banks rotate
@@ -13,7 +13,7 @@
  * files. We intentionally EXCLUDE:
  *   - Code comments (`//` and `slash-star ... star-slash`)
  *   - Identifier-only occurrences inside imports / type-only code
- *     (`RekeyStage` is a type ident, not user copy — but we look for
+ *     (`RekeyStage` is a type ident, not user copy, but we look for
  *     the lowercase `rotate`/`rotation`, which these don't contain)
  *   - Substring hits inside attribute names like `data-rotate` (none
  *     exist in the codebase today; guarded for defense-in-depth)
@@ -34,7 +34,7 @@ const UI_FILES = [
 
 /**
  * Strip every line-comment and block-comment from a TypeScript / TSX
- * source file. We don't use a real parser — a regex pass is good
+ * source file. We don't use a real parser, a regex pass is good
  * enough for this audit because our files use standard comment
  * syntax without exotic string-embedded delimiters.
  */
@@ -48,7 +48,7 @@ function stripComments(source: string): string {
   );
 }
 
-describe('Phase 4.5 copy audit — no "rotate"/"rotation" in customer-facing strings', () => {
+describe('Phase 4.5 copy audit, no "rotate"/"rotation" in customer-facing strings', () => {
   for (const relPath of UI_FILES) {
     it(`${relPath} contains no user-visible "rotate" or "rotation"`, () => {
       const absPath = resolve(process.cwd(), relPath);

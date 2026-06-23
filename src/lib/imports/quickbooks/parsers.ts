@@ -70,7 +70,7 @@ export async function parseTrialBalance(
 ): Promise<{ accounts: ParsedTrialBalanceAccount[]; errors: QuickBooksParseError[] }> {
   const workbook = await loadWorkbook(source);
   const rows = worksheetRows(firstWorksheet(workbook));
-  // QB's Trial Balance export has no "Account" header in the first column — the
+  // QB's Trial Balance export has no "Account" header in the first column, the
   // column is implicitly accounts. Detect the header row by the Debit/Credit
   // labels instead, and treat column 0 as the account name.
   const headerIndex = findHeaderRow(rows, ['debit', 'credit']);
@@ -284,7 +284,7 @@ export async function parseValidationReport(
   const workbook = await loadWorkbook(source);
   const worksheet = firstWorksheet(workbook);
   const rows = worksheetRows(worksheet);
-  // QB's Balance Sheet / P&L reports don't have an "Account" header — the first
+  // QB's Balance Sheet / P&L reports don't have an "Account" header, the first
   // column is an unlabeled account-name column and the amount column is headed
   // "Total". Detect either layout: try the Account+Amount header first, then
   // fall back to a row whose only label is Total.
@@ -308,7 +308,7 @@ export async function parseValidationReport(
     if (!accountName | /^total\b/i.test(accountName)) continue;
     const rawAmount = amountIdx === -1 ? '' : (row[amountIdx] ?? '');
     // Hierarchical BS/P&L rows with no amount are section headers
-    // (e.g. "ASSETS", "Current Assets") — skip them.
+    // (e.g. "ASSETS", "Current Assets"), skip them.
     if (rawAmount === '') continue;
     lines.push({
       accountName,

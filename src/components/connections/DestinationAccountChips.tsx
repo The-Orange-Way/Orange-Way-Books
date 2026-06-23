@@ -1,5 +1,5 @@
 /**
- * DestinationAccountChips — Phase 3 chips showing where each source wallet lands.
+ * DestinationAccountChips, Phase 3 chips showing where each source wallet lands.
  *
  * Renders entries like "BTC → Bitcoin Cold Storage · USD → USD Operating".
  * Both currency and account name come from already-decrypted data; this is a

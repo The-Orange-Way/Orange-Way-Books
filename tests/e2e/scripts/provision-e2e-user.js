@@ -93,9 +93,9 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   await page.waitForTimeout(2000);
 
   // Three possible states:
-  //   (a) onboarding wizard — first-time user
-  //   (b) vault unlock screen — already onboarded
-  //   (c) dashboard — already onboarded + unlocked (unlikely on fresh session)
+  //   (a) onboarding wizard, first-time user
+  //   (b) vault unlock screen, already onboarded
+  //   (c) dashboard, already onboarded + unlocked (unlikely on fresh session)
   const onboardVisible = await page
     .locator('text=Set Up Orange Way Books')
     .isVisible({ timeout: 3000 })
@@ -115,7 +115,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
       .isVisible()
       .catch(() => false);
     if (stillLocked) {
-      console.error('  unlock rejected — vault pw drift');
+      console.error('  unlock rejected, vault pw drift');
       process.exit(2);
     }
     console.log('  unlock OK');
@@ -170,7 +170,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     console.log('  waiting 25s for ledger bootstrap');
     await page.waitForTimeout(25000);
   } else {
-    console.log('→ neither onboarding nor unlock visible — assume already authenticated');
+    console.log('→ neither onboarding nor unlock visible, assume already authenticated');
   }
 
   // Sanity: at the end we should be able to reach /app without bouncing back to /login
@@ -178,7 +178,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   await page.waitForTimeout(2000);
   const url = page.url();
   if (url.includes('/login')) {
-    console.error('  ended up at /login — session lost');
+    console.error('  ended up at /login, session lost');
     process.exit(3);
   }
   console.log('→ final URL:', url);

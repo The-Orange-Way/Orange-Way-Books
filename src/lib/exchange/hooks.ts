@@ -7,7 +7,7 @@ import {
   type PinnedRateResult,
 } from './rate-resolver';
 
-// ── useExchangeRate — extended shape (back-compat) ────────────────────────────
+// ── useExchangeRate, extended shape (back-compat) ────────────────────────────
 
 export interface UseExchangeRateResult {
   rate: number | null;

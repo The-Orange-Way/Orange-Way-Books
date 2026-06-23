@@ -7,30 +7,30 @@
 -- What Phase 4.5 does:
 --
 --   Phase 4.3 wraps a PLACEHOLDER random DEK because the org wrap layer doesn't yet have
---   a shared org DEK — today all encryption uses per-user-per-org MEK.
+--   a shared org DEK, today all encryption uses per-user-per-org MEK.
 --   Phase 4.5 establishes the real shared org DEK, re-encrypts every
 --   existing business row under it, updates every invitee wrap, and
 --   supports rotating DEK + signing key together on-demand.
 --
 -- What this migration adds:
 --
---   1. `key_rotation_jobs` — resumable job state machine. One active
+--   1. `key_rotation_jobs`, resumable job state machine. One active
 --      job per org at a time. Tracks row counts, error log, rollback
 --      deadline.
---   2. `active_key_versions` — one row per org; points at the CURRENT
+--   2. `active_key_versions`, one row per org; points at the CURRENT
 --      active DEK + signing key key_version. Rollback is a single UPDATE.
---   3. `org_keys.is_placeholder` — marks Phase 4.3 placeholder wraps so
+--   3. `org_keys.is_placeholder`, marks Phase 4.3 placeholder wraps so
 --      Phase 4.5 can migrate them without touching real wraps.
 --   4. `org_keys.key_version` column (matches existing `key_version=1`
 --      default), ensuring lookups can target a specific version.
 --   5. `dek_key_version INT NOT NULL DEFAULT 1` on every encrypted
 --      business table. Row-level rekey bumps this atomically with the
 --      new ciphertext.
---   6. `user_last_seen_key_versions` — force-refresh cookie table. UI
+--   6. `user_last_seen_key_versions`, force-refresh cookie table. UI
 --      compares current active versions vs last seen; banner if newer.
---   7. `advance_rotation_job()` — SECURITY DEFINER helper for legal
+--   7. `advance_rotation_job()`, SECURITY DEFINER helper for legal
 --      state transitions + audit events.
---   8. `purge_expired_old_key_wraps()` — SECURITY DEFINER VOLATILE sweep
+--   8. `purge_expired_old_key_wraps()`, SECURITY DEFINER VOLATILE sweep
 --      that clears old wrap rows after the 30-day rollback window lapses.
 --   9. pg_cron schedule (guarded; same pattern as Phase 4.4 sweep).
 --
@@ -42,14 +42,14 @@
 --     that don't have an active_key_versions row yet.
 --   - Transaction signing from Phase 4.4: the verify trigger must accept
 --     any signature_key_version <= current_active. Phase 4.5 does NOT
---     alter that trigger — `org_signing_keys` rows at both old and new
+--     alter that trigger, `org_signing_keys` rows at both old and new
 --     key_versions coexist during a rotation, and the existing verifier
 --     looks up by (org_id, key_version) which works for either.
 
 BEGIN;
 
 -- ══════════════════════════════════════════════════════════════════════
--- 1. key_rotation_jobs — resumable job state machine
+-- 1. key_rotation_jobs, resumable job state machine
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Lifecycle:
@@ -126,7 +126,7 @@ CREATE POLICY "key_rotation_jobs_select_inviters"
 
 -- Non-inviter org members also need SELECT so the maintenance banner
 -- can react to jobs in-flight. This exposes status + stage + progress
--- counts — no secret material.
+-- counts, no secret material.
 DROP POLICY IF EXISTS "key_rotation_jobs_select_members" ON public.key_rotation_jobs;
 CREATE POLICY "key_rotation_jobs_select_members"
   ON public.key_rotation_jobs
@@ -159,7 +159,7 @@ COMMENT ON TABLE public.key_rotation_jobs IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. active_key_versions — current active pointer for DEK + signing key
+-- 2. active_key_versions, current active pointer for DEK + signing key
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Exactly one row per org. Updated atomically by finalize-rekey (forward)
@@ -286,7 +286,7 @@ BEGIN
         t
       );
     ELSE
-      RAISE NOTICE 'Phase 4.5: table public.% does not exist — skipping dek_key_version add', t;
+      RAISE NOTICE 'Phase 4.5: table public.% does not exist, skipping dek_key_version add', t;
     END IF;
   END LOOP;
 END;
@@ -294,7 +294,7 @@ $$;
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 5. user_last_seen_key_versions — force-refresh cookie table
+-- 5. user_last_seen_key_versions, force-refresh cookie table
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Updated on successful unlock. Client reads on every load; if active
@@ -338,7 +338,7 @@ COMMENT ON TABLE public.user_last_seen_key_versions IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 6. advance_rotation_job() — legal-state-transition helper
+-- 6. advance_rotation_job(), legal-state-transition helper
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Validates state transitions and writes a `rekey.status_changed` audit
@@ -411,7 +411,7 @@ COMMENT ON FUNCTION public.advance_rotation_job(UUID, TEXT) IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 7. purge_expired_old_key_wraps() — 30-day rollback cleanup sweep
+-- 7. purge_expired_old_key_wraps(), 30-day rollback cleanup sweep
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- For every completed job whose rollback_expires_at < now(): delete the
@@ -482,12 +482,12 @@ $$;
 
 COMMENT ON FUNCTION public.purge_expired_old_key_wraps() IS
   'Phase 4.5: clear previous-version DEK + signing-key wraps once a rotation '
-  'job is past its 30-day rollback window. Idempotent — safe to run '
+  'job is past its 30-day rollback window. Idempotent, safe to run '
   'daily or on-demand.';
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 8. pg_cron schedule (guarded — same pattern as Phase 4.4 sweep)
+-- 8. pg_cron schedule (guarded, same pattern as Phase 4.4 sweep)
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- If pg_cron is enabled, schedule the purge daily at 03:17 UTC (random
@@ -516,7 +516,7 @@ BEGIN
 
     RAISE NOTICE 'Phase 4.5: scheduled purge_expired_old_key_wraps daily at 03:17 UTC via pg_cron.';
   ELSE
-    RAISE NOTICE 'Phase 4.5: pg_cron not enabled — schedule purge-expired-old-key-wraps via Supabase scheduled function.';
+    RAISE NOTICE 'Phase 4.5: pg_cron not enabled, schedule purge-expired-old-key-wraps via Supabase scheduled function.';
   END IF;
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Phase 4.5: pg_cron scheduling skipped (%).', SQLERRM;
@@ -534,5 +534,5 @@ COMMIT;
 --      invite-org-member (patched same way).
 --   2. If pg_cron is not available, schedule a Supabase scheduled
 --      function to POST to purge-expired-old-key-wraps every 24h
---      (daily is fine — nothing urgent happens at the 30-day mark).
+--      (daily is fine, nothing urgent happens at the 30-day mark).
 -- ════════════════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 /**
- * drain-email-outbox — sends queued lifecycle + admin emails via Resend.
+ * drain-email-outbox, sends queued lifecycle + admin emails via Resend.
  *
  * Polls `pending_admin_emails` for `status='pending'` rows, sends each
  * through Resend, and updates the row to 'sent' (with sent_at) or
@@ -17,16 +17,16 @@
  * the queue from outside.
  *
  * Env:
- *   RESEND_API_KEY    — Resend secret key (re_xxx)
- *   RESEND_FROM       — sender, e.g. 'Orange Way Books <support@orangeway.app>'
- *   CRON_SECRET       — shared secret for pg_cron / external schedulers
- *   DRAIN_BATCH_SIZE  — optional, default 25 per run
+ *   RESEND_API_KEY   , Resend secret key (re_xxx)
+ *   RESEND_FROM      , sender, e.g. 'Orange Way Books <support@orangeway.app>'
+ *   CRON_SECRET      , shared secret for pg_cron / external schedulers
+ *   DRAIN_BATCH_SIZE , optional, default 25 per run
  *
  * Notes:
  * - Resend's free tier is 100/day, paid is 50/sec. A batch of 25 keeps us
  *   under both. Failures don't block the rest of the batch.
  * - We do NOT retry inside this function. Failed rows stay 'failed' for
- *   a human to inspect — automatic retry is a follow-up.
+ *   a human to inspect, automatic retry is a follow-up.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -149,7 +149,7 @@ Deno.serve(async (req: Request) => {
     const report = await drain();
     return jsonResponse({ ok: true, ...report }, 200, cors);
   } catch (err) {
-    // Full error stays server-side. Don't echo `detail` to the client — it
+    // Full error stays server-side. Don't echo `detail` to the client, it
     // leaks library names + file paths.
     console.error('drain-email-outbox error:', err);
     return jsonResponse({ error: 'Drain failed' }, 500, cors);

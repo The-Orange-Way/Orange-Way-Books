@@ -44,13 +44,13 @@ verify_jwt = true
 # directly.
 
 # ──────────────────────────────────────────────────────────────────────
-# H5 (2026-05-19 audit) — every function must declare its auth model
+# H5 (2026-05-19 audit), every function must declare its auth model
 # explicitly. Previously these 13 inherited the Supabase platform default
 # (currently true, but flips over time). Each line below is a deliberate
 # choice based on the function's actual auth check.
 # ──────────────────────────────────────────────────────────────────────
 
-# User-JWT authed — platform gate + in-function getUser() (defense in depth).
+# User-JWT authed, platform gate + in-function getUser() (defense in depth).
 [functions.abort-rekey]
 verify_jwt = true
 
@@ -81,7 +81,7 @@ verify_jwt = true
 [functions.start-rekey-job]
 verify_jwt = true
 
-# Cron / webhook authed — NO user JWT; rely on shared secret or HMAC sig.
+# Cron / webhook authed, NO user JWT; rely on shared secret or HMAC sig.
 [functions.flash-webhook]
 # HMAC-authed via FLASH_WEBHOOK_SECRET; flash signs the raw body.
 verify_jwt = false

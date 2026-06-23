@@ -1,4 +1,4 @@
--- Track 2 T1 — split transaction write path support
+-- Track 2 T1, split transaction write path support
 --
 -- Two additive columns:
 --   transactions.journal_entry_id        - links a transaction to its parent journal entry.

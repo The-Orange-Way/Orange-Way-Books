@@ -1,5 +1,5 @@
 /**
- * Vault keypair lifecycle — Phase 4.1.
+ * Vault keypair lifecycle, Phase 4.1.
  *
  * Glue between the Phase 4.0 crypto primitives (`pqc.ts`, `key-derivation.ts`)
  * and the `user_vault_keys` table (Phase 4.1 migration). Produces the
@@ -9,22 +9,22 @@
  *   - public_key_b64        = base64(X25519_pub ‖ ML-KEM-768_pub)
  *   - encrypted_private_key = AES-256-GCM ciphertext of the hybrid
  *                             secret key (IV-prefixed, base64)
- *   - iv                    = base64(12-byte IV) — duplicated as a
+ *   - iv                    = base64(12-byte IV), duplicated as a
  *                             column for convenience; also embedded
  *                             at the head of encrypted_private_key
  *                             (matches the encryptText wire format)
  *
- * The ML-DSA-65 signing half is *not* generated here — the Phase 4
+ * The ML-DSA-65 signing half is *not* generated here, the Phase 4
  * design places the Org Signing Key behind the Auditor / writer
  * split, which arrives in Phase 4.4. This module is deliberately
  * narrow.
  *
  * Functions:
  *
- *   - `ensureUserKeypair(opts)` — idempotent upsert on first unlock.
+ *   - `ensureUserKeypair(opts)`, idempotent upsert on first unlock.
  *     Generates + wraps + INSERTs only if the row is missing. Safe to
  *     call every unlock.
- *   - `rewrapUserKeypair(opts)` — atomic re-wrap on password change.
+ *   - `rewrapUserKeypair(opts)`, atomic re-wrap on password change.
  *     Uses a single UPDATE (never DELETE + INSERT, Decision D5). The
  *     hybrid private key material is unchanged; only the wrap changes.
  *
@@ -38,7 +38,7 @@ import { derivePqcSecretWrapKey } from './key-derivation';
 import { generateHybridKemKeyPair } from './pqc';
 
 // ---------------------------------------------------------------------------
-// Local base64 helpers — kept small and private.
+// Local base64 helpers, kept small and private.
 // ---------------------------------------------------------------------------
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -114,7 +114,7 @@ async function buildUserVaultKeysRow(mek: CryptoKey, saltB64: string): Promise<U
   const kem = generateHybridKemKeyPair();
 
   // Wrap the hybrid secret key with the MEK-derived subkey. encryptString
-  // is AES-256-GCM with a fresh random IV — same wire format used for
+  // is AES-256-GCM with a fresh random IV, same wire format used for
   // every other vault ciphertext in this repo.
   const encrypted_private_key = await encryptString(bytesToBase64(kem.secretKey), wrapKey);
 
@@ -127,7 +127,7 @@ async function buildUserVaultKeysRow(mek: CryptoKey, saltB64: string): Promise<U
 }
 
 // ---------------------------------------------------------------------------
-// ensureUserKeypair — first-unlock generate + publish.
+// ensureUserKeypair, first-unlock generate + publish.
 // ---------------------------------------------------------------------------
 
 export interface EnsureUserKeypairArgs {
@@ -149,7 +149,7 @@ export type EnsureUserKeypairResult =
  *
  * Non-blocking contract: the calling VaultContext should `void`-swallow
  * rejections. A transient Supabase failure must not prevent the user
- * from using the app — we'll retry next unlock. Phase 4.3 pulls a
+ * from using the app, we'll retry next unlock. Phase 4.3 pulls a
  * missing keypair into the invite path's pending-wrap notification.
  */
 export async function ensureUserKeypair(
@@ -184,7 +184,7 @@ export async function ensureUserKeypair(
 }
 
 // ---------------------------------------------------------------------------
-// rewrapUserKeypair — atomic UPDATE on password change (Decision D5).
+// rewrapUserKeypair, atomic UPDATE on password change (Decision D5).
 // ---------------------------------------------------------------------------
 
 export interface RewrapUserKeypairArgs {
@@ -202,7 +202,7 @@ export type RewrapUserKeypairResult = { rewrapped: false; reason: 'no-row' } | {
 /**
  * Re-wrap the user's hybrid private key with a new MEK. Used by the
  * password-change flow so the Org DEK wraps do not have to rotate
- * (Decision D5). The hybrid secret bytes are unchanged — only the
+ * (Decision D5). The hybrid secret bytes are unchanged, only the
  * wrapping cipher changes.
  *
  * Atomicity guardrail: this function MUST NOT DELETE the existing row
@@ -213,7 +213,7 @@ export type RewrapUserKeypairResult = { rewrapped: false; reason: 'no-row' } | {
  * (c) `count(*)` stays at 1.
  *
  * Returns `{ rewrapped: false, reason: 'no-row' }` if the user has no
- * keypair yet — a valid state during the Phase 4.1/4.2 transition when
+ * keypair yet, a valid state during the Phase 4.1/4.2 transition when
  * a user may change their password before their first unlock generates
  * a keypair. The VaultContext caller should not treat this as an error.
  */
@@ -248,7 +248,7 @@ export async function rewrapUserKeypair(
       encrypted_private_key: newEncrypted,
       iv: extractIvFromEncryptedString(newEncrypted),
       // updated_at is bumped by the trg_user_vault_keys_updated_at
-      // trigger — we intentionally do not set it from the client so
+      // trigger, we intentionally do not set it from the client so
       // the DB is the single source of truth for the timestamp.
     } as unknown as Record<string, unknown>)
     .eq('user_id', userId);
@@ -274,7 +274,7 @@ export async function rewrapUserKeypair(
  * VaultContext (used for data encrypt/decrypt). For HKDF subkey
  * derivation we need a *separate* import with usage `['deriveBits']`.
  * Both imports come from the same raw bytes so there is no trust
- * boundary crossed — they are simply different "views" of the same
+ * boundary crossed, they are simply different "views" of the same
  * 32-byte MEK tailored to different WebCrypto operations.
  *
  * The returned CryptoKey is non-extractable.

@@ -1,4 +1,4 @@
--- Invoicing module — invoices table
+-- Invoicing module, invoices table
 --
 -- Symmetric AR primitive to payment_requests (which is AP). An invoice is a
 -- bill the app issues TO a customer, vs. payment_requests which represent bills
@@ -8,7 +8,7 @@
 --   • Plaintext columns (org_id, status, currency, dates, amount-for-filtering,
 --     invoice_number, public_url_id): used for RLS pivots, indexing, sorting,
 --     and the ZKA-share public lookup. These are intentionally not sensitive
---     in isolation — invoice_number is non-secret, amount-for-filtering is a
+--     in isolation, invoice_number is non-secret, amount-for-filtering is a
 --     coarse value (OWB also stores encrypted_amount for the real value), etc.
 --   • Encrypted columns (encrypted_*): the customer-identifying and
 --     business-content fields. Server cannot read these.
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   -- Customer link (soft: contact may be deleted but invoice survives)
   contact_id UUID NULL REFERENCES public.contacts(id) ON DELETE SET NULL,
 
-  -- Plaintext identifier — required, non-secret, used for sorting + display
+  -- Plaintext identifier, required, non-secret, used for sorting + display
   invoice_number TEXT NOT NULL,
 
   -- Status machine

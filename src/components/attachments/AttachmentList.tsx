@@ -1,5 +1,5 @@
 /**
- * AttachmentList — reusable list + upload widget for any attachable entity.
+ * AttachmentList, reusable list + upload widget for any attachable entity.
  *
  * Drops into transaction edit views, journal entry edit views, or
  * payment request views. Pure React component; all encryption + Supabase

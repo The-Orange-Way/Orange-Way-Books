@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
   // (Removed 2026-05-16: was a debug header dump that truncated Authorization /
   // apikey / cookie values to their first 40 chars and logged them. Even
   // truncated, partial bearer tokens can be correlated against breach
-  // databases or accumulated across requests — better to never log them.
+  // databases or accumulated across requests, better to never log them.
   // If we ever need to diagnose auth issues here, hash the headers instead.)
 
   if (!OR_PLATFORM_API_KEY) {
@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
     } = await userClient.auth.getUser();
     if (authErr || !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
 
-    // ── Rate limit (M5 — 2026-05-19 audit) ───────────────────────────
+    // ── Rate limit (M5, 2026-05-19 audit) ───────────────────────────
     // 30 OR calls per user per minute. Caps cost-amplification against
     // OR's edge functions; Connections page rarely exceeds a handful.
     const rl = await rateLimit(rlClient, {
@@ -209,7 +209,7 @@ Deno.serve(async (req: Request) => {
           .update({ or_subaccount_id: subId })
           .eq('id', org_id);
         if (mapErr) {
-          // Don't fail the request — the browser localStorage cache still
+          // Don't fail the request, the browser localStorage cache still
           // works and the receiver will return 202 (accepted_no_org) if
           // the mapping isn't found. Surface as a server log for now.
           console.error(

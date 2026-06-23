@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-publish-scan.sh — leak check for the open-source Orange Way Books repo.
+# pre-publish-scan.sh, leak check for the open-source Orange Way Books repo.
 #
 # Runs a categorized grep over the source tree looking for content that
 # should never ship to a public repo: legacy brand names, internal
@@ -8,8 +8,8 @@
 # personally identifiable email addresses.
 #
 # Exit code:
-#   0  — tree is clean, safe to publish or merge
-#   1  — one or more categories reported a leak; review output, clean up,
+#   0 , tree is clean, safe to publish or merge
+#   1 , one or more categories reported a leak; review output, clean up,
 #        re-run
 #
 # Run locally before pushing:   bash scripts/pre-publish-scan.sh
@@ -171,7 +171,7 @@ printf "\n\033[1m▎ Pre-publish leak scan\033[0m\n"
 printf "  repo: %s\n\n" "$REPO_ROOT"
 
 # ----------------------------------------------------------------------
-# Category 1 — Legacy brand / private codebase references
+# Category 1, Legacy brand / private codebase references
 # ----------------------------------------------------------------------
 
 printf "\033[1m1. Brand + product references\033[0m\n"
@@ -207,7 +207,7 @@ scan "Other personal-project brands" \
      ""
 
 # ----------------------------------------------------------------------
-# Category 2 — Personal names + PII
+# Category 2, Personal names + PII
 # ----------------------------------------------------------------------
 
 printf "\n\033[1m2. Personal names + PII\033[0m\n"
@@ -232,7 +232,7 @@ scan "Personal-domain emails" \
      ""
 
 # ----------------------------------------------------------------------
-# Category 3 — Internal infrastructure leaks
+# Category 3, Internal infrastructure leaks
 # ----------------------------------------------------------------------
 
 printf "\n\033[1m3. Internal infrastructure\033[0m\n"
@@ -263,7 +263,7 @@ scan "Tailscale 100.x IP leaks" \
      ""
 
 # ----------------------------------------------------------------------
-# Category 4 — Internal milestone tags + dead PR references
+# Category 4, Internal milestone tags + dead PR references
 # ----------------------------------------------------------------------
 
 printf "\n\033[1m4. Internal milestone tags + dead PR refs\033[0m\n"
@@ -302,7 +302,7 @@ scan "Dead PR references" \
      ""
 
 # ----------------------------------------------------------------------
-# Category 5 — GitHub handle pinning
+# Category 5, GitHub handle pinning
 # ----------------------------------------------------------------------
 #
 # After the move from MorningRevolution → OrangeWay org, no source file

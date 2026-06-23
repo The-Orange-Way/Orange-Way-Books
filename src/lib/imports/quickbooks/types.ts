@@ -1,4 +1,4 @@
-// QuickBooks import types — Prisma-free —
+// QuickBooks import types, Prisma-free
 // OWB stores accounts in `chart_of_accounts` where account_type /
 // account_group are plain text columns. String literal unions keep the
 // classifier output compatible with the seed template without pulling @prisma/client

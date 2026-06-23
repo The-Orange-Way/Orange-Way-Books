@@ -1,5 +1,5 @@
 /**
- * Org settings hooks — provides formatting functions that respect org settings.
+ * Org settings hooks, provides formatting functions that respect org settings.
  * Reads decrypted org settings and exposes formatAmount, formatDate, etc.
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';

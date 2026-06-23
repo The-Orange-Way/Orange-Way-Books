@@ -166,7 +166,7 @@ describe('End-to-end reconciliation', () => {
 
     // For each account that appears in both TB and Journal, imported ~= TB.
     // Journal may reference a few accounts the TB doesn't list (or vice versa)
-    // on sparse books — only assert on the overlap.
+    // on sparse books, only assert on the overlap.
     let overlap = 0;
     for (const [name, tb] of tbByName.entries()) {
       if (!importedByName.has(name)) continue;

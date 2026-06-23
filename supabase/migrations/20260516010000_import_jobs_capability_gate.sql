@@ -1,8 +1,8 @@
--- S11 — Gate import_jobs writes on the transactions.write capability
+-- S11, Gate import_jobs writes on the transactions.write capability
 --
 -- The initial import_jobs policies (migration 20260515000000) gated INSERT
 -- and UPDATE on `created_by = auth.uid() AND EXISTS in org_members`. That
--- lets any org member — including the VIEWER role — kick off an import,
+-- lets any org member, including the VIEWER role, kick off an import,
 -- which can consume platform quota (legacy ledger backend writes, edge function calls) and
 -- generate background processing load. Imports are write-equivalent
 -- operations and should require the same capability as creating
@@ -11,7 +11,7 @@
 -- This migration replaces INSERT / UPDATE / DELETE with the same capability
 -- gate the transaction tables already use (`transactions.write` for
 -- INSERT+UPDATE, `transactions.delete` for DELETE). SELECT stays unchanged
--- — any member can see import history in their org.
+--, any member can see import history in their org.
 --
 -- Surfaced by 2026-05-16 security review (finding E.2). Tracked as S11.
 

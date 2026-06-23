@@ -2,7 +2,7 @@
  * Attachments service (P2 v1).
  *
  * Helpers for attaching files to transactions, payment requests, and journal
- * entries — including a bulk linker that resolves journal entries by their
+ * entries, including a bulk linker that resolves journal entries by their
  * ZKA-safe HMAC import external id (the column added by P5 migration
  * 20260522000000).
  *
@@ -45,9 +45,9 @@ export interface AttachmentRow {
 export interface UploadAttachmentParams {
   /** Plaintext target. */
   file: File | Blob;
-  /** Original filename — encrypted before insert. */
+  /** Original filename, encrypted before insert. */
   fileName: string;
-  /** Mime type — encrypted before insert. */
+  /** Mime type, encrypted before insert. */
   mimeType: string | null;
   /** Which entity this attachment belongs to. */
   entityType: AttachmentEntityType;

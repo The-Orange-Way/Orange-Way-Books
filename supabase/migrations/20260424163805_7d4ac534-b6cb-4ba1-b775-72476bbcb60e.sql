@@ -6,7 +6,7 @@
 BEGIN;
 
 -- ══════════════════════════════════════════════════════════════════════
--- 1. key_rotation_jobs — resumable job state machine
+-- 1. key_rotation_jobs, resumable job state machine
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS public.key_rotation_jobs (
@@ -91,7 +91,7 @@ COMMENT ON TABLE public.key_rotation_jobs IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. active_key_versions — current active pointer for DEK + signing key
+-- 2. active_key_versions, current active pointer for DEK + signing key
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS public.active_key_versions (
@@ -181,7 +181,7 @@ BEGIN
         t
       );
     ELSE
-      RAISE NOTICE 'Phase 4.5: table public.% does not exist — skipping dek_key_version add', t;
+      RAISE NOTICE 'Phase 4.5: table public.% does not exist, skipping dek_key_version add', t;
     END IF;
   END LOOP;
 END;
@@ -189,7 +189,7 @@ $$;
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 5. user_last_seen_key_versions — force-refresh cookie table
+-- 5. user_last_seen_key_versions, force-refresh cookie table
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS public.user_last_seen_key_versions (
@@ -227,7 +227,7 @@ COMMENT ON TABLE public.user_last_seen_key_versions IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 6. advance_rotation_job() — legal-state-transition helper
+-- 6. advance_rotation_job(), legal-state-transition helper
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.advance_rotation_job(
@@ -294,7 +294,7 @@ COMMENT ON FUNCTION public.advance_rotation_job(UUID, TEXT) IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 7. purge_expired_old_key_wraps() — 30-day rollback cleanup sweep
+-- 7. purge_expired_old_key_wraps(), 30-day rollback cleanup sweep
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.purge_expired_old_key_wraps()

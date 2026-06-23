@@ -1,5 +1,5 @@
 /**
- * Pure-logic helpers for the capability model — Phase 4.2.
+ * Pure-logic helpers for the capability model, Phase 4.2.
  *
  * Extracted from `useCapability.ts` so these helpers can be imported
  * in node-env tests without dragging in `@/lib/supabase` (which touches

@@ -5,7 +5,7 @@ import type { Database } from './types';
 // VITE_SUPABASE_PUBLISHABLE_KEY at build time. Previous versions of this
 // file shipped hardcoded fallbacks pointing at the original cloud
 // project. That made misconfigured builds silently talk to the wrong
-// database — a real risk now that OWB runs on Orange Way Books-owned Supabase
+// database, a real risk now that OWB runs on Orange Way Books-owned Supabase
 // projects (dev + prod). Fail loudly instead.
 
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;

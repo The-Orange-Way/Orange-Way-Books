@@ -1,5 +1,5 @@
 /**
- * RevaluationWizard — three-step FX revaluation entry point.
+ * RevaluationWizard, three-step FX revaluation entry point.
  *
  * Step 1: Period selector
  * Step 2: Preview table (monetary accounts + deltas)
@@ -204,7 +204,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       const jeDate = preview.periodEnd;
       const encEntry = await encryptJournalEntry(
         {
-          memo: `FX Revaluation — period end ${jeDate}`,
+          memo: `FX Revaluation, period end ${jeDate}`,
           ref_number: null,
           currency: primaryCurrency,
           exchange_rate: null,
@@ -265,7 +265,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           date: jeDate,
           account_name: preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss',
           account_code: null,
-          description: `FX revaluation offset — net delta ${preview.netDelta.toFixed(8)} ${primaryCurrency}`,
+          description: `FX revaluation offset, net delta ${preview.netDelta.toFixed(8)} ${primaryCurrency}`,
           debit: netDebit,
           credit: netCredit,
           encrypt: encryptText,
@@ -308,7 +308,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       const reverseLines = encLines.map((l: any) => ({
         ...l,
         journal_entry_id: reverseJeId,
-        // swap debit ↔ credit fields (re-encrypt not needed — we flip the amounts)
+        // swap debit ↔ credit fields (re-encrypt not needed, we flip the amounts)
       }));
       // Re-build reversed lines properly
       const encReverseLines: any[] = [];
@@ -418,7 +418,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
             <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
             <p className="text-xs text-muted-foreground">
               Closing rates on this date are used to remeasure monetary items. The reversal entry
-              will post on {periodEnd ? addOneDay(periodEnd) : '—'}.
+              will post on {periodEnd ? addOneDay(periodEnd) : '-'}.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -453,7 +453,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
               style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534' }}
             >
               <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-              No revaluation adjustments needed — all monetary items are already at closing rate.
+              No revaluation adjustments needed, all monetary items are already at closing rate.
             </div>
           ) : (
             <>
@@ -681,7 +681,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
                     </span>
                   </td>
                   <td className="py-1.5 pr-4 font-mono">{h.reverse_on}</td>
-                  <td className="py-1.5 text-muted-foreground">{h.notes ?? '—'}</td>
+                  <td className="py-1.5 text-muted-foreground">{h.notes ?? '-'}</td>
                 </tr>
               ))}
             </tbody>

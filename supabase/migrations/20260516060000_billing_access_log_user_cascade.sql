@@ -1,7 +1,7 @@
--- A2 — Add ON DELETE CASCADE to billing_access_log.user_id
+-- A2, Add ON DELETE CASCADE to billing_access_log.user_id
 --
 -- The original S16 migration (20260516040000) defined billing_access_log
--- with `user_id UUID NOT NULL REFERENCES auth.users(id)` — no cascade
+-- with `user_id UUID NOT NULL REFERENCES auth.users(id)`, no cascade
 -- behavior. Every other auth.users foreign key in the schema
 -- (user_master_recovery, org_master_wraps, vault_security_events,
 -- org_members, etc.) uses ON DELETE CASCADE.

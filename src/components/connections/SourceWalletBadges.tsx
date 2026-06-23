@@ -1,5 +1,5 @@
 /**
- * SourceWalletBadges — Phase 3 currency chips for a connection's selected wallets.
+ * SourceWalletBadges, Phase 3 currency chips for a connection's selected wallets.
  *
  * Each connection card shows which wallets are being synced. The wallet
  * metadata is encrypted on the server; the parent decrypts in advance and
@@ -10,7 +10,7 @@
  * tokens directly).
  *
  * If no wallets are configured the connection is in legacy account-wide
- * mode — render a neutral "Default account" badge so the user can see at a
+ * mode, render a neutral "Default account" badge so the user can see at a
  * glance that their connection predates the picker (or that picker was
  * skipped).
  */

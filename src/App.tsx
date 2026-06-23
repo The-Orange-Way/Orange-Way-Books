@@ -44,7 +44,7 @@ import ImportJobs from '@/pages/settings/ImportJobs';
 import DemoData from '@/pages/settings/DemoData';
 import Security from '@/pages/settings/Security';
 
-// Public marketing surface — readable by AI crawlers and search engines.
+// Public marketing surface, readable by AI crawlers and search engines.
 import MarketingLayout from '@/marketing/MarketingLayout';
 import Landing from '@/marketing/pages/Landing';
 import Features from '@/marketing/pages/Features';
@@ -100,7 +100,7 @@ function RootRouter() {
 
   return (
     <Routes>
-      {/* Public marketing routes — always available, no auth required. */}
+      {/* Public marketing routes, always available, no auth required. */}
       <Route element={<MarketingLayout session={session} />}>
         {/* Authenticated users hitting `/` (e.g. after email confirmation,
             which lands them at the Site URL with the auth hash) get sent
@@ -124,7 +124,7 @@ function RootRouter() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
-      {/* Public hosted invoice view — Bitwarden Send pattern (key in URL fragment) */}
+      {/* Public hosted invoice view, Bitwarden Send pattern (key in URL fragment) */}
       <Route path="/i/:urlId" element={<PublicInvoice />} />
 
       {/* Authenticated app */}
@@ -160,7 +160,7 @@ function AuthGate({ session, sessionLoaded }: { session: Session | null; session
   }
 
   if (!session) {
-    // Authenticated routes require a session — bounce to login and remember
+    // Authenticated routes require a session, bounce to login and remember
     // the originally-requested path so we can return after sign-in.
     return <Navigate to="/login" replace />;
   }
@@ -241,7 +241,7 @@ function VaultGate({ session }: { session: Session }) {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        {/* Authenticated app — mounted under /app/* by RootRouter. */}
+        {/* Authenticated app, mounted under /app/* by RootRouter. */}
         <Route index element={<Dashboard />} />
         <Route path="accounts" element={<Accounts />} />
         <Route path="transactions" element={<Transactions />} />
@@ -275,7 +275,7 @@ function VaultGate({ session }: { session: Session }) {
 }
 
 // One-time analytics-notice banner shown once per browser, dismissed via
-// localStorage (UI state, not tracking — exempt from consent under
+// localStorage (UI state, not tracking, exempt from consent under
 // GDPR Article 6 because it's strictly necessary for the banner not to
 // nag). Same wording shipped across every Orange Way Books-family surface.
 function AnalyticsNotice() {

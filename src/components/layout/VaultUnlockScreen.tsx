@@ -107,7 +107,7 @@ export default function VaultUnlockScreen() {
           <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-card-foreground">
-              Layer 2 — Vault Password
+              Layer 2, Vault Password
             </span>
           </div>
           <p className="text-xs text-muted-foreground mb-4">
@@ -164,7 +164,7 @@ export default function VaultUnlockScreen() {
               {loading
                 ? 'Unlocking…'
                 : lockedOut
-                  ? `Locked — wait ${fmtCooldown()}`
+                  ? `Locked, wait ${fmtCooldown()}`
                   : 'Unlock Vault'}
             </Button>
           </form>

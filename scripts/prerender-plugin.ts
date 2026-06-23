@@ -15,7 +15,7 @@ import { ALL_PRERENDER_ROUTES, type PublicRouteMeta } from '../src/marketing/rou
  * completes, copy dist/index.html for every public marketing route, then
  * inject route-specific <title>, <meta name="description">, canonical link,
  * page-specific JSON-LD, and a richer <noscript> body. The React bundle
- * still hydrates normally, so end users see no difference — but bots and
+ * still hydrates normally, so end users see no difference, but bots and
  * AI crawlers that don't execute JS now get the right content per route.
  *
  * Output layout (so the static host's directory-index fallback serves the
@@ -40,7 +40,7 @@ export default function prerenderMarketingPlugin(): Plugin {
       try {
         shell = await fs.readFile(shellPath, 'utf8');
       } catch (err) {
-        // If there's no built shell, the SPA build failed — bail silently
+        // If there's no built shell, the SPA build failed, bail silently
         // so we don't mask the real error.
         return;
       }

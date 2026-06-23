@@ -111,7 +111,7 @@ export default function AccountRegister() {
               date: row.date,
               source: 'transaction',
               source_id: row.id,
-              description: dec.memo ?? dec.type ?? '—',
+              description: dec.memo ?? dec.type ?? '-',
               debit: amt > 0 ? amt : 0,
               credit: amt < 0 ? Math.abs(amt) : 0,
               status: dec.status ?? null,
@@ -151,7 +151,7 @@ export default function AccountRegister() {
               date: je?.date ?? '',
               source: 'journal_entry_line',
               source_id: row.id,
-              description: dec.description ?? '—',
+              description: dec.description ?? '-',
               debit: dec.debit ?? 0,
               credit: dec.credit ?? 0,
               status: jeStatus,
@@ -208,7 +208,7 @@ export default function AccountRegister() {
           {accountCode && (
             <span className="font-mono text-muted-foreground mr-2">{accountCode}</span>
           )}
-          {accountName || '—'}
+          {accountName || '-'}
         </h1>
         <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
           {accountType && <Badge variant="outline">{accountType}</Badge>}

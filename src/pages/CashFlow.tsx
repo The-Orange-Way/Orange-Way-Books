@@ -308,7 +308,7 @@ export default function CashFlowPage() {
           {/* Empty-data nudge */}
           {journalLines.length === 0 && (
             <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
-              No journal entries yet — create one or import to see your cash flow take shape.
+              No journal entries yet, create one or import to see your cash flow take shape.
               <div className="mt-2">
                 <Link to="/app/journal" className="text-primary hover:underline">
                   Go to Journal Entries →

@@ -113,7 +113,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       // 2. Ensure org_member row exists for the creator.
       //
       // A post-insert trigger on organizations (20260417000400_data_integrity_triggers.sql)
-      // already inserts the caller as OWNER, so this upsert is idempotent — we
+      // already inserts the caller as OWNER, so this upsert is idempotent, we
       // keep it to guarantee the row regardless of whether the trigger is
       // deployed yet.
       const { error: memberError } = await supabase
@@ -225,7 +225,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         throw coaErr;
       }
 
-      setProgressMessage('✅ Done — your data is encrypted before it ever leaves your browser');
+      setProgressMessage('✅ Done, your data is encrypted before it ever leaves your browser');
       setProgressDetail('');
       toast.success('Organization created successfully!');
       onComplete();

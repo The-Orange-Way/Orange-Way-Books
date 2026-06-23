@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.4 — Org Signing Key client helper tests.
+ * Phase 4.4, Org Signing Key client helper tests.
  *
  * Exercises:
  *   1. `generateAndWrapSigningKey` produces a bundle whose wraps each unwrap

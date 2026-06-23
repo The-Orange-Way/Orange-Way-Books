@@ -58,6 +58,6 @@ CREATE TRIGGER trg_cam_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_connection_account_map_updated_at();
 
 COMMENT ON TABLE public.connection_account_map IS
-  'Phase 3 — Maps an OrangeRails source wallet (opaque) to an encrypted OWB legacy_account_map.id. Server stores ciphertext only; client decrypts after vault unlock to route synced transactions.';
+  'Phase 3, Maps an OrangeRails source wallet (opaque) to an encrypted OWB legacy_account_map.id. Server stores ciphertext only; client decrypts after vault unlock to route synced transactions.';
 COMMENT ON COLUMN public.connection_account_map.encrypted_account_id IS
   'AES-256-GCM (vault MEK) over the legacy_account_map.id UUID. Server cannot interpret this value.';

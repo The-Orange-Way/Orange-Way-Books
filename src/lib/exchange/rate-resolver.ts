@@ -143,7 +143,7 @@ async function fetchMostRecentConfirmed(
   return null;
 }
 
-// ── Primary resolver — called at JE posting time ──────────────────────────────
+// ── Primary resolver, called at JE posting time ──────────────────────────────
 
 /**
  * Resolve and pin a rate for a journal entry line.
@@ -160,7 +160,7 @@ export async function resolvePinnedRate(params: {
     params.at instanceof Date ? params.at : params.at ? new Date(params.at) : new Date();
   const sourceKind = deriveSourceKind(base, quote);
 
-  // Identity — rate is exactly 1
+  // Identity, rate is exactly 1
   if (sourceKind === 'IDENTITY') {
     const ts = bucketTsToIso(bucketFor(atDate, 'DAY'));
     return {
@@ -199,7 +199,7 @@ export async function resolvePinnedRate(params: {
   if (cached) return cached;
 
   // Try ORBI first for supported pairs (BTC/SATS/stablecoin ↔ fiat). Returns
-  // null for unsupported pairs or when ORBI doesn't have the bucket — falls
+  // null for unsupported pairs or when ORBI doesn't have the bucket, falls
   // through to the existing exchange-rate-fetch path.
   try {
     const orbi = await fetchFromORBI(base, quote, atDate);
@@ -208,7 +208,7 @@ export async function resolvePinnedRate(params: {
       return orbi;
     }
   } catch {
-    // ORBI errors are non-fatal — let the existing provider try.
+    // ORBI errors are non-fatal, let the existing provider try.
   }
 
   try {
@@ -232,13 +232,13 @@ export async function resolvePinnedRate(params: {
     if (!result.pending) putCache(base, quote, bucketTs, gran, result);
     return result;
   } catch {
-    // Edge function down — try stale DB cache before marking pending
+    // Edge function down, try stale DB cache before marking pending
     const stale = await fetchMostRecentConfirmed(base, quote, bucketTs);
     if (stale) {
       putCache(base, quote, bucketTs, gran, stale);
       return stale;
     }
-    // Nothing available — caller must handle pending=true
+    // Nothing available, caller must handle pending=true
     return {
       rate: 0,
       rateId: null,

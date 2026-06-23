@@ -3,7 +3,7 @@
 -- uploads AES-256-GCM-encrypted blobs under `${orgId}/${txId}/${uuid}`, so
 -- without this policy any authenticated user could `storage.list(...)` the
 -- bucket or download by UUID path. Files are still encrypted client-side, so
--- an attacker would not see plaintext — but the upload surface (overwrite,
+-- an attacker would not see plaintext, but the upload surface (overwrite,
 -- delete, quota burn) was wide open.
 --
 -- Path layout enforced: first folder component MUST be the org_id, e.g.

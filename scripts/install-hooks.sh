@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install-hooks.sh — wire the pre-commit + pre-push gates into this clone's
+# install-hooks.sh, wire the pre-commit + pre-push gates into this clone's
 # .git/hooks.
 #
 # Run once per fresh clone. The hooks themselves live under scripts/ so

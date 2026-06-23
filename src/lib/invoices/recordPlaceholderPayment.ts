@@ -1,5 +1,5 @@
 /**
- * recordPlaceholderPayment — manual "Mark invoice paid" flow.
+ * recordPlaceholderPayment, manual "Mark invoice paid" flow.
  *
  * When the operator marks an invoice paid BEFORE the matching bank
  * deposit lands in OWB (a/k/a Wave "Add a payment"), we record a
@@ -9,7 +9,7 @@
  *
  *   1. The invoice's status flips PARTIAL/PAID immediately and JE
  *      posts (Dr Wallet / Cr A/R) via the existing apply_invoice_payment
- *      RPC — bookkeeping is correct from the moment the operator says
+ *      RPC, bookkeeping is correct from the moment the operator says
  *      "I got paid".
  *   2. When the real deposit eventually lands, the InvoiceMatchPanel
  *      the merge helper recognizes the placeholder via `is_placeholder=TRUE`
@@ -17,7 +17,7 @@
  *      the real deposit (see `mergeWithPlaceholder`).
  *
  * Without this helper, the merge surface has nothing to merge with
- * — placeholders never exist. This wires the producer end.
+ *, placeholders never exist. This wires the producer end.
  *
  * ZKA invariants:
  *   - Amount + memo encrypted CLIENT-side before reaching Supabase.
@@ -59,16 +59,16 @@ export interface RecordPlaceholderPaymentParams {
   amount: number;
   /** Wallet that "received" the payment (drives JE Dr-account). */
   walletId: string;
-  /** Wallet's external_account_id — used to label the synthetic tx. */
+  /** Wallet's external_account_id, used to label the synthetic tx. */
   walletLegacyAccountId: string | null;
   /** Currency / asset symbol (BTC, USD, ...). */
   asset: string;
   /** ISO date string (yyyy-MM-dd) the user recorded the payment for. */
   appliedAt: string;
-  /** Optional memo — encrypted. */
+  /** Optional memo, encrypted. */
   memo: string | null;
   orgId: string;
-  /** Plaintext invoice total — used for amount > remaining guard. */
+  /** Plaintext invoice total, used for amount > remaining guard. */
   invoiceAmount: number;
   /** Optional invoice number for the synthetic transaction memo. */
   invoiceNumber?: string;
@@ -87,7 +87,7 @@ export interface RecordPlaceholderResult {
   invoiceStatus: string;
   /** True if a journal entry was posted (A/R configured). */
   jePosted: boolean;
-  /** True on idempotent re-click — caller can show a softer toast. */
+  /** True on idempotent re-click, caller can show a softer toast. */
   reused: boolean;
   /** True when A/R is unconfigured and the JE didn't post. */
   warnArMissing: boolean;
@@ -213,19 +213,19 @@ export async function recordPlaceholderPayment(
     );
   }
 
-  // 4. Get the auth user — required by invoice_payments RLS
+  // 4. Get the auth user, required by invoice_payments RLS
   //    (applied_by = auth.uid()) AND by the apply_invoice_payment RPC.
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw userErr;
   const userId = userRes?.user?.id;
   if (!userId) throw new Error('Not authenticated');
 
-  // 5. Create the synthetic placeholder transaction. ZKA L2 — amount,
+  // 5. Create the synthetic placeholder transaction. ZKA L2, amount,
   //    memo, asset, type all encrypted. The plaintext `amount` mirror
   //    is what the server can SUM(); same shape as imported tx.
   const memoText = p.invoiceNumber
-    ? `Placeholder — invoice ${p.invoiceNumber}`
-    : 'Placeholder — invoice payment';
+    ? `Placeholder, invoice ${p.invoiceNumber}`
+    : 'Placeholder, invoice payment';
   const txEnc = await encryptTransaction(
     {
       memo: memoText,

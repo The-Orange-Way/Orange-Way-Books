@@ -1,14 +1,14 @@
 /**
- * invite-org-member — Supabase Edge Function
+ * invite-org-member, Supabase Edge Function
  *
  * Phase 4.3 adds the hybrid-KEM wrap pipeline on top of the 4.2 capability
- * grant. The client now decides — BEFORE calling this function — whether
+ * grant. The client now decides, BEFORE calling this function, whether
  * the recipient has a public key available and either:
  *
  *   (a) Wraps the org DEK client-side and passes the wrap payload in the
  *       request body, OR
  *   (b) Passes no wrap payload because the recipient hasn't published
- *       their keypair yet — this function records a `pending_invites`
+ *       their keypair yet, this function records a `pending_invites`
  *       row; a trigger (see 20260424000000_phase4_3_invites.sql) flips
  *       that row to `ready_to_wrap` when the recipient first unlocks
  *       their vault.
@@ -22,7 +22,7 @@
  *     "email":               "user@example.com",
  *     "org_id":              "<uuid>",
  *     "role_definition_id":  "<uuid>",
- *     "expires_at"?:         "<ISO string>",  // Phase 4.4 — Auditor only
+ *     "expires_at"?:         "<ISO string>",  // Phase 4.4, Auditor only
  *     "source"?:             "direct" | "auditor_invite", // default "direct"
  *     "wrapped_dek"?: {              // optional (path (a))
  *       "wrapped_dek": "<base64>",
@@ -65,7 +65,7 @@ const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
-// Allowed wrap algorithm identifiers — keep in sync with
+// Allowed wrap algorithm identifiers, keep in sync with
 // src/lib/key-wrapping.ts KEY_WRAP_STRATEGIES. Hard-coded here to defend
 // against a client trying to smuggle an unknown strategy string into
 // org_keys (which would break all future unwrap paths).
@@ -169,7 +169,7 @@ serve(async (req) => {
 
     // Wrap payload is optional; when present it must be well-formed.
     // If the client ships something that looks like a wrap but doesn't
-    // validate, reject outright — silently treating it as pending would
+    // validate, reject outright, silently treating it as pending would
     // hide a real client bug behind a "pending_invite" row.
     let wrapPayload: WrappedDekPayload | null = null;
     if (body.wrapped_dek !== undefined && body.wrapped_dek !== null) {
@@ -180,7 +180,7 @@ serve(async (req) => {
     }
 
     // Optional expires_at (ISO string). Validated later
-    // against the chosen role — Auditor requires it, other roles ignore
+    // against the chosen role, Auditor requires it, other roles ignore
     // it.
     let expiresAtIso: string | null = null;
     if (body.expires_at !== undefined && body.expires_at !== null && body.expires_at !== '') {
@@ -233,7 +233,7 @@ serve(async (req) => {
     // Auditor role requires an expiry date within 1 year.
     // Normalize source to 'auditor_invite' when Auditor + expiry are
     // both present. Non-Auditor roles ignore any client-supplied
-    // expires_at (stored as NULL) — we silently drop it rather than
+    // expires_at (stored as NULL), we silently drop it rather than
     // erroring, so a client that always sends the field for consistency
     // isn't forced to branch.
     const isAuditor = roleDef.name === 'Auditor';
@@ -246,7 +246,7 @@ serve(async (req) => {
       // Drop expires_at for non-Auditor invites; D12 only scopes to Auditor.
       expiresAtIso = null;
       if (source === 'auditor_invite') {
-        // Defensive — refuse the combination rather than silently flipping.
+        // Defensive, refuse the combination rather than silently flipping.
         return jsonResponse(
           { error: 'source="auditor_invite" is only valid for the Auditor role.' },
           400,
@@ -314,7 +314,7 @@ serve(async (req) => {
     //    Wrap-missing path: persist a pending_invites row.
     //    BOTH paths dispatch the invite email if the user is new.
     //
-    //    Ordering matters for cleanup — we insert org_members first
+    //    Ordering matters for cleanup, we insert org_members first
     //    (without the grant) so a failure later can reverse everything
     //    via a targeted DELETE. If org_members insert itself fails
     //    there's nothing to roll back.
@@ -405,7 +405,7 @@ serve(async (req) => {
       await writeAudit(caller.id, userId, orgId, roleDef.id, 'wrapped');
 
       // Even if the recipient already exists, we still want an email
-      // letting them know they've been added. Use inviteUserByEmail —
+      // letting them know they've been added. Use inviteUserByEmail
       // for existing accounts Supabase treats this as a magic-link
       // notification rather than a fresh signup.
       //
@@ -434,7 +434,7 @@ serve(async (req) => {
       );
     }
 
-    // Wrap NOT provided — pending invite path.
+    // Wrap NOT provided, pending invite path.
     // The recipient may or may not exist yet. Either way we:
     //   (i)   Ensure an auth user exists (invite them if new)
     //   (ii)  Upsert a pending_invites row so the Owner's client can
@@ -471,7 +471,7 @@ serve(async (req) => {
     }
 
     // If the recipient already exists AND has a user_vault_keys row,
-    // we can flip straight to ready_to_wrap — the Owner's client will
+    // we can flip straight to ready_to_wrap, the Owner's client will
     // pick this up via realtime and complete the wrap without a
     // round-trip through the DB trigger. If no keypair yet, stay at
     // awaiting_recipient and let the trigger handle the transition.

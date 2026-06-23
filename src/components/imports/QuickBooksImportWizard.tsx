@@ -1,15 +1,15 @@
 /**
- * QuickBooks Import Wizard — Track C of the importer (#30).
+ * QuickBooks Import Wizard, Track C of the importer (#30).
  *
  * Three-step flow that wires Track A's parsers + Track B's commit orchestrator
  * into a UI:
  *
- *   1. Upload — drop a QB .zip OR the 8 .xlsx files individually. Each file is
+ *   1. Upload, drop a QB .zip OR the 8 .xlsx files individually. Each file is
  *      fingerprinted; user sees what was detected.
- *   2. Review — auto-classified accounts shown editable, ambiguous ones MUST
+ *   2. Review, auto-classified accounts shown editable, ambiguous ones MUST
  *      be classified before import. Adaptive button copy reflects what's in
  *      the bundle (transactions / contacts / accounts).
- *   3. Committing — drives a progress bar from Track B's onProgress, then
+ *   3. Committing, drives a progress bar from Track B's onProgress, then
  *      shows a summary on success.
  *
  * All parsing + encryption + writes happen client-side. The wizard never
@@ -116,7 +116,7 @@ interface AccountOverride {
 export interface QuickBooksImportWizardProps {
   open: boolean;
   onClose: () => void;
-  /** Called once a successful import completes — Admin uses this to refetch. */
+  /** Called once a successful import completes, Admin uses this to refetch. */
   onImported?: (result: CommitQuickBooksImportResult) => void;
 }
 
@@ -352,7 +352,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
     setProgress({ stage: 'preparing', done: 0, total: 1 });
     setCommitError(null);
 
-    // Build commit-shape overrides — only the accounts with edits should make
+    // Build commit-shape overrides, only the accounts with edits should make
     // it across. Everything else uses the confident classification.
     const commitOverrides: Record<string, QuickBooksClassification> = {};
     for (const [name, ovr] of Object.entries(overrides)) {
@@ -379,14 +379,14 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
       });
       setResult(res);
       setStep('done');
-      // Fire-and-forget notification — failure here doesn't block the
+      // Fire-and-forget notification, failure here doesn't block the
       // import success path. Body stays generic enough that nothing
       // sensitive lands on the server (counts are not PII).
       const totalCreated = res.accountsCreated + res.contactsCreated + res.journalEntriesCreated;
       const body =
         totalCreated > 0
           ? `QuickBooks import complete: ${res.journalEntriesCreated} journal entries, ${res.contactsCreated} contacts, ${res.accountsCreated} accounts.`
-          : 'QuickBooks import complete — nothing new to add (everything already imported).';
+          : 'QuickBooks import complete, nothing new to add (everything already imported).';
       void (supabase as any)
         .rpc('emit_self_notification', {
           p_org_id: orgId,
@@ -565,7 +565,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
             )}
 
             <div className="flex-1 min-h-0 overflow-auto space-y-4">
-              {/* Ambiguous accounts — must be classified */}
+              {/* Ambiguous accounts, must be classified */}
               {ambiguousNames.length > 0 && (
                 <div className="border border-amber-200 bg-amber-50 rounded-lg">
                   <div className="px-3 py-2 border-b border-amber-200 flex items-center gap-2">
@@ -585,7 +585,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
                 </div>
               )}
 
-              {/* Auto-classified — collapsible */}
+              {/* Auto-classified, collapsible */}
               {classifications.confident && Object.keys(classifications.confident).length > 0 && (
                 <Collapsible open={autoOpen} onOpenChange={setAutoOpen}>
                   <div className="border border-border rounded-lg">
@@ -655,7 +655,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               className="h-2"
             />
             <p className="text-xs text-center text-muted-foreground">
-              Encrypting and saving — your data never leaves the browser as plaintext.
+              Encrypting and saving, your data never leaves the browser as plaintext.
             </p>
           </div>
         )}
@@ -695,7 +695,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
                 <p className="font-medium mb-1">
                   {result.accountsFallback} {result.accountsFallback === 1 ? 'account' : 'accounts'}{' '}
-                  couldn&apos;t be classified — landed in Uncategorized
+                  couldn&apos;t be classified, landed in Uncategorized
                 </p>
                 <p className="text-xs">
                   Their journal-entry lines were routed to <strong>Uncategorized Expense</strong> or{' '}

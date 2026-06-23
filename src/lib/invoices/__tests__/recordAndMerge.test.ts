@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// End-to-end integration spec — recordPlaceholderPayment (this PR) feeds
+// End-to-end integration spec, recordPlaceholderPayment (this PR) feeds
 // the merge_invoice_payment RPC consumed by mergeWithPlaceholder (PR
 // #88). Without the producer in this PR, the merge surface is dead
 // code. This test threads both helpers through the same fake supabase
@@ -317,7 +317,7 @@ describe('record + merge integration', () => {
     const syntheticTxId = store.transactions[0].id;
 
     // 2. Bank import lands the real deposit. We just shove a row into
-    //    the fake store — the real import path is out of scope.
+    //    the fake store, the real import path is out of scope.
     const realTxId = 'tx-bank-import';
     store.transactions.push({
       id: realTxId,

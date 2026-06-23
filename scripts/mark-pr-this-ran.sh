@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# mark-pr-this-ran.sh — record that /pr-this has been run against the current
+# mark-pr-this-ran.sh, record that /pr-this has been run against the current
 # HEAD. The pre-push hook reads `.git/.pr-this-ran` and refuses to push if the
 # recorded SHA doesn't match HEAD.
 #

@@ -2,7 +2,7 @@
  * Settings → Security → Recovery code
  *
  * Lets the user rotate their vault recovery code. The crypto design
- * intentionally throws the original code away after onboarding — only
+ * intentionally throws the original code away after onboarding, only
  * the MEK wrapped under the code's derived KEK is persisted. So there
  * is no "view existing code" affordance; the only operation available
  * is "generate a new one" (which invalidates the old one).
@@ -17,7 +17,7 @@
  *      (same pattern as onboarding S3) before the page lets the user
  *      navigate away.
  *
- * Surfaced by 2026-05-16 security review (combined S4 + S9 — viewing
+ * Surfaced by 2026-05-16 security review (combined S4 + S9, viewing
  * the existing code is impossible by design, so this is the only
  * meaningful settings affordance).
  */
@@ -202,7 +202,7 @@ export default function RecoveryCode() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Your recovery code unlocks your vault if you ever forget your vault password. It is the
-          only backup that works without your password — keep it somewhere safe.
+          only backup that works without your password, keep it somewhere safe.
         </p>
       </div>
 
@@ -339,7 +339,7 @@ export default function RecoveryCode() {
           </div>
 
           <Button type="button" onClick={handleStartVerify} className="w-full">
-            I have saved it — verify
+            I have saved it, verify
           </Button>
         </section>
       )}

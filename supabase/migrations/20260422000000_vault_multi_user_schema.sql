@@ -11,7 +11,7 @@
 --   docs/OWB-MULTIUSER-DESIGN.md §2 (capability schema) and §8 "Decisions locked"
 --   docs/OWB-USER-MANAGEMENT-ZKA.md §14 (DDL sketches)
 --
--- What this migration does NOT do (explicitly — future phases):
+-- What this migration does NOT do (explicitly, future phases):
 --   * Seed capabilities or role_definitions rows (4.2)
 --   * Rewrite existing RLS policies to use user_has_capability (4.2)
 --   * Add WRITE policies to the six new tables beyond lifecycle needs (4.2)
@@ -25,7 +25,7 @@
 -- ── user_vault_keys ──────────────────────────────────────────────────
 -- Per-user hybrid keypair. Shared across all orgs for a given user
 -- (one master keypair per user, v1). The private key is
--- wrapped under the user's MEK before it touches the server — we only
+-- wrapped under the user's MEK before it touches the server, we only
 -- ever see ciphertext. Password change re-wraps with the new MEK via
 -- atomic UPDATE (Decision D5).
 --
@@ -86,7 +86,7 @@ COMMENT ON COLUMN public.user_vault_keys.key_algorithm IS
   'Algorithm identifier; bump when changing KEM combiner or adding '
   'ML-DSA signing half.';
 
--- updated_at auto-touch trigger — mirrors the pattern used by
+-- updated_at auto-touch trigger, mirrors the pattern used by
 -- org_settings so the re-wrap path does not have to set it manually.
 CREATE OR REPLACE FUNCTION public.touch_user_vault_keys_updated_at()
 RETURNS TRIGGER
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS public.capabilities (
 
 ALTER TABLE public.capabilities ENABLE ROW LEVEL SECURITY;
 
--- Every authenticated user may read the capability registry — this
+-- Every authenticated user may read the capability registry, this
 -- is how the frontend renders the "what can I do" surface. Writes
 -- arrive exclusively via migrations, never via the client, so no
 -- INSERT/UPDATE/DELETE policies are defined.
@@ -212,7 +212,7 @@ COMMENT ON TABLE public.role_capabilities IS
 -- Per-grant row linking a user to a role in a specific org. The legacy
 -- plaintext role column lives on org_members; Phase 4.1 creates the
 -- table fresh with role_definition_id as the sole role pointer
--- (per instructions: "DO NOT add a legacy role TEXT column — we're
+-- (per instructions: "DO NOT add a legacy role TEXT column, we're
 -- creating fresh so no legacy to preserve").
 --
 -- Population is Phase 4.2+: the solo-user flow currently leans on
@@ -260,7 +260,7 @@ COMMENT ON TABLE public.org_member_roles IS
 -- SECURITY DEFINER so RLS policies on the 4.2 mutating-table rewrites
 -- can call it from any org context without recursing through the
 -- caller's own RLS. STABLE because it is a pure read within the
--- transaction. Returns FALSE (not NULL) when the user has no grant —
+-- transaction. Returns FALSE (not NULL) when the user has no grant
 -- including the empty-table case we will live in until 4.2 seeds data.
 CREATE OR REPLACE FUNCTION public.user_has_capability(
   p_user_id    UUID,

@@ -5,7 +5,7 @@
 -- Evidence:
 --   * src/components/onboarding/OnboardingWizard.tsx line 282 INSERTs
 --     org_settings with all keys returned by encryptOrgSettings (defined
---     in src/lib/crypto-fields.ts) — which spreads:
+--     in src/lib/crypto-fields.ts), which spreads:
 --         primary_currency, secondary_currency, bitcoin_display,
 --         fiscal_year_type, encrypted_fiscal_month, fiscal_start_month,
 --         date_format, time_format, number_format
@@ -18,7 +18,7 @@
 -- All four columns are NULLABLE. Three hold encrypted-text ciphertext
 -- (the frontend encrypts before INSERT via crypto-fields.ts).
 -- fiscal_start_month is an INTEGER stub the frontend always writes as
--- NULL — the real fiscal start month lives in encrypted_fiscal_month.
+-- NULL, the real fiscal start month lives in encrypted_fiscal_month.
 
 ALTER TABLE public.org_settings
   ADD COLUMN IF NOT EXISTS fiscal_year_type    TEXT    NULL,
@@ -27,7 +27,7 @@ ALTER TABLE public.org_settings
   ADD COLUMN IF NOT EXISTS number_format       TEXT    NULL;
 
 COMMENT ON COLUMN public.org_settings.fiscal_year_type   IS 'Encrypted ciphertext: fiscal year type. NULL until user picks one.';
-COMMENT ON COLUMN public.org_settings.fiscal_start_month IS 'Plaintext stub — always NULL. The real fiscal start month lives in encrypted_fiscal_month.';
+COMMENT ON COLUMN public.org_settings.fiscal_start_month IS 'Plaintext stub, always NULL. The real fiscal start month lives in encrypted_fiscal_month.';
 COMMENT ON COLUMN public.org_settings.time_format        IS 'Encrypted ciphertext: user preferred time format (12h / 24h).';
 COMMENT ON COLUMN public.org_settings.number_format      IS 'Encrypted ciphertext: us or eu number formatting.';
 

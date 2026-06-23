@@ -41,10 +41,10 @@ const MIN_ZXCVBN_SCORE = 4;
  * We use zxcvbn-ts' `wikipedia` wordlist (≈30k entries) filtered to short
  * lowercase English words. The task spec referenced the EFF large wordlist,
  * but zxcvbn-ts does not bundle it and we don't want to pull in a separate
- * package or a 100KB static JSON for this screen — the filtered wikipedia
+ * package or a 100KB static JSON for this screen, the filtered wikipedia
  * pool gives us an equivalently large, high-entropy source.
  *
- * Selection happens via crypto.getRandomValues — never Math.random.
+ * Selection happens via crypto.getRandomValues, never Math.random.
  */
 const WORDLIST: readonly string[] = Object.freeze(
   (zxcvbnEn.dictionary.wikipedia as readonly string[]).filter((w) => /^[a-z]{4,8}$/.test(w)),
@@ -95,7 +95,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   const [generated, setGenerated] = useState<string | null>(null);
   const [savedConfirmed, setSavedConfirmed] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Recovery code step — shown after vault is created, before onNext fires.
+  // Recovery code step, shown after vault is created, before onNext fires.
   const [pendingResult, setPendingResult] = useState<VaultSetupResult | null>(null);
   const [recoveryCodeSaved, setRecoveryCodeSaved] = useState(false);
   const [recoveryCodeCopied, setRecoveryCodeCopied] = useState(false);
@@ -108,7 +108,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   const [verifyError, setVerifyError] = useState('');
 
   // Warn the user if they try to close/refresh the tab while the recovery
-  // code is on screen — once they close, the code is gone forever.
+  // code is on screen, once they close, the code is gone forever.
   useEffect(() => {
     if (!pendingResult) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -123,7 +123,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [pendingResult]);
 
-  // Debounce zxcvbn scoring — it's not free for long inputs.
+  // Debounce zxcvbn scoring, it's not free for long inputs.
   const [debounced, setDebounced] = useState(password);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(password), 150);
@@ -141,7 +141,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   const matches = password.length > 0 && password === confirm;
   // When a generated passphrase is in play we require the user to check
   // "I saved this" before continuing. For manually-typed passwords, this
-  // gate does not apply — the user already saw the characters as they typed.
+  // gate does not apply, the user already saw the characters as they typed.
   const requiresSavedCheck = generated !== null;
   const isValid = meetsLength && meetsScore && matches && !requiresSavedCheck | savedConfirmed;
 
@@ -152,7 +152,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     setConfirm(phrase);
     setSavedConfirmed(false);
     setCopied(false);
-    // Best-effort clipboard copy — fails silently on browsers without
+    // Best-effort clipboard copy, fails silently on browsers without
     // the API. The phrase is still visible on screen in that case.
     void navigator.clipboard
       ?.writeText(phrase)
@@ -182,7 +182,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     setLoading(true);
     try {
       const result = await setupVault(password);
-      // Show recovery code before proceeding — user must confirm they saved it.
+      // Show recovery code before proceeding, user must confirm they saved it.
       setPendingResult(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create vault.';
@@ -191,7 +191,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     setLoading(false);
   };
 
-  // Recovery code screen — shown after vault creation, before proceeding.
+  // Recovery code screen, shown after vault creation, before proceeding.
   if (pendingResult) {
     const words = pendingResult.recoveryCode.split(' ');
     return (
@@ -206,7 +206,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
         </p>
 
         {/* Hide the actual 12-word code during the verify stage so the user
-            cannot just read it off the screen — defeats "prove you saved it".
+            cannot just read it off the screen, defeats "prove you saved it".
             "Back to code" toggles confirmStage back to 'display'. */}
         {confirmStage === 'display' && (
           <div className="rounded-md border-2 border-orange-500/40 bg-orange-500/5 p-4 space-y-3">
@@ -260,7 +260,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
                   try {
                     openRecoveryBackup({ code: pendingResult.recoveryCode });
                   } catch {
-                    // No-op — clipboard fallback already available
+                    // No-op, clipboard fallback already available
                   }
                 }}
               >
@@ -464,8 +464,8 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
             className={`text-xs font-medium ${score < MIN_ZXCVBN_SCORE ? 'text-destructive' : 'text-muted-foreground'}`}
           >
             {SCORE_LABELS[score]}
-            {!meetsLength && ` — minimum ${MIN_VAULT_PASSWORD_LENGTH} characters`}
-            {meetsLength && !meetsScore && ' — add more unrelated words or length'}
+            {!meetsLength && `, minimum ${MIN_VAULT_PASSWORD_LENGTH} characters`}
+            {meetsLength && !meetsScore && ', add more unrelated words or length'}
             {strength?.crackTimesDisplay && score >= MIN_ZXCVBN_SCORE && (
               <span className="text-muted-foreground">
                 {' '}
@@ -534,7 +534,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
       <div className="flex items-start gap-2 p-3 rounded-md bg-muted">
         <AlertTriangle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
         <p className="text-xs text-muted-foreground">
-          Write this down — if you lose it, your data cannot be recovered.
+          Write this down, if you lose it, your data cannot be recovered.
         </p>
       </div>
 

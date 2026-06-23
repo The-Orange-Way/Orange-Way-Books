@@ -48,7 +48,7 @@ async function shot(page, label, caption) {
   const path = join(OUT_DIR, filename);
   await page.screenshot({ path, fullPage: true });
   shots.push({ label, filename, path, caption });
-  console.log(`📸 ${filename} — ${caption}`);
+  console.log(`📸 ${filename}, ${caption}`);
 }
 
 // ─── 0. Reset the flash_platform_tokens singleton for a clean OAuth demo ──
@@ -90,7 +90,7 @@ const page = await ctx.newPage();
 async function unlockVaultIfNeeded(page) {
   const unlockBtn = page.locator('button:has-text("Unlock Vault")').first();
   if (await unlockBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log('   🔓 vault locked — unlocking');
+    console.log('   🔓 vault locked, unlocking');
     await page.locator('input[type="password"]').first().fill(VAULT_PASSWORD);
     await unlockBtn.click();
     await page.waitForTimeout(3000);
@@ -98,7 +98,7 @@ async function unlockVaultIfNeeded(page) {
   }
 }
 
-// Intercept the Flash authorize URL — substitute a fake "approve" page.
+// Intercept the Flash authorize URL, substitute a fake "approve" page.
 await ctx.route('**/flash.example/**', async (route) => {
   const url = new URL(route.request().url());
   const redirectUri = url.searchParams.get('redirect_uri');
@@ -110,7 +110,7 @@ await ctx.route('**/flash.example/**', async (route) => {
     .info{background:#fff;padding:20px;border-radius:8px;border:1px solid #f0e8d8;margin-top:20px}
     .lbl{color:#666;font-size:13px}.val{font-family:monospace;font-size:14px;color:#222;word-break:break-all}</style>
     </head><body>
-    <h1>⚡ Flash — Mock Authorize Page</h1>
+    <h1>⚡ Flash, Mock Authorize Page</h1>
     <p>This is a Playwright-intercepted mock of the real Flash OAuth screen.
     The real Flash authorize URL will replace this once Bram delivers credentials.</p>
     <div class="info">
@@ -128,7 +128,7 @@ await ctx.route('**/flash.example/**', async (route) => {
   await route.fulfill({ contentType: 'text/html; charset=utf-8', body: html });
 });
 
-// Intercept the Flash payment link URL — substitute a fake "checkout" page.
+// Intercept the Flash payment link URL, substitute a fake "checkout" page.
 // MOCK_FLASH=true in the edge function returns `http://localhost:8787/pay/<id>?ext=<ref>&...`
 let lastPaymentExternalRef = null;
 await ctx.route('**/pay/**', async (route) => {
@@ -144,13 +144,13 @@ await ctx.route('**/pay/**', async (route) => {
     .pay{background:#fff;padding:30px;border-radius:8px;border:1px solid #f0e8d8;margin-top:20px;text-align:center}
     .lbl{color:#666;font-size:13px}</style>
     </head><body>
-    <h1>⚡ Flash — Mock Checkout Page</h1>
+    <h1>⚡ Flash, Mock Checkout Page</h1>
     <p>This is a Playwright-intercepted mock of the real Flash payment page.
     Customers will be redirected here from Orange Way Books to complete payment.</p>
     <div class="pay">
       <div class="lbl">Pay Orange Way Books</div>
       <div class="amt">$30.00 USD</div>
-      <div class="lbl">Subscription — 1 month</div>
+      <div class="lbl">Subscription, 1 month</div>
     </div>
     <form method="POST" action="/mark-as-paid">
       <button class="btn" type="submit">⚡ Mark as paid (mock)</button>
@@ -159,7 +159,7 @@ await ctx.route('**/pay/**', async (route) => {
   await route.fulfill({ contentType: 'text/html; charset=utf-8', body: html });
 });
 
-// Intercept the mock-paid form submit — record we're done, navigate to /app/billing.
+// Intercept the mock-paid form submit, record we're done, navigate to /app/billing.
 await ctx.route('**/mark-as-paid', async (route) => {
   // Just redirect back to the billing page.
   await route.fulfill({
@@ -185,7 +185,7 @@ try {
   await page.waitForURL(/\/app(\/.*)?$/, { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-  // ─── Step 2: Onboarding wizard — vault password + recovery code ──────────
+  // ─── Step 2: Onboarding wizard, vault password + recovery code ──────────
   await page.locator('input[type="password"]').first().fill(VAULT_PASSWORD);
   const passInputs = await page.locator('input[type="password"]').all();
   if (passInputs.length > 1) await passInputs[1].fill(VAULT_PASSWORD);
@@ -221,7 +221,7 @@ try {
     .first()
     .click();
   // Wait for the wizard to disappear (no more "Set Up Orange Way Books" heading).
-  // The wizard renders at /app so URL doesn't change — must detect by content.
+  // The wizard renders at /app so URL doesn't change, must detect by content.
   await page
     .locator('text=Set Up Orange Way Books')
     .waitFor({ state: 'detached', timeout: 60000 })
@@ -234,7 +234,7 @@ try {
     'Dashboard after signup completes. Behind the scenes, the signup hook auto-created a billing_account and a trialing subscription with trial_ends_at = now + 45 days.',
   );
 
-  // ─── Step 6: /app/billing — trialing state ────────────────────────────────
+  // ─── Step 6: /app/billing, trialing state ────────────────────────────────
   await page.goto(`${APP_URL}/app/billing`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   await unlockVaultIfNeeded(page);
@@ -242,10 +242,10 @@ try {
   await shot(
     page,
     'billing-trial',
-    'Billing page during the 45-day free trial. No payment required yet — trial countdown is visible.',
+    'Billing page during the 45-day free trial. No payment required yet, trial countdown is visible.',
   );
 
-  // ─── Step 7: Admin Flash page — Not connected ─────────────────────────────
+  // ─── Step 7: Admin Flash page, Not connected ─────────────────────────────
   await page.goto(`${APP_URL}/app/admin/flash`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   await unlockVaultIfNeeded(page);
@@ -265,7 +265,7 @@ try {
   await shot(
     page,
     'flash-authorize-mock',
-    "Mocked Flash OAuth authorize page (Playwright intercept). In production this is Flash's real authorize URL. Note the state, redirect URI, and scope — these match the spec Bram published.",
+    "Mocked Flash OAuth authorize page (Playwright intercept). In production this is Flash's real authorize URL. Note the state, redirect URI, and scope, these match the spec Bram published.",
   );
 
   // ─── Step 9: Approve → return to Orange Way Books → callback → connected ──────────
@@ -281,7 +281,7 @@ try {
     'After OAuth approve, Orange Way Books exchanges the code for tokens via the flash-oauth-callback edge function (MOCK_FLASH=true returns fake tokens for now) and stores them server-side. Admin page now shows "Connected ✓".',
   );
 
-  // ─── Step 10: Back to /app/billing — Pay $30 button ───────────────────────
+  // ─── Step 10: Back to /app/billing, Pay $30 button ───────────────────────
   // Trial is still active so the Pay button may not be primary yet. For
   // screenshot purposes we visit anyway to show the page state.
   await page.goto(`${APP_URL}/app/billing`, { waitUntil: 'networkidle' });
@@ -321,7 +321,7 @@ try {
       "Mocked Flash payment-link page (Playwright intercept). In production, this would be Flash's real checkout page where the customer pays via Lightning or another rail.",
     );
 
-    // Click the mock "Mark as paid" button — triggers our route handler.
+    // Click the mock "Mark as paid" button, triggers our route handler.
     const markBtn = page.locator('button:has-text("Mark as paid")').first();
     if (await markBtn.isVisible().catch(() => false)) {
       await markBtn.click();
@@ -361,7 +361,7 @@ try {
       }
     }
   } else {
-    console.log('   Pay $30 button not visible — trial still active. Skipping the pay flow.');
+    console.log('   Pay $30 button not visible, trial still active. Skipping the pay flow.');
     shots.push({
       label: 'pay-flow-skipped',
       filename: 'pay-flow-skipped.txt',
@@ -380,7 +380,7 @@ try {
 // ─── Save summary + upload to Outline ───────────────────────────────────────
 const totalMs = Date.now() - start;
 console.log(
-  `\n📝 ${shots.length} screenshots in ${(totalMs / 1000).toFixed(1)}s — uploading to Outline…`,
+  `\n📝 ${shots.length} screenshots in ${(totalMs / 1000).toFixed(1)}s, uploading to Outline…`,
 );
 
 const uploaded = [];
@@ -422,7 +422,7 @@ for (const s of shots) {
   console.log(`   ${up.ok ? '✅' : '❌'} ${s.filename}`);
 }
 
-const doc = `# Pay with Flash — E2E walkthrough — ${RUN_ID}
+const doc = `# Pay with Flash, E2E walkthrough, ${RUN_ID}
 
 > Automated Playwright run against ${APP_URL} (orangewaybooks-dev, project ref pfoywzsziessalioerlg). MOCK_FLASH=true on the lab dev edge functions, so the OAuth + payment-link round trips return deterministic mock values while we wait for Bram's real Flash credentials.
 

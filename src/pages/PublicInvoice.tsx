@@ -1,5 +1,5 @@
 /**
- * OWB Invoicing — Public hosted view (customer-facing).
+ * OWB Invoicing, Public hosted view (customer-facing).
  *
  * Route: /i/:urlId
  * Decryption key: location.hash (URL fragment, never reaches the server).
@@ -13,7 +13,7 @@
  *   5. Fire-and-forget RPC record_public_invoice_view to log + flip SENT → VIEWED
  *
  * No vault unlock needed. No org auth. This is a public surface intended
- * for the customer who received the invoice email — same shape as a
+ * for the customer who received the invoice email, same shape as a
  * Bitwarden Send share link.
  */
 
@@ -66,7 +66,7 @@ export default function PublicInvoice() {
       setState({
         kind: 'error',
         message:
-          'This link is missing its decryption key. The key lives in the part after the # — make sure the URL was copied in full from your email.',
+          'This link is missing its decryption key. The key lives in the part after the #, make sure the URL was copied in full from your email.',
       });
       return;
     }
@@ -210,7 +210,7 @@ export default function PublicInvoice() {
               <tbody>
                 {payload.lines.map((l, i) => (
                   <tr key={i} className="border-b border-border/40">
-                    <td className="py-2.5">{l.description || '—'}</td>
+                    <td className="py-2.5">{l.description || '-'}</td>
                     <td className="py-2.5 text-right font-mono text-xs">
                       {l.quantity != null ? l.quantity : ''}
                     </td>

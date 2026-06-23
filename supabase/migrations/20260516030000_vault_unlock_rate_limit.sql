@@ -1,4 +1,4 @@
--- S10 — Vault unlock rate-limit RPC
+-- S10, Vault unlock rate-limit RPC
 --
 -- The client already logs every unlock attempt (success or failure) to
 -- public.vault_security_events via the logSecurityEvent helper:
@@ -13,7 +13,7 @@
 -- The 6th attempt is blocked until 15 minutes have passed since the FIRST
 -- failure in the window (sliding cooldown).
 --
--- A successful unlock counts as "ok" — the client should call this AFTER
+-- A successful unlock counts as "ok", the client should call this AFTER
 -- every wrong-password attempt as well as before each attempt; the RPC
 -- itself is read-only, so calling it during normal use is cheap.
 --

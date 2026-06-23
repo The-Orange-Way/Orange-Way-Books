@@ -1,5 +1,5 @@
 /**
- * Orange Way Books Ledger Engine — Pure Accounting Math
+ * Orange Way Books Ledger Engine, Pure Accounting Math
  *
  * Computes balances, KPIs, and report data entirely client-side.
  * All functions are pure: data in, results out, no side effects.
@@ -23,7 +23,7 @@ export interface JournalLine {
   description: string | null;
   journalEntryId: string;
   memo?: string | null;
-  // Dual-currency fields — null for pre-dual rows (safe to ignore in all existing code)
+  // Dual-currency fields, null for pre-dual rows (safe to ignore in all existing code)
   amountNative?: number | null;
   amountPrimary?: number | null;
   walletCurrency?: string | null;
@@ -123,7 +123,7 @@ export function computeAccountBalances(
 
     // Aggregate in primary currency when dual-currency metadata is
     // present (amount_primary); fall back to signed debit-credit for
-    // pre-dual rows. primaryAmount() encodes the sign — split it back
+    // pre-dual rows. primaryAmount() encodes the sign, split it back
     // into debit/credit buckets so normalBalance() still works.
     const amt = primaryAmount(line);
     const debitPart = amt > 0 ? amt : 0;
@@ -182,7 +182,7 @@ export function computeKPIs(balances: AccountBalance[]): KPIs {
     const t = b.accountType.toLowerCase();
     const g = b.accountGroup.toLowerCase();
 
-    // Accept both 'revenue' and 'income' — QuickBooks-style charts of
+    // Accept both 'revenue' and 'income', QuickBooks-style charts of
     // accounts (including Orange Way Books' default seed) label top-level
     // revenue accounts as INCOME; some imports use REVENUE.
     if ((t === 'revenue') | (t === 'income')) {
@@ -263,9 +263,9 @@ export interface WalletBalance {
   walletType: string | null;
   initialBalance: number;
   txTotal: number;
-  /** Native (wallet-currency) balance — same as currentBalance for backward compat. */
+  /** Native (wallet-currency) balance, same as currentBalance for backward compat. */
   currentBalance: number;
-  /** Alias for currentBalance — keeps all existing callers working. */
+  /** Alias for currentBalance, keeps all existing callers working. */
   balanceNative: number;
   /** Primary-currency equivalent balance (sum of amountPrimary for this wallet's JE lines). Null when no dual-amount data yet. */
   balancePrimary: number | null;

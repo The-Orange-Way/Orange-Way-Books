@@ -87,13 +87,13 @@ export function DefaultMappingPanel({
             onValueChange={handleAccount}
           >
             <SelectTrigger id="default-account-select" data-testid="default-account-select">
-              <SelectValue placeholder="Skip — leave empty" />
+              <SelectValue placeholder="Skip, leave empty" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE_VALUE}>Skip — leave empty</SelectItem>
+              <SelectItem value={NONE_VALUE}>Skip, leave empty</SelectItem>
               {accountOptions.map((o) => (
                 <SelectItem key={o.code} value={o.code}>
-                  {o.code ? `${o.code} — ${o.name}` : o.name}
+                  {o.code ? `${o.code}, ${o.name}` : o.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -111,10 +111,10 @@ export function DefaultMappingPanel({
             onValueChange={handleContact}
           >
             <SelectTrigger id="default-contact-select" data-testid="default-contact-select">
-              <SelectValue placeholder="Skip — leave empty" />
+              <SelectValue placeholder="Skip, leave empty" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE_VALUE}>Skip — leave empty</SelectItem>
+              <SelectItem value={NONE_VALUE}>Skip, leave empty</SelectItem>
               {contactOptions.map((o) => (
                 <SelectItem key={o.code} value={o.code}>
                   {o.name}

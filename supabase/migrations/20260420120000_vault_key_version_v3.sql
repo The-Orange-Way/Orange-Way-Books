@@ -1,13 +1,13 @@
 -- Vault KDF upgrade path: Argon2id (v3).
 --
--- Context — previous work:
+-- Context, previous work:
 --   20260418000200_vault_salt.sql introduced per-org random salts and the
 --   vault_key_version column with values 1 (legacy deterministic salt) and
 --   2 (per-org random salt + PBKDF2-SHA256 310k iterations).
 --
 -- This migration adds:
 --   1. Documentation for vault_key_version = 3 (Argon2id, OWASP 2023).
---   2. rpc_upgrade_vault_to_v3 — a SECURITY INVOKER function that the
+--   2. rpc_upgrade_vault_to_v3, a SECURITY INVOKER function that the
 --      client-side migration orchestrator (src/lib/vault-migration.ts)
 --      calls as the final step of a v2 → v3 upgrade. Accepts pre-encrypted
 --      ciphertext (the server never sees plaintext) plus a new verifier
@@ -18,7 +18,7 @@
 --   Atomicity. If we re-encrypt rows one by one from the client and the
 --   browser crashes mid-way, some rows are readable under the v2 MEK and
 --   others under v3. That's unrecoverable. One transactional RPC means
---   either the org is fully v3 or fully v2 — never a split state.
+--   either the org is fully v3 or fully v2, never a split state.
 --
 -- What this RPC does NOT handle (follow-up work):
 --   Attachment blob content (the ciphertext stored in Supabase Storage).

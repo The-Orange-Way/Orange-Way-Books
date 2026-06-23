@@ -198,7 +198,7 @@ export default function Billing() {
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-1">Billing</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Orange Way Books subscription — paid via Flash (Bitcoin Lightning or fiat).
+        Orange Way Books subscription, paid via Flash (Bitcoin Lightning or fiat).
       </p>
 
       <div className="grid gap-4 max-w-3xl">
@@ -286,7 +286,7 @@ export default function Billing() {
                       </TableCell>
                       <TableCell>{paymentStatusBadge(p.status)}</TableCell>
                       <TableCell className="text-sm">
-                        {p.net_cents != null ? formatMoney(p.net_cents, p.currency) : '—'}
+                        {p.net_cents != null ? formatMoney(p.net_cents, p.currency) : '-'}
                       </TableCell>
                     </TableRow>
                   ))}

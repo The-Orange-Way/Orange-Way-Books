@@ -1,5 +1,5 @@
 /**
- * Playwright global setup — verifies the local stack is up before any
+ * Playwright global setup, verifies the local stack is up before any
  * test runs. We intentionally do NOT auto-start Supabase or the mock
  * Flash server: `supabase start` takes 30-60s and can wedge mid-run,
  * and the mock needs env vars the user controls. Fail fast with a clear
@@ -23,7 +23,7 @@ const VAULT_URL = process.env.VAULT_BASE_URL ?? 'http://localhost:8080';
 async function probe(url: string, label: string, hint: string): Promise<void> {
   try {
     const res = await fetch(url, { method: 'GET' });
-    // We don't care about status — only that something is listening and
+    // We don't care about status, only that something is listening and
     // it didn't fail at the network layer.
     if (res.status >= 500) {
       throw new Error(`${label} responded ${res.status}`);

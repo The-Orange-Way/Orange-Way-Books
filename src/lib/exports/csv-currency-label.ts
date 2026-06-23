@@ -5,10 +5,10 @@ import type { BitcoinDisplay } from '@/types';
  * BTC display mode is spelled out so amounts can stay numeric and still be interpretable.
  *
  * Ledger unit labels for the **Currency** column next to a plain numeric **Amount** cell
- * (no ₿ / $ in Amount — those belong in PDF/print only so Excel can SUM).
+ * (no ₿ / $ in Amount, those belong in PDF/print only so Excel can SUM).
  *
  * **ZKA (Orange Way Books):** This helper only combines data that already exists in the
- * browser after unlock — row currency codes plus `bitcoinDisplay` from org settings
+ * browser after unlock, row currency codes plus `bitcoinDisplay` from org settings
  * obtained via `decryptOrgSettings` / `useOrgSettings`. It does not call the network,
  * log secrets, or persist exports; callers build CSV locally (see `exportToCsv`) so
  * plaintext exists only on the user’s device.

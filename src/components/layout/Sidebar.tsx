@@ -36,7 +36,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   // App is mounted at /app/*; all sidebar paths must be absolute under /app.
-  // Path /app/wallets is retained for URL stability — the visible label is "Accounts".
+  // Path /app/wallets is retained for URL stability, the visible label is "Accounts".
   { title: 'Insights', path: '/app', icon: Home, exact: true },
   { title: 'Accounts', path: '/app/accounts', icon: Wallet, exact: false },
   {
@@ -331,7 +331,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           )}
         </button>
 
-        {/* Profile dropdown — opens upward */}
+        {/* Profile dropdown, opens upward */}
         {profileOpen && (
           <div
             className="absolute left-3 right-3 bg-white overflow-hidden z-50"

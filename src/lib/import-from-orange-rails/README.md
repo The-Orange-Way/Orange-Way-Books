@@ -21,7 +21,7 @@ summary / warnings / errors / classification hints, then applies each section
 through OWB's existing commit handlers.
 
 The staged row keys (`name`, `code`, `type`, `je_date`, `je_ref_#`, etc.) match
-OWB's `ImportPreviewRow.data` exactly — by design of the contract — so OWB's
+OWB's `ImportPreviewRow.data` exactly, by design of the contract, so OWB's
 existing `src/lib/csv/*` validators and the per-page commit handlers accept
 these rows with zero translation.
 
@@ -63,7 +63,7 @@ the next planned change (separate PR).
 
 ## ZKA boundary
 
-The payload arrives on the user's machine as plaintext — Orange Rails plugins
+The payload arrives on the user's machine as plaintext, Orange Rails plugins
 run locally on an operator workstation. OWB encrypts each staged row in the browser
 before write, using the same crypto path the inline `ImportPopup` widgets
 already use. The server never sees plaintext.

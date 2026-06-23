@@ -1,4 +1,4 @@
--- sync_events.status — track failed + deleted alongside completed.
+-- sync_events.status, track failed + deleted alongside completed.
 --
 -- The or-webhook-receiver previously only handled `sync.completed` and
 -- 202-ACKed every other event type without persisting. Adding `status`
@@ -9,7 +9,7 @@
 -- Values: 'completed' (default) | 'failed' | 'deleted'.
 --
 -- Forward-additive: existing rows keep the default ('completed') which
--- preserves prior semantics — every row already in the table came from
+-- preserves prior semantics, every row already in the table came from
 -- a sync.completed delivery.
 --
 -- Refs:
@@ -27,7 +27,7 @@ ALTER TABLE public.sync_events
 
 -- Partial index for the Connections page's "show me anything that needs
 -- attention" badge query. Most rows are 'completed' so a full index would
--- be wasteful — this stays small.
+-- be wasteful, this stays small.
 CREATE INDEX IF NOT EXISTS ix_sync_events_status_attention
   ON public.sync_events (org_id, created_at DESC)
   WHERE status IN ('failed', 'deleted');

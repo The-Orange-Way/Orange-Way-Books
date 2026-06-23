@@ -218,7 +218,7 @@ export async function buildTakeoutFile(
         content_base64,
       });
     } catch (err) {
-      // Keep the metadata even if the blob failed — helpful for diagnosis.
+      // Keep the metadata even if the blob failed, helpful for diagnosis.
       attachments.push({
         id: row.id as string,
         entity_type: row.entity_type,

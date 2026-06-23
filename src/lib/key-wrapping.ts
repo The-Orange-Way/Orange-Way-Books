@@ -29,7 +29,7 @@ import {
 } from './pqc';
 
 // ------------------------------------------------------------------
-// Strategy contract — consumers depend on this, not on hybrid.
+// Strategy contract, consumers depend on this, not on hybrid.
 // ------------------------------------------------------------------
 
 export interface KeyWrapStrategy {
@@ -41,7 +41,7 @@ export interface KeyWrapStrategy {
 }
 
 // ------------------------------------------------------------------
-// AES-GCM primitives — matched to vault.ts's at-rest format for
+// AES-GCM primitives, matched to vault.ts's at-rest format for
 // familiarity. IV is 12 bytes; tag is 16 bytes appended to ciphertext.
 // ------------------------------------------------------------------
 
@@ -150,7 +150,7 @@ const hybridX25519MlKem768Strategy: KeyWrapStrategy = Object.freeze({
 });
 
 // ------------------------------------------------------------------
-// Strategy registry — add new algorithms here, not by editing the hybrid.
+// Strategy registry, add new algorithms here, not by editing the hybrid.
 // ------------------------------------------------------------------
 
 export const KEY_WRAP_STRATEGIES: Readonly<Record<string, KeyWrapStrategy>> = Object.freeze({
@@ -160,7 +160,7 @@ export const KEY_WRAP_STRATEGIES: Readonly<Record<string, KeyWrapStrategy>> = Ob
 export const DEFAULT_WRAP_ALGORITHM = 'hybrid-x25519-mlkem768';
 
 // ------------------------------------------------------------------
-// Orchestrator — fan out a data key to recipients, returning rows
+// Orchestrator, fan out a data key to recipients, returning rows
 // ready for whichever per-recipient wrapping table the caller writes to.
 // ------------------------------------------------------------------
 

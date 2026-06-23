@@ -111,7 +111,7 @@ describe('validateOpeningBalanceEntries', () => {
 
   it('tolerates sub-cent floating-point drift (within 0.005)', () => {
     // 100.10 + 200.20 + 50.05 = 350.35
-    // 350.34 + 0.01 = 350.35 — but float arithmetic may give 350.34999...
+    // 350.34 + 0.01 = 350.35, but float arithmetic may give 350.34999...
     const result = validateOpeningBalanceEntries([
       entry({ accountId: 'a1', debit: 100.1 }),
       entry({ accountId: 'a2', debit: 200.2 }),

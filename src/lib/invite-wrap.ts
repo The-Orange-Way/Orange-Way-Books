@@ -25,15 +25,15 @@
  *
  *   2. The org DEK handed in by the caller is opaque to this module.
  *      Today the caller supplies a placeholder 32-byte slot
- *      — real shared-DEK establishment is Phase 4.5 hard re-key. The
+ *     , real shared-DEK establishment is Phase 4.5 hard re-key. The
  *      wrap pipeline is therefore exercised end-to-end now so the 4.5
  *      migration can swap the payload without disturbing the invite UX.
  *
  * ── Non-goals ──────────────────────────────────────────────────────
  *
- *   * No signing key (ML-DSA-65) yet — that is Phase 4.4.
- *   * No hard re-key — that is Phase 4.5.
- *   * No recipient-side unwrap helper here — the recipient's
+ *   * No signing key (ML-DSA-65) yet, that is Phase 4.4.
+ *   * No hard re-key, that is Phase 4.5.
+ *   * No recipient-side unwrap helper here, the recipient's
  *      VaultContext will read `org_keys.wrapped_dek` alongside their
  *      own hybrid secret key (Phase 4.5+). For 4.3 we only need the
  *      wrap side.
@@ -84,7 +84,7 @@ export interface OrgDekWrapPayload {
 
 /**
  * Result shape for `lookupRecipientPublicKey`. Null `publicKeyB64` means
- * the recipient has not yet published a keypair — the caller should
+ * the recipient has not yet published a keypair, the caller should
  * route the invite through the `pending_invites` path.
  */
 export interface RecipientKeyLookupResult {
@@ -119,7 +119,7 @@ export function generatePlaceholderOrgDek(): Uint8Array {
 
 /**
  * Fetch a recipient's hybrid public key from user_vault_keys. Returns
- * null when the recipient does not yet have a keypair published — the
+ * null when the recipient does not yet have a keypair published, the
  * caller should fall back to the pending_invites path.
  *
  * RLS (policy `user_vault_keys_select_for_inviters`) lets any caller
@@ -137,7 +137,7 @@ export async function lookupRecipientPublicKey(
     .eq('user_id', recipientUserId)
     .maybeSingle();
 
-  // A PostgREST error here (RLS denial, missing table) is genuine —
+  // A PostgREST error here (RLS denial, missing table) is genuine
   // surface it rather than silently falling back to "no key", which
   // would misleadingly route the Owner into the pending-invite path.
   if (error) {
@@ -155,7 +155,7 @@ export async function lookupRecipientPublicKey(
  *
  * The recipient's public key is base64-encoded (as stored in
  * user_vault_keys.public_key_b64). We validate it decodes cleanly
- * before calling into the strategy — a truncated or malformed key
+ * before calling into the strategy, a truncated or malformed key
  * would otherwise surface as a confusing byte-length error from
  * key-wrapping.ts.
  */
@@ -212,7 +212,7 @@ export async function wrapOrgDekForRecipient(
 /**
  * End-to-end convenience used by Admin.tsx: look up the recipient's
  * public key and wrap the provided org DEK for them. Returns null if
- * the recipient has no public key yet — the caller should then route
+ * the recipient has no public key yet, the caller should then route
  * to the pending_invites path.
  */
 export async function wrapForRecipientByUserId(

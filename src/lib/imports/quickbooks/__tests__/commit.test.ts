@@ -106,7 +106,7 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 // Stub buildJournalEntryLineInsert to avoid pulling the rate resolver into unit
-// tests — it has its own suite. We return a minimal shape matching
+// tests, it has its own suite. We return a minimal shape matching
 // JournalEntryLineEncrypted.
 vi.mock('@/lib/exchange/build-je-line-insert', () => ({
   async buildJournalEntryLineInsert(args: {
@@ -376,7 +376,7 @@ describe('commitQuickBooksImport', () => {
       decryptText,
     });
 
-    // Mystery Account / Other Mystery are NOT created — their lines route to
+    // Mystery Account / Other Mystery are NOT created, their lines route to
     // the shared Uncategorized buckets. Cash + Uncategorized Expense +
     // Uncategorized Revenue ARE created.
     expect(result.accountsFallback).toBe(2);
@@ -387,7 +387,7 @@ describe('commitQuickBooksImport', () => {
     expect(created).not.toContain('enc(Mystery Account)');
     expect(created).not.toContain('enc(Other Mystery)');
 
-    // The JE line that referenced Mystery Account was rewritten on insert —
+    // The JE line that referenced Mystery Account was rewritten on insert
     // its account_name now reads "Uncategorized Expense" (the build-je-line
     // mock passes through plaintext) and the description carries the original
     // QB name as a "[QB: Mystery Account]" prefix so it isn't lost.
@@ -543,11 +543,11 @@ describe('commitQuickBooksImport', () => {
     });
     expect(je.encrypted_metadata.import_id).toEqual(result.importId);
     // ref_number is encrypted (encrypted_ref_number column); encrypted_metadata.qb_ref_num
-    // is the plaintext dedup tag — confirm we keep both shapes.
+    // is the plaintext dedup tag, confirm we keep both shapes.
     expect(je.encrypted_ref_number).toMatch(/^enc\(/);
   });
 
-  it('is idempotent — re-running skips journal entries already imported by qb_ref_num', async () => {
+  it('is idempotent, re-running skips journal entries already imported by qb_ref_num', async () => {
     const accounts = [mkAccount('Checking'), mkAccount('Sales')];
     const parsed = mkParsed({
       accounts,

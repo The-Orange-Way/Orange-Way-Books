@@ -1,5 +1,5 @@
 /**
- * connectionAccountMap — client helpers for the encrypted destination-account
+ * connectionAccountMap, client helpers for the encrypted destination-account
  * routing table introduced in Phase 3.
  *
  * The server stores opaque identifiers (or_connection_id, or_external_wallet_id)
@@ -95,7 +95,7 @@ export interface SaveMappingsParams {
  * connection) and the unique index over encrypted_account_id makes incremental
  * upserts brittle when the user reassigns a wallet to a different account.
  *
- * Both operations are gated by RLS — the user must have connectors.write in
+ * Both operations are gated by RLS, the user must have connectors.write in
  * the org, and the rows must already belong to that org. There's no atomic
  * transaction here, but the worst-case interleaving (delete succeeds, insert
  * fails) leaves the connection unrouted, which falls back to the safe

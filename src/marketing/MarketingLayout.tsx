@@ -10,7 +10,7 @@ interface MarketingLayoutProps {
  * Public marketing chrome: header with primary nav, footer with sitemap.
  * Renders <Outlet /> for the active marketing page.
  *
- * Logged-in visitors see "Open app" instead of "Sign in" — they can still
+ * Logged-in visitors see "Open app" instead of "Sign in", they can still
  * browse marketing pages without losing session state.
  */
 export default function MarketingLayout({ session }: MarketingLayoutProps) {

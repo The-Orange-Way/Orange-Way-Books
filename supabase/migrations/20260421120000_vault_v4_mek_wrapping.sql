@@ -4,9 +4,9 @@
 -- Context: in v1/v2/v3, MEK = KDF(password, salt). Changing the password
 -- requires re-encrypting all data rows. In v4, the MEK is a random 32-byte
 -- key stored wrapped under two independent KEKs:
---   enc_mek_ciphertext   — MEK wrapped with Argon2id(password, salt)
---   recovery_ciphertext  — MEK wrapped with HKDF(12-word recovery code)
--- Only the wrapping changes on password reset — no data re-encryption needed.
+--   enc_mek_ciphertext  , MEK wrapped with Argon2id(password, salt)
+--   recovery_ciphertext , MEK wrapped with HKDF(12-word recovery code)
+-- Only the wrapping changes on password reset, no data re-encryption needed.
 --
 -- Blind indexes: an HMAC-SHA256 fingerprint of selected plaintext fields
 -- allows the server to filter encrypted rows without seeing plaintext.
@@ -14,7 +14,7 @@
 -- from all AES-GCM encryption keys.
 --
 -- Existing v1/v2/v3 orgs: unaffected. NULL in the new columns continues
--- to work — the unlock path branches on vault_key_version.
+-- to work, the unlock path branches on vault_key_version.
 -- New orgs: created at vault_key_version = 4 with all columns populated.
 
 -- ── org_settings: MEK wrapping + recovery ────────────────────────────────────

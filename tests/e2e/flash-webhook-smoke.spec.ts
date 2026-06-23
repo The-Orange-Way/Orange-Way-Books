@@ -1,5 +1,5 @@
 /**
- * flash-webhook HMAC smoke — directly POST a signed event to the deployed
+ * flash-webhook HMAC smoke, directly POST a signed event to the deployed
  * webhook receiver and assert it accepts (or rejects) appropriately.
  *
  * Catches regressions in the HMAC verification path without needing the
@@ -16,7 +16,7 @@
  *   2. Wrong-signature POST → HTTP 401
  *   3. Correctly-signed POST → HTTP 200 (function accepts, logs event)
  *
- * What it does NOT assert (yet — those need the full mock-flash UI stack):
+ * What it does NOT assert (yet, those need the full mock-flash UI stack):
  *   - Billing account flips to 'active' end-to-end
  *   - flash_payment_events row reflects the event
  *   - The Pay button in the UI updates without a manual refresh
@@ -77,7 +77,7 @@ test.describe('flash-webhook HMAC verification', () => {
   });
 
   test('correctly-signed POST accepted (200 or 202)', async () => {
-    test.skip(!SECRET, 'FLASH_WEBHOOK_SECRET not set — signed test skipped');
+    test.skip(!SECRET, 'FLASH_WEBHOOK_SECRET not set, signed test skipped');
     const sig = signBody(eventBody, SECRET);
     const r = await postRaw(WEBHOOK_URL, eventBody, { 'X-Flash-Signature': sig });
     // 200 = event logged + processed (subscription flipped)

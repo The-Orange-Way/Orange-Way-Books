@@ -1,5 +1,5 @@
 /**
- * sweep-expired-roles — Supabase Edge Function.
+ * sweep-expired-roles, Supabase Edge Function.
  *
  * Fallback sweep path for Supabase projects where pg_cron is not
  * available. Calls the SQL `expire_time_boxed_roles()` function, which:
@@ -10,7 +10,7 @@
  *
  * Invocation: Supabase scheduled function (every minute). Authenticated
  * via a shared secret header (`x-cron-secret`) matching the
- * `CRON_SWEEP_SECRET` env var — NOT via user JWT.
+ * `CRON_SWEEP_SECRET` env var, NOT via user JWT.
  *
  * Response (200):
  *   { ok: true, expired_roles: number, expired_sessions: number }
@@ -57,7 +57,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Sweep failed' }, 500, cors);
     }
 
-    // The function RETURNS TABLE — Supabase surfaces that as an array.
+    // The function RETURNS TABLE, Supabase surfaces that as an array.
     const first = Array.isArray(data) ? data[0] : data;
     const expiredRoles = Number((first as { expired_roles?: unknown })?.expired_roles ?? 0);
     const expiredSessions = Number(

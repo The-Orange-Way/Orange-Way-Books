@@ -11,7 +11,7 @@ export interface AttachmentStorage {
   put(path: string, data: Blob | Uint8Array): Promise<void>;
   /** Download encrypted bytes from `path`. Returns the raw ArrayBuffer. */
   get(path: string): Promise<ArrayBuffer>;
-  /** Remove one or more objects. Best-effort — does not throw if an object is missing. */
+  /** Remove one or more objects. Best-effort, does not throw if an object is missing. */
   delete(paths: string[]): Promise<void>;
 }
 

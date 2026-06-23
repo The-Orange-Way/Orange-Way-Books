@@ -38,7 +38,7 @@ export function PendingRatesBanner({ orgId }: PendingRatesBannerProps) {
   const handleRetry = async () => {
     setRetrying(true);
     // Trigger a re-fetch of exchange rates for pending lines by calling the edge
-    // function for the most recent date — this warms the DB cache so the next
+    // function for the most recent date, this warms the DB cache so the next
     // JE decrypt loop will find confirmed rates.
     try {
       await supabase.functions.invoke('exchange-rate-fetch', {
@@ -74,7 +74,7 @@ export function PendingRatesBanner({ orgId }: PendingRatesBannerProps) {
         <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#F59E0B' }} />
         <span className="flex-1">
           <strong>{pendingCount}</strong> journal entr{pendingCount === 1 ? 'y' : 'ies'} missing
-          exchange rate — amounts shown in primary currency may be incomplete.
+          exchange rate, amounts shown in primary currency may be incomplete.
         </span>
         <button
           onClick={handleRetry}
@@ -93,7 +93,7 @@ export function PendingRatesBanner({ orgId }: PendingRatesBannerProps) {
         </button>
       </div>
 
-      {/* ManualRateDialog needs a pair — use generic prompt when opened from banner */}
+      {/* ManualRateDialog needs a pair, use generic prompt when opened from banner */}
       <ManualRateDialog
         open={manualOpen}
         walletCurrency="BTC"

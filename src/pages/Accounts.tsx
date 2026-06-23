@@ -497,7 +497,7 @@ export default function Accounts() {
             const jeDate = format(balanceDate, 'yyyy-MM-dd');
             const encJe = await encryptJournalEntry(
               {
-                memo: `Opening balance — ${name.trim()}`,
+                memo: `Opening balance, ${name.trim()}`,
                 ref_number: null,
                 currency: asset,
                 exchange_rate: null,
@@ -867,7 +867,7 @@ export default function Accounts() {
       {/* Table */}
       {sorted.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center text-muted-foreground text-sm">
-          No accounts yet — click '+ Add Account' to get started.
+          No accounts yet, click '+ Add Account' to get started.
         </div>
       ) : (
         <>
@@ -950,8 +950,8 @@ export default function Accounts() {
                     <TableCell className="font-medium text-[13px]">
                       {w.encrypted_name || '[Encrypted]'}
                     </TableCell>
-                    <TableCell className="text-xs">{w.account_type || '—'}</TableCell>
-                    <TableCell className="text-xs">{w.institution || '—'}</TableCell>
+                    <TableCell className="text-xs">{w.account_type || '-'}</TableCell>
+                    <TableCell className="text-xs">{w.institution || '-'}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {formatBalance(w.initial_balance ?? 0, w.asset)}
                     </TableCell>
@@ -974,15 +974,15 @@ export default function Accounts() {
                           ? '1 BTC'
                           : effectiveRate !== null
                             ? `1 ${w.asset} = ${Number(effectiveRate).toLocaleString(undefined, { maximumSignificantDigits: 6 })} BTC`
-                            : '—';
+                            : '-';
                         return (
                           <>
-                            <TableCell className="text-xs">{w.issuer || '—'}</TableCell>
+                            <TableCell className="text-xs">{w.issuer || '-'}</TableCell>
                             <TableCell className="text-right font-mono text-xs">
                               {rateLabel}
                             </TableCell>
                             <TableCell className="text-right font-mono text-xs">
-                              {btcBalance !== null ? formatBalance(btcBalance, 'BTC') : '—'}
+                              {btcBalance !== null ? formatBalance(btcBalance, 'BTC') : '-'}
                             </TableCell>
                           </>
                         );
@@ -1047,7 +1047,7 @@ export default function Accounts() {
                         </Badge>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground truncate">
-                        {[w.account_type, w.institution].filter(Boolean).join(' · ') | '—'}
+                        {[w.account_type, w.institution].filter(Boolean).join(' · ') | '-'}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -1071,10 +1071,10 @@ export default function Accounts() {
                           ? '1 BTC'
                           : effectiveRate !== null
                             ? `1 ${w.asset} = ${Number(effectiveRate).toLocaleString(undefined, { maximumSignificantDigits: 6 })} BTC`
-                            : 'Rate: —'}
+                            : 'Rate: -'}
                       </div>
                       <div className="text-right font-mono">
-                        {btcBalance !== null ? formatBalance(btcBalance, 'BTC') : '—'}
+                        {btcBalance !== null ? formatBalance(btcBalance, 'BTC') : '-'}
                       </div>
                     </div>
                   )}
@@ -1373,7 +1373,7 @@ export default function Accounts() {
             const name = row.data.name.trim();
             if (existingNames.has(name.toLowerCase())) {
               skipped++;
-              warnings.push(`"${name}" already exists — skipped`);
+              warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
             const enc = await encryptWallet(

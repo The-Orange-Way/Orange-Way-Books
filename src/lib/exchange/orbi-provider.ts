@@ -1,5 +1,5 @@
 /**
- * ORBI provider — Phase 1 integration.
+ * ORBI provider, Phase 1 integration.
  *
  * Fetches per-minute and daily reference rates from the Orange Rails Bitcoin
  * Index (ORBI), a multi-source volume-weighted-median rate computed across
@@ -7,11 +7,11 @@
  * existing rate-resolver uses, so it can slot in as a provider option.
  *
  * Environment variables required at build time:
- *   VITE_ORBI_SUPABASE_URL       — Orange Rails PROD Supabase URL
- *   VITE_ORBI_SUPABASE_ANON_KEY  — Orange Rails PROD anon key (RLS-gated read-only)
+ *   VITE_ORBI_SUPABASE_URL      , Orange Rails PROD Supabase URL
+ *   VITE_ORBI_SUPABASE_ANON_KEY , Orange Rails PROD anon key (RLS-gated read-only)
  *
  * Both values are aliases for the canonical Orange Rails PROD credentials.
- * The anon key is safe to ship to the browser bundle — RLS on the
+ * The anon key is safe to ship to the browser bundle, RLS on the
  * Orange Rails PROD database blocks every write path; reads return only
  * CONFIRMED rates.
  *
@@ -88,7 +88,7 @@ function mapToORBIPair(
   if ((b === 'USDT') | (b === 'USDC') | (b === 'DAI')) {
     return { source: b, target: q, satsMultiplier: 1 };
   }
-  // We don't handle FIAT-FIAT, IDENTITY, or FIXED here — those are OWB's existing
+  // We don't handle FIAT-FIAT, IDENTITY, or FIXED here, those are OWB's existing
   // resolver's job. Composite Tier C (e.g. BTC/INR via cross-rate) is handled
   // on the ORBI server side; we just consume the result.
   return null;
@@ -145,7 +145,7 @@ export async function fetchFromORBI(
     .maybeSingle();
 
   if (error) {
-    // Don't throw — let the caller fall back to other providers.
+    // Don't throw, let the caller fall back to other providers.
     // Logging the error for observability is the caller's job (OWB has audit-logger).
     return null;
   }
@@ -221,7 +221,7 @@ export function isORBISupported(base: string, quote: string): boolean {
 }
 
 /**
- * Health probe — confirms the ORBI client can reach the database. Useful for
+ * Health probe, confirms the ORBI client can reach the database. Useful for
  * a settings/admin page showing rate-source availability.
  */
 export async function orbiHealthCheck(): Promise<{

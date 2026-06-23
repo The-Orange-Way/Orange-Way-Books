@@ -4,12 +4,12 @@
  *
  *
  * Env vars consumed:
- *   FLASH_BASE_URL              — defaults to https://api.paywithflash.com
- *   FLASH_CLIENT_ID             — confidential client id
- *   FLASH_CLIENT_SECRET         — confidential client secret
- *   FLASH_OAUTH_TOKEN_URL       — optional override; defaults to
+ *   FLASH_BASE_URL             , defaults to https://api.paywithflash.com
+ *   FLASH_CLIENT_ID            , confidential client id
+ *   FLASH_CLIENT_SECRET        , confidential client secret
+ *   FLASH_OAUTH_TOKEN_URL      , optional override; defaults to
  *                                 `${FLASH_BASE_URL}/flash-connect/oauth/token`
- *   MOCK_FLASH                  — when 'true', return deterministic fakes
+ *   MOCK_FLASH                 , when 'true', return deterministic fakes
  *
  * NOTE: spec gaps Bram still needs to confirm. When his email lands,
  * the swap surface is small:

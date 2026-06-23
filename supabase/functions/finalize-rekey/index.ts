@@ -1,5 +1,5 @@
 /**
- * finalize-rekey — Supabase Edge Function.
+ * finalize-rekey, Supabase Edge Function.
  *
  * The atomic cutover. Called once the client has finished wrap_members
  * + rekey_rows stages. Flips `active_key_versions` to the new versions
@@ -11,7 +11,7 @@
  *   - active_key_versions UPDATE + job status UPDATE happen back-to-back
  *     (no true multi-statement transaction over HTTP, but the job-row
  *     update happens after the active pointer flip, so mid-failure
- *     leaves the pointer updated + job mid-way — recoverable by a
+ *     leaves the pointer updated + job mid-way, recoverable by a
  *     manual retry that re-calls finalize).
  *
  * Request body: { "job_id": "<uuid>" }
@@ -114,7 +114,7 @@ serve(async (req) => {
 
     if (job.status !== 'finalizing') {
       return jsonResponse(
-        { error: `Job is in status '${job.status}' — must be 'finalizing' to complete.` },
+        { error: `Job is in status '${job.status}', must be 'finalizing' to complete.` },
         409,
         cors,
       );

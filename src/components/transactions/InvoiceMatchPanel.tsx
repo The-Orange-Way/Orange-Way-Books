@@ -1,5 +1,5 @@
 /**
- * InvoiceMatchPanel — Wave-style "is this deposit for invoice X?" suggestion.
+ * InvoiceMatchPanel, Wave-style "is this deposit for invoice X?" suggestion.
  *
  * Renders below the transaction edit modal when the tx is an inflow.
  * Loads open invoices for the org, decrypts customer name + amount
@@ -7,9 +7,9 @@
  * apply the deposit against one match in a single click.
  *
  * Apply paths:
- *   • "Apply as new payment" — encrypts amount_applied with the vault
+ *   • "Apply as new payment", encrypts amount_applied with the vault
  *     MEK and calls apply_invoice_payment() RPC.
- *   • "Merge with placeholder payment" (Phase I16) — when the invoice
+ *   • "Merge with placeholder payment" (Phase I16), when the invoice
  *     already has a placeholder invoice_payments row from a manual
  *     "Mark paid" action, fold this real deposit into the placeholder
  *     via mergeWithPlaceholder(). The highest-confidence candidate
@@ -119,7 +119,7 @@ export function InvoiceMatchPanel({
           seed[m.candidate.id] = String(Math.min(txAmount, m.candidate.amount));
         }
         setAmountInputs(seed);
-        // Phase I16 — pull placeholder invoice_payments so we can surface
+        // Phase I16, pull placeholder invoice_payments so we can surface
         // "Merge" instead of "Apply as new" when manual mark-paid already
         // created a row.
         try {
@@ -179,7 +179,7 @@ export function InvoiceMatchPanel({
         return next;
       });
       toast.success(
-        `Applied ${applied} to ${m.candidate.invoice_number} — ${(row?.invoice_status ?? 'updated').toLowerCase()}${row?.je_posted ? ' · JE posted' : ''}`,
+        `Applied ${applied} to ${m.candidate.invoice_number}, ${(row?.invoice_status ?? 'updated').toLowerCase()}${row?.je_posted ? ' · JE posted' : ''}`,
       );
       onApplied();
     } catch (err) {
@@ -254,7 +254,7 @@ export function InvoiceMatchPanel({
     return `Match this deposit to an invoice?`;
   }, [loading, ranked.length, remaining]);
 
-  // Index of the first ranked candidate that has a placeholder — its
+  // Index of the first ranked candidate that has a placeholder, its
   // primary action defaults to "Merge" (Wave UX).
   const primaryMergeIdx = useMemo(
     () => ranked.findIndex((r) => placeholders.has(r.candidate.id)),

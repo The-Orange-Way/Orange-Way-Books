@@ -30,12 +30,12 @@ export default function AppShell() {
       <MaintenanceBanner orgId={orgId} currentUserId={userId} />
       <PendingRatesBanner orgId={orgId} />
       <div className="flex flex-1">
-        {/* Desktop sidebar — hidden on small viewports. */}
+        {/* Desktop sidebar, hidden on small viewports. */}
         <div className="hidden md:flex">
           <Sidebar />
         </div>
 
-        {/* Mobile drawer overlay — clicking the backdrop dismisses. */}
+        {/* Mobile drawer overlay, clicking the backdrop dismisses. */}
         {mobileOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/40 md:hidden"

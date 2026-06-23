@@ -1,4 +1,4 @@
--- Track 4 PR C — approval threshold for payment requests
+-- Track 4 PR C, approval threshold for payment requests
 --
 -- Adds two encrypted columns to org_settings that capture the prior model's
 -- approvalThresholdAmount / approvalThresholdCurrency rule: any new payment

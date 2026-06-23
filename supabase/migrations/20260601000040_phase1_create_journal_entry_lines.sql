@@ -1,4 +1,4 @@
--- Phase 1 — Migration 4/9: Create `journal_entry_lines` with locked end-state schema.
+-- Phase 1, Migration 4/9: Create `journal_entry_lines` with locked end-state schema.
 --
 -- The OLD shape had plaintext `debit NUMERIC = 0` + `credit NUMERIC = 0` placeholder
 -- columns alongside `encrypted_debit` + `encrypted_credit`. The placeholders were
@@ -8,13 +8,13 @@
 --
 -- Amount columns are encrypted-only. Account FK now points at the new
 -- `chart_of_accounts(id)`. Description, account_name, account_code columns
--- keep their existing names (they already hold ciphertext today despite the names —
+-- keep their existing names (they already hold ciphertext today despite the names
 -- preserving the convention to minimize client-code churn).
 --
 -- Plaintext metadata for rate resolution stays plaintext: pinned_rate_id (FK to
 -- public market rates, not customer data), rate_pending (boolean, structural state),
 -- rate_asof (timestamp), primary_currency_at_posting (currency code at the
--- ORG level — a tiny metadata leak, but justified by the existing rate-pinning
+-- ORG level, a tiny metadata leak, but justified by the existing rate-pinning
 -- system architecture).
 --
 -- Note: manual_rate_reason + manual_rate_source on the OLD schema were plaintext
@@ -26,7 +26,7 @@ CREATE TABLE public.journal_entry_lines (
   account_id                      UUID NOT NULL REFERENCES public.chart_of_accounts(id),
   key_version                     INT  NOT NULL DEFAULT 2,
   created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  -- Encrypted (ZKA L2) — server cannot read any of these
+  -- Encrypted (ZKA L2), server cannot read any of these
   encrypted_debit                 TEXT NOT NULL,    -- ciphertext of decimal amount (single-sided enforced client-side)
   encrypted_credit                TEXT NOT NULL,    -- ciphertext of decimal amount
   encrypted_book_value            TEXT NULL,        -- ciphertext of decimal (optional)

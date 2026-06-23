@@ -1,5 +1,5 @@
 /**
- * Coffee-shop sample dataset generator — Common Grounds Coffee Co.
+ * Coffee-shop sample dataset generator, Common Grounds Coffee Co.
  *
  * Produces a TakeoutFile with ~6 months of retail activity for a
  * circular-economy coffee shop:
@@ -59,7 +59,7 @@ function round8(n: number): number {
   return Math.round(n * 1e8) / 1e8;
 }
 
-// Deterministic BTC/USD rate seed for any date — used to translate
+// Deterministic BTC/USD rate seed for any date, used to translate
 // USD-denominated seed journal lines into BTC (primary) amounts.
 function btcRateForDate(date: Date): number {
   const epoch = Date.UTC(2025, 0, 1);
@@ -79,7 +79,7 @@ interface AccountDef {
   group: string;
   normal: 'DEBIT' | 'CREDIT';
 }
-// accountType uses PascalCase — the Insights Expenses card does a
+// accountType uses PascalCase, the Insights Expenses card does a
 // case-sensitive === 'Expense' match, and the ledger engine
 // lowercases for its 'revenue'/'expense'/'asset' checks, so PascalCase
 // satisfies both. account group labels are specific enough to feed
@@ -385,7 +385,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
   const journal_entry_lines: TakeoutJournalEntryLine[] = [];
 
   // Start Jan 1 of the current year so every seeded JE lands inside a
-  // standard YTD filter — the default period on Insights — for a dense
+  // standard YTD filter, the default period on Insights, for a dense
   // demo narrative. Early in the year this produces a thinner seed; we
   // accept that trade-off over pre-YTD activity that gets hidden.
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
@@ -492,7 +492,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
   // ── Espresso machine purchase (one-time, early) ──────────────────────
   postJE({
     date: iso(addDays(startDate, 4)),
-    memo: 'La Marzocco espresso machine — Linea Mini',
+    memo: 'La Marzocco espresso machine, Linea Mini',
     ref: 'HW-LM-001',
     drCode: '1600', // Equipment
     crCode: '1100', // Cash & Bank
@@ -505,7 +505,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     asset: 'USD',
     amount: -18000,
     usd_value: 18000,
-    memo: 'Espresso machine — La Marzocco Linea Mini',
+    memo: 'Espresso machine, La Marzocco Linea Mini',
   });
 
   // ── Daily sales (aggregate per day) ──────────────────────────────────
@@ -529,7 +529,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
         asset: 'USD',
         amount: cashUsd,
         usd_value: cashUsd,
-        memo: 'Daily sales — cash & card',
+        memo: 'Daily sales, cash & card',
       });
       // BTC price model: $60k → $95k drift.
       const btcPrice = 60000 + d * 90 + (rand() - 0.5) * 4000;
@@ -541,7 +541,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
         asset: 'BTC',
         amount: btcAmount,
         usd_value: btcUsdPortion,
-        memo: 'Lightning sales — BTC received',
+        memo: 'Lightning sales, BTC received',
       });
       postJE({
         date: iso(date),
@@ -567,7 +567,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
         asset: 'USD',
         amount: usd,
         usd_value: usd,
-        memo: 'Daily sales — cash & card',
+        memo: 'Daily sales, cash & card',
       });
       postJE({
         date: iso(date),
@@ -592,11 +592,11 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Coffee beans — Beanfield Co-op',
+      memo: 'Coffee beans, Beanfield Co-op',
     });
     postJE({
       date: iso(date),
-      memo: 'COGS — beans',
+      memo: 'COGS, beans',
       ref: null,
       drCode: '5100', // Cost of Goods Sold
       crCode: '1100', // Cash & Bank
@@ -616,11 +616,11 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Dairy delivery — Happy Cow',
+      memo: 'Dairy delivery, Happy Cow',
     });
     postJE({
       date: iso(date),
-      memo: 'COGS — dairy',
+      memo: 'COGS, dairy',
       ref: null,
       drCode: '5100',
       crCode: '1100',
@@ -639,7 +639,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     }
   }
 
-  // Rent — day 1 of each month
+  // Rent, day 1 of each month
   eachMonthOfDay(1, (date) => {
     const usd = 4800;
     pushTx({
@@ -649,7 +649,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Storefront rent — Downtown Holdings',
+      memo: 'Storefront rent, Downtown Holdings',
     });
     postJE({
       date: iso(date),
@@ -661,7 +661,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Utilities — day 5
+  // Utilities, day 5
   eachMonthOfDay(5, (date) => {
     const usd = 400 + (rand() - 0.5) * 120;
     pushTx({
@@ -671,7 +671,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Electricity & water — Pacific Power',
+      memo: 'Electricity & water, Pacific Power',
     });
     postJE({
       date: iso(date),
@@ -683,7 +683,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Internet — day 8
+  // Internet, day 8
   eachMonthOfDay(8, (date) => {
     const usd = 120;
     pushTx({
@@ -693,7 +693,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Storefront internet — FibreNet',
+      memo: 'Storefront internet, FibreNet',
     });
     postJE({
       date: iso(date),
@@ -705,7 +705,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Payroll — day 15 (2 baristas)
+  // Payroll, day 15 (2 baristas)
   eachMonthOfDay(15, (date) => {
     const usd = 8800 + (rand() - 0.5) * 400;
     pushTx({
@@ -715,7 +715,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Monthly payroll — 2 baristas',
+      memo: 'Monthly payroll, 2 baristas',
     });
     postJE({
       date: iso(date),
@@ -734,7 +734,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     if (qDate > now) break;
     quarterCount++;
 
-    // Insurance premium — expense
+    // Insurance premium, expense
     const insUsd = 600;
     pushTx({
       date: iso(qDate),
@@ -743,7 +743,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -insUsd,
       usd_value: insUsd,
-      memo: 'Business insurance premium — SafeTech',
+      memo: 'Business insurance premium, SafeTech',
     });
     postJE({
       date: iso(qDate),
@@ -763,11 +763,11 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: groundsUsd,
       usd_value: groundsUsd,
-      memo: 'Spent grounds sold — ReGround Compost Co.',
+      memo: 'Spent grounds sold, ReGround Compost Co.',
     });
     postJE({
       date: iso(addDays(qDate, 3)),
-      memo: 'Circular revenue — coffee grounds',
+      memo: 'Circular revenue, coffee grounds',
       ref: `CIRC-GROUNDS-Q${quarterCount}`,
       drCode: '1100',
       crCode: '4400', // Other Income
@@ -783,11 +783,11 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: sacksUsd,
       usd_value: sacksUsd,
-      memo: 'Used burlap sacks sold — Local Artisan Market',
+      memo: 'Used burlap sacks sold, Local Artisan Market',
     });
     postJE({
       date: iso(addDays(qDate, 6)),
-      memo: 'Circular revenue — burlap upcycle',
+      memo: 'Circular revenue, burlap upcycle',
       ref: `CIRC-SACKS-Q${quarterCount}`,
       drCode: '1100',
       crCode: '4400',
@@ -809,7 +809,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     const date = iso(addDays(now, -inv.daysAgo));
     postJE({
       date,
-      memo: `Open invoice — ${inv.contact.name}`,
+      memo: `Open invoice, ${inv.contact.name}`,
       ref: inv.ref,
       drCode: '1200', // Accounts Receivable
       crCode: '4400', // Other Income (circular revenue yet to be paid)
@@ -817,7 +817,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     });
   }
 
-  // ── Payment requests — full lifecycle for demo ──────────────────────
+  // ── Payment requests, full lifecycle for demo ──────────────────────
   // Mix of statuses to showcase the approvals + payments-made flow:
   // 2 PENDING (awaiting approval), 2 APPROVED (ready to pay),
   // 3 PAID (historical), 1 REJECTED (with reason).
@@ -826,7 +826,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactBeanfield.name,
-      description: 'Beans — current week restock',
+      description: 'Beans, current week restock',
       rejection_reason: null,
       amount: 520,
       currency: 'USD',
@@ -857,7 +857,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactHappyCow.name,
-      description: 'Oat & dairy delivery — next week',
+      description: 'Oat & dairy delivery, next week',
       rejection_reason: null,
       amount: 215,
       currency: 'USD',
@@ -872,7 +872,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactPacPower.name,
-      description: 'Electricity — current billing cycle',
+      description: 'Electricity, current billing cycle',
       rejection_reason: null,
       amount: 385,
       currency: 'USD',
@@ -888,7 +888,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactDowntownHoldings.name,
-      description: 'Storefront rent — last month',
+      description: 'Storefront rent, last month',
       rejection_reason: null,
       amount: 4800,
       currency: 'USD',
@@ -934,7 +934,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: 'Fitness Studio Downtown',
-      description: 'Staff wellness membership — 12 months',
+      description: 'Staff wellness membership, 12 months',
       rejection_reason: 'Outside Q2 training budget; revisit in Q3 planning cycle.',
       amount: 2880,
       currency: 'USD',

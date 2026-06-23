@@ -1,5 +1,5 @@
 /**
- * Import from Orange Rails — Wizard for the Mode 2 single-bundle path.
+ * Import from Orange Rails, Wizard for the Mode 2 single-bundle path.
  *
  * Reads a .or-import.json file emitted by any Orange Rails plugin (Wave,
  * QuickBooks, ShakePay later), validates it against the contract, surfaces
@@ -57,7 +57,7 @@ export interface ImportFromOrangeRailsWizardProps {
   /**
    * Resolves the current org's Chart of Accounts as picker options. Optional;
    * if absent the default-mapping panel hides the account dropdown.
-   * Caller owns Supabase access — keeps the wizard data-source-agnostic.
+   * Caller owns Supabase access, keeps the wizard data-source-agnostic.
    */
   loadAccountOptions?: () => Promise<DefaultMappingOption[]>;
   /** Same shape for contacts. */
@@ -143,7 +143,7 @@ export function ImportFromOrangeRailsWizard({
         setPayload(json);
         setStep('review');
         // Lazy-load picker options after the payload parses; failure is
-        // non-fatal — the panel just degrades to "no options available".
+        // non-fatal, the panel just degrades to "no options available".
         const needAccounts = payloadHasEmptyAccountRows(json);
         const needContacts = payloadHasEmptyContactRows(json);
         if (needAccounts && loadAccountOptions) {
@@ -206,7 +206,7 @@ export function ImportFromOrangeRailsWizard({
       setResults([...collected]);
       setProgress(Math.round(((i + 1) / sections.length) * 100));
       if (res.error && section === 'accounts') {
-        // Accounts must succeed — JEs reference codes. Stop here.
+        // Accounts must succeed, JEs reference codes. Stop here.
         break;
       }
     }
@@ -278,7 +278,7 @@ export function ImportFromOrangeRailsWizard({
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900">
               <p className="font-medium">Re-imports are safe.</p>
               <p className="mt-0.5 text-emerald-800">
-                Rows already imported are skipped automatically — only what's new gets written. You
+                Rows already imported are skipped automatically, only what's new gets written. You
                 can run this again with the same file without doubling up.
               </p>
             </div>

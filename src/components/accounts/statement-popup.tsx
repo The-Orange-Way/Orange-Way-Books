@@ -93,7 +93,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   const [customEnd, setCustomEnd] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
-  // Track 5A — DRAFT visibility toggle. Defaults to "on" (the
+  // Track 5A, DRAFT visibility toggle. Defaults to "on" (the
   // wallet-statement behavior). When off, DRAFT rows
   // are hidden from the statement and excluded from the running balance.
   // Reports stay POSTED-only regardless of this toggle.
@@ -176,7 +176,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, [datePreset, customStart, customEnd]);
 
   // Split transactions: those before the period (feed starting balance) vs within period.
-  // T5A — DRAFT visibility: when includeDrafts is false, treat DRAFT rows as
+  // T5A, DRAFT visibility: when includeDrafts is false, treat DRAFT rows as
   // if they don't exist for both the running balance and the inPeriod list.
   const visibleTxs = useMemo(() => {
     return includeDrafts ? txs : txs.filter((t) => t.status !== 'DRAFT');
@@ -295,7 +295,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
           action: 'RECONCILE',
           entityType: 'wallet',
           entityId: wallet.id,
-          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate || 'today'} — statement balance ${reconcileBalanceNum}`,
+          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate || 'today'}, statement balance ${reconcileBalanceNum}`,
           after: {
             transactionIds: ids,
             statementBalance: reconcileBalanceNum,
@@ -482,7 +482,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
       if (format === 'csv') {
         exportToCsv(`${name}-statement`, headers, exportRows);
       } else {
-        void printTable(`${name} — Statement`, headers, exportRows);
+        void printTable(`${name}, Statement`, headers, exportRows);
       }
     },
     [wallet, exportRows],
@@ -524,7 +524,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
         <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b">
           <div>
             <h2 className="text-xl font-semibold">
-              {wallet.encrypted_name || '[Encrypted]'} — {reconcileMode ? 'Reconcile' : 'Statement'}
+              {wallet.encrypted_name || '[Encrypted]'}, {reconcileMode ? 'Reconcile' : 'Statement'}
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
               {wallet.asset} / {wallet.institution || 'N/A'} / {wallet.account_type || 'N/A'}
@@ -646,7 +646,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* T5A — DRAFT visibility toggle. Inline left of the date filter
+          {/* T5A, DRAFT visibility toggle. Inline left of the date filter
               so it's discoverable but doesn't dominate. When off, DRAFT
               transactions vanish from the list AND from the running balance. */}
           <label className="ml-auto inline-flex items-center gap-2 text-xs select-none cursor-pointer text-muted-foreground hover:text-foreground">
@@ -732,7 +732,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
                             <TableCell className="font-mono text-xs text-muted-foreground">
                               {t.id.slice(0, 8)}
                             </TableCell>
-                            <TableCell className="text-sm">{t.memo || t.type || '—'}</TableCell>
+                            <TableCell className="text-sm">{t.memo || t.type || '-'}</TableCell>
                             <TableCell className="text-right font-mono text-sm text-green-700">
                               {t.debit != null ? fmtAmt(t.debit) : ''}
                             </TableCell>
@@ -824,7 +824,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               <div>
                 <p className="uppercase tracking-wide text-muted-foreground">Statement</p>
                 <p className="font-mono text-sm mt-0.5">
-                  {reconcileBalanceNum !== null ? fmtAmt(reconcileBalanceNum) : '—'}
+                  {reconcileBalanceNum !== null ? fmtAmt(reconcileBalanceNum) : '-'}
                 </p>
               </div>
               <div>

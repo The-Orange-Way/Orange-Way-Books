@@ -4,7 +4,7 @@
  * Reads credentials from env vars:
  *   OWB_DEV_E2E_EMAIL
  *   OWB_DEV_E2E_PASSWORD          (Supabase auth password)
- *   OWB_DEV_E2E_VAULT_PASSWORD    (Argon2id KEK input — unlocks the MEK)
+ *   OWB_DEV_E2E_VAULT_PASSWORD    (Argon2id KEK input, unlocks the MEK)
  *
  * The test user is provisioned via tests/e2e/scripts/provision-e2e-user.js
  * and is expected to be fully onboarded (vault password set, org created)
@@ -80,7 +80,7 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   await lockHeading.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => undefined);
 
   // Wait for the post-unlock app shell to actually render. The lock heading
-  // disappearing only tells us the unlock RPC succeeded — the SPA still has to
+  // disappearing only tells us the unlock RPC succeeded, the SPA still has to
   // hydrate the dashboard. Screenshots taken between unlock and hydration
   // capture a blank spinner page. The sidebar "Insights" nav item is the
   // first stable element of the authenticated shell.
@@ -102,7 +102,7 @@ export async function signInAndUnlock(page: Page): Promise<void> {
     .catch(() => false);
   if (stillLocked) {
     throw new Error(
-      'signInAndUnlock: still on vault unlock screen — password rejected or page did not navigate',
+      'signInAndUnlock: still on vault unlock screen, password rejected or page did not navigate',
     );
   }
 }

@@ -2,11 +2,11 @@
  * Attachment validation policy for OWB receipt + payment uploads.
  *
  * Three knobs:
- *   - MAX_ATTACHMENTS_PER_ROW — soft cap on how many files a single
+ *   - MAX_ATTACHMENTS_PER_ROW, soft cap on how many files a single
  *     transaction or payment_request row can carry. UI rejects the
  *     `n+1`-th upload with a clear message.
- *   - MAX_FILE_SIZE_BYTES — hard cap, mirrored on the storage policy.
- *   - ACCEPTED_EXTENSIONS — closed set. Anything else gets rejected
+ *   - MAX_FILE_SIZE_BYTES, hard cap, mirrored on the storage policy.
+ *   - ACCEPTED_EXTENSIONS, closed set. Anything else gets rejected
  *     client-side before the encrypt + upload happens.
  *
  * Pure helpers; no React, no Supabase. Safe to import from anywhere.
@@ -53,7 +53,7 @@ const ALLOWED_SET: ReadonlySet<string> = new Set<string>(ALLOWED_EXTENSIONS);
 // ── Filename check ──────────────────────────────────────────────────────
 
 /** Pull the final dotted segment from a filename and lowercase it. Returns
- *  empty string if the name has no dot (e.g. `Makefile`) — used by the
+ *  empty string if the name has no dot (e.g. `Makefile`), used by the
  *  caller to distinguish "no extension" from "wrong extension". */
 function extractExtension(fileName: string): string {
   const dotIdx = fileName.lastIndexOf('.');
@@ -64,7 +64,7 @@ function extractExtension(fileName: string): string {
 /**
  * Returns null when the filename's extension is on the allowlist, or a
  * human-readable rejection reason otherwise. The reason string is what
- * the UI surfaces in a toast — it lists every accepted extension so the
+ * the UI surfaces in a toast, it lists every accepted extension so the
  * user can pick one without guessing.
  */
 export function validateAttachmentName(fileName: string): string | null {

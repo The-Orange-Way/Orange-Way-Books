@@ -1,4 +1,4 @@
-# Flash Wave 1 — manual integration test plan
+# Flash Wave 1, manual integration test plan
 
 The project does not yet have a local-supabase test harness wired into Vitest, so
 the scenarios below are documented as a checklist a human (or a

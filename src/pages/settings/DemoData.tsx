@@ -18,7 +18,7 @@ import {
 
 // Plausible-looking demo data for sales walkthroughs, training, and Playwright
 // fixtures. Deliberately small + deterministic so the resulting org loads fast.
-// Bookkeeping data (transactions, journal entries) is NOT seeded here — that
+// Bookkeeping data (transactions, journal entries) is NOT seeded here, that
 // requires balanced double-entry inserts under the active vault, tracked
 // separately. Contacts + wallets are enough to demo the directory + dropdowns.
 const SAMPLE_CONTACTS = [
@@ -77,7 +77,7 @@ const SAMPLE_WALLETS = [
   { name: 'Treasury BTC', asset: 'BTC', walletType: 'Exchange', initialBalance: 0.75 },
 ] as const;
 
-// Tables emptied by the wipe. Order matters — children before parents so
+// Tables emptied by the wipe. Order matters, children before parents so
 // FK cascades that lean on them don't kick in unexpectedly. Anything
 // unrelated to bookkeeping data (org_members, organizations, billing,
 // rekey jobs) stays untouched; the user keeps their seat.
@@ -218,7 +218,7 @@ export default function DemoDataPage() {
     if (failed === 0) {
       toast.success(`Wiped ${removed} tables. Refresh the app to see the empty state.`);
     } else {
-      toast.error(`${removed} tables cleared, ${failed} failed — check the console for details.`);
+      toast.error(`${removed} tables cleared, ${failed} failed, check the console for details.`);
     }
     await fetchCounts();
   };
@@ -230,7 +230,7 @@ export default function DemoDataPage() {
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
           Reset this organization's bookkeeping data so you can demo a clean state, capture fresh
           screenshots, or run a Playwright suite from scratch. The wipe leaves the organization,
-          billing, and your membership intact — only the bookkeeping tables are emptied.
+          billing, and your membership intact, only the bookkeeping tables are emptied.
         </p>
       </div>
 
@@ -238,7 +238,7 @@ export default function DemoDataPage() {
         <div className="flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
-            <p className="font-medium">Destructive — the data is not recoverable from the app.</p>
+            <p className="font-medium">Destructive, the data is not recoverable from the app.</p>
             <p className="mt-1">
               Run this only on dev orgs, demo sandboxes, or accounts you explicitly want to reset.
               There is no undo from the UI.
@@ -298,7 +298,7 @@ export default function DemoDataPage() {
         <p className="text-xs text-muted-foreground">
           Adds {SAMPLE_CONTACTS.length} plausible contacts (customers, vendors, employee) and{' '}
           {SAMPLE_WALLETS.length} accounts (USD operating + BTC treasury). Names are clearly
-          fictional. Safe to run on top of existing data — it inserts, doesn't replace.
+          fictional. Safe to run on top of existing data, it inserts, doesn't replace.
         </p>
         <Button
           variant="outline"
@@ -314,8 +314,8 @@ export default function DemoDataPage() {
           Seed contacts and accounts
         </Button>
         <p className="text-xs text-muted-foreground">
-          Demo transactions and journal entries are not yet seeded — those need balanced
-          double-entry inserts encrypted under your active vault, tracked as a follow-up.
+          Demo transactions and journal entries are not yet seeded, those need balanced double-entry
+          inserts encrypted under your active vault, tracked as a follow-up.
         </p>
       </section>
 
@@ -351,8 +351,8 @@ export default function DemoDataPage() {
             <DialogTitle>Wipe bookkeeping data?</DialogTitle>
             <DialogDescription className="pt-2">
               This deletes every row in the {WIPE_TABLES.length} tables listed above for the
-              currently selected organization. There is no undo from inside the app — only a
-              database point-in-time restore could recover the data.
+              currently selected organization. There is no undo from inside the app, only a database
+              point-in-time restore could recover the data.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-2">

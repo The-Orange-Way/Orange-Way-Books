@@ -51,7 +51,7 @@ function makeSupabase() {
         if (col === 'org_id') filterOrg = value;
         if (col === 'id') filterId = value;
         if (updatePayload && filterId) {
-          // .update(payload).eq('id', X) form — apply now.
+          // .update(payload).eq('id', X) form, apply now.
           const idx = store[table].findIndex((r) => r.id === filterId);
           if (idx >= 0) {
             store[table][idx] = { ...store[table][idx], ...updatePayload };
@@ -212,7 +212,7 @@ describe('migrateCoaWave2', () => {
     expect(snap.find((r) => r.code === '5100')).toBeUndefined();
   });
 
-  it('is idempotent — calling twice does not double-apply', async () => {
+  it('is idempotent, calling twice does not double-apply', async () => {
     seedAccount('1300', 'Inventory');
     seedAccount('3000', 'Equity', 'EQUITY', 'Equity');
     seedAccount('3100', "Owner's Equity", 'EQUITY', 'Equity');
@@ -236,7 +236,7 @@ describe('migrateCoaWave2', () => {
     expect(result.skipped).toBeGreaterThanOrEqual(1);
 
     const snap = await decryptedSnapshot();
-    // Original Inventory still at 1300 — not destroyed.
+    // Original Inventory still at 1300, not destroyed.
     expect(snap).toContainEqual({ code: '1300', name: 'Inventory' });
     // User's custom 1305 untouched.
     expect(snap).toContainEqual({ code: '1305', name: 'My Custom 1305' });

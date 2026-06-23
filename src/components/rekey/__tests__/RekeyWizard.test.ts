@@ -1,10 +1,10 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.5 polish — RekeyWizard Quick/Deep toggle contract.
+ * Phase 4.5 polish, RekeyWizard Quick/Deep toggle contract.
  *
  * A full jsdom render of RekeyWizard requires mocking `useVault`,
- * Supabase, and the rekey library — this repo doesn't ship mock
+ * Supabase, and the rekey library, this repo doesn't ship mock
  * infrastructure for those call sites yet, and the rest of the
  * component test surface is covered by the RoleSummary-style
  * node-environment approach (read the source; assert invariants).
@@ -25,11 +25,11 @@ import { resolve } from 'node:path';
 
 const WIZARD_PATH = resolve(process.cwd(), 'src/components/rekey/RekeyWizard.tsx');
 
-describe('RekeyWizard — Quick vs Deep refresh', () => {
+describe('RekeyWizard, Quick vs Deep refresh', () => {
   const source = readFileSync(WIZARD_PATH, 'utf8');
 
   it('defaults refreshMode state to "quick"', () => {
-    // The useState initializer should literally be 'quick' — Deep is
+    // The useState initializer should literally be 'quick', Deep is
     // opt-in per D31 so the default is the safe fast path.
     expect(source).toMatch(/useState<RefreshMode>\(\s*['"]quick['"]\s*\)/);
   });

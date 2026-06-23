@@ -1,5 +1,5 @@
 /**
- * sendEmail — queues a rendered lifecycle email into pending_admin_emails.
+ * sendEmail, queues a rendered lifecycle email into pending_admin_emails.
  *
  * The same outbox table that queue-admin-email writes to. An external
  * sender daemon (Resend / Supabase SMTP) drains rows where status='pending'

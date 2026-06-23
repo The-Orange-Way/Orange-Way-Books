@@ -5,13 +5,13 @@
  * over the life of OWB. Each runs idempotently on the user's existing
  * accounts when this module is invoked.
  *
- *   Wave 1 — code 1500 housekeeping (shipped 2026-05-21):
+ *   Wave 1, code 1500 housekeeping (shipped 2026-05-21):
  *     Equipment           1500 → 1600
  *     Other Assets        1600 → 1700
  *     The free 1500 slot is later claimed by the system Transfer
  *     Clearing account on first use.
  *
- *   Wave 2 — chart polish (this module, latest revision):
+ *   Wave 2, chart polish (this module, latest revision):
  *     Inventory           1300 → 1305          (frees 1300 for Prepaid Expenses)
  *     Equity              3000 → "Owner's Equity"   (rename, code unchanged)
  *     Owner's Equity      3100 → "Starting Balance" (rename, code unchanged)
@@ -23,7 +23,7 @@
  * Why client-side and not a Supabase SQL migration:
  *
  *   Under OWB's encrypted chart, the on-disk `account_code` and
- *   `account_name` columns carry anonymized placeholders — the real
+ *   `account_name` columns carry anonymized placeholders, the real
  *   codes and names live inside the encrypted columns. A server-side
  *   migration cannot read them without breaking the zero-knowledge
  *   guarantee. The only place the plaintext is available is the
@@ -38,7 +38,7 @@
  *   - 3100 must be renamed BEFORE 3000 so the new name on 3000 doesn't
  *     collide with the previous 3100 row.
  *   - If a different row already occupies the destination code, the
- *     step is skipped silently — we never overwrite user data.
+ *     step is skipped silently, we never overwrite user data.
  *   - Re-running is a no-op.
  *
  * Only ciphertext leaves the client. Wave 1 fires from
@@ -67,7 +67,7 @@ const WAVE_1_PAIRS: Array<{ fromCode: string; toCode: string; name: string }> = 
  *
  * The four rename steps under "Equity" run in a specific order so that the
  * intermediate state never has two rows that decrypt to the same name on the
- * same org — clean-room safe against any future unique-by-name index.
+ * same org, clean-room safe against any future unique-by-name index.
  */
 interface Wave2Step {
   /** Decrypted code on the existing row. */
@@ -100,7 +100,7 @@ const WAVE_2_STEPS: Wave2Step[] = [
 
   // 5. 5100 "Cost of Goods Sold" → 5000 (renumber up to the canonical COGS slot).
   //    The existing 5000 "Expenses" generic header is left in place for
-  //    safety — if it collides with this step, we skip and the user can
+  //    safety, if it collides with this step, we skip and the user can
   //    rename/archive it manually. New orgs from the updated seed don't
   //    get the generic 5000 row anymore.
   {
@@ -143,7 +143,7 @@ async function loadDecodedRows(orgId: string, decryptText: DecryptFn): Promise<D
         is_archived: f.is_archived,
       });
     } catch {
-      // Undecryptable row — skip silently. We'll never touch what we can't read.
+      // Undecryptable row, skip silently. We'll never touch what we can't read.
     }
   }
   return decoded;
@@ -168,7 +168,7 @@ export async function migrateEquipmentTransferClearingCodes(
     // (some org may have user-created their own account there).
     const collision = decoded.find((d) => d.row.id !== target.row.id && d.code === pair.toCode);
     if (collision) {
-      // Skip silently — we never destroy user data. The Transfer Clearing
+      // Skip silently, we never destroy user data. The Transfer Clearing
       // helper will fall back to its existing find-or-create path.
       continue;
     }

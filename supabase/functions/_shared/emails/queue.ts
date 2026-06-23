@@ -1,5 +1,5 @@
 /**
- * queueLifecycleEmail — write a rendered lifecycle email into the
+ * queueLifecycleEmail, write a rendered lifecycle email into the
  * pending_admin_emails outbox so the drain-email-outbox cron can send
  * it via Resend.
  *

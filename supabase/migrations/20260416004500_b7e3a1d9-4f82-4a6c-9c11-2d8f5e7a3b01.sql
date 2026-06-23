@@ -21,7 +21,7 @@ ALTER TABLE public.journal_entries
 ALTER TABLE public.journal_entry_lines
   ADD COLUMN IF NOT EXISTS key_version INT DEFAULT 0;
 
--- 6. legacy_account_map — new columns for consolidated account table
+-- 6. legacy_account_map, new columns for consolidated account table
 ALTER TABLE public.legacy_account_map
   ADD COLUMN IF NOT EXISTS encrypted_name TEXT,
   ADD COLUMN IF NOT EXISTS encrypted_description TEXT,

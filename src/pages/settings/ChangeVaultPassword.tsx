@@ -1,5 +1,5 @@
 /**
- * ChangeVaultPassword — two-step settings page for rotating the vault password.
+ * ChangeVaultPassword, two-step settings page for rotating the vault password.
  *
  * Step 1: current + new + confirm password form. Submits to
  *   VaultContext.changeVaultPassword which unwraps the MEK with the current
@@ -163,7 +163,7 @@ export default function ChangeVaultPassword() {
     );
   }
 
-  // Step 2 — new recovery code reveal.
+  // Step 2, new recovery code reveal.
   if (newRecoveryCode) {
     const words = newRecoveryCode.split(' ');
     return (
@@ -173,7 +173,7 @@ export default function ChangeVaultPassword() {
           <h1 className="text-lg font-semibold">Save Your New Recovery Code</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your old recovery code has been invalidated. Save this new one — it will
+          Your old recovery code has been invalidated. Save this new one, it will
           <strong> not </strong> be shown again.
         </p>
 
@@ -245,7 +245,7 @@ export default function ChangeVaultPassword() {
     );
   }
 
-  // Step 1 — change password form.
+  // Step 1, change password form.
   return (
     <div className="max-w-md mx-auto p-6 space-y-5">
       <div className="flex items-center gap-2">

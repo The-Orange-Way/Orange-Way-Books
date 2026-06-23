@@ -9,10 +9,10 @@
  *   deno run --allow-net --allow-env scripts/mock-flash/server.ts
  *
  * Endpoints:
- *   POST /oauth/token        — returns fake access/refresh tokens
- *   POST /payment-links      — returns { id, url, expiresAt }
- *   GET  /pay/:id            — fake checkout HTML with a "Mark as paid" form
- *   POST /pay/:id/complete   — submits the "paid" form, HMAC-signs a
+ *   POST /oauth/token       , returns fake access/refresh tokens
+ *   POST /payment-links     , returns { id, url, expiresAt }
+ *   GET  /pay/:id           , fake checkout HTML with a "Mark as paid" form
+ *   POST /pay/:id/complete  , submits the "paid" form, HMAC-signs a
  *                              payment.completed event, POSTs it to
  *                              WEBHOOK_TARGET_URL.
  *

@@ -3,7 +3,7 @@
  *
  * ZKA note: plaintext mode decrypts rows client-side before writing to disk.
  * Import re-encrypts under the current vault before insert, so the server
- * never sees plaintext. The file itself IS plaintext — treat like a secret.
+ * never sees plaintext. The file itself IS plaintext, treat like a secret.
  */
 
 export const TAKEOUT_VERSION = 1;
@@ -70,7 +70,7 @@ export interface TakeoutLegacyAccount {
   readonly account_category: string | null;
   readonly is_archived?: boolean;
   readonly parent_legacy_account_id?: string | null;
-  /** Optional — if absent, inferred from account_type on import. */
+  /** Optional, if absent, inferred from account_type on import. */
   readonly normal_balance?: 'DEBIT' | 'CREDIT' | null;
 }
 
@@ -153,7 +153,7 @@ export interface TakeoutPaymentRequest {
   readonly request_type: string;
   readonly vendor_ref: string | null;
   readonly payment_address: string | null;
-  // Lifecycle timestamps — plaintext on the server (same privacy
+  // Lifecycle timestamps, plaintext on the server (same privacy
   // baseline as JE `date`). Optional for backward compatibility with
   // pre-lifecycle takeout files.
   readonly document_date?: string | null;

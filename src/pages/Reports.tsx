@@ -37,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-// DropdownMenu removed — CSV/Print buttons replaced the export dropdown
+// DropdownMenu removed, CSV/Print buttons replaced the export dropdown
 import {
   Table,
   TableHeader,
@@ -108,7 +108,7 @@ type DatePreset =
   | 'all_time'
   | 'custom';
 
-/** Matches toolbar: Account / Primary / Secondary — used for the CSV column title next to amounts. */
+/** Matches toolbar: Account / Primary / Secondary, used for the CSV column title next to amounts. */
 type ReportCurrencyMode = 'wallet' | 'primary' | 'secondary';
 
 function reportCsvCurrencyExportColumnHeader(mode: ReportCurrencyMode): string {
@@ -228,7 +228,7 @@ function getDateRange(preset: DatePreset): { from: Date | undefined; to: Date | 
 /* Data-driven report components */
 
 function fmtMoney(amount: number, currency: string = 'USD'): string {
-  if (amount === 0) return '—';
+  if (amount === 0) return '-';
   return formatFiat(amount, currency);
 }
 
@@ -286,7 +286,7 @@ function HierarchySectionBlock({
               (l) => l.accountId === node.accountId && journalLineInDateRange(l.date, dateRange),
             )
           : [];
-      const labelPrefix = display.code ? `${display.code} — ` : '';
+      const labelPrefix = display.code ? `${display.code}, ` : '';
       const childNodes = viewMode === 'details' ? node.children : [];
 
       return (
@@ -341,13 +341,13 @@ function HierarchySectionBlock({
                       >
                         <td className="p-2 font-mono whitespace-nowrap">{l.date}</td>
                         <td className="p-2 text-muted-foreground max-w-[200px] truncate">
-                          {l.description ?? l.memo ?? '—'}
+                          {l.description ?? l.memo ?? '-'}
                         </td>
                         <td className="p-2 text-right font-mono">
-                          {l.debit ? fmtMoney(l.debit, currency) : '—'}
+                          {l.debit ? fmtMoney(l.debit, currency) : '-'}
                         </td>
                         <td className="p-2 text-right font-mono">
-                          {l.credit ? fmtMoney(l.credit, currency) : '—'}
+                          {l.credit ? fmtMoney(l.credit, currency) : '-'}
                         </td>
                       </tr>
                     ))}
@@ -424,7 +424,7 @@ function PnlReport({
             section.rows.map((r) => (
               <ReportRow
                 key={r.accountId}
-                label={r.code ? `${r.code} — ${r.name}` : r.name}
+                label={r.code ? `${r.code}, ${r.name}` : r.name}
                 amount={fmtMoney(r.balance, currency)}
               />
             ))
@@ -504,7 +504,7 @@ function BalanceSheetReport({
             section.rows.map((r) => (
               <ReportRow
                 key={r.accountId}
-                label={r.code ? `${r.code} — ${r.name}` : r.name}
+                label={r.code ? `${r.code}, ${r.name}` : r.name}
                 amount={fmtMoney(r.balance, currency)}
               />
             ))
@@ -595,7 +595,7 @@ function CashFlowReport({
             section.rows.map((r) => (
               <ReportRow
                 key={r.accountId}
-                label={r.code ? `${r.code} — ${r.name}` : r.name}
+                label={r.code ? `${r.code}, ${r.name}` : r.name}
                 amount={fmtMoney(r.balance, currency)}
               />
             ))
@@ -653,11 +653,11 @@ function GeneralLedgerReport({
               <TableRow key={`${e.journalEntryId}-${i}`} className="hover:bg-[#fafafa]">
                 <TableCell className="font-mono text-xs">{e.date}</TableCell>
                 <TableCell className="text-xs">
-                  {e.accountCode ? `${e.accountCode} — ` : ''}
+                  {e.accountCode ? `${e.accountCode}, ` : ''}
                   {e.accountName}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                  {e.description || '—'}
+                  {e.description || '-'}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
                   {e.debit ? fmtMoney(e.debit, currency) : ''}
@@ -709,7 +709,7 @@ function TrialBalanceReport({
             data.rows.map((r) => (
               <TableRow key={r.accountName} className="hover:bg-[#fafafa]">
                 <TableCell className="text-sm">
-                  {r.accountCode ? `${r.accountCode} — ` : ''}
+                  {r.accountCode ? `${r.accountCode}, ` : ''}
                   {r.accountName}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
@@ -853,7 +853,7 @@ function ActivityLogReport({
   );
 }
 
-/* CSV Export — client-side only (ZKA): decrypted journal lines feed the engine; CSV is a local Blob download, never sent to the server. */
+/* CSV Export, client-side only (ZKA): decrypted journal lines feed the engine; CSV is a local Blob download, never sent to the server. */
 
 function exportReportCsv(
   reportType: ReportType,
@@ -912,7 +912,7 @@ function exportReportCsv(
       headers = ['Account', 'Debits', 'Credits'];
       for (const r of tbData.rows) {
         rows.push([
-          r.accountCode ? `${r.accountCode} — ${r.accountName}` : r.accountName,
+          r.accountCode ? `${r.accountCode}, ${r.accountName}` : r.accountName,
           csvAmt(r.debit),
           csvAmt(r.credit),
         ]);
@@ -924,7 +924,7 @@ function exportReportCsv(
       for (const e of glEntries) {
         rows.push([
           e.date,
-          e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
+          e.accountCode ? `${e.accountCode}, ${e.accountName}` : e.accountName,
           e.description | '',
           csvAmt(e.debit),
           csvAmt(e.credit),
@@ -1045,7 +1045,7 @@ async function printReport(
       headers = ['Account', 'Debits', 'Credits'];
       for (const r of tbData.rows)
         rows.push([
-          r.accountCode ? `${r.accountCode} — ${r.accountName}` : r.accountName,
+          r.accountCode ? `${r.accountCode}, ${r.accountName}` : r.accountName,
           r.debit,
           r.credit,
         ]);
@@ -1056,7 +1056,7 @@ async function printReport(
       for (const e of glEntries)
         rows.push([
           e.date,
-          e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
+          e.accountCode ? `${e.accountCode}, ${e.accountName}` : e.accountName,
           e.description | '',
           e.debit,
           e.credit,
@@ -1097,7 +1097,7 @@ async function printReport(
     return;
   }
 
-  const docTitle = `${orgName} — ${reportTitle} — ${dateLabel}`;
+  const docTitle = `${orgName}, ${reportTitle}, ${dateLabel}`;
   const headerHtml = headers
     .map(
       (h, index) =>
@@ -1306,7 +1306,7 @@ function ReportShell({
       </p>
       {/* Mobile: enable horizontal scroll for the report body so wide
           ledger / trial-balance / P&L tables stay legible. Desktop is
-          unchanged — overflow-x-auto on a fitting container is a no-op. */}
+          unchanged, overflow-x-auto on a fitting container is a no-op. */}
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">{children}</div>
     </div>
   );
@@ -1337,7 +1337,7 @@ function ReportRow({
       }
     >
       <span>{label}</span>
-      <span className="font-mono">{amount ?? '—'}</span>
+      <span className="font-mono">{amount ?? '-'}</span>
     </div>
   );
 }
@@ -1368,14 +1368,14 @@ function ComparisonPnl({
       const cur = current.rows.find((r) => r.name === name)?.balance ?? 0;
       const pri = prior.rows.find((r) => r.name === name)?.balance ?? 0;
       const variance = cur - pri;
-      const pct = pri !== 0 ? ((variance / Math.abs(pri)) * 100).toFixed(1) : '—';
+      const pct = pri !== 0 ? ((variance / Math.abs(pri)) * 100).toFixed(1) : '-';
       return { name, cur, pri, variance, pct };
     });
   };
 
   return (
     <ReportShell
-      title="Profit & Loss — Period Comparison"
+      title="Profit & Loss, Period Comparison"
       orgName={orgName}
       dateLabel={`${dateLabel} vs. ${priorDateLabel}`}
     >
@@ -1416,7 +1416,7 @@ function ComparisonPnl({
                       {fmtMoney(r.variance, currency)}
                     </TableCell>
                     <TableCell className={cn('text-right text-xs', vColor)}>
-                      {r.pct === '—' ? '—' : `${r.pct}%`}
+                      {r.pct === '-' ? '-' : `${r.pct}%`}
                     </TableCell>
                   </TableRow>
                 );
@@ -1444,7 +1444,7 @@ function ComparisonPnl({
                 <TableCell className="text-right text-xs">
                   {pri.total !== 0
                     ? `${(((cur.total - pri.total) / Math.abs(pri.total)) * 100).toFixed(1)}%`
-                    : '—'}
+                    : '-'}
                 </TableCell>
               </TableRow>
             </>
@@ -1468,7 +1468,7 @@ function ComparisonPnl({
             <TableCell className="text-right text-xs">
               {priorData.netProfit !== 0
                 ? `${(((data.netProfit - priorData.netProfit) / Math.abs(priorData.netProfit)) * 100).toFixed(1)}%`
-                : '—'}
+                : '-'}
             </TableCell>
           </TableRow>
         </TableBody>
@@ -1512,7 +1512,7 @@ function ComparisonBalanceSheet({
 
   return (
     <ReportShell
-      title="Balance Sheet — Period Comparison"
+      title="Balance Sheet, Period Comparison"
       orgName={orgName}
       dateLabel={`${dateLabel} vs. ${priorDateLabel}`}
     >
@@ -1602,7 +1602,7 @@ function ComparisonTrialBalance({
   ]);
   return (
     <ReportShell
-      title="Trial Balance — Period Comparison"
+      title="Trial Balance, Period Comparison"
       orgName={orgName}
       dateLabel={`${dateLabel} vs. ${priorDateLabel}`}
     >
@@ -1623,7 +1623,7 @@ function ComparisonTrialBalance({
             return (
               <TableRow key={name} className="hover:bg-[#fafafa]">
                 <TableCell className="text-sm">
-                  {cur?.accountCode ? `${cur.accountCode} — ` : ''}
+                  {cur?.accountCode ? `${cur.accountCode}, ` : ''}
                   {name}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
@@ -1810,14 +1810,14 @@ export default function Reports() {
 
   const dateLabel = useMemo(() => {
     if (dateRange.from && dateRange.to)
-      return `${format(dateRange.from, 'MMM d, yyyy')} — ${format(dateRange.to, 'MMM d, yyyy')}`;
+      return `${format(dateRange.from, 'MMM d, yyyy')}, ${format(dateRange.to, 'MMM d, yyyy')}`;
     if (dateRange.from) return `From ${format(dateRange.from, 'MMM d, yyyy')}`;
     return 'All Time';
   }, [dateRange]);
 
   // T-P1: closed-period banner. If the report's `to` date falls inside an
   // org_period_closes window, surface the close info + Owner-only reopen
-  // affordance. Cheap query — closes table is small (one row per close
+  // affordance. Cheap query, closes table is small (one row per close
   // event, typically <50 per org per year).
   const [closedPeriodInfo, setClosedPeriodInfo] = useState<{
     locked_through_date: string;
@@ -1973,7 +1973,7 @@ export default function Reports() {
   const priorDateLabel = useMemo(() => {
     if (!priorDateRange) return '';
     if (priorDateRange.from && priorDateRange.to)
-      return `${format(priorDateRange.from, 'MMM d, yyyy')} — ${format(priorDateRange.to, 'MMM d, yyyy')}`;
+      return `${format(priorDateRange.from, 'MMM d, yyyy')}, ${format(priorDateRange.to, 'MMM d, yyyy')}`;
     if (priorDateRange.from) return `From ${format(priorDateRange.from, 'MMM d, yyyy')}`;
     return 'All Time';
   }, [priorDateRange]);
@@ -1984,7 +1984,7 @@ export default function Reports() {
     return primaryCurrency;
   }, [currencyMode, primaryCurrency, secondaryCurrency]);
 
-  // Boundary detection — does the active date range cross a primary-currency change?
+  // Boundary detection, does the active date range cross a primary-currency change?
   const boundaryResult = useMemo(() => {
     if (!engineDateRange?.from || !engineDateRange?.to || primaryCurrencyHistory.length <= 1) {
       return null;
@@ -2040,7 +2040,7 @@ export default function Reports() {
 
   return (
     <div>
-      {/* T-P1 — closed-period banner. Shown when the report's date range
+      {/* T-P1, closed-period banner. Shown when the report's date range
           falls within a closed period. Read-only signal; the "Reopen"
           affordance lives on the Admin Period Close tab. */}
       {closedPeriodInfo && (
@@ -2050,7 +2050,7 @@ export default function Reports() {
               📌 This view is inside a <strong>closed period</strong> (locked through{' '}
               {closedPeriodInfo.locked_through_date}).
               {closedPeriodInfo.note && (
-                <span className="text-amber-700"> — {closedPeriodInfo.note}</span>
+                <span className="text-amber-700">, {closedPeriodInfo.note}</span>
               )}
               <span className="text-amber-700"> Read-only.</span>
             </span>
@@ -2332,7 +2332,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Wallet mode — mixed-units notice */}
+      {/* Wallet mode, mixed-units notice */}
       {!dataLoading && currencyMode === 'wallet' && (
         <div
           className="mb-3 px-3 py-2 rounded-lg text-xs"
@@ -2343,7 +2343,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Boundary banner — date range crosses a primary-currency change */}
+      {/* Boundary banner, date range crosses a primary-currency change */}
       {!dataLoading && boundaryResult && (
         <div
           className="mb-3 px-3 py-2 rounded-lg text-xs"

@@ -1,17 +1,17 @@
--- Phase 1 — Migration 8/9: Repair foreign keys from OTHER tables that pointed
+-- Phase 1, Migration 8/9: Repair foreign keys from OTHER tables that pointed
 -- at the dropped journal_entries / legacy_account_map.
 --
 -- When migration 1/9 dropped those tables CASCADE, FKs from sibling tables
--- were dropped silently — the columns survived but lost their constraints.
+-- were dropped silently, the columns survived but lost their constraints.
 -- This migration re-adds the FKs against the new schema.
 --
--- Tables affected (best effort — verified during enumeration):
+-- Tables affected (best effort, verified during enumeration):
 --   - fx_revaluation_runs.je_id          → journal_entries(id) ON DELETE SET NULL
 --   - fx_revaluation_runs.reverse_je_id  → journal_entries(id) ON DELETE SET NULL
 --   - import_jobs (if any FK to journal_entries; the relationship is the other
---     direction — journal_entries.import_job_id → import_jobs(id) — already
+--     direction, journal_entries.import_job_id → import_jobs(id), already
 --     re-added in migration 3/9)
---   - transactions.* — the old transactions table referenced legacy_account_id
+--   - transactions.*, the old transactions table referenced legacy_account_id
 --     and legacy_transaction_id; those become orphan UUID columns. Phase 2's
 --     client refactor will null them out + a future migration can drop them.
 --   - attachments.journal_entry_id (if present from 20260522010000) → journal_entries(id)

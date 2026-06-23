@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const OXR_APP_ID = Deno.env.get('OXR_APP_ID') || '';
 
-// ORBI — Orange Rails Bitcoin Index. Preferred provider for BTC↔fiat
+// ORBI, Orange Rails Bitcoin Index. Preferred provider for BTC↔fiat
 // pairs in the targets it covers; falls back to CoinGecko on miss/error.
 // Anon key is public by design (RLS gates writes); safe to hold here.
 const ORBI_SUPABASE_URL = Deno.env.get('ORBI_SUPABASE_URL') || '';
@@ -134,7 +134,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405, cors);
 
-  // Auth (optional) — rates are public data. If a JWT is present we identify
+  // Auth (optional), rates are public data. If a JWT is present we identify
   // the caller so rate limits are per-user; otherwise we fall back to the
   // request IP. verify_jwt is disabled at the gateway for this function.
   let rateLimitSubject: string;
@@ -175,7 +175,7 @@ serve(async (req) => {
     let body: {
       base?: string;
       quote?: string;
-      date?: string; // legacy field — still accepted
+      date?: string; // legacy field, still accepted
       bucket_ts?: string; // preferred: ISO UTC timestamp
       bucket_granularity?: string;
     };
@@ -218,7 +218,7 @@ serve(async (req) => {
 
     const sourceKind = deriveSourceKind(base, quote);
 
-    // Identity / fixed — no DB write needed
+    // Identity / fixed, no DB write needed
     if (sourceKind === 'IDENTITY') {
       return jsonResponse(
         {
@@ -337,7 +337,7 @@ serve(async (req) => {
               }
             } else {
               console.warn(
-                `ORBI ${orbiRes.status} for BTC/${orbiTarget} — falling back to CoinGecko`,
+                `ORBI ${orbiRes.status} for BTC/${orbiTarget}, falling back to CoinGecko`,
               );
             }
           } catch (orbiErr) {
@@ -381,7 +381,7 @@ serve(async (req) => {
         throw new Error('No provider configured');
       }
     } catch (providerErr) {
-      // Provider failed — upsert a PENDING row so the browser knows to show the banner
+      // Provider failed, upsert a PENDING row so the browser knows to show the banner
       console.error('Provider fetch failed:', providerErr);
       const { data: pendingRow } = await adminSupabase
         .from('exchange_rates')

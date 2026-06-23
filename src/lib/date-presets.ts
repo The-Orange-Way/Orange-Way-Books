@@ -3,7 +3,7 @@
  *
  * Two pieces:
  *   - `listDatePresets(year?)` returns the dropdown options the UI shows.
- *     The list grows over time — three calendar years rolling backward
+ *     The list grows over time, three calendar years rolling backward
  *     from `year` (today's year by default), plus four quarters of `year`,
  *     plus a fixed set of relative ranges, plus a Custom escape hatch.
  *   - `resolveDateRange(presetId)` turns a preset string into a concrete
@@ -15,7 +15,7 @@
  *   - Calendar year: `yYYYY` (e.g. `y2026`).
  *   - Calendar quarter: `qN_YYYY` (N in 1..4, e.g. `q3_2026`).
  *
- * Unknown ids return an empty range. Custom returns an empty range too —
+ * Unknown ids return an empty range. Custom returns an empty range too
  * the UI fills it from the date pickers.
  *
  * Implemented in-house for OWB. No external port.
@@ -35,7 +35,7 @@ export interface DateRange {
   readonly endDate: string;
 }
 
-// ── Relative presets — fixed set, no year math needed ─────────────────────
+// ── Relative presets, fixed set, no year math needed ─────────────────────
 
 const RELATIVE_OPTIONS: ReadonlyArray<DatePresetOption> = [
   { value: 'week', label: 'This week' },
@@ -47,7 +47,7 @@ const RELATIVE_OPTIONS: ReadonlyArray<DatePresetOption> = [
   { value: 'last90', label: 'Last 90 days' },
 ];
 
-// ── Calendar quarters — one source of truth for both ends of the range ────
+// ── Calendar quarters, one source of truth for both ends of the range ────
 
 interface QuarterBounds {
   startMonth: number; // 1-12
@@ -76,7 +76,7 @@ function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-// ── Range helpers — small, named, no side effects ────────────────────────
+// ── Range helpers, small, named, no side effects ────────────────────────
 
 function weekRange(today: Date, offsetDays: number): DateRange {
   const start = new Date(today);
@@ -192,7 +192,7 @@ export function getCurrentYearPreset(): { datePreset: DateRangePreset } & DateRa
   };
 }
 
-// ── Status filter — orthogonal to date range, kept here historically ──────
+// ── Status filter, orthogonal to date range, kept here historically ──────
 
 export type StatusFilter =
   | 'all'

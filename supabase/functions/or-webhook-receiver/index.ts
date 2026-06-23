@@ -1,5 +1,5 @@
 /**
- * or-webhook-receiver — receives sync.completed events from OrangeRails.
+ * or-webhook-receiver, receives sync.completed events from OrangeRails.
  *
  * Resolves the inbound subaccount_id to an OWB org_id (OWB subaccounts
  * are 1-per-org) and enqueues the downstream work. HMAC signature
@@ -8,18 +8,18 @@
  * Wire format (OR's v2):
  *   POST  application/json
  *   Headers:
- *     X-OR-Signature      : v1 legacy — hex(HMAC-SHA-256(secret, body))
- *     X-OR-Signature-V2   : v2 — `t=<unix>,v1=<hex>` (Stripe-style)
+ *     X-OR-Signature      : v1 legacy, hex(HMAC-SHA-256(secret, body))
+ *     X-OR-Signature-V2   : v2, `t=<unix>,v1=<hex>` (Stripe-style)
  *     X-OR-Event-Id       : UUID stable across retries (dedupe key)
  *   Body:   { type: "sync.completed", data: { subaccount_id,
  *             connection_id, synced_count, ts } }
  *
  * Verification is delegated to the vendored `@orangerails/webhooks` SDK
- * at `../_shared/or-webhooks/` — the same SDK other OrangeRails consumers use, so all
+ * at `../_shared/or-webhooks/`, the same SDK other OrangeRails consumers use, so all
  * three receivers verify byte-identically.
  *
  * Auth model: PUBLIC endpoint (no Supabase JWT). OR cannot mint user
- * JWTs. Authentication is the HMAC signature alone — the shared secret
+ * JWTs. Authentication is the HMAC signature alone, the shared secret
  * `OR_WEBHOOK_SECRET` is set on both sides at registration time and
  * verified constant-time by the SDK on every request.
  *
@@ -129,10 +129,10 @@ Deno.serve(async (req: Request) => {
 
   const status = STATUS_BY_TYPE[event.type];
   if (!status) {
-    // Unknown event type — 202-ACK so OR stops retrying, log so we can
+    // Unknown event type, 202-ACK so OR stops retrying, log so we can
     // see new types arrive. Plumb the data path when we know the shape.
     console.warn(
-      `[or-webhook-receiver] unhandled event type "${event.type}" — accepting without persisting`,
+      `[or-webhook-receiver] unhandled event type "${event.type}", accepting without persisting`,
     );
     return jsonResponse({ status: 'accepted_unhandled', type: event.type }, 202);
   }
@@ -140,7 +140,7 @@ Deno.serve(async (req: Request) => {
   const orgId = await resolveOrgId(event.data.subaccount_id);
   if (!orgId) {
     console.warn(
-      `[or-webhook-receiver] unknown subaccount_id ${event.data.subaccount_id} — no org match`,
+      `[or-webhook-receiver] unknown subaccount_id ${event.data.subaccount_id}, no org match`,
     );
     return jsonResponse({ status: 'accepted_no_org' }, 202);
   }

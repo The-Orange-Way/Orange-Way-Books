@@ -16,7 +16,7 @@
  *   https://github.com/usnistgov/ACVP-Server/tree/master/gen-val/json-files
  *
  * AFT (Algorithm Functional Test) keygen tests provide the raw seed
- * material directly — `d`/`z` (32 B each, concatenated) for FIPS 203
+ * material directly, `d`/`z` (32 B each, concatenated) for FIPS 203
  * ML-KEM and `seed` (32 B) for FIPS 204 ML-DSA. That is exactly what
  * @noble/post-quantum's `keygen(seed)` accepts, so no AES-CTR_DRBG
  * driver is needed.
@@ -142,7 +142,7 @@ describe('pqc: ML-DSA-65 sign / verify', () => {
 });
 
 // ------------------------------------------------------------------
-// NIST ACVP AFT keygen KATs — FIPS 203 / 204.
+// NIST ACVP AFT keygen KATs, FIPS 203 / 204.
 // Fixtures are extracted from the NIST ACVP-Server JSON files; see
 // the file header for source URLs and extraction procedure.
 // ------------------------------------------------------------------
@@ -168,7 +168,7 @@ function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 
 describe(`pqc: NIST ACVP ${kemKat.parameterSet} AFT keygen`, () => {
   for (const t of kemKat.tests) {
-    it(`tcId ${t.tcId} — pk and sk match NIST expected`, () => {
+    it(`tcId ${t.tcId}, pk and sk match NIST expected`, () => {
       const seed = concatBytes(hexToBytes(t.d), hexToBytes(t.z));
       expect(seed.length).toBe(64);
       const { publicKey, secretKey } = ml_kem768.keygen(seed);
@@ -180,7 +180,7 @@ describe(`pqc: NIST ACVP ${kemKat.parameterSet} AFT keygen`, () => {
 
 describe(`pqc: NIST ACVP ${dsaKat.parameterSet} AFT keygen`, () => {
   for (const t of dsaKat.tests) {
-    it(`tcId ${t.tcId} — pk and sk match NIST expected`, () => {
+    it(`tcId ${t.tcId}, pk and sk match NIST expected`, () => {
       const seed = hexToBytes(t.seed);
       expect(seed.length).toBe(32);
       const { publicKey, secretKey } = ml_dsa65.keygen(seed);

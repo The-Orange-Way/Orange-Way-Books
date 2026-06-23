@@ -1,5 +1,5 @@
 /**
- * create-flash-payment — generates a Flash payment link for the caller's
+ * create-flash-payment, generates a Flash payment link for the caller's
  * subscription. Customer-facing: any authed user who has a subscription
  * via their org's billing_account can call this.
  *
@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
-  // M5 — 2026-05-19 audit. 10 payment-link creations per user per 5 min.
+  // M5, 2026-05-19 audit. 10 payment-link creations per user per 5 min.
   // Real users almost never need more than one in a session; cap is
   // protection against runaway client retries hammering Flash.
   const rl = await rateLimit(admin, {
@@ -195,7 +195,7 @@ Deno.serve(async (req: Request) => {
     link = await createPaymentLink(admin, {
       amountCents: sub.price_cents,
       currency: sub.currency,
-      description: `Orange Way Books — ${sub.plan}`,
+      description: `Orange Way Books, ${sub.plan}`,
       externalReference,
       expiresInSeconds: PAYMENT_EXPIRES_IN_SECONDS,
     });

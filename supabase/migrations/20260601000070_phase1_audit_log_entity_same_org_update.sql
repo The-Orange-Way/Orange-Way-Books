@@ -1,4 +1,4 @@
--- Phase 1 — Migration 7/9: Update `check_audit_log_entity_same_org()` to point
+-- Phase 1, Migration 7/9: Update `check_audit_log_entity_same_org()` to point
 -- at the new `chart_of_accounts` table (replacing `legacy_account_map`).
 --
 -- The original lives in 20260417000400_data_integrity_triggers.sql lines 65-140.
@@ -78,7 +78,7 @@ END;
 $$;
 
 -- The trigger itself is still attached (it was created in 20260417000400 and
--- never dropped). The function-replace above is sufficient — no DROP/CREATE needed.
+-- never dropped). The function-replace above is sufficient, no DROP/CREATE needed.
 
 COMMENT ON FUNCTION public.check_audit_log_entity_same_org() IS
   'Validates audit_logs.entity_id belongs to the same org as audit_logs.org_id. Phase 1 redesign: chart_of_account branch now queries public.chart_of_accounts (was public.legacy_account_map).';

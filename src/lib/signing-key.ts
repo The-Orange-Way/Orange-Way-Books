@@ -1,5 +1,5 @@
 /**
- * Org Signing Key client helpers — Phase 4.4.
+ * Org Signing Key client helpers, Phase 4.4.
  *
  * The signing key is a per-org ML-DSA-65 keypair:
  *
@@ -10,7 +10,7 @@
  *     `org_member_signing_key_wraps` keyed on (user_id, org_id, key_version).
  *
  * Auditor and Viewer members never get a wrap, which is the
- * cryptographic read-only enforcement — see
+ * cryptographic read-only enforcement, see
  * OWB-MULTIUSER-DESIGN.md §3 "three-layer read-only (Auditor)".
  *
  * This module stays browser-pure: it only knows about bytes + base64
@@ -18,7 +18,7 @@
  * the VaultContext + Admin.tsx call sites.
  *
  * ── Non-goals ──────────────────────────────────────────────────────
- *   * No re-key / rotation logic — that lands in Phase 4.5 alongside
+ *   * No re-key / rotation logic, that lands in Phase 4.5 alongside
  *     hard re-key.
  *   * No signature payload-composition schema. Callers pass a
  *     `Uint8Array` and own the canonicalization: for the Phase 4.4
@@ -30,7 +30,7 @@ import { ML_DSA_65, generateSigKeyPair, sign as mlDsaSign, verify as mlDsaVerify
 import { DEFAULT_WRAP_ALGORITHM, KEY_WRAP_STRATEGIES, base64ToBytes } from '@/lib/key-wrapping';
 
 // ---------------------------------------------------------------------------
-// Local base64 helpers — kept inline so this module has no cross-module
+// Local base64 helpers, kept inline so this module has no cross-module
 // dep on invite-wrap.ts (both modules share the primitive).
 // ---------------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ export interface GeneratedSigningKeyBundle {
   algorithm: string;
   wraps: SigningKeyWrapRow[];
   /**
-   * Raw private key bytes — caller must drop the reference immediately
+   * Raw private key bytes, caller must drop the reference immediately
    * after passing to the mint-org-signing-key request (or store in the
    * VaultContext signing-key cache). The server never sees this.
    */
@@ -87,7 +87,7 @@ const AES_GCM_IV_BYTES = 12;
  * Extract the 12-byte IV that the hybrid-KEM strategy prepends to its
  * AES-GCM ciphertext. We duplicate the IV in the `iv` column so the
  * server-side audit tooling can inspect it without parsing base64 on
- * every row. The blob is self-contained either way — the IV column is
+ * every row. The blob is self-contained either way, the IV column is
  * a convenience, not a requirement for unwrapping.
  */
 function extractIvFromWrap(wrapped: Uint8Array, privateKeyBytes: number): Uint8Array {
@@ -108,7 +108,7 @@ function extractIvFromWrap(wrapped: Uint8Array, privateKeyBytes: number): Uint8A
  * writer's hybrid public key. Callers pass the result to the
  * `mint-org-signing-key` edge function.
  *
- * Wraps only the writer roles — callers determine who's a writer
+ * Wraps only the writer roles, callers determine who's a writer
  * (members holding a capability with `requires_osk = TRUE`). A
  * non-writer accidentally receiving a wrap is a non-issue: the RLS +
  * capability layer denies their writes anyway. The edge function trusts
@@ -118,7 +118,7 @@ function extractIvFromWrap(wrapped: Uint8Array, privateKeyBytes: number): Uint8A
  * NOTE: this wraps the ML-DSA *secret key* (4032 bytes for ML-DSA-65),
  * which is larger than the 32-byte DEK the hybrid-KEM strategy is
  * nominally designed to wrap. We cannot reuse `wrapForRecipient`
- * directly — it hardcodes the 32-byte data key length. We therefore
+ * directly, it hardcodes the 32-byte data key length. We therefore
  * implement the wrap inline using the same hybrid KEM + AES-GCM
  * primitives. The wire format is identical (kemCt | iv[12] ||
  * AES-GCM(privateKey)) so a future migration could factor the two
@@ -192,7 +192,7 @@ export async function generateAndWrapSigningKey(
  * ML-DSA-65 secret key. Inverse of generateAndWrapSigningKey's wrap path.
  *
  * The recipient's hybrid secret key (x25519 | ML-KEM-768) must be
- * provided by the caller — typically fetched and decrypted by
+ * provided by the caller, typically fetched and decrypted by
  * VaultContext on unlock.
  */
 export async function unwrapSigningKeyForSelf(
@@ -201,7 +201,7 @@ export async function unwrapSigningKeyForSelf(
 ): Promise<Uint8Array> {
   const wrapped = base64ToBytes(wrappedPrivateKeyB64);
 
-  // Use the same strategy primitives the invite-wrap path does —
+  // Use the same strategy primitives the invite-wrap path does
   // wire format is identical. `unwrapForSelf` expects a blob with a
   // 32-byte data key, so we fall back to the low-level helpers here.
   const { HYBRID_KEM_CIPHERTEXT_BYTES, hybridDecapsulate } = await import('@/lib/pqc');
@@ -263,7 +263,7 @@ export function signMutation(
 
 /**
  * Verify an ML-DSA-65 signature against the provided org public key.
- * Returns false on any validation failure — never throws.
+ * Returns false on any validation failure, never throws.
  */
 export function verifyMutation(
   payloadBytes: Uint8Array,
@@ -284,7 +284,7 @@ export function verifyMutation(
 // ---------------------------------------------------------------------------
 
 export { ML_DSA_65 };
-// Silence unused-import warning — DEFAULT_WRAP_ALGORITHM is kept in the
+// Silence unused-import warning, DEFAULT_WRAP_ALGORITHM is kept in the
 // import list as documentation that this module intentionally uses the
 // same hybrid-KEM strategy label family as key-wrapping.ts (though it
 // encodes its own 'hybrid-kem-v1' marker for clarity).

@@ -1,6 +1,6 @@
 /**
  * Smoke tests for shared Flash browser types. The real integration
- * coverage lives in tests/integration/flash/MANUAL.md — OWB does not
+ * coverage lives in tests/integration/flash/MANUAL.md, OWB does not
  * yet have a local-supabase test harness so we keep this file as a
  * placeholder that ensures the type module loads cleanly.
  */

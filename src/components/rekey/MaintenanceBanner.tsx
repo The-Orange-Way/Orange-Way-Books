@@ -1,5 +1,5 @@
 /**
- * MaintenanceBanner — Phase 4.5 D14.
+ * MaintenanceBanner, Phase 4.5 D14.
  *
  * Global top-of-app banner shown to non-Owners while a key rotation job
  * is in an intermediate stage (wrapping_members, rekeying_rows,

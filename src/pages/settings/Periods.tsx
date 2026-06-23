@@ -512,7 +512,7 @@ export default function Periods() {
                     {format(parseISO(r.expires_at), 'PPP p')}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {r.reason_plain | <span className="text-muted-foreground">—</span>}
+                    {r.reason_plain | <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>
                     {r.is_mine && (
@@ -559,7 +559,7 @@ export default function Periods() {
                     {format(parseISO(r.closed_at), 'PPP p')}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {r.note_plain | <span className="text-muted-foreground">—</span>}
+                    {r.note_plain | <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>
                     {r.reopened_from_id ? (

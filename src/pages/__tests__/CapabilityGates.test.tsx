@@ -1,5 +1,5 @@
 /**
- * UI capability gates — Phase 4.x UX polish.
+ * UI capability gates, Phase 4.x UX polish.
  *
  * Server-side RLS (user_has_capability) is the authoritative enforcement
  * mechanism for the OWB permissions model. These tests prove that the
@@ -8,10 +8,10 @@
  * 403 on click.
  *
  * Each test mounts a real page component but mocks:
- *   - useCapability — to simulate a specific role's capability set
- *   - useUserOrg    — to supply an orgId
- *   - useVault      — stable stub (stable-stub pattern)
- *   - supabase      — minimal builder that returns empty result sets
+ *   - useCapability, to simulate a specific role's capability set
+ *   - useUserOrg   , to supply an orgId
+ *   - useVault     , stable stub (stable-stub pattern)
+ *   - supabase     , minimal builder that returns empty result sets
  *
  * The page is allowed to render its empty / loading / error states; what we
  * assert is presence/absence of the write controls keyed by data-testid.
@@ -95,7 +95,7 @@ function setRole(role: keyof typeof PRESETS) {
 
 vi.mock('@/hooks/useCapability', () => ({
   useCapability: (key: string) => __activeCaps.current.has(key),
-  // Other exports the pages may pull from this module — not used in these
+  // Other exports the pages may pull from this module, not used in these
   // tests but exported to satisfy the module shape.
   useCurrentUserRoles: () => ({
     roles: [],
@@ -152,7 +152,7 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
-// Minimal supabase builder — every query returns an empty list. The pages
+// Minimal supabase builder, every query returns an empty list. The pages
 // just need to render their empty states; we're checking button presence.
 vi.mock('@/lib/supabase', () => {
   const makeChain = (data: unknown = []) => {
@@ -301,7 +301,7 @@ describe('UI capability gates', () => {
     });
     // Create-request button is hidden.
     expect(screen.queryByTestId('payments-new-request')).not.toBeInTheDocument();
-    // Payer tile is hidden — there should only be the Approver tile and only
+    // Payer tile is hidden, there should only be the Approver tile and only
     // one role in the available list, so the whole switcher collapses.
     expect(screen.queryByTestId('payments-view-as-payer')).not.toBeInTheDocument();
     expect(screen.queryByTestId('payments-view-as-requester')).not.toBeInTheDocument();

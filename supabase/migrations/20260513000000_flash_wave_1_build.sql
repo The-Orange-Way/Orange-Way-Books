@@ -1,5 +1,5 @@
 -- ============================================================
--- Flash Wave 1 — Layer 2 build: idempotency + lifecycle events.
+-- Flash Wave 1, Layer 2 build: idempotency + lifecycle events.
 -- ============================================================
 
 BEGIN;

@@ -125,7 +125,7 @@ interface TxRow {
   to_from?: string | null;
   linked_tx_id?: string | null;
   linked_transfer_id?: string | null;
-  /** chart_of_accounts.id (PK) — populated by the modal on save and by the
+  /** chart_of_accounts.id (PK), populated by the modal on save and by the
    *  Phase 5 OR import bridge. Null for legacy rows; the Edit modal then
    *  shows the empty "Select account" placeholder until the user picks one. */
   account_id?: string | null;
@@ -133,13 +133,13 @@ interface TxRow {
    *  with. Independent of account_id. Null for legacy + most OR imports. */
   contact_id?: string | null;
   /** journal_entries.id wrapper for split + transfer modes. Required to be
-   *  non-null in order to use the Void action — voiding writes a reversing
+   *  non-null in order to use the Void action, voiding writes a reversing
    *  JE that nets the original to zero. Standard-mode txs (NULL here) need
    *  T4 status-state-machine unification before they can be voided. */
   journal_entry_id?: string | null;
 }
 
-// Local ContactOption is a superset of the modal's TxContactOption — same
+// Local ContactOption is a superset of the modal's TxContactOption, same
 // id + name, plus kind so we can group contacts in the picker by Customer /
 // Vendor / Employee. Decoded from `contacts.type` (encrypted by OWB).
 interface ContactOption {
@@ -232,11 +232,11 @@ function getDateRange(preset: DatePreset): { from: Date | undefined; to: Date | 
 export default function Transactions() {
   const { orgId, loading: orgLoading } = useUserOrg();
   const { encryptText, decryptText, encryptBlob, loadOrgSigningKey, signMutation } = useVault();
-  // Capability gates — server-side RLS is the authoritative enforcement
+  // Capability gates, server-side RLS is the authoritative enforcement
   // (user_has_capability). These flags only control button visibility so
   // a Viewer/Auditor never sees a control that would 403.
   const canDeleteTx = useCapability('transactions.delete', orgId);
-  // Both hooks must be called unconditionally — the previous `a | b` form
+  // Both hooks must be called unconditionally, the previous `a | b` form
   // short-circuited the second useCapability call between renders and
   // crashed the page with React error #311 (hooks-order violation).
   const canWriteTxAll = useCapability('transactions.write', orgId);
@@ -271,7 +271,7 @@ export default function Transactions() {
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'draft' | 'posted' | 'not-cleared' | 'cleared' | 'reconciled'
   >('all');
-  // Drawer filters — empty wallet set = all wallets; blank amount strings = no bound.
+  // Drawer filters, empty wallet set = all wallets; blank amount strings = no bound.
   const [walletFilter, setWalletFilter] = useState<Set<string>>(new Set());
   const [amountMin, setAmountMin] = useState<string>('');
   const [amountMax, setAmountMax] = useState<string>('');
@@ -361,7 +361,7 @@ export default function Transactions() {
     }
     // Count QB-imported journal entries so the banner can point users to the
     // Journal Entries page after a QuickBooks import. Counts every QB-tagged
-    // entry in the org — there's no per-import expiry today.
+    // entry in the org, there's no per-import expiry today.
     try {
       const { count } = await supabase
         .from('journal_entries')
@@ -409,9 +409,9 @@ export default function Transactions() {
 
   /** Shown in the DATE RANGE row. */
   const effectiveRangeLabels = useMemo(() => {
-    if (datePreset === 'all_time') return { from: '—', to: '—' };
-    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '—';
-    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '—';
+    if (datePreset === 'all_time') return { from: '-', to: '-' };
+    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '-';
+    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '-';
     return { from, to };
   }, [datePreset, dateRange.from, dateRange.to]);
 
@@ -428,7 +428,7 @@ export default function Transactions() {
     return out;
   }, []);
 
-  /** BTC rows without a pinned rate — surfaces a banner hint at the top. */
+  /** BTC rows without a pinned rate, surfaces a banner hint at the top. */
   const pendingRateLineCount = useMemo(
     () =>
       txs.filter(
@@ -478,13 +478,13 @@ export default function Transactions() {
             break;
         }
       }
-      // Wallet (account) multi-select — empty set means "all wallets",
+      // Wallet (account) multi-select, empty set means "all wallets",
       // any populated set restricts to its members. Txs without a wallet
       // never match a non-empty set.
       if (walletFilter.size > 0) {
         if (!tx.account_id || !walletFilter.has(tx.account_id)) return false;
       }
-      // Amount range — compare absolute amounts so inflow/outflow symmetry
+      // Amount range, compare absolute amounts so inflow/outflow symmetry
       // doesn't surprise the user. Blank min/max bypasses that side.
       if ((amountMin !== '') | (amountMax !== '')) {
         const abs = Math.abs(Number(tx.amount));
@@ -568,7 +568,7 @@ export default function Transactions() {
   const fmtAmount = (amount: number, asset: string) => fmtOrgAmount(amount, asset);
 
   /**
-   * PDF/print: same strings as the table (₿ / $ / grouping — good for humans).
+   * PDF/print: same strings as the table (₿ / $ / grouping, good for humans).
    * CSV: Amount + USD value are plain numbers only; **Wallet Currency** carries Satoshis /
    * BTC Bitcoins / BTC / USD so Excel can SUM Amount without text cells.
    */
@@ -625,7 +625,7 @@ export default function Transactions() {
     const rows = buildTransactionExportRows();
     const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : 'start';
     const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : 'end';
-    const title = `${orgName || 'Organization'} — Transactions — ${from} to ${to}`;
+    const title = `${orgName || 'Organization'}, Transactions, ${from} to ${to}`;
     void printTable(title, [...TRANSACTION_EXPORT_HEADERS], rows)
       .then((opened) => {
         if (opened) {
@@ -637,7 +637,7 @@ export default function Transactions() {
       });
   }, [buildTransactionExportRows, dateRange, orgName]);
 
-  // Status toggling — persists to DB. Vocab: DRAFT ↔ POSTED.
+  // Status toggling, persists to DB. Vocab: DRAFT ↔ POSTED.
   const togglePosted = async (id: string) => {
     const tx = txs.find((t) => t.id === id);
     if (!tx) return;
@@ -720,7 +720,7 @@ export default function Transactions() {
   };
 
   /**
-   * Void a transaction. Track 2 T3 v1 — writes a reversing JE in the current
+   * Void a transaction. Track 2 T3 v1, writes a reversing JE in the current
    * period, flips the original (and its linked transfer pair, if any) to
    * status='VOID'. Only available for split + transfer transactions today
    * (the ones with a journal_entry_id wrapper). Standard-mode txs need
@@ -832,7 +832,7 @@ export default function Transactions() {
         const tx = txs.find((t) => t.id === id);
         if (!tx) continue;
         if (tx.cleared_status === 'RECONCILED') {
-          failures.push(`${id.slice(0, 8)} is reconciled — undo reconciliation first`);
+          failures.push(`${id.slice(0, 8)} is reconciled, undo reconciliation first`);
           continue;
         }
         if (!tx.journal_entry_id) {
@@ -955,7 +955,7 @@ export default function Transactions() {
             <span>
               <strong>{qbImportedJeCount}</strong>{' '}
               {qbImportedJeCount === 1 ? 'journal entry' : 'journal entries'} imported from
-              QuickBooks live in the Journal Entries page — they don&apos;t appear in this
+              QuickBooks live in the Journal Entries page, they don&apos;t appear in this
               Transactions list.
             </span>
           </div>
@@ -967,7 +967,7 @@ export default function Transactions() {
           </Link>
         </div>
       )}
-      {/* Row 1 — title left, search + actions right */}
+      {/* Row 1, title left, search + actions right */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -1022,7 +1022,7 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* Row 2 — DATE RANGE (year + from/to) + STATUS on the right */}
+      {/* Row 2, DATE RANGE (year + from/to) + STATUS on the right */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -1148,7 +1148,7 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* Row 3 — quick presets (pill row) */}
+      {/* Row 3, quick presets (pill row) */}
       <div className="flex flex-wrap gap-1">
         {DATE_PRESETS.map((p) => (
           <Button
@@ -1197,7 +1197,7 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Row 4 — status legend (red incomplete, green complete) */}
+      {/* Row 4, status legend (red incomplete, green complete) */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground px-0.5">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" /> Incomplete
@@ -1205,7 +1205,7 @@ export default function Transactions() {
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-green-600" /> Complete
         </span>
-        <span className="text-muted-foreground/80">— Not Cleared</span>
+        <span className="text-muted-foreground/80">(Not Cleared)</span>
         <span className="text-green-600">✓ Cleared</span>
         <span className="font-semibold text-muted-foreground">▣ Reconciled</span>
       </div>
@@ -1214,7 +1214,7 @@ export default function Transactions() {
       {sorted.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center text-muted-foreground text-sm">
           {txs.length === 0 ? (
-            'No transactions yet — record one to get started.'
+            'No transactions yet, record one to get started.'
           ) : (
             <>
               <p>No transactions match these filters.</p>
@@ -1340,9 +1340,7 @@ export default function Transactions() {
                             className="transition-opacity hover:opacity-80"
                             onClick={() => cycleCleared(tx.id)}
                             title={
-                              cleared === 'RECONCILED'
-                                ? 'Reconciled — undo from statement'
-                                : cleared
+                              cleared === 'RECONCILED' ? 'Reconciled, undo from statement' : cleared
                             }
                           >
                             {cleared === 'RECONCILED' ? (
@@ -1363,10 +1361,10 @@ export default function Transactions() {
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-mono text-xs">
-                        {tx.date ? format(new Date(`${tx.date}T12:00:00`), 'MM-dd-yyyy') : '—'}
+                        {tx.date ? format(new Date(`${tx.date}T12:00:00`), 'MM-dd-yyyy') : '-'}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '—'}
+                        {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '-'}
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         <span className={isIn ? 'font-medium text-green-600' : 'text-foreground'}>
@@ -1406,13 +1404,13 @@ export default function Transactions() {
                           tx.to_from || '-'
                         )}
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{tx.ref_number || '—'}</TableCell>
+                      <TableCell className="text-xs font-mono">{tx.ref_number || '-'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">
                         {tx.memo
                           ? tx.memo.length > 40
                             ? tx.memo.slice(0, 40) + '...'
                             : tx.memo
-                          : '—'}
+                          : '-'}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
@@ -1497,11 +1495,11 @@ export default function Transactions() {
                             aria-label={isPosted ? 'Mark draft' : 'Mark posted'}
                           />
                           <span className="font-mono text-muted-foreground">
-                            {tx.date ? format(new Date(`${tx.date}T12:00:00`), 'MM-dd-yyyy') : '—'}
+                            {tx.date ? format(new Date(`${tx.date}T12:00:00`), 'MM-dd-yyyy') : '-'}
                           </span>
                           <span className="text-muted-foreground">·</span>
                           <span className="truncate">
-                            {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '—'}
+                            {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '-'}
                           </span>
                         </div>
                         {tx.to_from | (tx.type === 'Transfer') && (
@@ -1553,9 +1551,7 @@ export default function Transactions() {
                         e.stopPropagation();
                         cycleCleared(tx.id);
                       }}
-                      title={
-                        cleared === 'RECONCILED' ? 'Reconciled — undo from statement' : cleared
-                      }
+                      title={cleared === 'RECONCILED' ? 'Reconciled, undo from statement' : cleared}
                       className="-ml-0.5"
                     >
                       {cleared === 'RECONCILED' ? (
@@ -1625,7 +1621,7 @@ export default function Transactions() {
             })}
           </div>
 
-          {/* Pagination — rows-per-page selector + page-number buttons */}
+          {/* Pagination, rows-per-page selector + page-number buttons */}
           <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">
               Showing {sorted.length === 0 ? 0 : startIdx}–{endIdx} of {sorted.length} transaction
@@ -1693,7 +1689,7 @@ export default function Transactions() {
         </>
       )}
 
-      {/* Filters drawer — account multi-select + amount range */}
+      {/* Filters drawer, account multi-select + amount range */}
       <Sheet open={filtersDrawerOpen} onOpenChange={setFiltersDrawerOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
@@ -1817,7 +1813,7 @@ export default function Transactions() {
         </SheetContent>
       </Sheet>
 
-      {/* Float bar — bulk actions */}
+      {/* Float bar, bulk actions */}
       {selected.size > 0 && (
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-card border border-border rounded-lg px-6 py-3 flex items-center gap-3 z-50"

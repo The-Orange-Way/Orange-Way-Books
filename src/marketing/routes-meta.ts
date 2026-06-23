@@ -54,7 +54,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: 'How is Orange Way Books different from Bitwave or Cryptio?',
-    a: 'Bitwave and Cryptio are crypto sub-ledgers that sync into QuickBooks or NetSuite as the general ledger. Orange Way Books is a complete double-entry GL on its own — and unlike those products, the vendor cannot read your data.',
+    a: 'Bitwave and Cryptio are crypto sub-ledgers that sync into QuickBooks or NetSuite as the general ledger. Orange Way Books is a complete double-entry GL on its own, and unlike those products, the vendor cannot read your data.',
   },
   {
     q: 'Is Orange Way Books free?',
@@ -77,17 +77,17 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
 export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   {
     path: '/',
-    title: 'Orange Way Books — Zero-Knowledge Bitcoin Accounting',
+    title: 'Orange Way Books, Zero-Knowledge Bitcoin Accounting',
     description:
       'Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free.',
-    h1: 'Orange Way Books — Zero-Knowledge Bitcoin Accounting',
+    h1: 'Orange Way Books, Zero-Knowledge Bitcoin Accounting',
     summary:
       'Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed. Multi-currency BTC and fiat with historical exchange rates. Real server-side double-entry ledger. IFRS and US GAAP. Capability-based RBAC. ML-DSA-65 post-quantum signing keys. Full data takeout. Self-hostable.',
     jsonLd: [breadcrumb([{ name: 'Home', path: '/' }])],
   },
   {
     path: '/features',
-    title: 'Features — Orange Way Books',
+    title: 'Features, Orange Way Books',
     description:
       'Zero-knowledge encryption, Bitcoin-native multi-currency ledger, double-entry, IFRS/GAAP, RBAC, post-quantum signing, full data takeout.',
     h1: 'Orange Way Books Features',
@@ -102,12 +102,12 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/security',
-    title: 'Security & Zero-Knowledge Architecture — Orange Way Books',
+    title: 'Security & Zero-Knowledge Architecture, Orange Way Books',
     description:
       'How Orange Way Books makes it cryptographically impossible for the vendor to read your books: Argon2id, AES-GCM, ML-DSA-65, envelope encryption.',
     h1: 'Security & Zero-Knowledge Architecture',
     summary:
-      "Orange Way Books uses Argon2id (memory-hard) for key derivation, AES-GCM for authenticated field encryption, and per-organization envelope encryption so each member's wrapped DEK is never visible to anyone else. ML-DSA-65 post-quantum signing keys protect organization-level signatures. Wrong vault password cannot decrypt — there is no server-side hash check. Key rotation (rekey) rotates DEK and signing-key versions across all rows with rollback. The server only ever sees ciphertext.",
+      "Orange Way Books uses Argon2id (memory-hard) for key derivation, AES-GCM for authenticated field encryption, and per-organization envelope encryption so each member's wrapped DEK is never visible to anyone else. ML-DSA-65 post-quantum signing keys protect organization-level signatures. Wrong vault password cannot decrypt, there is no server-side hash check. Key rotation (rekey) rotates DEK and signing-key versions across all rows with rollback. The server only ever sees ciphertext.",
     jsonLd: [
       breadcrumb([
         { name: 'Home', path: '/' },
@@ -117,12 +117,12 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/pricing',
-    title: 'Pricing — Orange Way Books',
+    title: 'Pricing, Orange Way Books',
     description:
       'Free for individuals. Free to self-host. Apache-2.0 licensed. Paid team tier on roadmap.',
     h1: 'Pricing',
     summary:
-      'Orange Way Books is free for individuals and free to self-host under Apache-2.0. A paid team tier with collaboration features is on the roadmap. There is no usage cap, no transaction limit, and no vendor lock-in — full data takeout is included.',
+      'Orange Way Books is free for individuals and free to self-host under Apache-2.0. A paid team tier with collaboration features is on the roadmap. There is no usage cap, no transaction limit, and no vendor lock-in, full data takeout is included.',
     jsonLd: [
       breadcrumb([
         { name: 'Home', path: '/' },
@@ -132,7 +132,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/faq',
-    title: 'FAQ — Orange Way Books',
+    title: 'FAQ, Orange Way Books',
     description:
       'Answers about zero-knowledge encryption, Bitcoin-native accounting, IFRS/GAAP, self-hosting, comparisons to QuickBooks, Xero, Bitwave, and Cryptio.',
     h1: 'Frequently Asked Questions',
@@ -155,12 +155,12 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/about',
-    title: 'About — Orange Way Books',
+    title: 'About, Orange Way Books',
     description:
       'Why Orange Way Books exists: Bitcoin businesses cannot accept a vendor reading their books in the clear.',
     h1: 'About Orange Way Books',
     summary:
-      'Orange Way Books was built because Bitcoin businesses — treasuries, miners, custodians, OTC desks, funds — cannot accept a SaaS vendor reading their financials in plaintext. It is open source under Apache-2.0 and designed to be self-hosted by anyone who wants full sovereignty over their books.',
+      'Orange Way Books was built because Bitcoin businesses, treasuries, miners, custodians, OTC desks, funds, cannot accept a SaaS vendor reading their financials in plaintext. It is open source under Apache-2.0 and designed to be self-hosted by anyone who wants full sovereignty over their books.',
     jsonLd: [
       breadcrumb([
         { name: 'Home', path: '/' },
@@ -170,9 +170,9 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/contact',
-    title: 'Contact — Orange Way Books',
+    title: 'Contact, Orange Way Books',
     description:
-      'Get in touch with the Orange Way Books team. Open-source project — issues and PRs welcome on GitHub.',
+      'Get in touch with the Orange Way Books team. Open-source project, issues and PRs welcome on GitHub.',
     h1: 'Contact',
     summary:
       'Orange Way Books is an open-source project. Issues, feature requests, and pull requests are welcome on GitHub at https://github.com/The-Orange-Way/Orange-Way-Books.',
@@ -185,7 +185,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/compare',
-    title: 'Compare Orange Way Books — vs QuickBooks, Xero, Bitwave, Cryptio',
+    title: 'Compare Orange Way Books, vs QuickBooks, Xero, Bitwave, Cryptio',
     description:
       'Side-by-side comparisons of Orange Way Books vs the leading SMB and crypto accounting tools.',
     h1: 'Compare Orange Way Books',
@@ -200,7 +200,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/docs',
-    title: 'Docs — Orange Way Books',
+    title: 'Docs, Orange Way Books',
     description:
       'Curated documentation: architecture, data flow, zero-knowledge guide, multi-currency brain, ops guide, roadmap.',
     h1: 'Documentation',
@@ -234,7 +234,7 @@ export const COMPARE_ROUTES: PublicRouteMeta[] = (
   title: `Orange Way Books vs ${name}`,
   description: `${name} vs Orange Way Books: compare zero-knowledge encryption, Bitcoin support, double-entry, IFRS/GAAP, open-source, self-hosting, and pricing.`,
   h1: `Orange Way Books vs ${name}`,
-  summary: `Orange Way Books is the zero-knowledge, Bitcoin-native, open-source alternative to ${name} for businesses that need real double-entry accounting without handing plaintext financials to a vendor. The server cannot read your books — encryption happens on your device with Argon2id and AES-GCM.`,
+  summary: `Orange Way Books is the zero-knowledge, Bitcoin-native, open-source alternative to ${name} for businesses that need real double-entry accounting without handing plaintext financials to a vendor. The server cannot read your books, encryption happens on your device with Argon2id and AES-GCM.`,
   jsonLd: [
     breadcrumb([
       { name: 'Home', path: '/' },

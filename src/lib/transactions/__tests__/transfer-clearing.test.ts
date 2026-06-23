@@ -6,7 +6,7 @@
 //   1. find returns null when no Transfer Clearing row exists.
 //   2. ensure creates a fresh row when none exists, with name + code matching
 //      the canonical naming (and tagged ASSET so reports group it correctly).
-//   3. ensure is idempotent — calling twice doesn't create a duplicate.
+//   3. ensure is idempotent, calling twice doesn't create a duplicate.
 //   4. find ignores archived rows so a deleted/restored sequence doesn't
 //      return a dead pointer.
 
@@ -113,12 +113,12 @@ describe('Transfer Clearing helper', () => {
     expect(stored.org_id).toBe(ORG);
     // The encrypted_name column stores enc(Transfer Clearing).
     expect(stored.encrypted_name).toBe(`enc(${TRANSFER_CLEARING_NAME})`);
-    // account_code 1500 — the canonical clearing slot. The previous 1500=Equipment was
+    // account_code 1500, the canonical clearing slot. The previous 1500=Equipment was
     // renumbered to 1600 and Other Assets to 1700 to free this slot.
     expect(TRANSFER_CLEARING_CODE).toBe('1500');
   });
 
-  it('ensure is idempotent — calling twice does not duplicate the row', async () => {
+  it('ensure is idempotent, calling twice does not duplicate the row', async () => {
     const first = await ensureTransferClearingAccount(ORG, encryptText, decryptText);
     const second = await ensureTransferClearingAccount(ORG, encryptText, decryptText);
     expect(second.id).toBe(first.id);
@@ -137,7 +137,7 @@ describe('Transfer Clearing helper', () => {
     await ensureTransferClearingAccount(ORG, encryptText, decryptText);
     const stored = store.chart_of_accounts[0] as Record<string, unknown>;
     // Post-Phase-1: chart_of_accounts has no plaintext account_name /
-    // account_code columns — everything customer-typed lives in
+    // account_code columns, everything customer-typed lives in
     // encrypted_name / encrypted_code. Supabase must only see ciphertext.
     expect(stored.encrypted_name).toBe(`enc(${TRANSFER_CLEARING_NAME})`);
     expect(stored.encrypted_code).toBe(`enc(${TRANSFER_CLEARING_CODE})`);
@@ -151,7 +151,7 @@ describe('Transfer Clearing helper', () => {
     // transaction modal builds in handleSaveTransfer. We don't import the
     // modal (it's a React component); we just check that for a 100 USD → 5000
     // sats cross-currency transfer, the 4-line JE balances in BOTH currencies
-    // independently, which is the documented contract — see
+    // independently, which is the documented contract, see
     // generate-journal-entry.ts inside the transactions module.
     const sentValue = 100; // USD out of source
     const receivedValue = 5000; // sats into dest

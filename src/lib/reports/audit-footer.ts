@@ -126,7 +126,7 @@ export function buildAuditFooterRows(p: AuditFooterParams): string[][] {
 }
 
 /**
- * Serialize audit footer rows to a CSV string fragment (no BOM — appended to existing CSV).
+ * Serialize audit footer rows to a CSV string fragment (no BOM, appended to existing CSV).
  */
 export function auditFooterCsv(params: AuditFooterParams): string {
   const rows = buildAuditFooterRows(params);

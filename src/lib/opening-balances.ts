@@ -56,7 +56,7 @@ export interface PostOpeningBalanceParams {
   primaryCurrency: string;
   /** One entry per non-zero account. Must balance: sum(debits) == sum(credits). */
   entries: OpeningBalanceEntry[];
-  /** Optional memo. Defaults to 'Opening balance — bulk import'. */
+  /** Optional memo. Defaults to 'Opening balance, bulk import'. */
   memo?: string;
 }
 
@@ -196,7 +196,7 @@ export async function postOpeningBalanceJournal(
   const { totalDebits, totalCredits } = validateOpeningBalanceEntries(params.entries);
 
   const refNumber = buildOpeningBalanceRefNumber(params.date);
-  const memo = params.memo ?? 'Opening balance — bulk import';
+  const memo = params.memo ?? 'Opening balance, bulk import';
   const status = 'POSTED';
 
   // Compute the HMAC blind index for ZKA-safe uniqueness.

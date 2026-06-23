@@ -1,5 +1,5 @@
 -- ============================================================
--- transactions.account_id — chart-of-accounts assignment
+-- transactions.account_id, chart-of-accounts assignment
 -- ============================================================
 -- Adds the column that lets the Edit Transaction modal restore
 -- which Uncategorized/Revenue/Expense bucket the user picked

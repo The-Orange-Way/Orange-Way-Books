@@ -6,7 +6,7 @@
  * pure ZKA Postgres inserts (no the ledger roundtrip).
  *
  * Pass `encryptText` from the caller's `useVault()` so the MEK stays in the
- * caller's React context — this module deliberately knows nothing about the
+ * caller's React context, this module deliberately knows nothing about the
  * vault.
  */
 import { supabase } from '@/lib/supabase';
@@ -265,7 +265,7 @@ export const DEFAULT_ACCOUNTS: SeedAccount[] = [
 ];
 
 /**
- * Seed an org's chart_of_accounts. Idempotent at the catalog level — each
+ * Seed an org's chart_of_accounts. Idempotent at the catalog level, each
  * row insert may fail on a uniqueness constraint if the account already
  * exists; callers should query first (or handle the constraint error) for
  * a "retry from failed state" use case.

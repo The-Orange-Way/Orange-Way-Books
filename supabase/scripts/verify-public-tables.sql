@@ -1,9 +1,9 @@
--- Orange Way Books — verify all expected `public` app tables exist on Supabase.
+-- Orange Way Books, verify all expected `public` app tables exist on Supabase.
 -- Run in Supabase → SQL Editor (any role that can read information_schema).
 --
 -- Two named tiers:
---   app_tables  — the core OWB application schema (org, wallets, ledger, etc.)
---   infra_tables — supporting infrastructure (billing, key rotation, signing-key wraps,
+--   app_tables , the core OWB application schema (org, wallets, ledger, etc.)
+--   infra_tables, supporting infrastructure (billing, key rotation, signing-key wraps,
 --                  sync events from OR, support session storage, etc.). These
 --                  are also intentional public tables; they just don't carry
 --                  customer ledger data directly.
@@ -81,7 +81,7 @@ FROM (
 LEFT JOIN actual a ON a.name = e.name
 ORDER BY status DESC, tier, e.name;
 
--- Public tables not in either tier — should be empty on a clean schema.
+-- Public tables not in either tier, should be empty on a clean schema.
 WITH expected(name) AS (
   VALUES
     ('organizations'), ('org_members'), ('org_settings'), ('org_member_roles'),

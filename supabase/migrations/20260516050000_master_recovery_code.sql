@@ -1,4 +1,4 @@
--- S14 — Multi-org master recovery code
+-- S14, Multi-org master recovery code
 --
 -- Today every (user, org) has its own recovery code (12-word BIP-39).
 -- A user with N orgs has to keep track of N codes; lose any one of
@@ -11,7 +11,7 @@
 --     can confirm a typed code matches the user's master) stored in
 --     public.user_master_recovery (one row per user).
 --   • For each (user, org) where master recovery is enabled, store
---     org_master_wraps.wrapped_mek_under_master_kek — the org's MEK
+--     org_master_wraps.wrapped_mek_under_master_kek, the org's MEK
 --     wrapped under a master-KEK derived from the master code.
 --   • Recovery flow on the client:
 --       1. Enter master code → derive master KEK (HKDF over normalized
@@ -21,7 +21,7 @@
 --          re-wrap under a fresh password the user picks.
 --       4. Generate fresh per-org recovery codes too (old ones consumed).
 --
--- ZKA: nothing here weakens the model — the master code lives only in
+-- ZKA: nothing here weakens the model, the master code lives only in
 -- the browser, the salt is non-sensitive, the verifier + wraps are
 -- ciphertext the server can't read.
 --
@@ -60,7 +60,7 @@ CREATE POLICY "user_master_recovery_delete_self" ON public.user_master_recovery
   USING (user_id = auth.uid());
 
 COMMENT ON TABLE public.user_master_recovery IS
-  'S14: per-user master recovery code. Stores only ciphertext + salt — the master code itself is shown once at setup and never persisted.';
+  'S14: per-user master recovery code. Stores only ciphertext + salt, the master code itself is shown once at setup and never persisted.';
 COMMENT ON COLUMN public.user_master_recovery.master_salt IS
   'Base64 of 32 random bytes. Used as HKDF salt for the master KEK derivation. Not sensitive.';
 COMMENT ON COLUMN public.user_master_recovery.master_verifier_ciphertext IS

@@ -71,7 +71,7 @@ as $$
 declare
   matched_org uuid;
 begin
-  -- Skip cross-table existence checks for DELETE / VOID audit entries —
+  -- Skip cross-table existence checks for DELETE / VOID audit entries
   -- by the time these rows are written the referenced row has already
   -- been removed from the target table. The caller still can't cross
   -- tenants because the entity_type = 'organization' / 'member' branches
@@ -150,7 +150,7 @@ create trigger trg_audit_log_entity_same_org
 -- We cannot know who "created" a row from the DB without a created_by
 -- column (which this schema lacks). Use auth.uid() at insert time. If the
 -- call came from a service-role path (no auth.uid()), skip the auto-insert
--- — that path is responsible for its own org_members bootstrap.
+--, that path is responsible for its own org_members bootstrap.
 
 create or replace function public.auto_insert_org_owner()
 returns trigger

@@ -1,7 +1,7 @@
 /**
  * Browser-side shared types for Flash. The actual Flash API client lives
  * in `supabase/functions/_shared/flash.ts` and is invoked from edge
- * functions only — the browser never holds Flash credentials.
+ * functions only, the browser never holds Flash credentials.
  */
 
 export interface FlashStatus {

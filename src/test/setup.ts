@@ -12,7 +12,7 @@ if (typeof import.meta !== 'undefined' && import.meta.env) {
 }
 
 // jsdom 20 (bundled with vitest 3.x at this dependency level) does not
-// implement Blob.prototype.arrayBuffer — added in jsdom 21. Polyfill it
+// implement Blob.prototype.arrayBuffer, added in jsdom 21. Polyfill it
 // here so that any test involving encryptBlob / decryptBlob works.
 if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
   Object.defineProperty(Blob.prototype, 'arrayBuffer', {
@@ -30,7 +30,7 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
 }
 
 // matchMedia only exists in jsdom; skip when running under the
-// "node" environment (used by tests that don't touch DOM APIs —
+// "node" environment (used by tests that don't touch DOM APIs
 // e.g. the Phase 4.1 vault-keypair test).
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {

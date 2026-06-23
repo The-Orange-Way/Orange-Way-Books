@@ -10,10 +10,10 @@
 --     per-org entropy widens the search space.
 --
 -- Add:
---   * org_settings.vault_salt text — base64 of 32 random bytes, set at
+--   * org_settings.vault_salt text, base64 of 32 random bytes, set at
 --     vault setup time. NULL for orgs created before this migration
 --     (their unlock path continues to use the v1 deterministic salt).
---   * org_settings.vault_key_version integer — 1 for legacy, 2 for the
+--   * org_settings.vault_key_version integer, 1 for legacy, 2 for the
 --     new per-org scheme. Used at unlock time to decide which
 --     derivation function runs.
 --

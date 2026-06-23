@@ -13,11 +13,11 @@
 -- content) and lets us detect "same file uploaded twice" without decryption.
 --
 -- Status machine:
---   parsing     — file uploaded, parser running in browser
---   ready       — parsed + reconciliation decisions made; user can commit
---   committing  — writes to journal_entries / transactions / accounts in flight
---   committed   — done; encrypted_committed_refs lists rows that landed
---   failed      — parser or commit threw; encrypted_error has details
+--   parsing    , file uploaded, parser running in browser
+--   ready      , parsed + reconciliation decisions made; user can commit
+--   committing , writes to journal_entries / transactions / accounts in flight
+--   committed  , done; encrypted_committed_refs lists rows that landed
+--   failed     , parser or commit threw; encrypted_error has details
 --
 -- Refs:
 --   Earlier patterns: lib/imports/quickbooks/*, lib/accounts/csv-import.ts

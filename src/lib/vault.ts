@@ -1,5 +1,5 @@
 /**
- * Orange Way Books — Client-Side Encryption.
+ * Orange Way Books, Client-Side Encryption.
  *
  * One key derivation strategy is registered at any given time:
  *   v1: Argon2id (hash-wasm) with OWASP 2023 parameters, per-org random
@@ -25,7 +25,7 @@ const ORANGE_WAY_BOOKS_VAULT_V1 = 'orange-way-books-vault-v1';
  */
 export const MIN_VAULT_PASSWORD_LENGTH = 14;
 
-/** Argon2id parameters — OWASP 2023 recommended profile. */
+/** Argon2id parameters, OWASP 2023 recommended profile. */
 export const ARGON2ID_V1 = Object.freeze({
   memorySize: 65536, // KiB
   iterations: 3,
@@ -33,7 +33,7 @@ export const ARGON2ID_V1 = Object.freeze({
   hashLength: 32, // 256-bit output → AES-256 key
 } as const);
 
-/** Latest key derivation version — what new vaults use. */
+/** Latest key derivation version, what new vaults use. */
 export const LATEST_VAULT_KEY_VERSION = 1 as const;
 
 /** Enforce the minimum at the crypto boundary. Callers that skip UI-level
@@ -56,7 +56,7 @@ export function generateVaultSalt(): string {
 /**
  * Encrypts a plaintext string with AES-256-GCM.
  * Returns base64(iv[12] + ciphertext + tag[16]).
- * Every call uses a fresh random IV — same plaintext produces different ciphertext.
+ * Every call uses a fresh random IV, same plaintext produces different ciphertext.
  */
 export async function encryptText(plaintext: string, key: CryptoKey): Promise<string> {
   const encoder = new TextEncoder();
@@ -153,7 +153,7 @@ export async function decryptBlob(
  *
  * The extension point for future KDF upgrades: adding a v2 is a single
  * entry here plus a new derive function. VaultContext and the verifier
- * helpers must NOT branch on version explicitly — they route through this
+ * helpers must NOT branch on version explicitly, they route through this
  * map (OCP / DIP).
  */
 export type DeriveFnWithSalt = (
@@ -237,13 +237,13 @@ export async function deriveKeyForVersion(
 // Changing the password re-wraps only; no data re-encryption required.
 //
 // Two independent wrappings are stored:
-//   enc_mek_ciphertext   — MEK wrapped with Argon2id(password, salt)
-//   recovery_ciphertext  — MEK wrapped with HKDF(12-word recovery code)
+//   enc_mek_ciphertext  , MEK wrapped with Argon2id(password, salt)
+//   recovery_ciphertext , MEK wrapped with HKDF(12-word recovery code)
 //
 // Blind indexes: a single Argon2id call produces 64 bytes.
 //   Bytes  0-31 → KEK for MEK wrapping (AES-256-GCM)
 //   Bytes 32-63 → HMAC-SHA256 blind index key (server-side search)
-// One KDF round, two keys — no extra unlock cost.
+// One KDF round, two keys, no extra unlock cost.
 
 /** Generate 32 cryptographically random bytes for a new MEK. */
 export function generateMekBytes(): Uint8Array {
@@ -361,7 +361,7 @@ export async function deriveBlindIndexKeyFromMek(
   ]);
 }
 
-// ─── OrangeRails MEK — vault-version-independent ────────────────────────────
+// ─── OrangeRails MEK, vault-version-independent ────────────────────────────
 //
 // Separate Argon2id derivation with a stable salt prefix. Used as input
 // material for the OrangeRails ORK/ORT HKDF.
@@ -388,12 +388,12 @@ export async function deriveOrMekBytes(
   return hashBytes;
 }
 
-// ─── OrangeRails subkeys — for connection sync via OR platform API ──────────
+// ─── OrangeRails subkeys, for connection sync via OR platform API ──────────
 //
 // Two extractable AES-256-GCM subkeys derived from the MEK via HKDF-SHA-256.
 // HKDF info strings MUST match OrangeRails: 'orangerails-creds-v1' and
 // 'orangerails-txns-v1'. Salt MUST be consistent between encryption (when
-// adding a connection) and decryption (when displaying or syncing) — we
+// adding a connection) and decryption (when displaying or syncing), we
 // use the org salt so all users of the same org derive identical keys.
 //
 // The subkeys are EXTRACTABLE so they can be exported as base64 and handed
@@ -452,8 +452,8 @@ export async function deriveOrTxnsKeyFromMek(
 // ─── Recovery codes: 12-word offline backup for the MEK ─────────────────────
 // Full standard BIP-39 English wordlist (2048 words). 12 words × log2(2048)
 // = 132 bits of entropy. 11-bit indexing has no modulo bias since 2^11 = 2048
-// exactly — a 16-bit random sample masked with 0x7FF is uniformly distributed.
-// Looks like a Bitcoin seed phrase (because it is one — same wordlist as
+// exactly, a 16-bit random sample masked with 0x7FF is uniformly distributed.
+// Looks like a Bitcoin seed phrase (because it is one, same wordlist as
 // every BIP-39 wallet on earth) so users recognize the format immediately.
 
 import { BIP39_WORDS } from './bip39-words';
@@ -582,7 +582,7 @@ export function generateMasterRecoverySalt(): string {
 // key-derivation.ts and vault-keypair.ts; preserved as a stable surface
 // for any future OR-style modules ported into OWB.
 //
-// Do NOT add new logic here — only name translations and minimal signature
+// Do NOT add new logic here, only name translations and minimal signature
 // adapters over existing exports.
 // ============================================================================
 
@@ -650,7 +650,7 @@ export async function importAesKeyNonExtractable(
 export async function deriveMekRaw(password: string, saltBase64: string): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
-  // Decode the base64 salt the way OR does — raw 32 bytes, no prefix.
+  // Decode the base64 salt the way OR does, raw 32 bytes, no prefix.
   const saltBinary = atob(saltBase64);
   const saltBytes = new Uint8Array(saltBinary.length);
   for (let i = 0; i < saltBinary.length; i++) saltBytes[i] = saltBinary.charCodeAt(i);

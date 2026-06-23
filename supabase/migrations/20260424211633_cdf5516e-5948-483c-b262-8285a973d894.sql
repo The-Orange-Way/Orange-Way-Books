@@ -276,7 +276,7 @@ BEGIN
     );
     RAISE NOTICE 'Phase 4.4: scheduled expire_time_boxed_roles every minute via pg_cron.';
   ELSE
-    RAISE NOTICE 'Phase 4.4: pg_cron not enabled — sweep-expired-roles edge function must be scheduled separately.';
+    RAISE NOTICE 'Phase 4.4: pg_cron not enabled, sweep-expired-roles edge function must be scheduled separately.';
   END IF;
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Phase 4.4: pg_cron scheduling skipped (%).', SQLERRM;

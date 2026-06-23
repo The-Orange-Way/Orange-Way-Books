@@ -37,7 +37,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- journal_entries — block writes into closed period.
+-- journal_entries, block writes into closed period.
 CREATE POLICY "je_period_lock_insert" ON public.journal_entries
   AS RESTRICTIVE
   FOR INSERT TO authenticated
@@ -55,7 +55,7 @@ CREATE POLICY "je_period_lock_update" ON public.journal_entries
     NOT public.is_date_in_closed_period(org_id, auth.uid(), date)
   );
 
--- transactions — same enforcement.
+-- transactions, same enforcement.
 CREATE POLICY "tx_period_lock_insert" ON public.transactions
   AS RESTRICTIVE
   FOR INSERT TO authenticated
@@ -74,4 +74,4 @@ CREATE POLICY "tx_period_lock_update" ON public.transactions
   );
 
 COMMENT ON POLICY "je_period_lock_insert" ON public.journal_entries IS
-  'P1 — refuses inserts dated on or before the org''s lock-through-date unless caller has an active unlock session.';
+  'P1, refuses inserts dated on or before the org''s lock-through-date unless caller has an active unlock session.';

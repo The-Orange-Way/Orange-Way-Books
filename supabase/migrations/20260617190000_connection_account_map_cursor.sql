@@ -1,4 +1,4 @@
--- connection_account_map.last_or_synced_at — incremental-import cursor.
+-- connection_account_map.last_or_synced_at, incremental-import cursor.
 --
 -- Today every OR sync asks for the full transaction list and the bridge
 -- short-circuits duplicates client-side (an earlier change collapsed the dedup pass

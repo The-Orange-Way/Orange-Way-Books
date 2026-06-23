@@ -1,10 +1,10 @@
 -- ============================================================================
--- P2 — attachments on journal entries
+-- P2, attachments on journal entries
 -- ============================================================================
 --
 -- Extends attachments.entity_type CHECK to include 'journal_entry'. Without
 -- this, the existing CHECK ('transaction', 'payment_request') blocks any
--- attempt to attach a receipt directly to a journal entry — which is the
+-- attempt to attach a receipt directly to a journal entry, which is the
 -- shape we need for Wave-imported JEs and for receipts that don't pair with
 -- a single bank-side transaction (e.g., accrual journals).
 --
@@ -27,4 +27,4 @@ ALTER TABLE public.attachments
   CHECK (entity_type IN ('transaction', 'payment_request', 'journal_entry'));
 
 COMMENT ON COLUMN public.attachments.entity_type IS
-  'Allowed values: transaction (wallet-side), payment_request (AP), journal_entry (any JE — manual, imported via OR, or auto-posted from invoicing/payments).';
+  'Allowed values: transaction (wallet-side), payment_request (AP), journal_entry (any JE, manual, imported via OR, or auto-posted from invoicing/payments).';

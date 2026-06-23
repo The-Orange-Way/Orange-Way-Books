@@ -1,9 +1,9 @@
--- emit_self_notification — security-definer RPC that lets an
+-- emit_self_notification, security-definer RPC that lets an
 -- authenticated user write a notification for themselves.
 --
 -- The notifications table has default-deny INSERT for authenticated
 -- users (only service-role writes). That's the right default for
--- system events emitted by edge functions and cron — but the client
+-- system events emitted by edge functions and cron, but the client
 -- has its own legitimate self-emit cases:
 --
 --   - "Import completed" after the import wizard finishes
@@ -22,7 +22,7 @@
 --   - A user could spam their OWN bell. Cost is UI noise affecting
 --     only themselves. Frontend should rate-limit per page.
 --   - A user CANNOT write to another user's inbox. The function
---     never accepts a user_id parameter — it derives from auth.uid().
+--     never accepts a user_id parameter, it derives from auth.uid().
 
 CREATE OR REPLACE FUNCTION public.emit_self_notification(
   p_org_id      UUID,
@@ -60,7 +60,7 @@ $$;
 
 -- The function runs as definer (owner = db_owner) so it can bypass
 -- the INSERT RLS on notifications. The RAISE EXCEPTIONs above stop
--- abuse — without an authenticated session + org membership the
+-- abuse, without an authenticated session + org membership the
 -- caller gets nothing.
 COMMENT ON FUNCTION public.emit_self_notification IS
   'Write a notification to your own inbox. Verifies auth + org membership before insert. Cannot write to another user''s inbox (user_id is auth.uid() only).';

@@ -37,7 +37,7 @@ export default function SignupPage() {
       return;
     }
 
-    // D7 beta gate — short-circuit before Supabase signup if the email
+    // D7 beta gate, short-circuit before Supabase signup if the email
     // isn't on the allowlist. RPC is SECURITY DEFINER, returns boolean,
     // doesn't leak the list. Fails CLOSED: any error denies signup.
     try {
@@ -80,7 +80,7 @@ export default function SignupPage() {
       },
     });
     setLoading(false);
-    // Always reset the widget after a submit, success or fail — tokens
+    // Always reset the widget after a submit, success or fail, tokens
     // are single-use and must not be replayed if the user retries.
     captchaRef.current?.resetCaptcha();
     setCaptchaToken(null);

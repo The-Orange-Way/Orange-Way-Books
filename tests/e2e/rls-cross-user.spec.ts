@@ -1,5 +1,5 @@
 /**
- * RLS cross-user smoke — user A cannot see user B's org data.
+ * RLS cross-user smoke, user A cannot see user B's org data.
  *
  * Companion to the single-user RLS isolation spec. This is the real
  * cross-tenant test: it creates a fresh user B with their own org, signs
@@ -9,7 +9,7 @@
  *
  * Setup uses the service-role REST API to create user B + their org +
  * org_members row directly. We deliberately do NOT walk B through UI
- * onboarding — that would take 30s and add brittleness. We just need B
+ * onboarding, that would take 30s and add brittleness. We just need B
  * to exist with a known org_id so we can attempt to read it as user A.
  *
  * Cleanup: deletes user B + their org at the end. Idempotent on re-runs.
@@ -90,10 +90,10 @@ const HAVE_LOCAL_CREDS = (() => {
 })();
 test.skip(
   !HAVE_LOCAL_CREDS,
-  '/tmp/owb-pw/owb-dev-supabase.json not present — cross-user spec runs only on dev laptops',
+  '/tmp/owb-pw/owb-dev-supabase.json not present, cross-user spec runs only on dev laptops',
 );
 
-test.describe.serial('RLS cross-user — user A cannot see user B', () => {
+test.describe.serial('RLS cross-user, user A cannot see user B', () => {
   let supa: SupaCreds;
   let userBId = '';
   let userBOrgId = '';
@@ -103,7 +103,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
     if (!c) throw new Error('cannot read /tmp/owb-pw/owb-dev-supabase.json');
     supa = c;
     const ref = new URL(supa.url).hostname.split('.')[0];
-    if (!ALLOWED_PROJECT_REFS.has(ref)) throw new Error(`refusing project ref "${ref}" — DEV only`);
+    if (!ALLOWED_PROJECT_REFS.has(ref)) throw new Error(`refusing project ref "${ref}", DEV only`);
 
     // 1. Create user B (idempotent: 422 if already exists)
     const cr = await adminFetch(supa.url, supa.secret, '/auth/v1/admin/users', 'POST', {
@@ -114,7 +114,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
     if (cr.status === 200 || cr.status === 201) {
       userBId = JSON.parse(cr.body).id;
     } else if (cr.status === 422) {
-      // Already exists — look up
+      // Already exists, look up
       const q = await adminFetch(
         supa.url,
         supa.secret,
@@ -141,7 +141,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
     // 3. Insert org for B + org_members row. Use service role so RLS doesn't get in the way.
     // organizations.name holds the encrypted ciphertext as text (the JS layer
     // encrypts before insert). For cross-tenant ISOLATION testing we don't care
-    // what the value decrypts to — user A shouldn't even see this row exists.
+    // what the value decrypts to, user A shouldn't even see this row exists.
     const orgIns = await adminFetch(supa.url, supa.secret, '/rest/v1/organizations', 'POST', {
       name: 'cipher-placeholder-for-user-B-org',
       key_version: 2,
@@ -223,23 +223,23 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
       );
     };
 
-    // ── Attack 1: broad SELECT on organizations — must not include B's org.
+    // ── Attack 1: broad SELECT on organizations, must not include B's org.
     const orgs = await callerFetch('/rest/v1/organizations?select=id');
     expect(orgs.status, `organizations SELECT: ${orgs.body}`).toBe(200);
     const orgRows: Array<{ id: string }> = JSON.parse(orgs.body);
     const sawB = orgRows.some((r) => r.id === userBOrgId);
     expect(
       sawB,
-      `user A must NOT see user B's org ${userBOrgId} in broad SELECT — actually got ${orgRows.length} rows`,
+      `user A must NOT see user B's org ${userBOrgId} in broad SELECT, actually got ${orgRows.length} rows`,
     ).toBe(false);
 
-    // ── Attack 2: filtered SELECT by B's org_id — must return 0 rows.
+    // ── Attack 2: filtered SELECT by B's org_id, must return 0 rows.
     const filt = await callerFetch(`/rest/v1/organizations?id=eq.${userBOrgId}&select=*`);
     expect(filt.status, `filtered SELECT: ${filt.body}`).toBe(200);
     const filtRows: unknown[] = JSON.parse(filt.body);
     expect(filtRows.length, `user A must get 0 rows when filtering to B's org_id`).toBe(0);
 
-    // ── Attack 3: org_members lookup for B's user_id — must return 0 rows.
+    // ── Attack 3: org_members lookup for B's user_id, must return 0 rows.
     const memLookup = await callerFetch(`/rest/v1/org_members?user_id=eq.${userBId}&select=*`);
     expect(memLookup.status, `org_members lookup: ${memLookup.body}`).toBe(200);
     const memRows: unknown[] = JSON.parse(memLookup.body);
@@ -247,7 +247,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
       0,
     );
 
-    // ── Attack 4: every other org-scoped table filtered by B's org_id — must return 0 rows.
+    // ── Attack 4: every other org-scoped table filtered by B's org_id, must return 0 rows.
     // journal_entry_lines + transaction_lines etc. don't carry org_id directly
     // (they FK to a parent that does). The parent table coverage above
     // already proves user A can't see B's journal_entries; lines are RLS'd
@@ -266,7 +266,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
         const rows: unknown[] = JSON.parse(r.body);
         expect(rows.length, `user A must get 0 rows from ${table} filtered by B's org_id`).toBe(0);
       } else if (r.status === 401 || r.status === 403) {
-        // Hard deny — fine
+        // Hard deny, fine
       } else {
         throw new Error(`${table} unexpected status ${r.status}: ${r.body.slice(0, 120)}`);
       }

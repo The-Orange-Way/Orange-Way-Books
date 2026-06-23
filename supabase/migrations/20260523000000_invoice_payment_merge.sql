@@ -1,4 +1,4 @@
--- Week 3 I16 — Wave Pattern A merge: deposit + placeholder invoice payment
+-- Week 3 I16, Wave Pattern A merge: deposit + placeholder invoice payment
 --
 -- When a customer manually marks an invoice paid today, the apply
 -- path creates an invoice_payments row. That row's transaction_id points
@@ -15,7 +15,7 @@
 --                            was not produced by an import/sync (manual
 --                            "Mark paid" path). Defaults FALSE.
 --   - superseded_by_transaction_id / superseded_at : when a placeholder
---     is merged, we DON'T delete the row (audit trail) — we update its
+--     is merged, we DON'T delete the row (audit trail), we update its
 --     transaction_id to the real one and write the previous id into
 --     superseded_by_transaction_id for traceability.
 --   - signature_b64 / signature_key_version : Phase 4.4 signing-key signature on
@@ -30,7 +30,7 @@
 -- ZKA: amount_applied stays untouched. Only the FK and metadata move.
 -- The JE that was posted against the placeholder transaction's wallet
 -- (if any) is reversed and a fresh JE is posted against the real
--- transaction's wallet — legacy ledger backend legacy_account_ids may differ.
+-- transaction's wallet, legacy ledger backend legacy_account_ids may differ.
 
 BEGIN;
 
@@ -57,9 +57,9 @@ COMMENT ON COLUMN public.invoice_payments.signature_b64 IS
 -- 2. The merge RPC.
 --
 -- Inputs:
---   p_invoice_payment_id  — the existing placeholder invoice_payments row
---   p_new_transaction_id  — the real (bank-import) transaction to fold in
---   p_signature_b64       — mutation signature over the merge payload
+--   p_invoice_payment_id , the existing placeholder invoice_payments row
+--   p_new_transaction_id , the real (bank-import) transaction to fold in
+--   p_signature_b64      , mutation signature over the merge payload
 --   p_signature_key_version
 --
 -- Behavior:
@@ -195,7 +195,7 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     )
     SELECT v_reversal_je_id, account_id, credit, debit,
-           'Reversal — placeholder payment ' | v_invoice_number
+           'Reversal, placeholder payment ' | v_invoice_number
       FROM public.journal_entry_lines
      WHERE journal_entry_id = v_existing_je_id;
   END IF;
@@ -229,9 +229,9 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     ) VALUES
       (v_fresh_je_id, v_new_wallet_acct, v_amount_applied, 0,
-        'Dr Wallet — payment on ' | v_invoice_number),
+        'Dr Wallet, payment on ' | v_invoice_number),
       (v_fresh_je_id, v_ar_account_id, 0, v_amount_applied,
-        'Cr A/R — payment on ' | v_invoice_number);
+        'Cr A/R, payment on ' | v_invoice_number);
   END IF;
 
   UPDATE public.invoice_payments

@@ -1,4 +1,4 @@
-/** Same ids as `ReportType` in Reports.tsx — kept here to avoid a circular import. */
+/** Same ids as `ReportType` in Reports.tsx, kept here to avoid a circular import. */
 export type PrintableReportType =
   | 'pnl'
   | 'balance-sheet'

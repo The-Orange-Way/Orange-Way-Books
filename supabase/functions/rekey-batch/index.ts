@@ -1,5 +1,5 @@
 /**
- * rekey-batch — Supabase Edge Function.
+ * rekey-batch, Supabase Edge Function.
  *
  * Worker endpoint called repeatedly by the client during a rekey job.
  * Handles two kinds of batches:
@@ -32,7 +32,7 @@
  *   {
  *     "job_id": "<uuid>",
  *     "stage":  "wrap_members" | "rekey_rows",
- *     "batch":  <stage-specific shape — see above>
+ *     "batch":  <stage-specific shape, see above>
  *   }
  */
 
@@ -215,7 +215,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
-    // High-frequency endpoint — generous limit, but cap excessive calls.
+    // High-frequency endpoint, generous limit, but cap excessive calls.
     const rl = await rateLimit(adminClient, {
       scope: 'rekey-batch',
       subject: caller.id,
@@ -239,7 +239,7 @@ serve(async (req) => {
 
     const jobId = typeof body.job_id === 'string' ? body.job_id.trim() : '';
     const stage = typeof body.stage === 'string' ? body.stage : '';
-    // Quick vs Deep refresh. Optional — back-compat callers and
+    // Quick vs Deep refresh. Optional, back-compat callers and
     // legacy jobs don't supply it. When absent we fall back to the job's
     // stored refresh_mode (or 'quick' if even that is missing). The
     // field is advisory in this endpoint: Quick expects empty
@@ -285,7 +285,7 @@ serve(async (req) => {
 
     if (job.status === 'complete' || job.status === 'aborted' || job.status === 'rolled_back') {
       return jsonResponse(
-        { error: `Job is in status '${job.status}' — no further work accepted.` },
+        { error: `Job is in status '${job.status}', no further work accepted.` },
         409,
         cors,
       );
@@ -404,7 +404,7 @@ async function handleWrapMembers(
     return jsonResponse({ ok: true, inserted: dekRows.length }, 200, cors);
   }
 
-  // batch.kind === 'osk' — insert the signing-key row + wraps.
+  // batch.kind === 'osk', insert the signing-key row + wraps.
   if (typeof batch.public_key_b64 !== 'string' || !BASE64_RE.test(batch.public_key_b64)) {
     return jsonResponse({ error: 'batch.public_key_b64 invalid' }, 400, cors);
   }
@@ -451,7 +451,7 @@ async function handleWrapMembers(
     });
   }
 
-  // Upsert the public-key row first — one per (org, key_version). If
+  // Upsert the public-key row first, one per (org, key_version). If
   // it already exists at this version we allow it (idempotent resume).
   const { data: existing } = await adminClient
     .from('org_signing_keys')
@@ -465,7 +465,7 @@ async function handleWrapMembers(
       key_version: job.new_osk_key_version,
       public_key_b64: batch.public_key_b64,
       algorithm: 'ml-dsa-65',
-      created_by: job.org_id, // service-role insert; created_by NOT NULL — use org_id as a placeholder the real row isn't sensitive
+      created_by: job.org_id, // service-role insert; created_by NOT NULL, use org_id as a placeholder the real row isn't sensitive
     });
     if (pkErr) {
       // created_by must reference auth.users(id); fall back to the

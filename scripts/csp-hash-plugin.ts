@@ -1,5 +1,5 @@
 /**
- * S13 — Vite plugin that hardens the production CSP.
+ * S13, Vite plugin that hardens the production CSP.
  *
  * The source `index.html` carries a CSP with `script-src 'unsafe-inline'`
  * because Vite's dev server injects HMR client scripts inline at runtime.
@@ -8,8 +8,8 @@
  *
  * This plugin runs at the end of the build pipeline. For every .html file
  * Vite emits, it:
- *   1. Finds every inline <script>...</script> block (any type — JSON-LD,
- *      vanilla module, etc. — since CSP's script-src gates all of them).
+ *   1. Finds every inline <script>...</script> block (any type, JSON-LD,
+ *      vanilla module, etc., since CSP's script-src gates all of them).
  *   2. Computes a SHA-256 hash of the EXACT inner contents, base64-encoded.
  *   3. Rewrites the CSP meta tag's `script-src` directive:
  *        - removes `'unsafe-inline'`
@@ -19,7 +19,7 @@
  * (whitespace included) is hashed exactly. If a future plugin tweaks an
  * inline block, the hash regenerates automatically on the next build.
  *
- * Dev mode is untouched — `'unsafe-inline'` stays so Vite's HMR + tooling
+ * Dev mode is untouched, `'unsafe-inline'` stays so Vite's HMR + tooling
  * keep working. `apply: 'build'` enforces that.
  */
 

@@ -1,5 +1,5 @@
 /**
- * RekeyWizard — Phase 4.5 seven-step safety dialog.
+ * RekeyWizard, Phase 4.5 seven-step safety dialog.
  *
  * Walks the Owner through a security refresh with plain-English copy
  * at every step. No technical terms leak to the UI (no DEK/KEM/
@@ -10,7 +10,7 @@
  *
  * Screens (as spec'd in the Phase 4.5 task):
  *   1. Intro
- *   2. What happens — Quick vs Deep refresh choice
+ *   2. What happens, Quick vs Deep refresh choice
  *   3. Backup recommendation (optional download)
  *   4. Timing recommendation
  *   5. Team impact
@@ -54,7 +54,7 @@ export interface RekeyWizardProps {
   orgId: string;
   open: boolean;
   /** Skip to step 2 when opened from the post-revoke prompt (the user
-   *  already confirmed the removal — the intro is redundant). */
+   *  already confirmed the removal, the intro is redundant). */
   startAtWhatHappens?: boolean;
   triggerType?: RekeyTriggerType;
   onClose: () => void;
@@ -198,7 +198,7 @@ export function RekeyWizard({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step 1 — Intro */}
+        {/* Step 1, Intro */}
         {step === 1 && (
           <div className="space-y-3 text-sm">
             <p className="text-base font-semibold">You're about to refresh your team's security.</p>
@@ -208,7 +208,7 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 2 — What happens + Quick vs Deep choice */}
+        {/* Step 2, What happens + Quick vs Deep choice */}
         {step === 2 && (
           <div className="space-y-4 text-sm">
             <p className="font-semibold">Choose how you'd like to refresh your team's security:</p>
@@ -249,7 +249,7 @@ export function RekeyWizard({
                 <div className="flex-1">
                   <p className="font-semibold">Deep refresh</p>
                   <p className="text-muted-foreground text-xs mt-1">
-                    Takes longer — minutes to hours depending on data size. Updates security AND
+                    Takes longer, minutes to hours depending on data size. Updates security AND
                     re-scrambles all your existing data under the new codes. Recommended if you
                     suspect a security problem or need this for an audit.
                   </p>
@@ -259,7 +259,7 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 3 — Backup recommendation */}
+        {/* Step 3, Backup recommendation */}
         {step === 3 && (
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Recommended: download a backup before refreshing.</p>
@@ -287,7 +287,7 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 4 — Timing */}
+        {/* Step 4, Timing */}
         {step === 4 && (
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Recommended: run this during low-activity hours.</p>
@@ -300,7 +300,7 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 5 — Team impact */}
+        {/* Step 5, Team impact */}
         {step === 5 && (
           <div className="space-y-3 text-sm">
             <p className="font-semibold">
@@ -313,13 +313,13 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 6 — Final review */}
+        {/* Step 6, Final review */}
         {step === 6 && (
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Ready to refresh?</p>
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
               <li>
-                {refreshMode === 'deep' ? 'Deep refresh selected — ' : 'Quick refresh selected — '}
+                {refreshMode === 'deep' ? 'Deep refresh selected, ' : 'Quick refresh selected, '}
                 {refreshMode === 'deep'
                   ? 'new security codes will be issued AND your existing data will be re-scrambled under them.'
                   : 'new security codes will be issued and shared with your team.'}
@@ -343,7 +343,7 @@ export function RekeyWizard({
           </div>
         )}
 
-        {/* Step 7 — Running / Done / Failed */}
+        {/* Step 7, Running / Done / Failed */}
         {step === 7 && (
           <div className="space-y-3 text-sm">
             {runState === 'running' && (
@@ -361,8 +361,8 @@ export function RekeyWizard({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Do not close this tab until this finishes. Progress is saved — you can resume
-                  later if needed.
+                  Do not close this tab until this finishes. Progress is saved, you can resume later
+                  if needed.
                 </p>
               </>
             )}

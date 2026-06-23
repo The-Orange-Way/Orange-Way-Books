@@ -12,7 +12,7 @@
 --     row and returns true (allowed). Otherwise returns false.
 --
 -- Scope is a short identifier (e.g. 'invite-org-member', 'exchange-rate-fetch',
--- 'legacy-proxy'). Subject is whatever the caller wants to key on —
+-- 'legacy-proxy'). Subject is whatever the caller wants to key on
 -- typically the user id, but could be caller IP or (user_id | org_id)
 -- for per-tenant limits.
 --

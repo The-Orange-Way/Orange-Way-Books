@@ -14,10 +14,10 @@
 -- this status column makes the in-progress state observable + resumable.
 --
 -- States:
---   pending      — wizard finished, background bootstrap not yet started
---   provisioning — background bootstrap is running
---   ready        — chart of accounts + templates fully provisioned
---   failed       — bootstrap errored; error stored in ledger_status_error
+--   pending     , wizard finished, background bootstrap not yet started
+--   provisioning, background bootstrap is running
+--   ready       , chart of accounts + templates fully provisioned
+--   failed      , bootstrap errored; error stored in ledger_status_error
 --
 
 ALTER TABLE public.organizations

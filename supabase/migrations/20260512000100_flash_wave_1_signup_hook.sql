@@ -1,5 +1,5 @@
 -- ============================================================
--- Flash Wave 1 — auto-create billing_account + subscription
+-- Flash Wave 1, auto-create billing_account + subscription
 -- whenever a new organization is created.
 -- ============================================================
 --

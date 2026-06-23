@@ -1,4 +1,4 @@
--- Phase 1 — Migration 9/9: Test fixtures + helper for pgTAP suite.
+-- Phase 1, Migration 9/9: Test fixtures + helper for pgTAP suite.
 --
 -- This is NOT a test runner. Tests live in supabase/tests/. This migration
 -- only adds a SECURITY DEFINER helper that lets the test harness seed

@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
  *
  * Use as a controlled component: parent owns `open` state, sets it true to
  * prompt, and clears it from `onOpenChange`. The action button calls
- * `onConfirm` then closes — parent doesn't need to manage close-on-confirm.
+ * `onConfirm` then closes, parent doesn't need to manage close-on-confirm.
  *
  * Replaces native `window.confirm()` calls so the dialog renders with the
  * Orange Way Books theme instead of the off-brand

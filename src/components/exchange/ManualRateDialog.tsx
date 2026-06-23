@@ -163,7 +163,7 @@ export function ManualRateDialog({
               onChange={(e) => setReason(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Minimum {REASON_MIN_LENGTH} characters — required for audit compliance (IAS 21 / ASC
+              Minimum {REASON_MIN_LENGTH} characters, required for audit compliance (IAS 21 / ASC
               830).
             </p>
           </div>

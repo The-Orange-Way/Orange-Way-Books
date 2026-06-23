@@ -13,7 +13,7 @@
  *   - Exchange rate via useExchangeRate
  *   - Attachment encryption via encryptAttachment
  *
- * The parent (Transactions.tsx) still owns the reconciliation edit-lock —
+ * The parent (Transactions.tsx) still owns the reconciliation edit-lock
  * we simply never open this modal when tx.cleared_status === 'RECONCILED'.
  */
 

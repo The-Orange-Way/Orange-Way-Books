@@ -1,4 +1,4 @@
-# `@orangerails/webhooks` — vendored
+# `@orangerails/webhooks`, vendored
 
 Verbatim source copy of `packages/webhooks/src/` from
 `MorningRevolution/orangerails` (OR), pinned to a specific merge sha
@@ -21,4 +21,4 @@ path in OR and bump the pinned sha above. Do not hand-edit. If you find
 yourself wanting to patch the SDK locally, fix it in OR and re-vendor.
 
 Files: `index.ts`, `construct-event.ts`, `verify.ts`, `types.ts`,
-`errors.ts`. No test files — the SDK's own test suite runs in OR's CI.
+`errors.ts`. No test files, the SDK's own test suite runs in OR's CI.

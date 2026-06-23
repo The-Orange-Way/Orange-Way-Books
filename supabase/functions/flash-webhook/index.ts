@@ -1,10 +1,10 @@
 /**
- * flash-webhook — receives Flash payment notifications.
+ * flash-webhook, receives Flash payment notifications.
  *
  * Verifies HMAC signature, logs every event, and updates the matching
  * flash_payments + subscriptions rows. Idempotent on re-delivery.
  *
- * SPEC GAPS — Bram has not yet confirmed the exact signature header /
+ * SPEC GAPS, Bram has not yet confirmed the exact signature header /
  * algorithm. Defaults below are the standard payments-API choice.
  * When his email lands, edit the four constants and we're done.
  */
@@ -171,7 +171,7 @@ async function applyFailureOrExpiry(
   const now = Date.now();
   const periodOver = sub.current_period_end
     ? new Date(sub.current_period_end).getTime() < now
-    : true; // trialing without a paid period — treat as needing payment
+    : true; // trialing without a paid period, treat as needing payment
   if (periodOver && sub.status !== 'past_due') {
     await admin
       .from('subscriptions')
@@ -195,7 +195,7 @@ async function applyRefund(externalReference: string) {
   if (!payment) return;
   if (payment.status === 'refunded') return;
   await admin.from('flash_payments').update({ status: 'refunded' }).eq('id', payment.id);
-  // Do not auto-cancel the subscription — refunds need human follow-up.
+  // Do not auto-cancel the subscription, refunds need human follow-up.
   // The flash_payment_events row written by the caller carries the audit trail.
 }
 
@@ -253,7 +253,7 @@ Deno.serve(async (req: Request) => {
           await applyRefund(externalReference);
           break;
         default:
-          // unknown event type — already logged, fall through with 200
+          // unknown event type, already logged, fall through with 200
           break;
       }
     }

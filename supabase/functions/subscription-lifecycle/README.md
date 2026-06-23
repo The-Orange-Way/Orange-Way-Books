@@ -10,7 +10,7 @@ Calls must carry either:
 - `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`, or
 - `X-Cron-Secret: <CRON_SECRET>` (env var on the edge function).
 
-## Scheduling — pick one
+## Scheduling, pick one
 
 ### Option A: Supabase pg_cron
 

@@ -1,8 +1,8 @@
--- Phase 1 — Migration 6/9: Recreate helper functions against the new schema.
+-- Phase 1, Migration 6/9: Recreate helper functions against the new schema.
 --
 -- Restores: next_je_ref_number, purge_import_job_artifacts, je_ref_sequence.
 -- These were dropped in migration 1/9 because they referenced the old schema;
--- their signatures and behavior are unchanged from 20260522000001 — they just
+-- their signatures and behavior are unchanged from 20260522000001, they just
 -- need to be recreated AFTER the new journal_entries table exists.
 
 -- Per-(org, year) atomic counter for internal JE ref numbers ("JE-YYYY-NNNN").
@@ -25,7 +25,7 @@ CREATE POLICY je_ref_sequence_select
 COMMENT ON TABLE public.je_ref_sequence IS
   'Per-(org, year) atomic counter for internal JE ref_numbers (JE-YYYY-NNNN). The minted ref is the human-readable label that gets encrypted into journal_entries.encrypted_ref_number before insert. Updated only via next_je_ref_number RPC.';
 
--- next_je_ref_number — atomic mint
+-- next_je_ref_number, atomic mint
 CREATE OR REPLACE FUNCTION public.next_je_ref_number(
   p_org_id UUID,
   p_year   SMALLINT
@@ -59,7 +59,7 @@ GRANT EXECUTE ON FUNCTION public.next_je_ref_number(UUID, SMALLINT) TO authentic
 COMMENT ON FUNCTION public.next_je_ref_number IS
   'Atomically mints the next internal JE ref number (JE-YYYY-NNNN) for an org. Returned string is the plaintext label the browser encrypts into encrypted_ref_number before insert. SECURITY DEFINER; gated on journal_entries.write capability.';
 
--- purge_import_job_artifacts — safe re-import. Deletes all JEs created by an
+-- purge_import_job_artifacts, safe re-import. Deletes all JEs created by an
 -- import_job; lines cascade via journal_entry_lines.journal_entry_id FK.
 -- Caller writes the audit_logs entry (ZKA: summary needs client-side encryption).
 CREATE OR REPLACE FUNCTION public.purge_import_job_artifacts(
@@ -85,7 +85,7 @@ BEGIN
 
   -- NB: this works around the immutability trigger only if the JEs to delete
   -- are in DRAFT status. Posted import-job artifacts cannot be silently
-  -- purged — the user must reverse them via the standard reversal flow first.
+  -- purged, the user must reverse them via the standard reversal flow first.
   -- This matches the existing P5 semantics and is intentional.
   WITH deleted AS (
     DELETE FROM public.journal_entries
@@ -108,4 +108,4 @@ REVOKE ALL ON FUNCTION public.purge_import_job_artifacts(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.purge_import_job_artifacts(UUID) TO authenticated;
 
 COMMENT ON FUNCTION public.purge_import_job_artifacts IS
-  'P5 safe re-import. Deletes DRAFT journal_entries (lines cascade) created by an import_job. Cannot purge posted artifacts — user must reverse those first via the standard flow. SECURITY DEFINER; gated on journal_entries.write capability.';
+  'P5 safe re-import. Deletes DRAFT journal_entries (lines cascade) created by an import_job. Cannot purge posted artifacts, user must reverse those first via the standard flow. SECURITY DEFINER; gated on journal_entries.write capability.';

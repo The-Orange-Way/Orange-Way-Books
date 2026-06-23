@@ -1,4 +1,4 @@
--- Invoicing — invoice_payments junction
+-- Invoicing, invoice_payments junction
 --
 -- Links an invoice to the wallet transaction(s) that pay it. Supports:
 --   • Partial payments (one invoice, multiple transactions)
@@ -14,7 +14,7 @@
 -- double-application of the same transaction toward the same invoice. If a
 -- user wants to apply the same transaction to the same invoice in two
 -- portions, that's still one invoice_payments row with the combined
--- amount, not two — the natural model.
+-- amount, not two, the natural model.
 
 CREATE TABLE IF NOT EXISTS public.invoice_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

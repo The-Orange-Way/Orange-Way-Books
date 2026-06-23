@@ -3,12 +3,12 @@
  *
  * Distinct from audit-logger.ts (which tracks business-entity CRUD like
  * transactions and journal entries under org-level RLS). This logger
- * captures user-level vault key-management events — setup, unlock,
+ * captures user-level vault key-management events, setup, unlock,
  * recover, password change.
  *
  * Events are written to public.vault_security_events with user-scoped
  * RLS. The metadata field is a JSONB blob for low-sensitivity context
- * (key_version, etc.) — never put plaintext, PII, or long strings here.
+ * (key_version, etc.), never put plaintext, PII, or long strings here.
  *
  * All calls are non-fatal: a logging failure is swallowed so that the
  * underlying auth flow never breaks because of an audit write.
@@ -25,7 +25,7 @@ export type VaultSecurityEvent =
 
 /**
  * Append a vault security event for the given user.
- * Non-fatal — any error is logged to console and swallowed.
+ * Non-fatal, any error is logged to console and swallowed.
  */
 export async function logSecurityEvent(
   userId: string,

@@ -1,5 +1,5 @@
 /**
- * RoleSummary — Phase 4.2 polish (Gap 4).
+ * RoleSummary, Phase 4.2 polish (Gap 4).
  *
  * Presents a plain-English "Can: …" sentence for the currently selected
  * role, built from the `description` fields of the capabilities actually
@@ -7,7 +7,7 @@
  * scan than reading 31 checkboxes (most of them unchecked) to figure out
  * what a role like PaymentsApprover actually does.
  *
- * The component is intentionally display-only — all data comes in via
+ * The component is intentionally display-only, all data comes in via
  * props so the Roles page can keep its existing data-fetching hooks and
  * so this can be unit-tested in isolation.
  */

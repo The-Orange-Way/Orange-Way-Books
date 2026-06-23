@@ -1,10 +1,10 @@
 -- ============================================================
--- Phase 3 — Connection ↔ Account Map (encrypted destination routing)
+-- Phase 3, Connection ↔ Account Map (encrypted destination routing)
 -- ============================================================
 -- Stores per-org mappings from an OrangeRails source wallet to an OWB
 -- chart-of-accounts entry. The mapping is keyed on opaque OR identifiers
 -- (or_connection_id + or_external_wallet_id) which are meaningless to OWB
--- without joining the OR-side data — but the OWB legacy_account_map.id is
+-- without joining the OR-side data, but the OWB legacy_account_map.id is
 -- considered sensitive (knowing "this OR wallet posts to that account"
 -- leaks routing information about the user's books). We therefore encrypt
 -- the OWB account id with the org vault MEK so the server stores a routing
@@ -15,16 +15,16 @@
 --     UUIDs; they are not joinable from the OWB server to anything in the
 --     user's books. Server side, this table just looks like a list of
 --     ciphertexts indexed by random UUIDs.
---   * encrypted_account_id is AES-256-GCM ciphertext (vault MEK) — same
+--   * encrypted_account_id is AES-256-GCM ciphertext (vault MEK), same
 --     scheme used for every other encrypted_* column in OWB.
 --   * Decryption + lookup happens in the client AFTER vault unlock, when
 --     the TransactionList renders and joins the routing.
 --
 -- Membership / capability gating:
---   * SELECT — gated through org_members (matches the read-side gate on
+--   * SELECT, gated through org_members (matches the read-side gate on
 --     existing per-org tables before Phase 4.2 capability rewrites; this
 --     table has no read-only-vs-write split today).
---   * INSERT/UPDATE/DELETE — gated through user_has_capability(
+--   * INSERT/UPDATE/DELETE, gated through user_has_capability(
 --     'connectors.write', org_id) so only users with the connector-write
 --     capability can change routing. This matches the existing 'connectors'
 --     family of capabilities in Phase 4.2.
@@ -76,7 +76,7 @@ CREATE POLICY "cam_delete_cap"
   FOR DELETE TO authenticated
   USING (public.user_has_capability(auth.uid(), 'connectors.write', org_id));
 
--- updated_at trigger — mirrors the pattern used elsewhere in OWB.
+-- updated_at trigger, mirrors the pattern used elsewhere in OWB.
 CREATE OR REPLACE FUNCTION public.set_connection_account_map_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -91,6 +91,6 @@ CREATE TRIGGER trg_cam_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_connection_account_map_updated_at();
 
 COMMENT ON TABLE public.connection_account_map IS
-  'Phase 3 — Maps an OrangeRails source wallet (opaque) to an encrypted OWB legacy_account_map.id. Server stores ciphertext only; client decrypts after vault unlock to route synced transactions.';
+  'Phase 3, Maps an OrangeRails source wallet (opaque) to an encrypted OWB legacy_account_map.id. Server stores ciphertext only; client decrypts after vault unlock to route synced transactions.';
 COMMENT ON COLUMN public.connection_account_map.encrypted_account_id IS
   'AES-256-GCM (vault MEK) over the legacy_account_map.id UUID. Server cannot interpret this value.';

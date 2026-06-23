@@ -1,5 +1,5 @@
 /**
- * mint-org-signing-key — Supabase Edge Function.
+ * mint-org-signing-key, Supabase Edge Function.
  *
  * Accepts a client-generated ML-DSA-65 Org Signing Key and its
  * per-writer wraps, and records both on the server:
@@ -12,7 +12,7 @@
  *
  * The keypair itself is generated client-side via `src/lib/signing-key.ts`
  * (see `generateAndWrapSigningKey`). This function NEVER sees the private
- * half — only the per-recipient wraps — and NEVER accepts a raw
+ * half, only the per-recipient wraps, and NEVER accepts a raw
  * secret from the caller.
  *
  * Authorization: caller must hold `users.invite` in the target org.
@@ -206,7 +206,7 @@ serve(async (req) => {
     }
 
     // Insert the org_signing_keys row. If a row already exists at this
-    // key_version we reject — bumps must use a distinct version.
+    // key_version we reject, bumps must use a distinct version.
     const { data: existingKey } = await adminClient
       .from('org_signing_keys')
       .select('key_version')

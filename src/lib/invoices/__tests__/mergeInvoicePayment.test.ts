@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Unit tests for mergeWithPlaceholder — Wave Pattern A merge.
+// Unit tests for mergeWithPlaceholder, Wave Pattern A merge.
 //
 // Covers:
 //   1. Happy path: signs the merge, invokes the RPC, returns the row.

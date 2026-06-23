@@ -41,7 +41,7 @@
   },
   {
     "id": "acct-zoom",
-    "name": "Software — Zoom",
+    "name": "Software, Zoom",
     "code": "5210",
     "accountType": "Expense",
     "accountGroup": "Software",
@@ -49,7 +49,7 @@
   },
   {
     "id": "acct-namecheap",
-    "name": "Software — NameCheap",
+    "name": "Software, NameCheap",
     "code": "5211",
     "accountType": "Expense",
     "accountGroup": "Software",
@@ -57,7 +57,7 @@
   },
   {
     "id": "acct-vistaprint",
-    "name": "Marketing — Vistaprint",
+    "name": "Marketing, Vistaprint",
     "code": "5310",
     "accountType": "Expense",
     "accountGroup": "Marketing",
@@ -65,7 +65,7 @@
   },
   {
     "id": "acct-tax-software",
-    "name": "Professional Fees — Tax Software",
+    "name": "Professional Fees, Tax Software",
     "code": "5410",
     "accountType": "Expense",
     "accountGroup": "Professional Fees",

@@ -268,7 +268,7 @@ export default function ContactsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Customers, vendors, employees. Search, edit, and create — encrypted client-side, same as
+            Customers, vendors, employees. Search, edit, and create, encrypted client-side, same as
             transactions.
           </p>
         </div>
@@ -354,7 +354,7 @@ export default function ContactsPage() {
       ) : filtered.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center text-muted-foreground text-sm">
           {rows.length === 0 ? (
-            'No contacts yet — add one to use it on transactions, journal entries, and payments.'
+            'No contacts yet, add one to use it on transactions, journal entries, and payments.'
           ) : (
             <>
               <p>No contacts match the current filter.</p>
@@ -397,9 +397,9 @@ export default function ContactsPage() {
                     <TableCell className="text-xs uppercase tracking-wide text-muted-foreground">
                       {c.type ?? 'OTHER'}
                     </TableCell>
-                    <TableCell className="text-sm">{c.email ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{c.phone ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{c.city ?? '—'}</TableCell>
+                    <TableCell className="text-sm">{c.email ?? '-'}</TableCell>
+                    <TableCell className="text-sm">{c.phone ?? '-'}</TableCell>
+                    <TableCell className="text-sm">{c.city ?? '-'}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                         <Pencil className="w-4 h-4" />

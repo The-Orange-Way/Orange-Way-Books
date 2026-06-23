@@ -1,5 +1,5 @@
 /**
- * FX revaluation engine — monetary-item remeasurement.
+ * FX revaluation engine, monetary-item remeasurement.
  *
  * IAS 21 / ASC 830: At period close, remeasure all monetary balance-sheet items
  * denominated in a foreign currency at the closing rate. The delta posts as
@@ -102,7 +102,7 @@ export async function previewRevaluation(
         target: primaryCurrency,
         at: periodEnd,
       });
-      if (resolved.pending) continue; // skip — rate not available
+      if (resolved.pending) continue; // skip, rate not available
       closingRate = resolved.rate;
       rateDate = resolved.bucketTs.slice(0, 10);
     } catch {
@@ -161,7 +161,7 @@ export interface RevaluationRunResult {
  * the user confirms. On confirm, status transitions to 'posted'.
  *
  * Note: Full encrypted JE creation requires the vault key (encryptText).
- * This function stores plaintext amounts as a draft only — the RevaluationWizard
+ * This function stores plaintext amounts as a draft only, the RevaluationWizard
  * handles the final encrypt+insert with the vault context.
  */
 export async function postRevaluation(

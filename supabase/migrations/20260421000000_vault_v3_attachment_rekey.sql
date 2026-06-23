@@ -2,7 +2,7 @@
 --
 -- Replaces rpc_upgrade_vault_to_v3 from 20260420120000_vault_key_version_v3.sql:
 --   1. Removes the attachment guard (the RPC no longer refuses when attachments
---      exist — the client re-encrypts blobs and uploads them to versioned paths
+--      exist, the client re-encrypts blobs and uploads them to versioned paths
 --      before calling this RPC).
 --   2. Adds an `attachments` update loop that atomically writes each attachment's
 --      re-encrypted file_name, mime_type, new storage_path, and key_version.
@@ -218,8 +218,8 @@ $$;
 
 comment on function public.rpc_upgrade_vault_to_v3(uuid, text, text, jsonb) is
   'Atomic v2 → v3 vault rekey. Accepts pre-encrypted ciphertext from the '
-  'client and rewrites every encrypted row — including attachment metadata '
-  'and storage paths — in one transaction. Blobs must be pre-uploaded by '
+  'client and rewrites every encrypted row, including attachment metadata '
+  'and storage paths, in one transaction. Blobs must be pre-uploaded by '
   'the client before this RPC is called; the client deletes old blobs after '
   'a successful call, or deletes new blobs if the RPC fails.';
 

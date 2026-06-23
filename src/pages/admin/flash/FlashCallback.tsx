@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { LS_FLASH_STATUS_HINT } from './Flash';
 
 /**
- * /app/admin/flash/callback — handles the Flash OAuth redirect.
+ * /app/admin/flash/callback, handles the Flash OAuth redirect.
  * Reads ?code and ?state from the URL, POSTs them to the
  * flash-oauth-callback edge function, and bounces back to /admin/flash.
  */
@@ -46,7 +46,7 @@ export default function FlashCallback() {
         if (!result?.ok) {
           throw new Error(result?.error ?? 'Token exchange failed');
         }
-        // Clear any stale localStorage hint left from the Layer-1 build —
+        // Clear any stale localStorage hint left from the Layer-1 build
         // status is now read server-side via the flash-status function.
         try {
           localStorage.removeItem(LS_FLASH_STATUS_HINT);

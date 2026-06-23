@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.2 — capability model RLS logic tests.
+ * Phase 4.2, capability model RLS logic tests.
  *
  * The real RLS lives in Postgres (migration
  * 20260423010000_phase4_2_capability_rls.sql). We can't run Postgres
@@ -26,7 +26,7 @@ import { aggregateActiveGrants, type RawGrant } from '@/hooks/capability-logic';
 // ---------------------------------------------------------------------------
 // Fixture: the preset bundles from the D7 resolution, hand-transcribed.
 // If the seed migration ever drifts from these bundles the test should
-// fail loudly — this is intentional.
+// fail loudly, this is intentional.
 // ---------------------------------------------------------------------------
 
 const ALL_CAPS = [
@@ -181,7 +181,7 @@ describe('preset capability bundles', () => {
     expect(PRESETS.PaymentsPayer).not.toContain('payments.approve');
   });
 
-  it('Auditor only has read capabilities — no writes', () => {
+  it('Auditor only has read capabilities, no writes', () => {
     for (const cap of PRESETS.Auditor) {
       const isWrite =
         cap.endsWith('.write') ||
@@ -280,7 +280,7 @@ describe('user_has_capability semantics', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Hook helper — aggregateActiveGrants.
+// Hook helper, aggregateActiveGrants.
 // ---------------------------------------------------------------------------
 
 describe('aggregateActiveGrants (hook helper)', () => {

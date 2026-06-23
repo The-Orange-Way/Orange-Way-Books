@@ -4,7 +4,7 @@
  * TODO: actual email delivery. queue-admin-email writes rows into a
  * `pending_admin_emails` table for an external sender daemon to drain.
  * Wave 1 of Flash uses the same model for lifecycle emails but the
- * sender daemon (Resend / Supabase SMTP) is not yet wired up — see
+ * sender daemon (Resend / Supabase SMTP) is not yet wired up, see
  * sendEmail() in this folder for the stub.
  */
 
@@ -59,7 +59,7 @@ export function renderTemplate(name: LifecycleTemplateName, ctx: RenderContext):
     case 'trial-expired':
       return wrap(
         'Your Orange Way Books trial has ended',
-        `${greeting}\n\nYour trial has ended. Pay ${amount} to continue using Vault: ${payUrl}\n\nYour data is safe — nothing is deleted while you decide.`,
+        `${greeting}\n\nYour trial has ended. Pay ${amount} to continue using Vault: ${payUrl}\n\nYour data is safe, nothing is deleted while you decide.`,
       );
     case 'payment-due-3d':
       return wrap(

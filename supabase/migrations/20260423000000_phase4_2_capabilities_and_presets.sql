@@ -1,8 +1,8 @@
 -- ============================================================
--- Phase 4.2 — Capability registry + 9 role presets + existing-member
+-- Phase 4.2, Capability registry + 9 role presets + existing-member
 -- migration into org_member_roles.
 -- ============================================================
--- INSERT-only. No schema DDL is added here — the Phase 4.1 migration
+-- INSERT-only. No schema DDL is added here, the Phase 4.1 migration
 -- (20260422000000_vault_multi_user_schema.sql) already created the
 -- capabilities / role_definitions / role_capabilities / org_member_roles
 -- tables. This migration fills them with data.
@@ -27,21 +27,21 @@
 -- can report row counts via RAISE NOTICE.
 --
 -- Rows NOT inserted by this migration (future phases / tiers):
---   * Org-local custom roles (is_system = FALSE) — created at runtime
+--   * Org-local custom roles (is_system = FALSE), created at runtime
 --     by Advanced+ tier customers via the Admin UI
 --   * New capabilities for features that have not shipped yet
---     (Invoicing, Inventory, Payroll, etc.) — each ships with its own
+--     (Invoicing, Inventory, Payroll, etc.), each ships with its own
 --     INSERT migration
 
 BEGIN;
 
 -- ══════════════════════════════════════════════════════════════════════
--- 1. CAPABILITY REGISTRY — 28 rows
+-- 1. CAPABILITY REGISTRY, 28 rows
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- `requires_osk` marks writes that need the ML-DSA-65 Org Signing Key
 --. Read-path capabilities do not need the signing key. Auditor is
--- granted only read capabilities, so its wrap never ships the signing key —
+-- granted only read capabilities, so its wrap never ships the signing key
 -- cryptographic read-only defense-in-depth.
 --
 -- `requires_dek` is TRUE for everything EXCEPT the support.* pair.
@@ -131,13 +131,13 @@ ON CONFLICT (key) DO NOTHING;
 -- inventory says 28. Breakdown per D7:
 --   transactions 4 + journal_entries 3 + accounts 3 + payments 4
 --   + contacts 3 + reports 2 + periods 2 + users 3 + roles 1
---   + connectors 2 + org 1 + audit 1 + support 2 — the last two
+--   + connectors 2 + org 1 + audit 1 + support 2, the last two
 --   bands contribute 1+1+2=4, total
 --   = 4+3+3+4+3+2+2+3+1+2+1+1+2 = 31. The D7 "28" figure excludes
 --   the three capabilities we've folded in for completeness
 --   (users.manage_roles, reports.read_summary, support.scope_read
 --   are enumerated in the roadmap body but were not counted in the
---   top-line 28). We ship all 31 listed in the roadmap body — the
+--   top-line 28). We ship all 31 listed in the roadmap body, the
 --   roadmap body is authoritative, the headline number was the
 --   approximate rollup.
 --
@@ -145,7 +145,7 @@ ON CONFLICT (key) DO NOTHING;
 -- back in this phase's commit message for the exact count.
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. ROLE DEFINITIONS — 9 system presets
+-- 2. ROLE DEFINITIONS, 9 system presets
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Each preset is global (org_id IS NULL) and is_system = TRUE.
@@ -165,7 +165,7 @@ INSERT INTO public.role_definitions (org_id, name, is_system, description) VALUE
 ON CONFLICT (org_id, name) DO NOTHING;
 
 -- ══════════════════════════════════════════════════════════════════════
--- 3. ROLE CAPABILITIES — preset → capability bundles
+-- 3. ROLE CAPABILITIES, preset → capability bundles
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Bundles per the capability-preset design. Each block inserts
@@ -267,7 +267,7 @@ ON CONFLICT DO NOTHING;
 -- Computed at SELECT time: we pull all capability keys whose suffix is
 -- .read (covers read + read_summary) plus audit.read explicitly. This
 -- keeps the Auditor bundle synchronized with future read capabilities
--- when they're added by feature migrations (QBO gap fix — never leave
+-- when they're added by feature migrations (QBO gap fix, never leave
 -- Auditor stranded on new features).
 INSERT INTO public.role_capabilities (role_id, capability_key)
 SELECT rd.id, c.key
@@ -314,7 +314,7 @@ ON CONFLICT DO NOTHING;
 --   VIEWER     → Viewer
 --
 -- PaymentsApprover / PaymentsPayer / Auditor / OWBSupport have no
--- legacy analogues — they're introduced in Phase 4.2 and will only be
+-- legacy analogues, they're introduced in Phase 4.2 and will only be
 -- granted via the Admin UI going forward.
 --
 -- Any org_members.role values outside this set cause the backfill to
@@ -377,7 +377,7 @@ BEGIN
    WHERE upper(om.role) NOT IN ('OWNER','ADMIN','ACCOUNTANT','MEMBER','VIEWER')
       OR om.role IS NULL;
 
-  RAISE NOTICE 'Phase 4.2 org_member_roles backfill: total=% migrated=% skipped=% (unrecognised role values — investigate if >0).',
+  RAISE NOTICE 'Phase 4.2 org_member_roles backfill: total=% migrated=% skipped=% (unrecognised role values, investigate if >0).',
     v_total, v_migrated, v_skipped;
 END;
 $$ LANGUAGE plpgsql;
@@ -387,6 +387,6 @@ COMMIT;
 -- ════════════════════════════════════════════════════════════════════
 -- POST-MIGRATION: Phase 4.2 capability-checked RLS lives in the
 -- companion file 20260423010000_phase4_2_capability_rls.sql. Apply in
--- that order — the backfill above must be populated before the RLS
+-- that order, the backfill above must be populated before the RLS
 -- rewrite takes effect, otherwise legacy members get locked out.
 -- ════════════════════════════════════════════════════════════════════

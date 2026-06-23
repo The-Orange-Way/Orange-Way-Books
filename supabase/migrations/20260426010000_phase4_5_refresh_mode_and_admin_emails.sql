@@ -1,5 +1,5 @@
 -- ============================================================
--- Phase 4.5 polish — Quick vs Deep refresh mode
+-- Phase 4.5 polish, Quick vs Deep refresh mode
 --                  + first-time-setup welcome email queue
 -- ============================================================
 --
@@ -7,7 +7,7 @@
 -- migration. Both are additive, idempotent, and safe to run on orgs
 -- that haven't rotated yet.
 --
--- 1. key_rotation_jobs.refresh_mode — NEW column
+-- 1. key_rotation_jobs.refresh_mode, NEW column
 --
 --    Quick: version-bump-only fast path. New security codes generated
 --           + wrapped per member; existing row ciphertext stays on disk
@@ -17,13 +17,13 @@
 --           window. Default for routine refreshes and post-revoke.
 --
 --    Deep:  every row is decrypted under the old DEK and re-encrypted
---           under the new DEK. Maximum protection — even previously-
+--           under the new DEK. Maximum protection, even previously-
 --           cached ciphertext becomes meaningless. Use for suspected
 --           compromise, audits, or first-time hardening.
 --
 --    Existing rows default to 'quick' (the behavior before this split).
 --
--- 2. pending_admin_emails — NEW table
+-- 2. pending_admin_emails, NEW table
 --
 --    Outbox table for transactional admin emails composed by the
 --    client (ZKA-correct: the server doesn't touch the ciphertext;
@@ -68,7 +68,7 @@ COMMENT ON COLUMN public.key_rotation_jobs.refresh_mode IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. pending_admin_emails — outbox queue
+-- 2. pending_admin_emails, outbox queue
 -- ══════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS public.pending_admin_emails (
@@ -89,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_pending_admin_emails_status_created
 
 ALTER TABLE public.pending_admin_emails ENABLE ROW LEVEL SECURITY;
 
--- Service role only. No authenticated-user RLS policy — all access
+-- Service role only. No authenticated-user RLS policy, all access
 -- goes through the queue-admin-email edge function (insert) and the
 -- sender daemon (select + update), both of which use the service key.
 -- Revoking any implicit SELECT for authenticated users:
@@ -104,7 +104,7 @@ DROP POLICY IF EXISTS "pending_admin_emails_delete_service" ON public.pending_ad
 
 COMMENT ON TABLE public.pending_admin_emails IS
   'Phase 4.5 polish: outbox for transactional admin emails composed '
-  'client-side (ZKA — server never sees ciphertext). Drained by an '
+  'client-side (ZKA, server never sees ciphertext). Drained by an '
   'external sender daemon. Service-role access only.';
 
 COMMIT;

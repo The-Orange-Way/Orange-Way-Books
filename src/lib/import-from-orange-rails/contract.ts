@@ -1,5 +1,5 @@
 /**
- * Orange Rails → OWB push contract — OWB-side copy.
+ * Orange Rails → OWB push contract, OWB-side copy.
  *
  * Mirrors `orangerails/src/connectors/contract.ts`. Kept in sync manually
  * until OR is published as an npm package consumable by OWB (then this file
@@ -51,9 +51,9 @@ export type StagedImportPayload = {
   };
   /**
    * Application order on commit:
-   *   1. accounts  — must succeed (JE rows reference account codes)
-   *   2. contacts  — independent
-   *   3. journalEntries — depends on accounts existing
+   *   1. accounts , must succeed (JE rows reference account codes)
+   *   2. contacts , independent
+   *   3. journalEntries, depends on accounts existing
    */
   staged: {
     accounts?: V3StagedRow[];
@@ -106,7 +106,7 @@ export function assertStagedImportPayload(value: unknown): asserts value is Stag
  * Convert a staged section into the ImportPreviewRow[] shape that OWB's
  * existing commit handlers consume. The mapping is the identity on `data`
  * because the contract was designed to match `ImportPreviewRow.data` keys
- * exactly — this helper just adds the `rowIndex` field.
+ * exactly, this helper just adds the `rowIndex` field.
  */
 export function stagedRowsToPreview(
   rows: V3StagedRow[],

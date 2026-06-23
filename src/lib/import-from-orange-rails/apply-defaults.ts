@@ -2,7 +2,7 @@
  * Pure helper: fill in missing Account / Contact values on a StagedImportPayload
  * before commit. Used by the wizard when Orange Rails couldn't infer a category
  * (Strike CSVs have no Account column; Lightning Destinations aren't human
- * contacts) — OWB offers the user a last-mile fallback instead of failing every
+ * contacts), OWB offers the user a last-mile fallback instead of failing every
  * row, without baking any provider-specific logic into OWB.
  *
  * No DOM, no Supabase, no React. Identity-on-everything-else: a row with an

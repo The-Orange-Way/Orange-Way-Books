@@ -1,5 +1,5 @@
 -- Exchange rates cache table
--- Rates are public data — no encryption needed, no RLS
+-- Rates are public data, no encryption needed, no RLS
 
 create table if not exists exchange_rates (
   id uuid primary key default gen_random_uuid(),

@@ -34,7 +34,7 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
   const [loadingDerived, setLoadingDerived] = useState(true);
   const [marking, setMarking] = useState(false);
 
-  // Derived counts — the "current state to query" notifications that
+  // Derived counts, the "current state to query" notifications that
   // don't have a dedicated inbox row.
   useEffect(() => {
     if (!orgId) {
@@ -116,7 +116,7 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
     };
   }, [orgId, decryptText]);
 
-  // Inbox notifications — newest 20 from the notifications table. The
+  // Inbox notifications, newest 20 from the notifications table. The
   // realtime subscription below keeps the list fresh while the bell is
   // visible.
   const fetchInbox = useCallback(async () => {

@@ -1,8 +1,8 @@
 /**
- * OWB Invoicing module — Invoices page
+ * OWB Invoicing module, Invoices page
  *
  * AR mirror of Payments.tsx (which is AP). Lists, creates, and edits
- * customer invoices. ZKA Level 2 throughout — server cannot read
+ * customer invoices. ZKA Level 2 throughout, server cannot read
  * customer names, amounts, memos, or addresses.
  *
  * Week 1 scaffold ships: list view + filters + create/edit dialog + line
@@ -182,7 +182,7 @@ export default function Invoices() {
   const { encryptText, decryptText, isUnlocked, loadOrgSigningKey, signMutation } = useVault();
   const { formatAmount } = useFormatCurrency();
 
-  // I16 producer — gate the "Mark paid" affordance on payments.create
+  // I16 producer, gate the "Mark paid" affordance on payments.create
   // capability. Matches the RLS check inside the merge_invoice_payment
   // RPC so users who can't merge can't produce placeholders
   // they couldn't later reconcile.
@@ -235,10 +235,10 @@ export default function Invoices() {
   ]);
   const [saving, setSaving] = useState(false);
 
-  // Bulk-action selection state (I4 — mirrors Payments.tsx pattern).
+  // Bulk-action selection state (I4, mirrors Payments.tsx pattern).
   // Status filter is plaintext on invoices, so we can guard each handler by
   // row.status without exposing any encrypted columns. Every CSV cell is
-  // sourced from already-decrypted row state — no new server-side reads.
+  // sourced from already-decrypted row state, no new server-side reads.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkActing, setBulkActing] = useState(false);
 
@@ -285,7 +285,7 @@ export default function Invoices() {
       setInvoices(decrypted);
 
       // Pull accounts for per-line GL routing (Income accounts only). Columns
-      // `encrypted_account_name/code/type` were never created — the canonical
+      // `encrypted_account_name/code/type` were never created, the canonical
       // schema uses `account_name`/`account_code`/`account_type` (plaintext)
       // plus an optional `encrypted_name` blob for vault-encrypted display.
       // Reuse decryptChartOfAccount so legacy + encrypted rows both work.
@@ -558,7 +558,7 @@ export default function Invoices() {
   const [emailSubjectTemplate, setEmailSubjectTemplate] = useState<string | null>(null);
   const [emailBodyTemplate, setEmailBodyTemplate] = useState<string | null>(null);
 
-  // Email form state — populated when the Share dialog opens.
+  // Email form state, populated when the Share dialog opens.
   const [emailTo, setEmailTo] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
@@ -780,7 +780,7 @@ export default function Invoices() {
 
   // Sum of placeholder + applied payments already recorded against an
   // invoice. Used to default the dialog's amount to the remaining
-  // balance — the operator rarely needs anything else.
+  // balance, the operator rarely needs anything else.
   const [recordPayRemaining, setRecordPayRemaining] = useState<number>(0);
 
   const openRecordPay = async (row: InvoiceRow) => {
@@ -848,7 +848,7 @@ export default function Invoices() {
 
       if (result.reused) {
         toast.message(
-          `Payment already recorded — invoice ${recordPayRow.invoice_number} is ${result.invoiceStatus.toLowerCase()}.`,
+          `Payment already recorded, invoice ${recordPayRow.invoice_number} is ${result.invoiceStatus.toLowerCase()}.`,
         );
       } else if (result.warnArMissing) {
         // Surface the A/R warning loud-but-recoverable: the row is
@@ -861,7 +861,7 @@ export default function Invoices() {
       } else {
         toast.success(
           `Recorded ${formatAmount(amt, recordPayRow.currency)} on ${recordPayRow.invoice_number}` +
-            (result.jePosted ? ' — JE posted.' : '.'),
+            (result.jePosted ? ', JE posted.' : '.'),
         );
       }
       setRecordPayRow(null);
@@ -932,7 +932,7 @@ export default function Invoices() {
   // is compatible with the action (Send → DRAFT only, Void → not VOIDED /
   // PAID / WRITTEN_OFF). Incompatible rows are silently skipped; the toast
   // reports how many actually moved. CSV export operates on the currently
-  // filtered view (already decrypted, browser-side only — no encrypted
+  // filtered view (already decrypted, browser-side only, no encrypted
   // columns ever leave the org's encryption boundary).
 
   const toggleSelect = (id: string) => {
@@ -985,7 +985,7 @@ export default function Invoices() {
     setBulkActing(true);
     let moved = 0;
     try {
-      // Single encryption of a shared bulk reason — ZKA invariant preserved
+      // Single encryption of a shared bulk reason, ZKA invariant preserved
       // (server still sees ciphertext only).
       const enc = await encryptText('Bulk void');
       const nowIso = new Date().toISOString();
@@ -1059,7 +1059,7 @@ export default function Invoices() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
           <p className="text-sm text-muted-foreground">
-            Bill your customers — zero-knowledge end-to-end.
+            Bill your customers, zero-knowledge end-to-end.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1157,7 +1157,7 @@ export default function Invoices() {
         </Button>
       </div>
 
-      {/* Bulk-action bar (I4) — appears when at least one row is selected.
+      {/* Bulk-action bar (I4), appears when at least one row is selected.
           Per-status guards inside the handlers mean clicking "Send" with a
           non-DRAFT row in selection just silently skips it. */}
       {selected.size > 0 && (
@@ -1218,7 +1218,7 @@ export default function Invoices() {
         >
           <p className="text-sm font-medium">No invoices yet</p>
           <p className="text-xs text-muted-foreground mt-1 mb-4">
-            Bill your first customer — zero-knowledge end-to-end.
+            Bill your first customer, zero-knowledge end-to-end.
           </p>
           <Button
             onClick={() => {
@@ -1297,9 +1297,9 @@ export default function Invoices() {
                     />
                   </TableCell>
                   <TableCell className="font-mono text-xs">{row.invoice_number}</TableCell>
-                  <TableCell className="text-xs">{row.issue_date ?? '—'}</TableCell>
+                  <TableCell className="text-xs">{row.issue_date ?? '-'}</TableCell>
                   <TableCell className="text-sm">{row.customer_name}</TableCell>
-                  <TableCell className="text-xs">{row.due_date ?? '—'}</TableCell>
+                  <TableCell className="text-xs">{row.due_date ?? '-'}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {formatAmount(row.amount, row.currency)}
                   </TableCell>
@@ -1387,7 +1387,7 @@ export default function Invoices() {
                       </div>
                       <div className="mt-1 text-sm truncate">{row.customer_name}</div>
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        Issued {row.issue_date ?? '—'} · Due {row.due_date ?? '—'}
+                        Issued {row.issue_date ?? '-'} · Due {row.due_date ?? '-'}
                       </div>
                     </div>
                   </div>
@@ -1600,7 +1600,7 @@ export default function Invoices() {
                           <SelectValue placeholder="Account" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">— Uncategorized —</SelectItem>
+                          <SelectItem value="__none__">(Uncategorized)</SelectItem>
                           {accounts.map((a) => (
                             <SelectItem key={a.id} value={a.id}>
                               {a.code ? `${a.code} ` : ''}
@@ -1680,7 +1680,7 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
-      {/* Mark-paid placeholder dialog (I16) — produces the rows that the
+      {/* Mark-paid placeholder dialog (I16), produces the rows that the
           InvoiceMatchPanel's merge UX later folds into the real deposit. */}
       <Dialog
         open={recordPayRow !== null}
@@ -1699,7 +1699,7 @@ export default function Invoices() {
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-900 dark:text-emerald-200">
               We record this as a <strong>placeholder</strong> payment now so bookkeeping is correct
               immediately. When the real bank deposit lands later, the Transactions screen will
-              offer to merge it with this placeholder — no duplicate counted.
+              offer to merge it with this placeholder, no duplicate counted.
             </div>
 
             <div>
@@ -1789,7 +1789,7 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
-      {/* Share dialog — appears after Send creates the encrypted share */}
+      {/* Share dialog, appears after Send creates the encrypted share */}
       <Dialog
         open={shareDialog !== null}
         onOpenChange={(o) => {
@@ -1921,7 +1921,7 @@ export default function Invoices() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Link expires 90 days from now. Generating a new share link rotates the key — older
+              Link expires 90 days from now. Generating a new share link rotates the key, older
               links stop working.
             </p>
           </div>

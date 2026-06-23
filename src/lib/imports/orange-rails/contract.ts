@@ -1,5 +1,5 @@
 /**
- * StagedImportPayload contract — mirror of Orange Rails OR → OWB push contract v1.
+ * StagedImportPayload contract, mirror of Orange Rails OR → OWB push contract v1.
  *
  * Wire format is defined in this file.
  * Source-of-truth lives in MorningRevolution/orangerails on dev
@@ -8,7 +8,7 @@
  *
  * Why duplicate it here: OWB must not import from the OR package at runtime
  * (different repo, different build, ZKA boundary). Keep the type + validator
- * lock-step with OR via the spec doc — every contract version bump is a
+ * lock-step with OR via the spec doc, every contract version bump is a
  * documented change in both repos.
  */
 

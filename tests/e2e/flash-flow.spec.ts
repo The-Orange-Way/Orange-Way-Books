@@ -1,15 +1,15 @@
 /**
- * Pay-with-Flash narrative — honest version.
+ * Pay-with-Flash narrative, honest version.
  *
  * The previous version of this spec gave each test a fresh page, so most
  * screenshots were the login screen mislabeled as "Billing page during
- * trial", "Admin Flash — Not connected", etc. Tests passed because every
+ * trial", "Admin Flash, Not connected", etc. Tests passed because every
  * step was wrapped in try/skip; caught during a hardening pass.
  *
  * The rewrite:
  *   - Signs in ONCE on a shared page using the OWB_DEV_E2E_* credentials.
  *   - Re-unlocks the vault per route via gotoAuthed (successful unlocks
- *     don't trip the cooldown — see VaultContext S10 logic).
+ *     don't trip the cooldown, see VaultContext S10 logic).
  *   - Adds hard assertions per step (route URL + a route-specific element).
  *   - Skips steps that depend on a running mock-flash server (:8787) or on
  *     a backdated trial-expired state we cannot simulate from here.
@@ -19,7 +19,7 @@
  * with a clear reason. Down from "10/10 lying."
  *
  * Selectors prefer `data-testid` where added; otherwise role/text.
- * If the app shape drifts, fix the selector — do not silently screenshot
+ * If the app shape drifts, fix the selector, do not silently screenshot
  * the wrong page.
  */
 
@@ -102,7 +102,7 @@ test.afterAll(() => {
   writeCaptions();
 });
 
-test.describe.serial('Pay with Flash — narrative (honest)', () => {
+test.describe.serial('Pay with Flash, narrative (honest)', () => {
   let sharedPage: Page;
 
   test.beforeAll(async ({ browser }) => {
@@ -118,7 +118,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
       .catch(() => undefined);
   });
 
-  test('01 — authenticated user lands on dashboard', async () => {
+  test('01, authenticated user lands on dashboard', async () => {
     await gotoAuthed(sharedPage, '/app');
     expect(sharedPage.url()).toContain('/app');
     // Dashboard-specific element: the "Insights" page heading (h1/h2)
@@ -136,7 +136,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     );
   });
 
-  test('02 — billing page during 45-day trial', async () => {
+  test('02, billing page during 45-day trial', async () => {
     await gotoAuthed(sharedPage, '/app/billing');
     expect(sharedPage.url()).toContain('/app/billing');
     // Hard assertion: billing-specific content visible.
@@ -145,11 +145,11 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     await shot(
       sharedPage,
       '02-billing-page-trialing',
-      'Billing page during the 45-day free trial. Subscription card shows the plan, trial badge, days remaining, and a Pay button. No payment is required yet — customer can pay early if they choose, but the button is informational during the trial window.',
+      'Billing page during the 45-day free trial. Subscription card shows the plan, trial badge, days remaining, and a Pay button. No payment is required yet, customer can pay early if they choose, but the button is informational during the trial window.',
     );
   });
 
-  test('03 — admin Flash page before connection', async () => {
+  test('03, admin Flash page before connection', async () => {
     await gotoAuthed(sharedPage, '/app/admin/flash');
     expect(sharedPage.url()).toContain('/app/admin/flash');
     await expect(sharedPage.locator('text=/Pay with Flash|Flash Connect/i').first()).toBeVisible({
@@ -162,7 +162,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     );
   });
 
-  test('04 — Connect Flash button focused (no real redirect)', async () => {
+  test('04, Connect Flash button focused (no real redirect)', async () => {
     await gotoAuthed(sharedPage, '/app/admin/flash');
     const connectBtn = sharedPage.getByRole('button', { name: /Connect Flash/i }).first();
     await expect(connectBtn).toBeVisible({ timeout: 5_000 });
@@ -175,20 +175,20 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     );
   });
 
-  test('05 — admin Flash page after OAuth (connected)', async () => {
+  test('05, admin Flash page after OAuth (connected)', async () => {
     const reachable = await isMockReachable();
     test.skip(
       !reachable,
-      `mock-flash server at ${MOCK_FLASH_URL} not reachable — cannot complete the OAuth callback. Run the mock with \`docker compose up flash-mock\` (or equivalent) to enable this step.`,
+      `mock-flash server at ${MOCK_FLASH_URL} not reachable, cannot complete the OAuth callback. Run the mock with \`docker compose up flash-mock\` (or equivalent) to enable this step.`,
     );
     logSkip(
       '05-admin-flash-connected',
-      'OAuth callback — admin sees Connected',
+      'OAuth callback, admin sees Connected',
       'reachable mock but no end-to-end implementation in this rewrite yet (Phase 2 of #48)',
     );
   });
 
-  test('06 — customer sees Pay button (trial ended)', async () => {
+  test('06, customer sees Pay button (trial ended)', async () => {
     test.skip(
       true,
       "this step requires the subscription-lifecycle cron to backdate trial_ends_at on this user's subscription row. That side-effect is destructive and not safe to run from this spec. Captured in the wiki page; a separate state-setup helper or a fresh test user is the right place for this.",
@@ -200,13 +200,13 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     );
   });
 
-  test('07 — Flash-hosted checkout (mock)', async () => {
+  test('07, Flash-hosted checkout (mock)', async () => {
     const reachable = await isMockReachable();
     test.skip(!reachable, `mock-flash server at ${MOCK_FLASH_URL} not reachable.`);
     logSkip('07-flash-checkout-page', 'Flash-hosted payment link', 'needs reachable mock server');
   });
 
-  test('08 — mock marks payment paid → webhook fires', async () => {
+  test('08, mock marks payment paid → webhook fires', async () => {
     const reachable = await isMockReachable();
     test.skip(!reachable, `mock-flash server at ${MOCK_FLASH_URL} not reachable.`);
     logSkip(
@@ -216,7 +216,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     );
   });
 
-  test('09 — billing active after webhook', async () => {
+  test('09, billing active after webhook', async () => {
     test.skip(
       true,
       'requires a completed payment, which requires the mock chain in 07-08. Skipped together.',
@@ -224,7 +224,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     logSkip('09-billing-active', 'Billing flips to active after webhook', 'depends on 07-08');
   });
 
-  test('10 — payment history with fee breakdown', async () => {
+  test('10, payment history with fee breakdown', async () => {
     test.skip(
       true,
       'requires a completed payment row in flash_payments. Skipped together with 07-08-09.',

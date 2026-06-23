@@ -1,18 +1,18 @@
 /**
- * queue-admin-email — Supabase Edge Function (Phase 4.5 polish).
+ * queue-admin-email, Supabase Edge Function (Phase 4.5 polish).
  *
  * Transactional admin emails composed client-side (ZKA-correct: the
  * server can't read the ciphertext, so the client passes in the
  * already-decrypted fields and we compose the body from a fixed
  * template here). Inserts a row into `pending_admin_emails` with
  * status='pending'. An external sender daemon (Resend / Supabase SMTP
- * — out of scope for this pass) drains the queue later.
+ *, out of scope for this pass) drains the queue later.
  *
  * Templates supported (v1):
  *   - `first_time_setup` → welcome email confirming the org is
  *     secured. Sent after runRekeyJob's first-time setup finalize.
  *
- * Authorization: caller must be an Owner of `org_id` — we check for
+ * Authorization: caller must be an Owner of `org_id`, we check for
  * the canonical Owner role in `org_member_roles` joined to
  * `role_definitions`. This is stricter than `users.invite`; we keep
  * transactional emails a low-trust surface.
@@ -80,7 +80,7 @@ serve(async (req) => {
     }
 
     // Transactional email is a low-volume flow. A conservative limit
-    // is fine — ten per 5 min per user blocks automated abuse without
+    // is fine, ten per 5 min per user blocks automated abuse without
     // choking legitimate Owner traffic.
     const rl = await rateLimit(adminClient, {
       scope: 'queue-admin-email',
@@ -139,7 +139,7 @@ serve(async (req) => {
     // Authorize: caller must be an Owner of org_id. We walk
     // org_member_roles → role_definitions looking for an active
     // grant whose role name is 'Owner'. This is intentionally stricter
-    // than the invite capability — transactional emails are a small,
+    // than the invite capability, transactional emails are a small,
     // low-volume surface and the only trigger today is a post-setup
     // welcome, which is always Owner-driven.
     const { data: ownerRow, error: ownerErr } = await adminClient
@@ -166,7 +166,7 @@ serve(async (req) => {
     }
 
     // Compose body from the template. Keeping this in one place so
-    // the wording stays consistent across templates — and so the
+    // the wording stays consistent across templates, and so the
     // server is the single source of truth for email copy even though
     // the client supplied the data.
     const composed = composeTemplate(template, orgNameDecrypted);
@@ -187,7 +187,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Could not queue the email.' }, 500, cors);
     }
 
-    // Audit — non-fatal if it fails.
+    // Audit, non-fatal if it fails.
     try {
       await adminClient.from('vault_security_events').insert({
         user_id: caller.id,
@@ -218,7 +218,7 @@ serve(async (req) => {
 });
 
 /**
- * Compose a templated email body. One template per case — keeps copy
+ * Compose a templated email body. One template per case, keeps copy
  * centralized and reviewable alongside the other customer-facing
  * strings. HTML variant is a minimal wrapper (no styling framework)
  * so the queue rows are portable to whatever sender is wired up later
@@ -234,7 +234,7 @@ function composeTemplate(
       `Welcome to Orange Way Books.\n` +
       `\n` +
       `Your organization "${orgName}" is now fully protected. We've set up your\n` +
-      `security and encrypted your data. You can start working normally — everything\n` +
+      `security and encrypted your data. You can start working normally, everything\n` +
       `is automatic from here.\n` +
       `\n` +
       `What's next:\n` +
@@ -245,12 +245,12 @@ function composeTemplate(
       `\n` +
       `Questions? Reply to this email or visit our help center.\n` +
       `\n` +
-      `— The Orange Way Books team\n`;
+      `-- The Orange Way Books team\n`;
     const bodyHtml =
       `<p>Welcome to Orange Way Books.</p>` +
       `<p>Your organization "<strong>${escapeHtml(orgName)}</strong>" is now fully ` +
       `protected. We've set up your security and encrypted your data. You can start ` +
-      `working normally — everything is automatic from here.</p>` +
+      `working normally, everything is automatic from here.</p>` +
       `<p><strong>What's next:</strong></p>` +
       `<ul>` +
       `<li>Invite your team members from the Admin → Users page</li>` +
@@ -259,10 +259,10 @@ function composeTemplate(
       `removing someone), use Settings → Security</li>` +
       `</ul>` +
       `<p>Questions? Reply to this email or visit our help center.</p>` +
-      `<p>— The Orange Way Books team</p>`;
+      `<p>-- The Orange Way Books team</p>`;
     return { subject, bodyText, bodyHtml };
   }
-  // Unreachable — the template whitelist is enforced above.
+  // Unreachable, the template whitelist is enforced above.
   throw new Error(`Unknown template: ${template}`);
 }
 

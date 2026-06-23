@@ -1,9 +1,9 @@
--- Phase 1 — Migration 5/9: Immutability trigger pair on journal_entries + journal_entry_lines.
+-- Phase 1, Migration 5/9: Immutability trigger pair on journal_entries + journal_entry_lines.
 --
 -- D9 enables this: status is plaintext, so the server can read it to gate
 -- the rule. the prior model's elegant `to_jsonb(OLD) - whitelist_cols IS DISTINCT FROM
 -- to_jsonb(NEW) - whitelist_cols` diff catches any byte-level change to
--- non-whitelisted columns — including encrypted columns (the diff is binary).
+-- non-whitelisted columns, including encrypted columns (the diff is binary).
 --
 -- Workflow-meta whitelist allows these mutations on a finalized row:
 --   - status (POSTED → VOID transition during reversal)

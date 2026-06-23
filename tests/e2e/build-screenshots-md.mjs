@@ -2,7 +2,7 @@
 /**
  * Reads tests/e2e/__screenshots__/captions.json (produced by the
  * Playwright spec) and renders SCREENSHOTS.md alongside it. This
- * markdown file is the deliverable for Bram at Flash — it pairs each
+ * markdown file is the deliverable for Bram at Flash, it pairs each
  * captured PNG with its caption in narrative order.
  *
  * Captions are written in the order test steps complete. We re-sort by
@@ -41,7 +41,7 @@ const titles = {
 };
 
 const lines = [
-  '# Orange Way Books — Pay with Flash E2E Flow',
+  '# Orange Way Books, Pay with Flash E2E Flow',
   '',
   'Captured against a local stack: Orange Way Books dev server +',
   '`supabase start` + the mock Flash server in `scripts/mock-flash/`.',

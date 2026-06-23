@@ -19,7 +19,7 @@
  *   4. Per-file results: attached / no_match / error.
  *
  * Out of scope:
- *   - Filename-only inference (no mapping CSV) — receipts don't carry the
+ *   - Filename-only inference (no mapping CSV), receipts don't carry the
  *     source id in their names; mapping is required.
  *   - Resumable retry queue for very large batches.
  */
@@ -234,7 +234,7 @@ export default function BulkReceiptLinker() {
           </Button>
           {mappingFileName && (
             <span className="text-sm text-muted-foreground">
-              {mappingFileName} — {mapping.length} row(s)
+              {mappingFileName}, {mapping.length} row(s)
             </span>
           )}
         </div>
@@ -327,7 +327,7 @@ export default function BulkReceiptLinker() {
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {r.error ||
-                      (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '—')}
+                      (r.attachmentId ? `attached as ${r.attachmentId.slice(0, 8)}…` : '-')}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,5 +1,5 @@
 /**
- * Roles & Capabilities — Phase 4.2 Admin UI (D8 resolution).
+ * Roles & Capabilities, Phase 4.2 Admin UI (D8 resolution).
  *
  * Single-screen, two-column layout:
  *   - Left : role list (system presets + org-scoped customs)
@@ -14,7 +14,7 @@
  * grants for members.
  *
  * Mount points:
- *   - /admin?tab=roles (canonical — renders with `embedded` prop inside
+ *   - /admin?tab=roles (canonical, renders with `embedded` prop inside
  *     the Admin shell)
  *   - /settings/roles now redirects to /admin?tab=roles (back-compat).
  */
@@ -260,7 +260,7 @@ function CapabilityChecklist({
             />
 
             {/* For read-only system presets, collapse the full matrix
-                behind a toggle — the summary above is enough for 99% of
+                behind a toggle, the summary above is enough for 99% of
                 the scan use cases. For editable custom roles, show the
                 full matrix inline (the user needs it to toggle
                 capabilities). */}
@@ -301,7 +301,7 @@ function CapabilityChecklist({
                           <div className="flex-1 min-w-0">
                             {/* User-facing label is the plain-English description.
                                 We intentionally do NOT render c.key, signing key, or Scoped-DEK
-                                badges — those are internal cryptography primitives
+                                badges, those are internal cryptography primitives
                                 that accountants and bookkeepers don't need to see. */}
                             <div className="text-sm">{c.description}</div>
                           </div>
@@ -342,7 +342,7 @@ interface GrantRow {
  * Format a member for the Members section label. Priority:
  *   1. display_name (auth.users.user_metadata.full_name | .name)
  *   2. email
- *   3. shortened UUID ("73db615f…") — never the full UUID.
+ *   3. shortened UUID ("73db615f…"), never the full UUID.
  * The caller is responsible for passing trimmed values.
  */
 function formatMemberLabel(m: {
@@ -374,7 +374,7 @@ function UserAssignmentSection({
   const refresh = React.useCallback(async () => {
     setLoading(true);
     // Pull org_members for the membership list. We no longer surface the
-    // legacy `role` text in this section — role grants are the source of
+    // legacy `role` text in this section, role grants are the source of
     // truth and display names/emails come from lookup-user-profiles.
     const { data: memberRows } = await supabase
       .from('org_members')
@@ -404,7 +404,7 @@ function UserAssignmentSection({
         if (profilesErr) {
           // Non-2xx from the edge function (likely not deployed yet or
           // auth mismatch). Surface it instead of silently falling
-          // through — we need to notice if lookup dies in prod.
+          // through, we need to notice if lookup dies in prod.
           console.warn('lookup-user-profiles returned an error:', profilesErr);
         } else if (Array.isArray(profiles)) {
           for (const p of profiles as Array<{ id: string; email?: string; name?: string }>) {
@@ -412,7 +412,7 @@ function UserAssignmentSection({
           }
         }
       } catch (err) {
-        // Network / transport error — log and fall back to the
+        // Network / transport error, log and fall back to the
         // current-user patch below so at least the signed-in user's
         // row shows their own name.
         console.warn('lookup-user-profiles unavailable:', err);
@@ -435,7 +435,7 @@ function UserAssignmentSection({
         };
       }
     } catch {
-      // Ignore — worst case we just render a truncated UUID for that row.
+      // Ignore, worst case we just render a truncated UUID for that row.
     }
 
     setMembers(
@@ -512,7 +512,7 @@ function UserAssignmentSection({
         </div>
         {!canManage && (
           <span className="text-xs text-muted-foreground">
-            Viewer mode — ask an Owner/Admin to edit
+            Viewer mode, ask an Owner/Admin to edit
           </span>
         )}
       </div>
@@ -598,7 +598,7 @@ export interface RolesProps {
   /**
    * When `true`, Roles is rendered as a tab inside the /admin layout and
    * the outer page chrome (padding, page heading, width clamp) is
-   * removed. Defaults to `false` — standalone /settings/roles route.
+   * removed. Defaults to `false`, standalone /settings/roles route.
    */
   embedded?: boolean;
 }
@@ -678,7 +678,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
   }
 
   // When embedded in /admin the shell already supplies padding and a
-  // page-level heading ("Admin") — we render a slimmer header and skip
+  // page-level heading ("Admin"), we render a slimmer header and skip
   // the width clamp/outer padding.
   const outerClasses = embedded ? 'space-y-6' : 'p-6 max-w-7xl mx-auto space-y-6';
 

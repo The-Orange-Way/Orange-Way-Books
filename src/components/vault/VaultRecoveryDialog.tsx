@@ -212,7 +212,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ignore — user can still hand-copy
+      // ignore, user can still hand-copy
     }
   }, [result]);
 
@@ -395,7 +395,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           )}
           {step === 'save-new-code' && (
             <Button type="button" onClick={handleFinish} disabled={!savedCheckbox}>
-              Done — enter vault
+              Done, enter vault
             </Button>
           )}
         </DialogFooter>

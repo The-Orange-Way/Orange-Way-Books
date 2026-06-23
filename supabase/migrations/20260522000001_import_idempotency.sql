@@ -1,5 +1,5 @@
 -- ============================================================================
--- Import idempotency + safe re-import — ZKA-aware rewrite
+-- Import idempotency + safe re-import, ZKA-aware rewrite
 -- ============================================================================
 --
 -- Goal: re-running an import (e.g. OR re-pushes Wave data after a mapping

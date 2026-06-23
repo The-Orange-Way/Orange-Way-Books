@@ -47,7 +47,7 @@ DROP POLICY IF EXISTS "pending_admin_emails_delete_service" ON public.pending_ad
 
 COMMENT ON TABLE public.pending_admin_emails IS
   'Phase 4.5 polish: outbox for transactional admin emails composed '
-  'client-side (ZKA — server never sees ciphertext). Drained by an '
+  'client-side (ZKA, server never sees ciphertext). Drained by an '
   'external sender daemon. Service-role access only.';
 
 COMMIT;

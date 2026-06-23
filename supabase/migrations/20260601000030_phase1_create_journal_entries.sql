@@ -1,9 +1,9 @@
--- Phase 1 — Migration 3/9: Create `journal_entries` with the locked end-state schema.
+-- Phase 1, Migration 3/9: Create `journal_entries` with the locked end-state schema.
 --
 -- D9 (locked 2026-05-30): `status` and `source_type` are PLAINTEXT in this redesign.
 -- The server needs to read them to enforce immutability (trigger pair gates
 -- on plaintext status to decide whether to lock the row). The leak is structural-
--- metadata-only — same six possible values for every customer in every accounting
+-- metadata-only, same six possible values for every customer in every accounting
 -- system. No customer content. Future Level 3 ZKP work would let us migrate back
 -- to encrypted status with proof-of-state; design accommodates that.
 --
@@ -34,7 +34,7 @@ CREATE TABLE public.journal_entries (
   key_version                 INT  NOT NULL DEFAULT 2,
   created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  -- Encrypted (ZKA L2) — server cannot read any of these
+  -- Encrypted (ZKA L2), server cannot read any of these
   encrypted_memo              TEXT NULL,
   encrypted_ref_number        TEXT NULL,
   encrypted_currency          TEXT NOT NULL,
@@ -109,7 +109,7 @@ COMMENT ON TABLE public.journal_entries IS
   'Locked end-state shape. status + source_type are plaintext to enable DB-enforced immutability. All customer-meaningful columns (memo, ref_number, currency, exchange_rate, period_locked) are encrypted.';
 
 COMMENT ON COLUMN public.journal_entries.status IS
-  'D9 plaintext (one of: DRAFT, POSTED, VOID, VOID_REVERSAL). Server reads this to enforce immutability via the trigger pair. Six possible values for every customer in every accounting system — structural metadata, not content.';
+  'D9 plaintext (one of: DRAFT, POSTED, VOID, VOID_REVERSAL). Server reads this to enforce immutability via the trigger pair. Six possible values for every customer in every accounting system, structural metadata, not content.';
 
 COMMENT ON COLUMN public.journal_entries.source_type IS
   'D9 plaintext (one of: manual, or_import, invoice, payment, void_reversal, fx_revaluation, opening_balance, takeout_import). Tells reports and audit which workflow created this entry. Not customer content.';

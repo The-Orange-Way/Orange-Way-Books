@@ -1,5 +1,5 @@
 /**
- * Invoice match ranking — the Wave-style "is this deposit for invoice X?"
+ * Invoice match ranking, the Wave-style "is this deposit for invoice X?"
  * suggestion engine.
  *
  * Inputs are fully decrypted in the browser. The ranker is pure: it sees
@@ -7,9 +7,9 @@
  * of candidates with a 0..1 score. The server never runs this.
  *
  * Weights (sum to 1.0):
- *   amount-distance     0.60   — exact match wins by a wide margin
- *   customer fuzzy      0.25   — substring + word overlap
- *   date proximity      0.15   — recent issue/due dates beat old ones
+ *   amount-distance     0.60  , exact match wins by a wide margin
+ *   customer fuzzy      0.25  , substring + word overlap
+ *   date proximity      0.15  , recent issue/due dates beat old ones
  *
  * Currency must match (a USD deposit cannot match a EUR invoice). This
  * is a hard filter, not a score component.
@@ -83,7 +83,7 @@ function customerScore(counterparty: string | null, customer: string): number {
 
 function dateScore(depositDate: string, candidate: InvoiceCandidate): number {
   const ref = candidate.due_date | candidate.issue_date;
-  if (!ref) return 0.3; // unknown — small bias
+  if (!ref) return 0.3; // unknown, small bias
   const a = Date.parse(depositDate);
   const b = Date.parse(ref);
   if (!Number.isFinite(a) || !Number.isFinite(b)) return 0.3;

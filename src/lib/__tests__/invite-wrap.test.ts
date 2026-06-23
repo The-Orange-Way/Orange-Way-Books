@@ -1,14 +1,14 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.3 — invite-wrap pipeline tests.
+ * Phase 4.3, invite-wrap pipeline tests.
  *
  * Exercises the wrap/unwrap round-trip using the same hybrid-KEM
  * primitives the production invite flow uses. Verifies:
  *
  *   1. `wrapOrgDekForRecipient` produces a payload whose `wrapped_dek`
  *      base64 unwraps to the exact org DEK the Owner passed in.
- *   2. The recipient's own secret key is what unwraps it — a different
+ *   2. The recipient's own secret key is what unwraps it, a different
  *      secret key throws.
  *   3. `generatePlaceholderOrgDek` returns distinct 32-byte keys (no
  *      accidental constant output under test conditions).
@@ -98,8 +98,8 @@ describe('wrapOrgDekForRecipient', () => {
     const strategy = KEY_WRAP_STRATEGIES[payload.wrap_algo];
     const wrapped = base64ToBytes(payload.wrapped_dek);
     // ML-KEM "fails" by deriving a different shared secret which makes
-    // AES-GCM decryption fail. We only assert the unwrap rejects — not
-    // the exact error message — because KEM failure modes are noisy.
+    // AES-GCM decryption fail. We only assert the unwrap rejects, not
+    // the exact error message, because KEM failure modes are noisy.
     await expect(strategy.unwrapForSelf(wrapped, eavesdropper.secretKey)).rejects.toThrow();
   });
 });

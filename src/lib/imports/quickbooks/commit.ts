@@ -1,5 +1,5 @@
 /**
- * QuickBooks Import — Track B commit orchestrator.
+ * QuickBooks Import, Track B commit orchestrator.
  *
  * Takes parsed QB data (Track A) + user-approved classifications (Track C will
  * provide these via the wizard) and commits into OWB with ZKA guarantees:
@@ -43,7 +43,7 @@ import type {
   QuickBooksParsedData,
 } from './types';
 
-// Plaintext routing tag — never carries business content, only structural ids.
+// Plaintext routing tag, never carries business content, only structural ids.
 const SOURCE_TAG = 'quickbooks';
 
 export type CommitStage = 'preparing' | 'accounts' | 'contacts' | 'journal-entries' | 'finalizing';
@@ -56,13 +56,13 @@ export interface CommitProgress {
 
 export interface CommitQuickBooksImportParams {
   orgId: string;
-  /** Org's primary (functional) currency — used for JE line dual-currency math. */
+  /** Org's primary (functional) currency, used for JE line dual-currency math. */
   primaryCurrency: string;
   parsed: QuickBooksParsedData;
   /** From Track A's classifyQuickBooksAccounts. */
   classifications: QuickBooksClassificationResult;
   /** Per-account user overrides (from the Track C wizard). Keyed by account
-   *  name. These take precedence over `classifications.confident` — so the
+   *  name. These take precedence over `classifications.confident`, so the
    *  user can re-classify an auto-detected account. Names in
    *  `classifications.ambiguous` MUST have an override or they are skipped
    *  with an error. */
@@ -73,12 +73,12 @@ export interface CommitQuickBooksImportParams {
 }
 
 export interface CommitQuickBooksImportResult {
-  /** Opaque id stamped into every journal entry — lets us audit or roll back. */
+  /** Opaque id stamped into every journal entry, lets us audit or roll back. */
   importId: string;
   accountsCreated: number;
   accountsSkipped: number;
   /** TB accounts that the classifier could not bucket and the user did not
-   *  override — their JE lines were redirected to "Uncategorized Expense" or
+   *  override, their JE lines were redirected to "Uncategorized Expense" or
    *  "Uncategorized Revenue" by trial-balance polarity. The original QB name
    *  is preserved at the start of each redirected line's description. */
   accountsFallback: number;
@@ -365,7 +365,7 @@ async function commitAccounts(
     done += 1;
     const classification = classifications.get(account.name);
     if (!classification) {
-      // Ambiguous, no override — its lines will be redirected to Uncategorized
+      // Ambiguous, no override, its lines will be redirected to Uncategorized
       // Expense / Revenue by commitJournalEntries. Skip the per-account row.
       onStep(done, total);
       continue;
@@ -431,7 +431,7 @@ async function loadExistingAccountIndex(
       const name = fields.account_name?.trim();
       if (name) index.set(name, row.id as string);
     } catch {
-      // Undecryptable rows are ignored — we never route imports into rows we
+      // Undecryptable rows are ignored, we never route imports into rows we
       // cannot read (key mismatch / pre-migration / L0).
     }
   }
@@ -451,7 +451,7 @@ async function commitContacts(
   const existingNames = await loadExistingContactNames(orgId, decrypt);
   const total = contacts.length;
   let done = 0;
-  // Dedup within the same import bundle — QB occasionally lists the same
+  // Dedup within the same import bundle, QB occasionally lists the same
   // contact in Customers and Vendors. First write wins.
   const seenThisBatch = new Set<string>();
 
@@ -519,7 +519,7 @@ function contactKindToType(kind: ContactKind): string {
 // ── Phase 3 helpers ───────────────────────────────────────────────────────
 
 /** Hard cap on a single QB import. Anything bigger should be split into
- *  multiple smaller exports — even with batched inserts, a 200k+ import in a
+ *  multiple smaller exports, even with batched inserts, a 200k+ import in a
  *  single browser session is a tab-close hazard with no resume today. */
 export const QB_IMPORT_HARD_CAP = 100_000;
 
@@ -625,7 +625,7 @@ async function commitJournalEntryBatch(
       }),
     );
   } catch (err) {
-    // Encryption error — record one error and bail; this is a vault-state issue,
+    // Encryption error, record one error and bail; this is a vault-state issue,
     // not a per-row problem.
     result.errors.push({
       phase: 'journal-entries',
@@ -697,7 +697,7 @@ async function commitJournalEntryBatch(
   if (allLines.length > 0) {
     const { error: lineErr } = await supabase.from('journal_entry_lines').insert(allLines as never);
     if (lineErr) {
-      // Lines failed — the headers are already in. Per-entry retry is harder
+      // Lines failed, the headers are already in. Per-entry retry is harder
       // here because dedup will skip the headers next time. Record an
       // aggregate error so the user sees the batch failed.
       result.errors.push({

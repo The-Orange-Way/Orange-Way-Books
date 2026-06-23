@@ -1,4 +1,4 @@
--- Audit log table — records all CRUD operations
+-- Audit log table, records all CRUD operations
 -- Summary and metadata are encrypted (ZKA L2)
 -- Action type and timestamps are plaintext for indexing/filtering
 

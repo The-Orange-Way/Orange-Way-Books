@@ -3,12 +3,12 @@
 -- Previously the client could set either column to any UUID; RLS only
 -- checked org membership + role rank, not that the ownership stamp
 -- matched the calling user. Same class of bug we fixed for
--- attachments.uploaded_by / audit_logs.user_id — missed this table.
+-- attachments.uploaded_by / audit_logs.user_id, missed this table.
 --
 -- Rules:
 --   * INSERT: requested_by must be NULL or equal auth.uid().
 --             approved_by must be NULL (you can't create a pre-approved
---             request — approval goes through the approve_payment_request
+--             request, approval goes through the approve_payment_request
 --             RPC which pins approved_by itself).
 --   * UPDATE: if requested_by is CHANGED, the new value must equal
 --             auth.uid() (or NULL). Same for approved_by.
@@ -43,7 +43,7 @@ create policy "payment_requests_update"
     and (approved_by is null or approved_by = auth.uid())
   );
 
--- Finding #4 — role-specific approve / reject RPCs.
+-- Finding #4, role-specific approve / reject RPCs.
 --
 -- The role matrix (ROLE_PERMISSIONS in src/pages/Admin.tsx) says only
 -- OWNER / ADMIN / ACCOUNTANT hold 'approvePayments'. RLS cannot easily
@@ -54,7 +54,7 @@ create policy "payment_requests_update"
 --     encrypted_rejection_reason.
 --   * Skip RLS (SECURITY DEFINER) so the server can write approved_by
 --     even though the caller might otherwise trip the
---     'payment_requests_update' check if they passed a wrong value —
+--     'payment_requests_update' check if they passed a wrong value
 --     the RPC does it for them.
 --
 -- Clients should call these instead of writing { status, approved_by }

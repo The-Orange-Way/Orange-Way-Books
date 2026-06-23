@@ -1,5 +1,5 @@
 /**
- * ChangePrimaryCurrency — three-step wizard for changing the org's primary (functional) currency.
+ * ChangePrimaryCurrency, three-step wizard for changing the org's primary (functional) currency.
  *
  * D12 decision: atomic write closes previous org_primary_currency_history row + inserts new row
  * + updates org_settings.primary_currency. All prior JE lines keep primary_currency_at_posting
@@ -59,10 +59,10 @@ const CURRENCIES = [
 ];
 
 const REASON_CHIPS = [
-  'Adopting Bitcoin Standard — all new activity in BTC effective fiscal year start.',
-  'Regulatory requirement — local authority mandates functional currency change.',
-  'Restructuring — entity relocated jurisdiction, new functional currency required.',
-  'Acquisition — consolidated entity uses different functional currency.',
+  'Adopting Bitcoin Standard, all new activity in BTC effective fiscal year start.',
+  'Regulatory requirement, local authority mandates functional currency change.',
+  'Restructuring, entity relocated jurisdiction, new functional currency required.',
+  'Acquisition, consolidated entity uses different functional currency.',
 ];
 
 interface ChangePrimaryCurrencyProps {
@@ -201,7 +201,7 @@ export function ChangePrimaryCurrency({
         <p className="text-xs text-muted-foreground mt-1">
           Changes the functional currency for all future transactions. Prior journal entries keep
           their original <code className="bg-muted px-1 rounded">primary_currency_at_posting</code>{' '}
-          — no data is modified.
+          , no data is modified.
         </p>
       </div>
 
@@ -250,7 +250,7 @@ export function ChangePrimaryCurrency({
               className="w-full border rounded-md px-3 py-2 text-sm bg-background"
               style={{ borderColor: 'var(--color-border)' }}
             >
-              <option value="">— select —</option>
+              <option value="">(select)</option>
               {CURRENCIES.filter((c) => c !== currentPrimary).map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -284,7 +284,7 @@ export function ChangePrimaryCurrency({
                 </li>
                 <li>
                   All <em>prior</em> journal entries keep their pinned{' '}
-                  <strong>{currentPrimary}</strong> amounts — nothing is re-denominated.
+                  <strong>{currentPrimary}</strong> amounts, nothing is re-denominated.
                 </li>
                 <li>Reports that span this date will show a boundary banner.</li>
                 <li>

@@ -4,8 +4,8 @@
 --   I1  journal_entries.status CHECK constraint
 --   I2  journal_entries.source_type CHECK constraint
 --   I3  Immutability of POSTED entries (cannot edit business fields)
---   I4  Immutability — cannot delete POSTED entries
---   I5  Immutability — cannot edit/delete lines on POSTED parent
+--   I4  Immutability, cannot delete POSTED entries
+--   I5  Immutability, cannot edit/delete lines on POSTED parent
 --   I6  Status flip POSTED → VOID is allowed (workflow-meta whitelist)
 --   I7  Status flip DRAFT → POSTED is allowed
 --   I8  Reversal partial-unique: cannot reverse the same JE twice
@@ -157,7 +157,7 @@ INSERT INTO public.journal_entries (id, org_id, date, status, source_type, encry
           '00000000-0000-0000-0000-0000000000e2');
 SELECT pass('I8a: first reversal of an entry inserts OK');
 
--- Second reversal pointing at the SAME original — must be rejected by partial unique.
+-- Second reversal pointing at the SAME original, must be rejected by partial unique.
 SELECT throws_ok(
   $$ INSERT INTO public.journal_entries (org_id, date, status, source_type, encrypted_currency, reversal_of_id)
      VALUES ('00000000-0000-0000-0000-000000000001', CURRENT_DATE, 'POSTED', 'void_reversal', 'CIPHER_USD',

@@ -128,7 +128,7 @@ export interface ContactFields {
   state: string | null;
   zip: string | null;
   country: string | null;
-  // Additional PII — also encrypted at rest under the same ZKA L2 scheme.
+  // Additional PII, also encrypted at rest under the same ZKA L2 scheme.
   email: string | null;
   phone: string | null;
   type: string | null;
@@ -423,7 +423,7 @@ export async function encryptJournalEntry(
     encryptNumber(fields.exchange_rate, encrypt),
     encryptBoolean(fields.period_locked, encrypt),
   ]);
-  // status + source_type are plaintext — server reads them to gate
+  // status + source_type are plaintext, server reads them to gate
   // the immutability trigger. Validated against the DB CHECK constraint.
   return {
     encrypted_memo,
@@ -480,7 +480,7 @@ export interface JournalEntryLineFields {
  * Post-Phase 1: the schema no longer has plaintext debit/credit/book_value
  * placeholder columns (they were always zeroed). Encrypted amounts are the
  * only source of truth. manual_rate_reason / manual_rate_source /
- * primary_currency_at_posting are now encrypted too — they were plaintext
+ * primary_currency_at_posting are now encrypted too, they were plaintext
  * customer-typed content on the old schema, which violated the ZKA bar.
  */
 export interface JournalEntryLineEncrypted {
@@ -496,7 +496,7 @@ export interface JournalEntryLineEncrypted {
   encrypted_amount_primary: string | null;
   encrypted_posted_rate: string | null;
   encrypted_wallet_currency: string | null;
-  // Encrypted (previously plaintext) — corrects ZKA leak per redesign
+  // Encrypted (previously plaintext), corrects ZKA leak per redesign
   encrypted_primary_currency_at_posting: string | null;
   encrypted_manual_rate_reason: string | null;
   encrypted_manual_rate_source: string | null;
@@ -833,7 +833,7 @@ export async function decryptPaymentRequest(
   const isL2 = kv >= L2;
   // Fail closed. If a row claims a key_version but decryption of any field
   // fails (key mismatch, tampered ciphertext, wrong MEK) we must NOT return
-  // the raw ciphertext — that turns a cryptographic failure into silent bad
+  // the raw ciphertext, that turns a cryptographic failure into silent bad
   // data in the UI. Wrap each field so we can attach which field failed,
   // then let the error bubble up to the page-level try/catch.
   const failingField = async <T>(field: string, work: Promise<T>): Promise<T> => {
@@ -903,7 +903,7 @@ export async function decryptPaymentRequest(
 export interface PaymentRequestLineItemFields {
   description: string | null;
   amount: number;
-  /** chart_of_accounts FK (chart of accounts row) — null for uncategorized. */
+  /** chart_of_accounts FK (chart of accounts row), null for uncategorized. */
   chart_of_accounts_id: string | null;
   /** Display order in the form. */
   sort_order: number;
@@ -955,7 +955,7 @@ export async function decryptPaymentRequestLineItem(
   };
 }
 
-// ── Invoices (AR — the Invoicing module) ──
+// ── Invoices (AR, the Invoicing module) ──
 //
 // Mirrors PaymentRequest crypto helpers above. Invoices are the AR primitive
 // (customer billing); payment_requests are the AP primitive (vendor pay).
@@ -1253,7 +1253,7 @@ export interface OrgSettingsFields {
   time_format: string | null;
   number_format: string | null;
   timezone: string | null;
-  // T4 PR C — approval threshold for payment requests.
+  // T4 PR C, approval threshold for payment requests.
   // When approval_threshold_amount is non-null, any payment_request submitted
   // with amount > threshold is auto-flagged PENDING on submit. Pair both
   // fields together; either both null (no threshold) or both set.
@@ -1379,11 +1379,11 @@ export async function decryptOrgSettings(row: any, decrypt: DecryptFn): Promise<
 /**
  * Compute a deterministic HMAC-SHA256 blind index for a plaintext value.
  *
- * The hmacKey must be derived via deriveV4Keys() from vault.ts — it is
+ * The hmacKey must be derived via deriveV4Keys() from vault.ts, it is
  * separate from all AES-GCM encryption keys in the key hierarchy. Normalized
  * (trim + lowercase) before hashing so searches are case-insensitive.
  *
- * Returns null for absent or empty values — the DB column stays NULL and
+ * Returns null for absent or empty values, the DB column stays NULL and
  * WHERE hmac_col = $1 queries simply won't match those rows.
  */
 export async function computeBlindIndex(

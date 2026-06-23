@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.1 — user_vault_keys lifecycle tests.
+ * Phase 4.1, user_vault_keys lifecycle tests.
  *
  * Scope:
  *   1. `ensureUserKeypair` generates and INSERTs exactly once.
@@ -9,11 +9,11 @@
  *      DELETE+INSERT (Atomic re-wrap design: password change MUST NOT leave
  *      old ciphertext behind).
  *   3. After N password changes, count(user_vault_keys WHERE user_id = X)
- *      is always 1 — enforced by the in-memory stub's row map.
+ *      is always 1, enforced by the in-memory stub's row map.
  *
  * The Supabase client is stubbed with a minimal `FakeUserVaultKeys`
  * store that counts every INSERT / UPDATE / DELETE call. The real
- * Supabase schema types are not pulled in — the 4.1 keypair module
+ * Supabase schema types are not pulled in, the 4.1 keypair module
  * takes a narrow `SupabaseKeypairClient` interface for exactly this
  * reason.
  *
@@ -91,7 +91,7 @@ class FakeUserVaultKeys {
             store.calls.insert += 1;
             const user_id = values.user_id as string;
             if (store.rows.has(user_id)) {
-              return { error: new Error('duplicate row — test invariant violated') };
+              return { error: new Error('duplicate row, test invariant violated') };
             }
             store.rows.set(user_id, {
               user_id,
@@ -132,7 +132,7 @@ class FakeUserVaultKeys {
 // ---------------------------------------------------------------------------
 
 const USER_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-// 43-byte base64 salt — must be non-empty for the HKDF subkey derivation.
+// 43-byte base64 salt, must be non-empty for the HKDF subkey derivation.
 const SALT_B64 = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => i)));
 
 async function freshMek(label: string): Promise<CryptoKey> {
@@ -150,7 +150,7 @@ async function freshMek(label: string): Promise<CryptoKey> {
 // Tests.
 // ---------------------------------------------------------------------------
 
-describe('vault-keypair — ensureUserKeypair', () => {
+describe('vault-keypair, ensureUserKeypair', () => {
   let store: FakeUserVaultKeys;
 
   beforeEach(() => {
@@ -170,7 +170,7 @@ describe('vault-keypair — ensureUserKeypair', () => {
     expect(store.calls.insert).toBe(1);
   });
 
-  it('is idempotent — second call is a no-op', async () => {
+  it('is idempotent, second call is a no-op', async () => {
     const mek = await freshMek('first-unlock');
     await ensureUserKeypair({
       userId: USER_ID,
@@ -190,7 +190,7 @@ describe('vault-keypair — ensureUserKeypair', () => {
   });
 });
 
-describe('vault-keypair — rewrapUserKeypair', () => {
+describe('vault-keypair, rewrapUserKeypair', () => {
   let store: FakeUserVaultKeys;
 
   beforeEach(() => {
@@ -241,7 +241,7 @@ describe('vault-keypair — rewrapUserKeypair', () => {
   it('after N=10 password changes, count(user_vault_keys) = 1', async () => {
     // Chained re-wraps simulate ten consecutive password-change events.
     // The invariant we're guarding is that atomic UPDATE never drifts
-    // the row count — no ghost rows, no DELETE+INSERT regression.
+    // the row count, no ghost rows, no DELETE+INSERT regression.
     let currentMek = await freshMek('password-0');
     await ensureUserKeypair({
       userId: USER_ID,

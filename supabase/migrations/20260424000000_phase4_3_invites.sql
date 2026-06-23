@@ -10,7 +10,7 @@
 --      (self-wrapped on org creation, pre-Phase 4.3) are back-filled to
 --      'v3-self-mek' so they stay distinguishable from real per-recipient
 --      hybrid wraps.
---   2. Creates `pending_invites` — the state machine row for an invite
+--   2. Creates `pending_invites`, the state machine row for an invite
 --      whose recipient does not yet have a public key. When the recipient
 --      eventually publishes their keypair, a trigger flips the row to
 --      `ready_to_wrap`; the Owner's client subscribes via realtime and
@@ -18,16 +18,16 @@
 --   3. Adds a SELECT policy on `user_vault_keys` so a caller with
 --      `users.invite` in an org can read a prospective member's public
 --      key. The public_key_b64 is public by design (it exists so anyone
---      can wrap data FOR the recipient) — this policy just exposes it
+--      can wrap data FOR the recipient), this policy just exposes it
 --      to the inviter client so the wrap can happen browser-side.
---   4. Installs `link_pending_invites_on_keypair_insert` — the AFTER
+--   4. Installs `link_pending_invites_on_keypair_insert`, the AFTER
 --      INSERT trigger on `user_vault_keys` that flips any matching
 --      `pending_invites` rows to ready_to_wrap and writes a
 --      `user.wrap_ready` audit event so the Owner's Security tab can
 --      see the transition.
 --
 -- What this migration does NOT do:
---   * Rotate the per-org shared DEK — that is Phase 4.5 hard re-key.
+--   * Rotate the per-org shared DEK, that is Phase 4.5 hard re-key.
 --     Today `wrapped_dek` is the per-user vault MEK payload. Phase 4.3
 --     ships the plumbing so Phase 4.5 can swap in a real shared DEK
 --     without disturbing the invite/wrap flow.
@@ -45,7 +45,7 @@ BEGIN;
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Pre-Phase 4.3: org_keys.wrapped_dek is the user's own MEK wrapped by
--- themselves (solo-user case). That payload is opaque to this schema —
+-- themselves (solo-user case). That payload is opaque to this schema
 -- we record 'v3-self-mek' as the back-fill value so downstream tooling
 -- can distinguish pre-4.3 self-wraps from per-recipient hybrid-KEM
 -- wraps written after 4.3.
@@ -63,7 +63,7 @@ UPDATE public.org_keys
    SET wrap_algo = 'v3-self-mek'
  WHERE wrap_algo IS NULL;
 
--- Can't make it NOT NULL yet — there's a window where new rows may be
+-- Can't make it NOT NULL yet, there's a window where new rows may be
 -- inserted without setting it, and we want to be forgiving through the
 -- phase-4 transition. Phase 4.5 can tighten this.
 COMMENT ON COLUMN public.org_keys.wrap_algo IS
@@ -176,7 +176,7 @@ COMMENT ON COLUMN public.pending_invites.recipient_user_id IS
 -- Security note: public_key_b64 is public-by-cryptographic-design.
 -- Exposing it to an inviter reveals nothing that someone couldn't learn
 -- by receiving a ciphertext wrapped for that key. We deliberately do
--- NOT expose encrypted_private_key or iv through this policy — those
+-- NOT expose encrypted_private_key or iv through this policy, those
 -- stay owner-only via the existing user_vault_keys_select_own policy.
 
 DROP POLICY IF EXISTS "user_vault_keys_select_for_inviters" ON public.user_vault_keys;
@@ -217,7 +217,7 @@ CREATE POLICY "user_vault_keys_select_for_inviters"
 -- target (avoids a race where email case was normalized differently).
 --
 -- Runs SECURITY DEFINER because pending_invites RLS restricts UPDATE
--- to inviters — the recipient themselves must not be able to flip
+-- to inviters, the recipient themselves must not be able to flip
 -- their own invite status by writing to user_vault_keys.
 
 CREATE OR REPLACE FUNCTION public.link_pending_invites_on_keypair_insert()

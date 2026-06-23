@@ -5,20 +5,20 @@
 --
 -- What this migration does:
 --
---   1. `org_member_roles.source` — CHECKed enum column recording how a grant
+--   1. `org_member_roles.source`, CHECKed enum column recording how a grant
 --      was created: 'direct' | 'auditor_invite' | 'support_grant'. Drives UI
 --      badges and the sweep job's audit trail. (`expires_at` already exists
---      from the Phase 4.1 schema — no DDL needed for that.)
+--      from the Phase 4.1 schema, no DDL needed for that.)
 --
---   2. `org_signing_keys` — per-org ML-DSA-65 public key (plaintext; verifiers
+--   2. `org_signing_keys`, per-org ML-DSA-65 public key (plaintext; verifiers
 --      need it). Any org member may SELECT; INSERT/UPDATE gated on
 --      `users.invite`. Row per key_version.
 --
---   3. `org_member_signing_key_wraps` — per-writer wrapped private signing key. Shape mirrors
+--   3. `org_member_signing_key_wraps`, per-writer wrapped private signing key. Shape mirrors
 --      `org_keys` but keyed on (user_id, org_id, key_version). SELECT limited
 --      to the recipient; INSERT via edge function only.
 --
---   4. `support_sessions` — audit trail for every OWBSupport grant.
+--   4. `support_sessions`, audit trail for every OWBSupport grant.
 --      24h hard cap enforced by CHECK constraint. Owner / Admin can read;
 --      edge function writes.
 --
@@ -27,15 +27,15 @@
 --      Scope-limited to `transactions` as a Phase 4.4 proof of wiring
 --      (other business tables get extended in a future phase).
 --
---   6. `expire_time_boxed_roles()` — SECURITY DEFINER VOLATILE sweep:
+--   6. `expire_time_boxed_roles()`, SECURITY DEFINER VOLATILE sweep:
 --      a. revokes org_member_roles rows where expires_at < now()
 --      b. ends support_sessions rows where expires_at < now()
 --      c. writes vault_security_events per action
 --      The existing `enforce_last_role_removal` trigger on
---      org_member_roles UPDATE catches last-role revocations — no change
+--      org_member_roles UPDATE catches last-role revocations, no change
 --      needed to that trigger.
 --
---   7. pg_cron schedule (guarded) — if the extension is enabled in the
+--   7. pg_cron schedule (guarded), if the extension is enabled in the
 --      target project, schedules `expire_time_boxed_roles()` per minute.
 --      If pg_cron is not available the guard silently skips and the
 --      accompanying `sweep-expired-roles` edge function can be wired to a
@@ -50,7 +50,7 @@ BEGIN;
 -- 1. org_member_roles.source column
 -- ══════════════════════════════════════════════════════════════════════
 --
--- NULL-safe default: existing rows (pre-4.4 backfill) are 'direct' — the
+-- NULL-safe default: existing rows (pre-4.4 backfill) are 'direct', the
 -- Phase 4.2 migration grants them via the standard invite/role-editor
 -- path. The auditor_invite and support_grant values are only ever
 -- written by the Phase 4.4 edge functions.
@@ -82,7 +82,7 @@ COMMENT ON COLUMN public.org_member_roles.source IS
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. org_signing_keys — per-org ML-DSA-65 public key
+-- 2. org_signing_keys, per-org ML-DSA-65 public key
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Public keys are non-secret by design. Any authenticated member of an
@@ -92,7 +92,7 @@ COMMENT ON COLUMN public.org_member_roles.source IS
 -- before inserting.
 --
 -- key_version starts at 1 and bumps each time an Owner rotates the signing key
--- (future phases — Phase 4.5 hard re-key). An org may legally have
+-- (future phases, Phase 4.5 hard re-key). An org may legally have
 -- multiple rows with different key_versions during a rotation window,
 -- so key_version is part of the primary key alongside org_id.
 
@@ -129,17 +129,17 @@ CREATE POLICY "org_signing_keys_select_members"
 COMMENT ON TABLE public.org_signing_keys IS
   'Phase 4.4: ML-DSA-65 Org Signing Key public half per org + '
   'per key_version. Used server-side to verify write signatures on '
-  'business tables. Plaintext by design — every member needs it to '
+  'business tables. Plaintext by design, every member needs it to '
   'verify peers'' writes.';
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 3. org_member_signing_key_wraps — per-writer wrapped private signing key
+-- 3. org_member_signing_key_wraps, per-writer wrapped private signing key
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Mirrors the shape of org_keys (invite wrap) but carries the ML-DSA-65
 -- secret key instead of the AES Org DEK. One row per (user, org,
--- key_version). A user without a row cannot sign — that is the
+-- key_version). A user without a row cannot sign, that is the
 -- cryptographic read-only primitive for Auditor (three-layer defense;
 -- see OWB-MULTIUSER-DESIGN.md §3).
 
@@ -171,14 +171,14 @@ CREATE POLICY "signing_key_wraps_select_own"
 COMMENT ON TABLE public.org_member_signing_key_wraps IS
   'Phase 4.4: per-writer wrapped private half of the Org Signing Key. '
   'Hybrid-KEM wrapped to the recipient''s user_vault_keys public key. '
-  'Auditor and Viewer members never have a row here — that is the '
+  'Auditor and Viewer members never have a row here, that is the '
   'cryptographic read-only enforcement (no signing key issued). RLS SELECT '
   'is scoped to the recipient so nobody else can fetch another user''s '
   'wrapped signing key even over an admin API.';
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 4. support_sessions — OWBSupport audit trail
+-- 4. support_sessions, OWBSupport audit trail
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- One row per grant. expires_at is capped at granted_at + 24h via CHECK
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS public.support_sessions (
   end_reason       TEXT,
   -- CHECK: hard 24h cap from grant time. NULL ended_at with expires_at
   -- beyond cap would mean the row was minted outside the legitimate
-  -- path — this guard rejects it.
+  -- path, this guard rejects it.
   CONSTRAINT support_sessions_24h_cap_chk
     CHECK (expires_at <= granted_at + interval '24 hours'),
   CONSTRAINT support_sessions_end_reason_chk
@@ -240,7 +240,7 @@ COMMENT ON TABLE public.support_sessions IS
 --
 -- Phase 4.4 wires mutation signing into ONE table (transactions) as a
 -- proof of architecture. Other business tables get extended in a future
--- phase — leaving TODO comments in the client code.
+-- phase, leaving TODO comments in the client code.
 --
 -- Columns are NULL-able so legacy rows and out-of-band inserts (edge
 -- functions running under the service role) don't break. The trigger
@@ -269,7 +269,7 @@ COMMENT ON COLUMN public.transactions.signature_key_version IS
 --      and are used for edge-function administrative writes).
 --   b. If the row carries NULL signature_b64, and the caller has no
 --      `transactions.write` capability (so they are relying on
---      transactions.write_own) we allow it — write_own in the D7 set is
+--      transactions.write_own) we allow it, write_own in the D7 set is
 --      the Bookkeeper pattern and hasn't been fully wired to the signing key
 --      yet. This matches the Phase 4.2 write_own permissiveness. A
 --      follow-up migration tightens this with transactions.created_by.
@@ -301,7 +301,7 @@ BEGIN
   -- available. For now we validate that both inputs are well-formed
   -- base64-looking strings of plausible length (ML-DSA-65: signature
   -- 3309 bytes ≈ 4412 base64 chars; public key 1952 bytes ≈ 2604
-  -- base64 chars) and return TRUE — the client has already signed and
+  -- base64 chars) and return TRUE, the client has already signed and
   -- we rely on tamper detection from AES-GCM on the encrypted payload.
   IF p_public_key_b64 IS NULL OR p_signature_b64 IS NULL THEN
     RETURN FALSE;
@@ -317,7 +317,7 @@ COMMENT ON FUNCTION public.pqc_verify_ml_dsa_65(TEXT, TEXT, BYTEA) IS
   'Phase 4.4 placeholder: returns TRUE for well-formed inputs. The '
   'real ML-DSA-65 verify runs client-side in src/lib/osk.ts. When '
   'Postgres ships an ML-DSA verifier or an extension is installed, '
-  'swap this body for the native call — no other code changes '
+  'swap this body for the native call, no other code changes '
   'required.';
 
 
@@ -352,7 +352,7 @@ BEGIN
   v_has_write := public.user_has_capability(v_user, 'transactions.write', v_org_id);
 
   IF NOT v_has_write THEN
-    -- write_own path — out of scope for Phase 4.4 signing coverage.
+    -- write_own path, out of scope for Phase 4.4 signing coverage.
     -- Skip signature enforcement (return NEW unchanged).
     RETURN NEW;
   END IF;
@@ -362,7 +362,7 @@ BEGIN
    WHERE c.key = 'transactions.write';
 
   IF NOT COALESCE(v_requires_osk, FALSE) THEN
-    -- Capability doesn't demand a signing-key signature — nothing to verify.
+    -- Capability doesn't demand a signing-key signature, nothing to verify.
     RETURN NEW;
   END IF;
 
@@ -373,7 +373,7 @@ BEGIN
   --   3. Server-side verification upgrades silently once pqc_verify_ml_dsa_65
   --      is replaced with a native ML-DSA pgcrypto call.
   -- Before step 2 completes, an Owner trying to write transactions
-  -- would otherwise be blocked — which defeats the "leaves dev
+  -- would otherwise be blocked, which defeats the "leaves dev
   -- deployable to staging after every phase" rule. Soft-enforce here; the client
   -- still signs when a key exists.
   IF NOT EXISTS (
@@ -412,7 +412,7 @@ BEGIN
 
   -- Compose the payload the client signed: org_id + row_id (if known)
   -- + selected encrypted columns. The client calls signMutation with
-  -- the same byte layout — src/lib/osk.ts documents the shape.
+  -- the same byte layout, src/lib/osk.ts documents the shape.
   IF NOT public.pqc_verify_ml_dsa_65(
       v_public_key,
       NEW.signature_b64,
@@ -437,7 +437,7 @@ COMMENT ON FUNCTION public.verify_mutation_signature_on_write() IS
   'a valid Org Signing Key signature when the acting capability has '
   'requires_osk = TRUE. write_own path is skipped (permissive via D29 '
   'follow-up). Service-role (auth.uid() IS NULL) bypasses. Scope is '
-  'transactions only in Phase 4.4 — other tables ship coverage in a '
+  'transactions only in Phase 4.4, other tables ship coverage in a '
   'later phase.';
 
 DROP TRIGGER IF EXISTS trg_verify_mutation_signature_transactions ON public.transactions;
@@ -448,7 +448,7 @@ CREATE TRIGGER trg_verify_mutation_signature_transactions
 
 
 -- ══════════════════════════════════════════════════════════════════════
--- 6. expire_time_boxed_roles() — auto-expiry sweep
+-- 6. expire_time_boxed_roles(), auto-expiry sweep
 -- ══════════════════════════════════════════════════════════════════════
 --
 -- Intended cadence: every minute via pg_cron (scheduled below) or every
@@ -462,7 +462,7 @@ CREATE TRIGGER trg_verify_mutation_signature_transactions
 --   b. Revoke org_member_roles rows where expires_at < now() AND
 --      revoked_at IS NULL. Writing revoked_at fires
 --      `enforce_last_role_removal` which drops the org_keys
---      wrap + audits org_access_revoked — no additional handling here.
+--      wrap + audits org_access_revoked, no additional handling here.
 --   c. Both flows emit their own vault_security_events rows for Owner
 --      visibility.
 
@@ -507,7 +507,7 @@ BEGIN
   -- b) Revoke expired org_member_roles grants. Writing revoked_at fires
   --    the Phase 4.2 enforce_last_role_removal trigger, which in turn
   --    drops the org_keys wrap and writes org_access_revoked when this
-  --    was the user's last active grant — no extra wiring needed here.
+  --    was the user's last active grant, no extra wiring needed here.
   FOR v_row IN
     UPDATE public.org_member_roles
        SET revoked_at = expires_at
@@ -573,7 +573,7 @@ BEGIN
 
     RAISE NOTICE 'Phase 4.4: scheduled expire_time_boxed_roles every minute via pg_cron.';
   ELSE
-    RAISE NOTICE 'Phase 4.4: pg_cron not enabled — sweep-expired-roles edge function must be scheduled separately.';
+    RAISE NOTICE 'Phase 4.4: pg_cron not enabled, sweep-expired-roles edge function must be scheduled separately.';
   END IF;
 EXCEPTION WHEN OTHERS THEN
   -- Supabase Free tier may block pg_cron; don't fail the migration.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * email-drain.mjs — inserts a synthetic row into pending_admin_emails,
+ * email-drain.mjs, inserts a synthetic row into pending_admin_emails,
  * invokes drain-email-outbox, asserts the row flipped to 'sent', and
  * (optionally) verifies the email arrived via Resend's GET /emails.
  *
@@ -8,7 +8,7 @@
  *   V3_DEV_SUPABASE_URL
  *   V3_DEV_SUPABASE_SERVICE_KEY
  *   FLASH_CRON_SECRET           (matches CRON_SECRET on the edge function)
- *   DRAIN_TEST_TO_EMAIL         (where the test email goes — your inbox)
+ *   DRAIN_TEST_TO_EMAIL         (where the test email goes, your inbox)
  *
  * Usage:
  *   node tests/e2e/email-drain.mjs
@@ -42,7 +42,7 @@ async function rest(path, opts = {}) {
 }
 
 const stamp = new Date().toISOString();
-const subject = `Drainer probe — ${stamp}`;
+const subject = `Drainer probe, ${stamp}`;
 
 console.log(`📤 inserting probe row to=${TO_EMAIL} subject="${subject}"`);
 const [row] = await rest('pending_admin_emails', {
@@ -51,7 +51,7 @@ const [row] = await rest('pending_admin_emails', {
     to_email: TO_EMAIL,
     subject,
     body_text: `This is an automated probe from tests/e2e/email-drain.mjs at ${stamp}. If you got this, the drainer works.`,
-    body_html: `<p>Drainer probe at <code>${stamp}</code> — if this landed in your inbox, the Resend wiring is live.</p>`,
+    body_html: `<p>Drainer probe at <code>${stamp}</code>, if this landed in your inbox, the Resend wiring is live.</p>`,
     status: 'pending',
   }),
 });

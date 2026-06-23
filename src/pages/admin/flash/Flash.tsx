@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useFlashStatus } from '@/hooks/useFlashStatus';
 
-// Legacy localStorage hint key — retained as an export so FlashCallback
+// Legacy localStorage hint key, retained as an export so FlashCallback
 // can clear it on success. Real status now comes from the flash-status
 // edge function (Layer 2).
 export const LS_FLASH_STATUS_HINT = 'owb_flash_status_hint';
@@ -100,7 +100,7 @@ export default function Flash() {
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-1">Pay with Flash</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Platform billing connection — connect the Orange Way Books Flash account once so customers
+        Platform billing connection, connect the Orange Way Books Flash account once so customers
         can pay their subscription via Flash.
       </p>
 

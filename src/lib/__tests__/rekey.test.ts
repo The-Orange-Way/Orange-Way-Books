@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Phase 4.5 — Hard re-key client library tests.
+ * Phase 4.5, Hard re-key client library tests.
  *
  * Exercises the pure-crypto paths without a live Supabase connection.
  * The orchestration paths that talk to edge functions are covered by
@@ -72,7 +72,7 @@ async function aesGcmDecryptBase64(b64: string, dek: Uint8Array): Promise<string
   return new TextDecoder().decode(pt);
 }
 
-describe('rekey — DEK wrap for 3 members', () => {
+describe('rekey, DEK wrap for 3 members', () => {
   it('produces per-member wraps that each unwrap to the same DEK', async () => {
     const strategy = KEY_WRAP_STRATEGIES[DEFAULT_WRAP_ALGORITHM];
     if (!strategy) throw new Error('default strategy missing');
@@ -100,14 +100,14 @@ describe('rekey — DEK wrap for 3 members', () => {
   });
 });
 
-describe('rekey — row re-encrypt under new DEK', () => {
+describe('rekey, row re-encrypt under new DEK', () => {
   it('decrypts with old DEK, re-encrypts with new DEK, and round-trips plaintext', async () => {
     const oldDek = new Uint8Array(32);
     crypto.getRandomValues(oldDek);
     const newDek = new Uint8Array(32);
     crypto.getRandomValues(newDek);
 
-    const plaintext = 'Transaction memo — $123.45 paid to Acme Corp.';
+    const plaintext = 'Transaction memo, $123.45 paid to Acme Corp.';
     const oldCiphertext = await aesGcmEncryptBase64(plaintext, oldDek);
 
     // Core re-encrypt primitive mirrored inline (same shape as rekey.ts).
@@ -128,7 +128,7 @@ describe('rekey — row re-encrypt under new DEK', () => {
   });
 });
 
-describe('rekey — CSV escaping', () => {
+describe('rekey, CSV escaping', () => {
   // Verify the csvEscape behavior independent of the module.
   // Replicated here to avoid importing Supabase-dependent code paths.
   function csvEscape(value: unknown): string {
@@ -149,12 +149,12 @@ describe('rekey — CSV escaping', () => {
   });
 });
 
-describe('rekey — abort-state invariants', () => {
+describe('rekey, abort-state invariants', () => {
   it('wraps written during a job are additive (do not overwrite old wraps)', async () => {
     // Simulate the shape of a wrap_members stage: a client wrapping a
     // new DEK at key_version=2 should not invalidate a wrap at
     // key_version=1 for the same recipient. This test is a contract
-    // statement — the rekey-batch edge function uses upsert with
+    // statement, the rekey-batch edge function uses upsert with
     // onConflict='org_id,user_id,key_version', so rows at different
     // key_versions coexist.
     const strategy = KEY_WRAP_STRATEGIES[DEFAULT_WRAP_ALGORITHM];

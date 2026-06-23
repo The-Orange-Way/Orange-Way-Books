@@ -1,4 +1,4 @@
--- Week 3 I14 — apply_invoice_payment RPC
+-- Week 3 I14, apply_invoice_payment RPC
 --
 -- Atomic operation: insert invoice_payments row + recompute invoice
 -- status. Called by the client after the user picks an invoice in the
@@ -12,7 +12,7 @@
 -- Status logic:
 --   sum(applied) >= invoice.amount → PAID + paid_at = now()
 --   0 < sum < invoice.amount       → PARTIAL
---   sum = 0                        → unchanged (defensive — shouldn't fire)
+--   sum = 0                        → unchanged (defensive, shouldn't fire)
 --
 -- Idempotency: invoice_payments has UNIQUE (invoice_id, transaction_id).
 -- Re-applying the same pair is a no-op (returns the existing row id).

@@ -1,5 +1,5 @@
 /**
- * WalletPickerStep — Phase 3 source-wallet picker.
+ * WalletPickerStep, Phase 3 source-wallet picker.
  *
  * After a connection is added, OR's or-discover-wallets returns the list of
  * wallets visible to that API key. This dialog lets the user check which ones
@@ -11,7 +11,7 @@
  * but uses OWB shadcn primitives (Dialog/Checkbox/Button) for visual consistency.
  *
  * If the user "Skips for now" the connection still works in legacy account-wide
- * mode — the parent surfaces a toast.
+ * mode, the parent surfaces a toast.
  */
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -47,7 +47,7 @@ export function WalletPickerStep({
   onSkip,
   onConfirm,
 }: WalletPickerStepProps) {
-  // All wallets default to checked — matches the previous "sync everything"
+  // All wallets default to checked, matches the previous "sync everything"
   // baseline so users don't lose data by accident on first connect.
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(discoveredWallets.map((w) => w.external_wallet_id)),
@@ -85,7 +85,7 @@ export function WalletPickerStep({
     <Dialog
       open={open}
       onOpenChange={() => {
-        /* close only via explicit Skip / Confirm — protect partial setup */
+        /* close only via explicit Skip / Confirm, protect partial setup */
       }}
     >
       <DialogContent
@@ -101,7 +101,7 @@ export function WalletPickerStep({
           </DialogTitle>
           <DialogDescription>
             Pick which wallets to sync. Wallet labels and currencies are encrypted with your vault
-            key before they leave your browser — OrangeRails can't read them.
+            key before they leave your browser, OrangeRails can't read them.
           </DialogDescription>
         </DialogHeader>
 
@@ -139,7 +139,7 @@ export function WalletPickerStep({
 
         {noneSelected && discoveredWallets.length > 0 && (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
-            No wallets selected — saving as-is will pause sync for this connection.
+            No wallets selected, saving as-is will pause sync for this connection.
           </div>
         )}
 

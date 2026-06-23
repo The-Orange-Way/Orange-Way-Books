@@ -226,7 +226,7 @@ export default function ImportJobs() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Every import that ran through the Orange Rails wizard appears here. Committed jobs have a
-          "Purge" button — use it to delete the journal entries they created when you want to
+          "Purge" button, use it to delete the journal entries they created when you want to
           re-import after a mapping fix.
         </p>
       </header>
@@ -283,10 +283,10 @@ export default function ImportJobs() {
                     <span className="text-xs font-mono">{r.source_type}</span>
                   </TableCell>
                   <TableCell className="max-w-xs truncate" title={r.file_name || ''}>
-                    {r.file_name | <span className="text-muted-foreground">—</span>}
+                    {r.file_name | <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>{statusBadge(r.status)}</TableCell>
-                  <TableCell className="text-right text-sm">{r.row_count ?? '—'}</TableCell>
+                  <TableCell className="text-right text-sm">{r.row_count ?? '-'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button
@@ -347,18 +347,18 @@ export default function ImportJobs() {
                 <dt className="text-muted-foreground">Source</dt>
                 <dd className="col-span-2">{detailRow.source_type}</dd>
                 <dt className="text-muted-foreground">File</dt>
-                <dd className="col-span-2">{detailRow.file_name || '—'}</dd>
+                <dd className="col-span-2">{detailRow.file_name || '-'}</dd>
                 <dt className="text-muted-foreground">File hash</dt>
                 <dd className="col-span-2 font-mono text-xs break-all">
-                  {detailRow.file_hash || '—'}
+                  {detailRow.file_hash || '-'}
                 </dd>
                 <dt className="text-muted-foreground">Manifest</dt>
-                <dd className="col-span-2 text-xs">{detailRow.manifest_summary || '—'}</dd>
+                <dd className="col-span-2 text-xs">{detailRow.manifest_summary || '-'}</dd>
                 <dt className="text-muted-foreground">Created</dt>
                 <dd className="col-span-2">{format(parseISO(detailRow.created_at), 'PPP p')}</dd>
                 <dt className="text-muted-foreground">Committed</dt>
                 <dd className="col-span-2">
-                  {detailRow.committed_at ? format(parseISO(detailRow.committed_at), 'PPP p') : '—'}
+                  {detailRow.committed_at ? format(parseISO(detailRow.committed_at), 'PPP p') : '-'}
                 </dd>
                 <dt className="text-muted-foreground">Status</dt>
                 <dd className="col-span-2">{statusBadge(detailRow.status)}</dd>

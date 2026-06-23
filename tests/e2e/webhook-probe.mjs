@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * webhook-probe.mjs — minimal HMAC probe for the flash-webhook function.
+ * webhook-probe.mjs, minimal HMAC probe for the flash-webhook function.
  *
  * Posts a synthetic payment.completed with no DB side-effects (uses a
  * known-bogus external_reference) and prints both the computed signature
  * and the function's response. If we get 401, the secret on the edge
  * function differs from the local FLASH_WEBHOOK_SECRET. If we get 200,
  * the signing scheme is correct and the real e2e webhook step should
- * work too — investigate the script's payload instead.
+ * work too, investigate the script's payload instead.
  *
  * Env (sourced from the deploy environment):
  *   V3_DEV_SUPABASE_URL

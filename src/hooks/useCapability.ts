@@ -1,15 +1,15 @@
 /**
- * Capability hooks — Phase 4.2.
+ * Capability hooks, Phase 4.2.
  *
  * Drives UI gating off the capability model seeded in migration
  * 20260423000000_phase4_2_capabilities_and_presets.sql. Three public
  * hooks:
  *
- *   - useRoles(orgId)              — list of role_definitions for the
+ *   - useRoles(orgId)             , list of role_definitions for the
  *                                    org (system presets + custom).
- *   - useCurrentUserRoles(orgId)   — current user's active role grants
+ *   - useCurrentUserRoles(orgId)  , current user's active role grants
  *                                    plus the aggregated capability set.
- *   - useCapability(key, orgId)    — boolean check; subscribes to
+ *   - useCapability(key, orgId)   , boolean check; subscribes to
  *                                    realtime changes on
  *                                    org_member_roles + role_capabilities
  *                                    so capability loss takes effect
@@ -81,7 +81,7 @@ function subscribeChannel(orgId: string, userId: string, onChange: Listener): ()
     // We watch org_member_roles for THIS user+org (revocations,
     // grants) and role_capabilities for the whole org (a capability
     // added/removed on a role the user holds still affects them).
-    // We don't try to filter role_capabilities by role_id — the set of
+    // We don't try to filter role_capabilities by role_id, the set of
     // roles the user holds is dynamic, and overfetching on role_capabilities
     // edits is cheap (table is small, events are rare).
     const channel = supabase
@@ -134,7 +134,7 @@ function subscribeChannel(orgId: string, userId: string, onChange: Listener): ()
 }
 
 // ---------------------------------------------------------------------------
-// useCurrentUserRoles — primary data source. Fetches the active role
+// useCurrentUserRoles, primary data source. Fetches the active role
 // grants for the calling user in an org and unions their capability
 // keys. Every other hook derives from this.
 // ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@ export function useCurrentUserRoles(orgId: string | null): CurrentUserRoles {
 }
 
 // ---------------------------------------------------------------------------
-// useCapability — boolean gate on a single capability key.
+// useCapability, boolean gate on a single capability key.
 // ---------------------------------------------------------------------------
 
 /**
@@ -257,7 +257,7 @@ export function useCapability(capabilityKey: string, orgId: string | null): bool
 }
 
 // ---------------------------------------------------------------------------
-// useRoles — role list for the org (system + custom), for the Admin UI.
+// useRoles, role list for the org (system + custom), for the Admin UI.
 // ---------------------------------------------------------------------------
 
 export interface UseRolesResult {
@@ -330,9 +330,9 @@ export function useRoles(orgId: string | null): UseRolesResult {
 }
 
 // ---------------------------------------------------------------------------
-// useRoleCapabilities — capability set for a given role. Drives the
+// useRoleCapabilities, capability set for a given role. Drives the
 // right-column checklist in the Admin UI. Not realtime-subscribed at
-// this level — the Admin UI itself pulls a fresh list on save to avoid
+// this level, the Admin UI itself pulls a fresh list on save to avoid
 // stomping on another admin's concurrent edit.
 // ---------------------------------------------------------------------------
 
@@ -380,7 +380,7 @@ export function useRoleCapabilities(roleId: string | null): UseRoleCapabilitiesR
 }
 
 // ---------------------------------------------------------------------------
-// useAllCapabilities — the full registry, grouped by feature for the UI.
+// useAllCapabilities, the full registry, grouped by feature for the UI.
 // ---------------------------------------------------------------------------
 
 export interface CapabilityRow {
@@ -439,7 +439,7 @@ export function useAllCapabilities(): UseAllCapabilitiesResult {
 }
 
 // ---------------------------------------------------------------------------
-// Tier gate — no billing state yet. Stubbed to `hasAdvancedTier = true`
+// Tier gate, no billing state yet. Stubbed to `hasAdvancedTier = true`
 // so the Admin UI's clone/edit controls are usable in dev. Phase 4.x wires
 // this to whatever tier/plan column the billing pipeline introduces.
 // ---------------------------------------------------------------------------

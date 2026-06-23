@@ -34,7 +34,7 @@ export async function retryPendingRateLines(
 
   if (error || !rows) return result;
 
-  // We need the wallet currency per line — it's encrypted. For retry purposes,
+  // We need the wallet currency per line, it's encrypted. For retry purposes,
   // fetch the journal_entry's wallet currency via the journal_entries join.
   const { data: lineDetails } = await supabase
     .from('journal_entry_lines')
@@ -51,7 +51,7 @@ export async function retryPendingRateLines(
       const date = (line.journal_entries as any)?.date ?? line.rate_asof?.slice(0, 10);
       const primaryCurrency: string | null = line.primary_currency_at_posting;
 
-      // wallet_currency is encrypted — skip lines where we can't derive it
+      // wallet_currency is encrypted, skip lines where we can't derive it
       // (they'll be resolved via the backfill flow instead)
       if (!primaryCurrency || !date) {
         result.stillPending++;
@@ -59,7 +59,7 @@ export async function retryPendingRateLines(
       }
 
       // Note: we can't decrypt wallet_currency here without a VaultContext decrypt function.
-      // We use rate_asof as a proxy — if the rate resolves for any common pair, we update.
+      // We use rate_asof as a proxy, if the rate resolves for any common pair, we update.
       // This is a best-effort retry; full resolution happens in the backfill page.
       result.stillPending++;
     } catch {

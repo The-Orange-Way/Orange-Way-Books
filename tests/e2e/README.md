@@ -11,7 +11,7 @@ Playwright's `globalSetup` will fail fast with a useful message if any
 of these are missing, so you can't accidentally run the spec against
 half a stack.
 
-**Terminal 1 — Supabase local**
+**Terminal 1, Supabase local**
 
 ```bash
 supabase start
@@ -19,7 +19,7 @@ supabase start
 
 Wait until you see `API URL: http://127.0.0.1:54321`.
 
-**Terminal 2 — Mock Flash server**
+**Terminal 2, Mock Flash server**
 
 ```bash
 FLASH_WEBHOOK_SECRET=devsecret \
@@ -31,7 +31,7 @@ Listens on `http://localhost:8787`. See `scripts/mock-flash/README.md`
 for the matching `MOCK_FLASH=false`, `FLASH_BASE_URL=...` env vars the
 Vault edge functions need.
 
-**Terminal 3 — Vault dev server**
+**Terminal 3, Vault dev server**
 
 ```bash
 npm run dev
@@ -50,12 +50,12 @@ npm run test:e2e:screenshots # run + rebuild SCREENSHOTS.md
 Output:
 
 - `tests/e2e/__screenshots__/01-signup.png` … `10-payment-history.png`
-- `tests/e2e/__screenshots__/captions.json` — machine-readable
+- `tests/e2e/__screenshots__/captions.json`, machine-readable
   captions, written as each step completes.
-- `tests/e2e/__screenshots__/SCREENSHOTS.md` — the human-readable
+- `tests/e2e/__screenshots__/SCREENSHOTS.md`, the human-readable
   deliverable. Send this (or its rendered form on GitHub) to Bram.
-- `tests/e2e/__report__/` — Playwright HTML report.
-- `tests/e2e/__artifacts__/` — videos / traces for any failed step.
+- `tests/e2e/__report__/`, Playwright HTML report.
+- `tests/e2e/__artifacts__/`, videos / traces for any failed step.
 
 ## What it does NOT do
 
@@ -95,7 +95,7 @@ The canonical copy lives encrypted at `/opt/orangeway/.env.sops` on Jarvis
 # /tmp/owb-pw/owb-dev-supabase.json:
 node tests/e2e/scripts/provision-e2e-user.js
 # Output: /tmp/owb-pw/e2e-creds.json with email / password / vault_password.
-# The script is idempotent — re-running against an already-onboarded user
+# The script is idempotent, re-running against an already-onboarded user
 # just confirms the credentials still unlock the vault.
 ```
 
@@ -110,5 +110,5 @@ then update the three repo secrets to match.
 Selectors prefer `data-testid` where the product code carries one,
 otherwise role-based (`getByRole('button', { name: /Connect Flash/i })`)
 or text content. If you change a button label in the product, the
-e2e spec breaks loudly — fix the selector rather than chasing the
+e2e spec breaks loudly, fix the selector rather than chasing the
 screenshot.

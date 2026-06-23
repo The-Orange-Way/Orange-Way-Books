@@ -1,5 +1,5 @@
 /**
- * VaultContext — manages the vault unlock state and provides encrypt/decrypt functions.
+ * VaultContext, manages the vault unlock state and provides encrypt/decrypt functions.
  *
  * The Master Encryption Key (MEK) is stored as a non-extractable CryptoKey in a ref.
  * It never touches localStorage, sessionStorage, or any server.
@@ -57,7 +57,7 @@ interface VaultContextType {
   decryptText: (ciphertext: string) => Promise<string>;
   encryptBlob: (plaintext: ArrayBuffer | Uint8Array) => Promise<Blob>;
   decryptBlob: (ciphertext: Blob | ArrayBuffer) => Promise<ArrayBuffer>;
-  // OrangeRails subkey helpers — used by the Connections page to encrypt
+  // OrangeRails subkey helpers, used by the Connections page to encrypt
   // provider credentials, decrypt connection metadata, and hand keys
   // in-transit to OR's or-sync edge function via owb-or-proxy.
   encryptOrCipher: (plaintext: string) => Promise<string>;
@@ -107,7 +107,7 @@ interface VaultContextType {
   /**
    * Phase 4.4: load + unwrap the caller's Org Signing Key for the
    * active org. Must be called after unlock and before signing
-   * mutations. Idempotent — a second call for the same org is a cheap
+   * mutations. Idempotent, a second call for the same org is a cheap
    * no-op (cached). Returns null when the caller has no signing-key wrap
    * (read-only roles like Auditor / Viewer), which is a legitimate
    * state and NOT an error.
@@ -115,7 +115,7 @@ interface VaultContextType {
   loadOrgSigningKey: (orgId: string) => Promise<SigningKeyHandle | null>;
   /**
    * Phase 4.4: sign a mutation payload with the cached signing key for the
-   * active org. Returns null when the caller has no signing-key wrap — the
+   * active org. Returns null when the caller has no signing-key wrap, the
    * call site should skip the signature columns (server-side trigger
    * accepts NULL for write_own paths and for service-role inserts).
    */
@@ -152,7 +152,7 @@ interface VaultContextType {
    * in-memory MEK). Returns the new code (display once) and the new
    * recovery_ciphertext (persist to org_settings).
    *
-   * The old recovery code is invalidated — any copy the user saved
+   * The old recovery code is invalidated, any copy the user saved
    * before this call stops working immediately.
    */
   rotateRecoveryCode(): Promise<{
@@ -161,7 +161,7 @@ interface VaultContextType {
   }>;
 
   /**
-   * S14 — set up a per-user master recovery code that unlocks every
+   * S14, set up a per-user master recovery code that unlocks every
    * org the user is a member of. Caller persists masterSalt +
    * verifierCiphertext to public.user_master_recovery, and persists
    * currentOrgWrap to public.org_master_wraps for the active org.
@@ -175,14 +175,14 @@ interface VaultContextType {
   }>;
 
   /**
-   * S14 — wrap the active org's MEK under an already-set-up master KEK.
+   * S14, wrap the active org's MEK under an already-set-up master KEK.
    * For enrolling additional orgs into an existing master recovery
    * setup. Vault must be unlocked.
    */
   wrapCurrentOrgUnderMaster(masterCode: string, masterSaltB64: string): Promise<string>;
 
   /**
-   * S14 — recover an org by using the master recovery code. Verifies
+   * S14, recover an org by using the master recovery code. Verifies
    * the code (via the user_master_recovery verifier), unwraps the
    * org's MEK from org_master_wraps, re-wraps it under a new password,
    * generates a fresh per-org recovery code, and leaves the vault
@@ -230,7 +230,7 @@ async function maybeFirstTimeSetup(
   decryptText: (ciphertext: string) => Promise<string>,
 ): Promise<void> {
   try {
-    // Capability check — only Owners/Admins run first-time setup.
+    // Capability check, only Owners/Admins run first-time setup.
     const { data: canInvite } = await (
       supabase as unknown as {
         rpc: (
@@ -280,13 +280,13 @@ async function maybeFirstTimeSetup(
     const { startRekeyJob, runRekeyJob } = await import('@/lib/rekey');
     const { toast } = await import('sonner');
     try {
-      // First-time setup uses Quick refresh — there's no existing real
+      // First-time setup uses Quick refresh, there's no existing real
       // shared DEK to re-encrypt under, so Deep's re-scramble isn't
       // applicable here.
       const { jobId } = await startRekeyJob(orgId, 'first_time_setup', 'quick');
 
       // Best-effort: decrypt the org name so the welcome email can
-      // address the customer by name. Failure here is fine — the email
+      // address the customer by name. Failure here is fine, the email
       // gets queued with a generic placeholder.
       let orgNameDecrypted = '';
       try {
@@ -324,7 +324,7 @@ async function maybeFirstTimeSetup(
       console.warn('[vault] first-time-setup threw:', err);
     }
   } catch (err) {
-    // Fail silently — first-time setup is optional. Next unlock retries.
+    // Fail silently, first-time setup is optional. Next unlock retries.
     console.warn('[vault] maybeFirstTimeSetup probe failed', err);
   }
 }
@@ -354,14 +354,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // request headers. Wait for `getSession()` to resolve and assert a
     // non-null session before touching `org_settings`. The errors thrown
     // in this block are treated as "transient / not a password failure"
-    // by the catch in the unlock-crypto stage below — they MUST NOT be
+    // by the catch in the unlock-crypto stage below, they MUST NOT be
     // logged as `vault_unlock_failed`, otherwise a reload-induced flake
     // ticks the S10 sliding-window counter (see the bug fix referenced
     // in fix/vault-unlock-after-reload).
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.user) throw new Error('Session not yet ready — please try again.');
+    if (!session?.user) throw new Error('Session not yet ready, please try again.');
     const user = session.user;
 
     const stored = localStorage.getItem('orangewaybooks.active_org');
@@ -371,7 +371,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', user.id)
       .order('joined_at', { ascending: true });
     if (membershipsErr) {
-      // RLS / network failure — transient, do NOT log as a password failure.
+      // RLS / network failure, transient, do NOT log as a password failure.
       throw new Error('Could not load your organization. Please try again.');
     }
 
@@ -402,7 +402,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     // failures inside this try block. Everything above (auth/network/RLS
     // and "no org" errors) is treated as transient and skipped, so the
     // S10 sliding-window cooldown only counts genuine wrong-password
-    // attempts — never reload-induced flakes. (Cause-1 hardening for
+    // attempts, never reload-induced flakes. (Cause-1 hardening for
     // the "C-G journey second-unlock fails" repro.)
     let passwordAttempted = false;
     try {
@@ -449,7 +449,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         console.warn('[vault] ensureUserKeypair failed; retry next unlock', e);
       }
 
-      // OrangeRails subkeys — derived from a separate Argon2id with a
+      // OrangeRails subkeys, derived from a separate Argon2id with a
       // stable salt prefix, so OR data survives vault version upgrades
       // and is consistent regardless of the vault's own MEK shape.
       // Requires orgSalt; v1 vaults without orgSalt skip OR support.
@@ -470,11 +470,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       // kick off a background rotation to establish the real shared DEK.
       //
       // Skipped if another writer in the org is already running a job.
-      // Failures are non-fatal — user can retry from Settings → Security.
+      // Failures are non-fatal, user can retry from Settings → Security.
       //
       // We close over the just-unlocked keyRef to provide a decrypt fn
       // so the first-time-setup welcome email can include the real
-      // (decrypted) org name — ZKA-correct because the server only
+      // (decrypted) org name, ZKA-correct because the server only
       // sees the composed plaintext that the client chose to share.
       const decryptForEmail = async (ciphertext: string): Promise<string> => {
         if (!keyRef.current) throw new Error('Vault is locked');
@@ -629,7 +629,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       userId: string;
       newPassword: string;
     }) => {
-      // Unwrap MEK with the recovery code KEK — throws if code is wrong.
+      // Unwrap MEK with the recovery code KEK, throws if code is wrong.
       const recoveryKek = await deriveRecoveryKek(recoveryCode);
       const mekRaw = await unwrapMekWithKey(recoveryCiphertext, recoveryKek);
       const mek = await importAesGcmKey(mekRaw);
@@ -686,17 +686,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * S14 — Set up the per-user master recovery code that unlocks every
+   * S14, Set up the per-user master recovery code that unlocks every
    * org the user belongs to with a single phrase. Uses the in-memory
    * MEK of the active org; the master_wrapped_mek for THIS org is
    * returned to be persisted. To enroll additional orgs, the user
    * unlocks each one in turn and calls wrapCurrentOrgUnderMaster().
    *
    * Returns:
-   *   newMasterCode    — display once, never persisted
-   *   masterSalt       — base64 32 bytes, persist to user_master_recovery
-   *   verifierCiphertext — proves a typed code is correct
-   *   currentOrgWrap   — wrap of THIS org's MEK under the master KEK
+   *   newMasterCode   , display once, never persisted
+   *   masterSalt      , base64 32 bytes, persist to user_master_recovery
+   *   verifierCiphertext, proves a typed code is correct
+   *   currentOrgWrap  , wrap of THIS org's MEK under the master KEK
    */
   const setupMasterRecoveryCode = useCallback(async () => {
     if (!mekRawRef.current) {
@@ -711,7 +711,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * S14 — Wrap the currently-unlocked org's MEK under an already-set-up
+   * S14, Wrap the currently-unlocked org's MEK under an already-set-up
    * master KEK. Used to enroll additional orgs into an existing master
    * recovery setup. The caller provides the master code (it's only
    * known to the user at setup time; we never persist it).
@@ -728,7 +728,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
-   * S14 — Recover an org using the master recovery code. Used on the
+   * S14, Recover an org using the master recovery code. Used on the
    * vault unlock screen when the user has forgotten their per-org
    * vault password AND lost the per-org recovery code, but still
    * has the master code.
@@ -762,7 +762,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       newPassword: string;
     }) => {
       // 1. Verify the code via the exported helper. This is the SAME crypto
-      //    path the helper in vault.ts encapsulates — using the helper avoids
+      //    path the helper in vault.ts encapsulates, using the helper avoids
       //    a name-shadow bug where the local `decryptText` useCallback
       //    (1 arg, uses keyRef MEK which is null during recovery) would
       //    silently take precedence over the imported 2-arg helper. Found
@@ -789,7 +789,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         LATEST_VAULT_KEY_VERSION,
       );
 
-      // 4. Fresh per-org recovery code (rotates whatever the user had — they
+      // 4. Fresh per-org recovery code (rotates whatever the user had, they
       //    don't necessarily remember it anyway, since they just used the
       //    master).
       const newRecoveryCode = generateRecoveryCode();
@@ -825,12 +825,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       encMekCiphertext: string;
       userId: string;
     }) => {
-      // 1. Unwrap MEK with current password's KEK — throws if current password is wrong.
+      // 1. Unwrap MEK with current password's KEK, throws if current password is wrong.
       const currentKek = await deriveVaultV1Kek(currentPassword, userId, orgSaltB64);
       const mekRaw = await unwrapMekWithKey(encMekCiphertext, currentKek);
       const mek = await importAesGcmKey(mekRaw);
 
-      // 2. Re-wrap MEK with new password's KEK (same salt — blind index stays valid).
+      // 2. Re-wrap MEK with new password's KEK (same salt, blind index stays valid).
       const newKek = await deriveVaultV1Kek(newPassword, userId, orgSaltB64);
       const newEncMekCiphertext = await wrapMekWithKey(mekRaw, newKek);
       const newVerifier = await createVaultVerifier(
@@ -840,7 +840,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         LATEST_VAULT_KEY_VERSION,
       );
 
-      // 3. Fresh recovery code — old one is invalidated.
+      // 3. Fresh recovery code, old one is invalidated.
       const newRecoveryCode = generateRecoveryCode();
       const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
       const newRecoveryCiphertext = await wrapMekWithKey(mekRaw, newRecoveryKek);
@@ -853,7 +853,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       // 5. Phase 4.1: re-wrap the hybrid private key with the new MEK via
       // atomic UPDATE (Decision D5). The random MEK bytes are identical
       // across password change, so the HKDF-derived pqcSecretWrapKey also
-      // stays the same — meaning this call is a no-op at the crypto layer
+      // stays the same, meaning this call is a no-op at the crypto layer
       // yet still exercises the UPDATE path so the DB-touch invariants
       // are observable. Password changes that *do* rotate the MEK (e.g.
       // Phase 4.5 hard re-key) will see real re-wrap work here.
@@ -934,11 +934,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
     if (!wrapRow) {
-      // Read-only role — no wrap. Not an error.
+      // Read-only role, no wrap. Not an error.
       return null;
     }
 
-    // Step 2: user's own hybrid keypair row — the wrap's "recipient key".
+    // Step 2: user's own hybrid keypair row, the wrap's "recipient key".
     const { data: keyRow, error: keyErr } = await (supabase as any)
       .from('user_vault_keys')
       .select('encrypted_private_key')

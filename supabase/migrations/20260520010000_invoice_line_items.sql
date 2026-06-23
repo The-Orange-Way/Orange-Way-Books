@@ -1,4 +1,4 @@
--- Invoicing — invoice_line_items table
+-- Invoicing, invoice_line_items table
 --
 -- One row per invoice line. Mirrors payment_request_line_items.
 -- Per-line GL routing via legacy_account_map_id so the issued invoice posts

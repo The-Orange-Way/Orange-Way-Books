@@ -18,7 +18,7 @@ export interface BuildJeLineInsertParams {
   wallet_currency: string;
   /** Org's current primary (functional) currency (e.g. "BTC"). */
   primary_currency: string;
-  /** Journal entry date — used to pin the rate bucket (YYYY-MM-DD or ISO). */
+  /** Journal entry date, used to pin the rate bucket (YYYY-MM-DD or ISO). */
   date: string;
   /** Positive debit amount in wallet currency (0 if this is a credit line). */
   debit: number;
@@ -40,7 +40,7 @@ export interface BuildJeLineInsertParams {
 export interface BuildJeLineInsertResult {
   /** Ready-to-insert row for the journal_entry_lines table. */
   insert: JournalEntryLineEncrypted;
-  /** True when the exchange rate could not be resolved — line is stored but
+  /** True when the exchange rate could not be resolved, line is stored but
    *  excluded from formal reports until the rate is resolved manually. */
   pending: boolean;
   /** The resolved rate (primary per wallet unit), or 0 when pending. */
@@ -61,7 +61,7 @@ export interface BuildJeLineInsertResult {
  *  4. Attach plaintext metadata (pinned_rate_id, rate_pending, etc.).
  *
  * The caller inserts the returned `insert` object directly into
- * `journal_entry_lines` — no further transformation needed.
+ * `journal_entry_lines`, no further transformation needed.
  */
 export async function buildJournalEntryLineInsert(
   params: BuildJeLineInsertParams,
@@ -100,7 +100,7 @@ export async function buildJournalEntryLineInsert(
   let manualRateSource: string | null = null;
 
   if (manualRate) {
-    // Manual rate path — skip the resolver entirely
+    // Manual rate path, skip the resolver entirely
     rate = manualRate.rate;
     manualRateReason = manualRate.reason;
     manualRateSource = manualRate.source;
@@ -114,7 +114,7 @@ export async function buildJournalEntryLineInsert(
       ),
     ).toISOString();
   } else {
-    // Automatic path — call the resolver
+    // Automatic path, call the resolver
     const resolved = await resolvePinnedRate({
       source: wallet_currency,
       target: primary_currency,
@@ -126,7 +126,7 @@ export async function buildJournalEntryLineInsert(
     pending = resolved.pending;
   }
 
-  // amount_primary = amount_native × rate (null when pending — rate unknown)
+  // amount_primary = amount_native × rate (null when pending, rate unknown)
   const amount_primary = pending ? null : amount_native * rate;
 
   // Build the fields object for the base encrypt function

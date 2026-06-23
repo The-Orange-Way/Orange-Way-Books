@@ -1,4 +1,4 @@
--- Phase 1 — Migration 2/9: Create `chart_of_accounts` (replaces `legacy_account_map`).
+-- Phase 1, Migration 2/9: Create `chart_of_accounts` (replaces `legacy_account_map`).
 --
 -- Fully ZKA. Server sees: row UUID, org_id, parent_id (UUID), opened_at,
 -- closed_at, key_version, timestamps. Everything customer-meaningful is
@@ -14,9 +14,9 @@ CREATE TABLE public.chart_of_accounts (
   id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id                          UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   parent_id                       UUID NULL,        -- self-ref FK below; deferrable so a tree can be inserted in one tx
-  -- Encrypted (ZKA L2) — server cannot read any of these
+  -- Encrypted (ZKA L2), server cannot read any of these
   encrypted_name                  TEXT NOT NULL,    -- "Bitcoin Cold Storage"
-  encrypted_code                  TEXT NULL,        -- "1001" or "A1001" — user-chosen
+  encrypted_code                  TEXT NULL,        -- "1001" or "A1001", user-chosen
   encrypted_description           TEXT NULL,        -- free text
   encrypted_account_type          TEXT NOT NULL,    -- "Asset" | "Liability" | "Equity" | "Income" | "Expense"
   encrypted_account_sub_type      TEXT NULL,        -- "Bank" | "Cash" | "Receivable" | "Payable" | "CreditCard" | "Stock" | "MutualFund" | "Trading" | "FixedAsset" | "COGS" | "Tax" | "Other"
@@ -105,7 +105,7 @@ CREATE TRIGGER trg_chart_of_accounts_parent_same_org
   EXECUTE FUNCTION public.check_chart_of_accounts_parent_same_org();
 
 COMMENT ON TABLE public.chart_of_accounts IS
-  'Replaces legacy_account_map. Fully ZKA — server cannot read account name, code, description, type, sub-type, group/system/archived flags, or allowed currencies. Only structural metadata (UUIDs, dates, key_version) is plaintext.';
+  'Replaces legacy_account_map. Fully ZKA, server cannot read account name, code, description, type, sub-type, group/system/archived flags, or allowed currencies. Only structural metadata (UUIDs, dates, key_version) is plaintext.';
 
 COMMENT ON COLUMN public.chart_of_accounts.encrypted_account_type IS
   'AES-256-GCM ciphertext of "Asset" | "Liability" | "Equity" | "Income" | "Expense". Decrypted client-side on app load + cached in memory. ledger-engine.ts uses the decrypted value to apply normal-balance math.';

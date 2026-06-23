@@ -15,14 +15,14 @@ function parseTitle(title: string): {
   period: string | null;
 } {
   const parts = title
-    .split(' — ')
+    .split(', ')
     .map((part) => part.trim())
     .filter(Boolean);
   if (parts.length >= 3) {
     return {
       orgName: parts[0] ?? null,
       reportName: parts[1] ?? title,
-      period: parts.slice(2).join(' — '),
+      period: parts.slice(2).join(', '),
     };
   }
 

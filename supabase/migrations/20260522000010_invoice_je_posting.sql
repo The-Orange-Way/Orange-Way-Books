@@ -1,4 +1,4 @@
--- Week 3 I17 — auto-post JE on invoice payment apply
+-- Week 3 I17, auto-post JE on invoice payment apply
 --
 -- Extends apply_invoice_payment() to also write a journal_entries +
 -- journal_entry_lines pair recording the Dr Wallet / Cr A/R movement
@@ -13,7 +13,7 @@
 -- transaction already posted to whatever account the operator picked.
 -- If they categorized it as A/R, this JE matches and is net zero on
 -- A/R. If they categorized it as income, they're double-counting
--- until they manually reclassify — and the match panel surfaces a
+-- until they manually reclassify, and the match panel surfaces a
 -- warning when this happens. (I16 phase will add automatic
 -- reclassification on merge.)
 
@@ -173,9 +173,9 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     ) VALUES
       (v_je_id, v_wallet_account_id, p_amount_applied, 0,
-        'Dr Wallet — payment on ' | v_invoice_number),
+        'Dr Wallet, payment on ' | v_invoice_number),
       (v_je_id, v_ar_account_id, 0, p_amount_applied,
-        'Cr A/R — payment on ' | v_invoice_number);
+        'Cr A/R, payment on ' | v_invoice_number);
 
     v_je_posted := TRUE;
   END IF;

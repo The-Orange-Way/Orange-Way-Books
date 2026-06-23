@@ -1,5 +1,5 @@
 /**
- * Onboarding walk — end-to-end with hard assertions per step.
+ * Onboarding walk, end-to-end with hard assertions per step.
  *
  * Today's most fragile flow has no spec coverage: a brand-new user goes
  * through signup → vault password setup → recovery code reveal → confirm
@@ -16,16 +16,16 @@
  * for the per-PR coverage.
  *
  * What it asserts (each one a hard expect):
- *   01 — /signup form renders, email + password fields visible
- *   02 — After signup submit, vault-setup screen appears
- *   03 — Vault password fill + Continue → recovery code screen with 12 words
- *   04 — Recovery code visible, copy text + checkbox + Continue
- *   05 — Verify-words step with 3 inputs, fill correctly, Confirm
- *   06 — Org name input renders, fill, Continue
- *   07 — Ledger bootstrap completes (≤45s) — sidebar appears
- *   08 — Dashboard renders with NO "Finishing setup…" pill
- *   09 — chart_of_accounts page lists 43 default accounts
- *   10 — master-recovery page renders the heading (React #310 regression)
+ *   01, /signup form renders, email + password fields visible
+ *   02, After signup submit, vault-setup screen appears
+ *   03, Vault password fill + Continue → recovery code screen with 12 words
+ *   04, Recovery code visible, copy text + checkbox + Continue
+ *   05, Verify-words step with 3 inputs, fill correctly, Confirm
+ *   06, Org name input renders, fill, Continue
+ *   07, Ledger bootstrap completes (≤45s), sidebar appears
+ *   08, Dashboard renders with NO "Finishing setup…" pill
+ *   09, chart_of_accounts page lists 43 default accounts
+ *   10, master-recovery page renders the heading (React #310 regression)
  *
  * Read-only environment: only OWB DEV (project ref allowlisted in the
  * provision script). Refuses to run on PROD.
@@ -95,22 +95,22 @@ function adminFetch(
 
 test.skip(
   !OPT_IN,
-  'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly',
+  'E2E_ONBOARDING_WALK=1 not set, onboarding walk has DB side effects and only runs explicitly',
 );
 
-test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
+test.describe.serial('Onboarding walk, fresh org for the e2e user', () => {
   let supa: SupaCreds | null = null;
 
   test.beforeAll(async () => {
     supa = readSupaCreds();
     if (!supa)
       throw new Error(
-        'cannot read /tmp/owb-pw/owb-dev-supabase.json — run provision-e2e-user.js once first to seed it',
+        'cannot read /tmp/owb-pw/owb-dev-supabase.json, run provision-e2e-user.js once first to seed it',
       );
     const ref = new URL(supa.url).hostname.split('.')[0];
     if (!ALLOWED_PROJECT_REFS.has(ref)) {
       throw new Error(
-        `onboarding walk refuses to run against project ref "${ref}" — DEV allowlist only`,
+        `onboarding walk refuses to run against project ref "${ref}", DEV allowlist only`,
       );
     }
 
@@ -165,7 +165,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     test.setTimeout(180_000);
     const baseURL = 'https://books.orangeway.dev';
 
-    // 01 — /login renders + sign in (user already created by admin-create
+    // 01, /login renders + sign in (user already created by admin-create
     // in beforeAll with email_confirm=true; going to /signup fails because
     // the email is taken)
     await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
@@ -178,7 +178,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await page.locator('button[type="submit"]').first().click();
     await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
 
-    // 02 — vault-setup screen appears (user signed in but has no org,
+    // 02, vault-setup screen appears (user signed in but has no org,
     // OnboardingWizard renders the StepVaultPassword form)
     await page.waitForTimeout(2_000);
 
@@ -187,13 +187,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       timeout: 15_000,
     });
 
-    // 03 — fill vault password + continue → recovery code screen
+    // 03, fill vault password + continue → recovery code screen
     await vaultSetup.fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').first().fill(VAULT_PW);
     await page.locator('button:has-text("Continue")').first().click();
     await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30_000 });
 
-    // 04 — recovery code visible, capture words
+    // 04, recovery code visible, capture words
     const wordsByPos: Record<number, string> = await page.evaluate(() => {
       const map: Record<number, string> = {};
       for (const c of Array.from(document.querySelectorAll('div'))) {
@@ -213,7 +213,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       });
     await page.locator('button:has-text("Continue")').first().click({ force: true });
 
-    // 05 — verify-words step
+    // 05, verify-words step
     await page.waitForSelector('[data-testid="recovery-verify-block"]', { timeout: 15_000 });
     for (const inp of await page.locator('[data-testid^="verify-word-"]').all()) {
       const tid = await inp.getAttribute('data-testid');
@@ -223,7 +223,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     }
     await page.locator('button:has-text("Confirm")').first().click({ force: true });
 
-    // 06 — org name
+    // 06, org name
     await page.waitForTimeout(2_000);
     const orgIn = page.locator('input:visible').first();
     await expect(orgIn, 'org name input').toBeVisible({ timeout: 10_000 });
@@ -243,13 +243,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       }
     }
 
-    // 07 — ledger bootstrap; wait up to 45s for sidebar
+    // 07, ledger bootstrap; wait up to 45s for sidebar
     await expect(
       page.locator('text=Insights').first(),
       'authenticated shell sidebar after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders, no "Finishing setup…"
+    // 08, dashboard renders, no "Finishing setup…"
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2_000);
     const stillFinishing = await page
@@ -259,18 +259,18 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       .catch(() => false);
     expect(
       stillFinishing,
-      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
+      'dashboard must NOT show "Finishing setup…" pill, ledger_status should be ready',
     ).toBe(false);
 
-    // 09 — chart_of_accounts seed verification.
+    // 09, chart_of_accounts seed verification.
     // Direct REST queries from the browser would need either an exposed
-    // publishable-key global or session token shenanigans. Skip — step 07
+    // publishable-key global or session token shenanigans. Skip, step 07
     // (sidebar visible) and step 08 (no "Finishing setup…" pill) already
     // prove initChartOfAccounts ran to completion without throwing, since
     // OnboardingWizard.tsx writes ledger_status='ready' AFTER the loop and
     // step 08 verifies that state surfaced to the dashboard.
 
-    // 10 — master-recovery page renders (React #310 regression).
+    // 10, master-recovery page renders (React #310 regression).
     // page.goto reloads the SPA which loses the in-memory MEK; need to
     // re-unlock and wait for the authenticated shell to mount before
     // checking for the heading.
@@ -292,7 +292,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
         .locator('h1, h2')
         .filter({ hasText: /Master recovery code/i })
         .first(),
-      'master-recovery heading must render — React #310 regression',
+      'master-recovery heading must render, React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
   });
 });

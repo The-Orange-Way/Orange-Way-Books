@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * lifecycle-backdate.mjs — exercises the subscription-lifecycle cron
+ * lifecycle-backdate.mjs, exercises the subscription-lifecycle cron
  * without waiting 45 real days.
  *
  * For each transition (trialing → past_due → read_only → locked), we:

@@ -1,5 +1,5 @@
 /**
- * mergeInvoicePayment — Wave Pattern A merge.
+ * mergeInvoicePayment, Wave Pattern A merge.
  *
  * When the InvoiceMatchPanel ranks a new bank-import / wallet-sync
  * deposit against open invoices, the invoice may already have a
@@ -7,7 +7,7 @@
  * flow. Applying as a fresh payment would double-count. Merging folds
  * the placeholder + real deposit into one canonical record.
  *
- * The actual SQL work runs server-side in merge_invoice_payment() —
+ * The actual SQL work runs server-side in merge_invoice_payment()
  * see `supabase/migrations/20260523000000_invoice_payment_merge.sql`.
  * This module is the client wrapper: it
  *
@@ -16,7 +16,7 @@
  *      server only sees a coarse plaintext mirror.
  *   2. Refuses to merge when the new deposit's amount disagrees with
  *      the placeholder by more than `MERGE_AMOUNT_TOLERANCE_PCT` (0.5%
- *      by default) — the caller is expected to surface a confirmation
+ *      by default), the caller is expected to surface a confirmation
  *      dialog and call again with `confirmAmountMismatch: true`.
  *   3. Signs the merge payload with the org mutation signing key
  *      so the server can record an attestation alongside the row.
@@ -40,7 +40,7 @@ export interface MergeWithPlaceholderParams {
   placeholderPaymentId: string;
   /** UUID of the real (bank-import / wallet-sync) transaction. */
   transactionId: string;
-  /** org_id of the invoice — passed through to mutation signing. */
+  /** org_id of the invoice, passed through to mutation signing. */
   orgId: string;
   /**
    * Optional. If provided, used as the deposit's amount for the
@@ -65,7 +65,7 @@ export interface MergeResult {
   supersededTransactionId: string | null;
   jeReversedId: string | null;
   jePostedId: string | null;
-  /** True when the row already pointed at the new tx — re-run no-op. */
+  /** True when the row already pointed at the new tx, re-run no-op. */
   noop: boolean;
 }
 

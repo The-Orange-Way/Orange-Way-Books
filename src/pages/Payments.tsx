@@ -106,7 +106,7 @@ const PAYMENT_EXPORT_HEADERS = [
   'Paid at',
 ] as const;
 
-// Status set. ON_HOLD added 2026-05-12 (Track 4 PR A) — used when an
+// Status set. ON_HOLD added 2026-05-12 (Track 4 PR A), used when an
 // approver pauses for
 // "need more info" without rejecting outright.
 const STATUSES = [
@@ -224,7 +224,7 @@ interface DecryptedPayment {
   approved_by: string | null;
   paid_at: string | null;
   created_at: string | null;
-  // T4 PR E — frozen snapshots captured at creation.
+  // T4 PR E, frozen snapshots captured at creation.
   payee_email_snapshot: string | null;
   payee_phone_snapshot: string | null;
 }
@@ -329,7 +329,7 @@ function buildPaymentExportRows(
 export default function Payments() {
   const { orgId, loading: orgLoading } = useUserOrg();
   const { encryptText, decryptText, encryptBlob, decryptBlob } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative on writes.
+  // Capability gates, UI presence only; RLS still authoritative on writes.
   // The "View as" switcher in this page is a temporary dev affordance; the
   // available roles below are derived from the caller's actual capability
   // bundle so a PaymentsApprover never sees the Payer/Create controls.
@@ -338,7 +338,7 @@ export default function Payments() {
   const canApprovePayments = useCapability('payments.approve', orgId);
   const canPayPayments = useCapability('payments.pay', orgId);
   const canManageOrgForPayments = useCapability('org.manage', orgId);
-  // "Admin" tab is shown to anyone with org.manage OR payments.create — the
+  // "Admin" tab is shown to anyone with org.manage OR payments.create, the
   // existing UI uses it as a catch-all view. If the user has zero payment
   // capabilities at all we render an empty-state below.
   const availableViewRoles = useMemo(() => {
@@ -401,17 +401,17 @@ export default function Payments() {
   const [formVendorRef, setFormVendorRef] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formSaving, setFormSaving] = useState(false);
-  // T4 PR D — line items inline (D-2 lock). Each entry is local-only until
+  // T4 PR D, line items inline (D-2 lock). Each entry is local-only until
   // the parent request is saved; on save we insert them as a batch.
   interface LineItemDraft {
     clientId: string;
     description: string;
     amount: string;
     accountId: string; // chart_of_accounts.id (D-1 lock)
-    files: File[]; // staged uploads (D-3 lock) — uploaded after row insert
+    files: File[]; // staged uploads (D-3 lock), uploaded after row insert
   }
   const [formLineItems, setFormLineItems] = useState<LineItemDraft[]>([]);
-  // T4 PR E — email/phone snapshot fields (E-1 lock: auto + manual override).
+  // T4 PR E, email/phone snapshot fields (E-1 lock: auto + manual override).
   // Both default to "" and persist into payment_requests.encrypted_payee_email_snapshot
   // / encrypted_payee_phone_snapshot when the request is created.
   const [formPayeeEmail, setFormPayeeEmail] = useState('');
@@ -475,14 +475,14 @@ export default function Payments() {
                 const code = a.encrypted_code
                   ? await decryptText(a.encrypted_code).catch(() => '')
                   : '';
-                accountLabelMap[a.id] = code ? `${code} — ${name}` : name;
+                accountLabelMap[a.id] = code ? `${code}, ${name}` : name;
               } catch {
                 accountLabelMap[a.id] = '(decrypt failed)';
               }
             }
           }
         }
-        // Per-line attachments — one query covers all lines.
+        // Per-line attachments, one query covers all lines.
         const lineIds = (lineRows as any[]).map((r) => r.id);
         const { data: attRows } = await supabase
           .from('attachments')
@@ -602,7 +602,7 @@ export default function Payments() {
       for (const row of (data | []) as any[]) {
         try {
           const d = await decryptPaymentRequest(row, decryptText);
-          // T4 PR E — decrypt frozen snapshots independently. Best-effort:
+          // T4 PR E, decrypt frozen snapshots independently. Best-effort:
           // missing/old rows simply render with null fields, no toast spam.
           let payee_email_snapshot: string | null = null;
           let payee_phone_snapshot: string | null = null;
@@ -614,7 +614,7 @@ export default function Payments() {
               payee_phone_snapshot = await decryptText(row.encrypted_payee_phone_snapshot);
             }
           } catch {
-            /* snapshots optional — old rows have none */
+            /* snapshots optional, old rows have none */
           }
           decrypted.push({
             id: row.id,
@@ -693,9 +693,9 @@ export default function Payments() {
   }, [datePreset, customFrom, customTo]);
 
   const effectiveRangeLabels = useMemo(() => {
-    if (datePreset === 'all_time') return { from: '—', to: '—' };
-    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '—';
-    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '—';
+    if (datePreset === 'all_time') return { from: '-', to: '-' };
+    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '-';
+    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '-';
     return { from, to };
   }, [datePreset, dateRange.from, dateRange.to]);
 
@@ -722,7 +722,7 @@ export default function Payments() {
     } else if (tab === 'payments') {
       list = list.filter((r) => (r.status === 'APPROVED') | (r.status === 'PAID'));
     }
-    // Date range — filter on document_date with fallback to created_at (same field the "Request date" column shows)
+    // Date range, filter on document_date with fallback to created_at (same field the "Request date" column shows)
     list = list.filter((r) => {
       const raw = r.document_date ?? r.created_at;
       if (!raw) return true;
@@ -816,7 +816,7 @@ export default function Payments() {
       return;
     }
     const dataRows = buildExportRows(false);
-    const title = `${orgName || 'Organization'} — Payments — ${format(new Date(), 'yyyy-MM-dd')}`;
+    const title = `${orgName || 'Organization'}, Payments, ${format(new Date(), 'yyyy-MM-dd')}`;
     void printTable(title, [...PAYMENT_EXPORT_HEADERS], dataRows)
       .then((opened) => {
         if (opened) {
@@ -854,7 +854,7 @@ export default function Payments() {
       return;
     }
 
-    // T4 PR D — when line items exist, the parent amount is the sum of the
+    // T4 PR D, when line items exist, the parent amount is the sum of the
     // rows (single source of truth). When no line items, fall back to the
     // top-level formAmount input. Either way the request stores one `amount`.
     const hasLineItems = formLineItems.length > 0;
@@ -873,13 +873,13 @@ export default function Payments() {
 
     setFormSaving(true);
     try {
-      // T4 PR C + PR F — approval threshold with cross-currency support.
+      // T4 PR C + PR F, approval threshold with cross-currency support.
       //
       // If the org has set an approval_threshold_amount, compare this
       // request's amount against it. Same-currency comparison is direct
       // (PR C). Cross-currency: convert the form amount to the threshold's
       // currency via resolvePinnedRate (PR F). If the rate is pending or
-      // missing we skip enforcement and surface a warning toast — better to
+      // missing we skip enforcement and surface a warning toast, better to
       // let the user save the request than block on a rate fetch.
       let forcedToPending = false;
       let thresholdRatePending = false;
@@ -897,7 +897,7 @@ export default function Payments() {
           if (threshold != null && thresholdCurrency && resolvedStatus === 'DRAFT') {
             let amtInThresholdCurrency = amt;
             if (thresholdCurrency !== formCurrency) {
-              // PR F — resolve rate from form currency to threshold currency.
+              // PR F, resolve rate from form currency to threshold currency.
               const rate = await resolvePinnedRate({
                 source: formCurrency,
                 target: thresholdCurrency,
@@ -916,7 +916,7 @@ export default function Payments() {
           }
         }
       } catch (thresholdErr) {
-        // Threshold check is non-blocking — if the read fails, fall back to
+        // Threshold check is non-blocking, if the read fails, fall back to
         // the user's chosen status. The form still saves.
         console.warn('Approval threshold check skipped:', thresholdErr);
       }
@@ -926,7 +926,7 @@ export default function Payments() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // T4 PR E — email/phone snapshots (E-1 lock: auto + override).
+      // T4 PR E, email/phone snapshots (E-1 lock: auto + override).
       // If the form fields are populated, those are the snapshot. If empty,
       // try to auto-fetch from a contact whose decrypted name matches the
       // payee (case-insensitive). The snapshot is written-once: even if the
@@ -997,7 +997,7 @@ export default function Payments() {
       if (error) throw error;
       const requestId = (insertedReq as any).id;
 
-      // T4 PR D — line items + per-line attachments.
+      // T4 PR D, line items + per-line attachments.
       if (validLineItems.length > 0) {
         const encLines = await Promise.all(
           validLineItems.map(async (li, idx) => {
@@ -1021,7 +1021,7 @@ export default function Payments() {
           console.error('Failed to insert line items:', linesErr);
         } else if (insertedLines) {
           // Upload attachments for each line that has files. Index order
-          // preserved by the .select('id') return — match by position.
+          // preserved by the .select('id') return, match by position.
           await Promise.all(
             validLineItems.map(async (li, idx) => {
               if (!li.files.length) return;
@@ -1063,7 +1063,7 @@ export default function Payments() {
 
       if (forcedToPending) {
         toast.success(
-          'Payment request created — exceeded approval threshold, moved to Pending for approval.',
+          'Payment request created, exceeded approval threshold, moved to Pending for approval.',
         );
       } else if (thresholdRatePending) {
         toast.warning(
@@ -1163,7 +1163,7 @@ export default function Payments() {
   // Approve / reject go through SECURITY DEFINER RPCs (migration
   // 20260418000000_payment_requests_authorship_pin.sql). The RPC pins
   // approved_by to auth.uid() and enforces "ACCOUNTANT+ may approve" at
-  // the DB layer — a VIEWER/MEMBER who guesses a request UUID cannot
+  // the DB layer, a VIEWER/MEMBER who guesses a request UUID cannot
   // approve via a hand-crafted HTTP call.
   async function handleApprove(id: string) {
     setReviewSaving(true);
@@ -1252,7 +1252,7 @@ export default function Payments() {
   }
 
   /**
-   * Put a pending payment request on hold. The PaymentRequest model — used
+   * Put a pending payment request on hold. The PaymentRequest model, used
    * when an approver needs more info but isn't outright rejecting. Status
    * moves PENDING → ON_HOLD; later the same approver can take it back to
    * PENDING (via reopen) or move it forward to APPROVED / REJECTED.
@@ -1519,7 +1519,7 @@ export default function Payments() {
 
   return (
     <div className="p-6 space-y-4" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Row 1 — title left, search + actions right (mirrors the Transactions header) */}
+      {/* Row 1, title left, search + actions right (mirrors the Transactions header) */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Payments</h1>
@@ -1594,7 +1594,7 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Row 2 — DATE RANGE (year + from/to) + STATUS on the right */}
+      {/* Row 2, DATE RANGE (year + from/to) + STATUS on the right */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -1702,7 +1702,7 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Row 3 — quick preset pills */}
+      {/* Row 3, quick preset pills */}
       <div className="flex flex-wrap gap-1">
         {DATE_PRESETS.map((p) => (
           <Button
@@ -1725,7 +1725,7 @@ export default function Payments() {
         ))}
       </div>
 
-      {/* Row 4 — VIEW AS (centered, temporary until user profiles ship).
+      {/* Row 4, VIEW AS (centered, temporary until user profiles ship).
           Roles available here are derived from the caller's actual capability
           bundle: a PaymentsApprover only sees the Approver tile, a Payer only
           sees Payer, etc. If the caller only has a single role we hide the
@@ -1761,7 +1761,7 @@ export default function Payments() {
         </div>
       )}
 
-      {/* Row 5 — Tabs (search moved to Row 1) */}
+      {/* Row 5, Tabs (search moved to Row 1) */}
       <Tabs
         value={tab}
         onValueChange={(v) => {
@@ -1809,7 +1809,7 @@ export default function Payments() {
         </TabsList>
       </Tabs>
 
-      {/* Bulk-action bar (T4 PR B) — appears when at least one row is selected.
+      {/* Bulk-action bar (T4 PR B), appears when at least one row is selected.
           Mirrors the Transactions bulk-action UX: per-status guards inside the
           handlers mean clicking "Approve" with a CANCELLED row in selection
           just silently skips it. */}
@@ -1854,7 +1854,7 @@ export default function Payments() {
         </div>
       )}
 
-      {/* Table — standard column order */}
+      {/* Table, standard column order */}
       <div
         className="border rounded-lg overflow-x-auto"
         style={{ borderColor: 'var(--color-border)' }}
@@ -1924,7 +1924,7 @@ export default function Payments() {
                       new Date(requestDate.includes('T') ? requestDate : `${requestDate}T12:00:00`),
                       'MM-dd-yyyy',
                     )
-                  : '—';
+                  : '-';
                 return (
                   <TableRow
                     key={r.id}
@@ -1941,15 +1941,15 @@ export default function Payments() {
                     <TableCell className="whitespace-nowrap text-sm font-mono">
                       {requestDateLabel}
                     </TableCell>
-                    <TableCell className="font-medium text-sm">{r.payee || '—'}</TableCell>
+                    <TableCell className="font-medium text-sm">{r.payee || '-'}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {fmtPaymentAmount(r.amount, r.currency)}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {r.vendor_ref || r.ref_number || '—'}
+                      {r.vendor_ref || r.ref_number || '-'}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {r.due_date ? format(new Date(r.due_date), 'MM-dd-yyyy') : '—'}
+                      {r.due_date ? format(new Date(r.due_date), 'MM-dd-yyyy') : '-'}
                     </TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -2138,7 +2138,7 @@ export default function Payments() {
               />
             </div>
 
-            {/* T4 PR E — Email/phone snapshot fields (auto-populated from
+            {/* T4 PR E, Email/phone snapshot fields (auto-populated from
                 Contacts on save when blank; whatever's typed here wins as
                 the audit-frozen snapshot.) */}
             <div className="grid grid-cols-2 gap-3">
@@ -2168,7 +2168,7 @@ export default function Payments() {
               </div>
             </div>
 
-            {/* T4 PR D — Line items. Each row carries
+            {/* T4 PR D, Line items. Each row carries
                 its own description, amount, chart-of-accounts FK, and
                 optional file attachments. Total auto-sums from rows when
                 ≥1 line exists; otherwise the parent "Amount" field is the
@@ -2190,7 +2190,7 @@ export default function Payments() {
               </div>
               {formLineItems.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No line items — the request uses the top-level Amount above. Add a row to itemize
+                  No line items, the request uses the top-level Amount above. Add a row to itemize
                   across multiple accounts (e.g. "Internet $80, Electricity $150, Water $40").
                 </p>
               ) : (
@@ -2228,7 +2228,7 @@ export default function Payments() {
                           <SelectContent>
                             {accountOptions.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
-                                {a.code ? `${a.code} — ${a.name}` : a.name}
+                                {a.code ? `${a.code}, ${a.name}` : a.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -2325,7 +2325,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <span className="text-gray-500">Payee:</span>{' '}
-                  <span className="font-medium">{reviewRow.payee || '—'}</span>
+                  <span className="font-medium">{reviewRow.payee || '-'}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Amount:</span>{' '}
@@ -2384,7 +2384,7 @@ export default function Payments() {
                       {dialogLineItems[reviewRow.id]?.map((li) => (
                         <TableRow key={li.id}>
                           <TableCell className="py-1.5 text-xs">
-                            {li.description || '—'}
+                            {li.description || '-'}
                             {li.attachments.length > 0 && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -2525,7 +2525,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <span className="text-gray-500">Payee:</span>{' '}
-                  <span className="font-medium">{processRow.payee || '—'}</span>
+                  <span className="font-medium">{processRow.payee || '-'}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Amount:</span>{' '}
@@ -2567,7 +2567,7 @@ export default function Payments() {
                       {dialogLineItems[processRow.id]?.map((li) => (
                         <TableRow key={li.id}>
                           <TableCell className="py-1.5 text-xs">
-                            {li.description || '—'}
+                            {li.description || '-'}
                             {li.attachments.length > 0 && (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -2655,7 +2655,7 @@ export default function Payments() {
                   <span className="font-mono">{rejectionRow.ref_number}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Payee:</span> {rejectionRow.payee || '—'}
+                  <span className="text-gray-500">Payee:</span> {rejectionRow.payee || '-'}
                 </div>
                 <div>
                   <span className="text-gray-500">Amount:</span>{' '}

@@ -20,7 +20,7 @@
 import { importAesKey, importAesKeyNonExtractable } from './vault';
 
 // ------------------------------------------------------------------
-// HKDF context strings — one per purpose, never reused.
+// HKDF context strings, one per purpose, never reused.
 // ------------------------------------------------------------------
 
 export const HKDF_CONTEXTS = Object.freeze({
@@ -33,7 +33,7 @@ export const HKDF_CONTEXTS = Object.freeze({
   /** Encrypts the user's PQC secret keys (hybrid KEM + ML-DSA) at rest. */
   ORANGERAILS_PQC_SECRET_WRAP_V1: 'orangerails-pqc-secret-wrap-v1',
   /**
-   * HMAC key for blind index computation. Never used for encryption — only for
+   * HMAC key for blind index computation. Never used for encryption, only for
    * deterministic HMAC-SHA256 of plaintext field values before storage.
    * Keeping this context separate means a leaked HMAC output cannot help an
    * attacker derive any encryption key.
@@ -44,7 +44,7 @@ export const HKDF_CONTEXTS = Object.freeze({
 export type HkdfContext = (typeof HKDF_CONTEXTS)[keyof typeof HKDF_CONTEXTS];
 
 // ------------------------------------------------------------------
-// Subkey derivation — HKDF-SHA-256.
+// Subkey derivation, HKDF-SHA-256.
 // ------------------------------------------------------------------
 
 /**
@@ -133,7 +133,7 @@ export async function deriveBlindIndexKey(mek: CryptoKey, saltB64: string): Prom
 /**
  * Convenience: derive the verifier subkey (for `org_settings.vault_verifier`).
  *
- * The verifier subkey is ALWAYS non-extractable — it is used only for local
+ * The verifier subkey is ALWAYS non-extractable, it is used only for local
  * decryption of the verifier ciphertext, never transmitted anywhere.
  */
 export async function deriveVerifierKey(mek: CryptoKey, saltB64: string): Promise<CryptoKey> {
@@ -155,7 +155,7 @@ export async function deriveVerifierKey(mek: CryptoKey, saltB64: string): Promis
 }
 
 // ------------------------------------------------------------------
-// Local base64 helper — kept inline to avoid a cross-module dependency
+// Local base64 helper, kept inline to avoid a cross-module dependency
 // that would hurt tree-shaking of this cryptography module.
 // ------------------------------------------------------------------
 

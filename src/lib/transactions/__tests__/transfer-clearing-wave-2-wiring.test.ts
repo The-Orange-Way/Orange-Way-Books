@@ -11,11 +11,11 @@
 // These specs lock in:
 //   1. Wave 2 is called when ensureTransferClearingAccount runs on an org
 //      that's already Wave-1-migrated (i.e. the Transfer Clearing row
-//      already exists — no insert path, but the migrations still run).
+//      already exists, no insert path, but the migrations still run).
 //   2. Wave 1 runs BEFORE Wave 2 (order matters per the migration's
 //      docstring; the 1500 slot must be freed before downstream waves).
 //   3. Re-running ensureTransferClearingAccount on the same session is a
-//      no-op for both waves — they decrypt rows and find nothing to do.
+//      no-op for both waves, they decrypt rows and find nothing to do.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -110,7 +110,7 @@ beforeEach(() => {
   wave2Spy.mockClear();
 });
 
-describe('ensureTransferClearingAccount — Wave 2 wiring', () => {
+describe('ensureTransferClearingAccount, Wave 2 wiring', () => {
   it('invokes migrateCoaWave2 when the Transfer Clearing row is missing', async () => {
     await ensureTransferClearingAccount(ORG, encryptText, decryptText);
     expect(wave2Spy).toHaveBeenCalledTimes(1);
@@ -143,7 +143,7 @@ describe('ensureTransferClearingAccount — Wave 2 wiring', () => {
     expect(wave2Spy).toHaveBeenCalledTimes(1);
   });
 
-  it('continues if Wave 2 throws (non-fatal — transfer write path must succeed)', async () => {
+  it('continues if Wave 2 throws (non-fatal, transfer write path must succeed)', async () => {
     wave2Spy.mockImplementationOnce(async () => {
       throw new Error('boom');
     });

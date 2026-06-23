@@ -1,5 +1,5 @@
 /**
- * Client-side audit logger — writes encrypted audit entries to Supabase.
+ * Client-side audit logger, writes encrypted audit entries to Supabase.
  * All summary/snapshot fields are encrypted via VaultContext (ZKA L2).
  */
 import { supabase } from '@/lib/supabase';
@@ -41,7 +41,7 @@ export interface WriteAuditLogArgs {
 }
 
 /**
- * Write an audit log entry. Fire-and-forget — errors are logged but don't block.
+ * Write an audit log entry. Fire-and-forget, errors are logged but don't block.
  */
 export async function writeAuditLog({
   orgId,

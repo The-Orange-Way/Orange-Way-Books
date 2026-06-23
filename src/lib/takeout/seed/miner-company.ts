@@ -61,7 +61,7 @@ function round8(n: number): number {
   return Math.round(n * 1e8) / 1e8;
 }
 
-// Deterministic BTC/USD rate seed for any date — used to translate
+// Deterministic BTC/USD rate seed for any date, used to translate
 // USD-denominated seed journal lines into BTC (primary) amounts.
 // Pure function of the date so every call with the same date returns
 // the same rate, keeping seed round-trips reproducible.
@@ -83,7 +83,7 @@ interface AccountDef {
   group: string;
   normal: 'DEBIT' | 'CREDIT';
 }
-// accountType uses PascalCase — the Insights Expenses card does a
+// accountType uses PascalCase, the Insights Expenses card does a
 // case-sensitive === 'Expense' match, and the ledger engine
 // lowercases for its 'revenue'/'expense'/'asset' checks, so PascalCase
 // satisfies both. account group labels are specific enough to feed
@@ -453,7 +453,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   // linkage travels through journal_entry_lines + accounts.legacy_account_id,
   // not a column on this row. Contact linkage lives in the contacts table
   // and (once the takeout format supports encrypted_metadata round-trip)
-  // will flow via the encrypted_metadata JSONB column — dropped here for now.
+  // will flow via the encrypted_metadata JSONB column, dropped here for now.
   function pushTx(args: {
     date: string;
     walletId: string | null;
@@ -491,7 +491,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   // ── Initial ASIC fleet purchase via credit card ──────────────────────
   postJE({
     date: iso(addDays(startDate, 3)),
-    memo: 'ASIC fleet purchase — 40 miners',
+    memo: 'ASIC fleet purchase, 40 miners',
     ref: 'HW-2025-001',
     drCode: '1600', // Equipment
     crCode: '2120', // Credit Cards
@@ -504,7 +504,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     asset: 'USD',
     amount: -210000,
     usd_value: 210000,
-    memo: 'ASIC fleet purchase — 40 miners',
+    memo: 'ASIC fleet purchase, 40 miners',
   });
 
   // ── Daily mining rewards ─────────────────────────────────────────────
@@ -562,11 +562,11 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
         asset: 'USD',
         amount: usd,
         usd_value: usd,
-        memo: `Hosting fee — ${hc.contact.name}`,
+        memo: `Hosting fee, ${hc.contact.name}`,
       });
       postJE({
         date: iso(date),
-        memo: `Hosting revenue — ${hc.contact.name}`,
+        memo: `Hosting revenue, ${hc.contact.name}`,
         ref: null,
         drCode: '1100',
         crCode: '4200',
@@ -586,7 +586,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     }
   }
 
-  // Electricity — biggest expense, with seasonal noise
+  // Electricity, biggest expense, with seasonal noise
   eachMonthOfFirst(5, (date) => {
     const base = 19000 + (date.getUTCMonth() >= 5 && date.getUTCMonth() <= 8 ? 4200 : 0);
     const usd = base + (rand() - 0.5) * 1600;
@@ -597,7 +597,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Electricity — Pacific Power',
+      memo: 'Electricity, Pacific Power',
     });
     postJE({
       date: iso(date),
@@ -619,7 +619,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
       asset: 'USD',
       amount: -usd,
       usd_value: usd,
-      memo: 'Colo hosting — CryptoHost',
+      memo: 'Colo hosting, CryptoHost',
     });
     postJE({
       date: iso(date),
@@ -653,7 +653,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Payroll (simulated — 2 employees)
+  // Payroll (simulated, 2 employees)
   eachMonthOfFirst(15, (date) => {
     const usd = 15000 + (rand() - 0.5) * 500;
     pushTx({
@@ -675,7 +675,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Professional services — monthly bookkeeping
+  // Professional services, monthly bookkeeping
   eachMonthOfFirst(20, (date) => {
     const usd = 800;
     pushTx({
@@ -697,7 +697,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     });
   });
 
-  // Marketing — sporadic
+  // Marketing, sporadic
   eachMonthOfFirst(22, (date) => {
     if (rand() > 0.4) return;
     const usd = 450 + rand() * 800;
@@ -778,7 +778,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
       amountUsd: saleUsd,
     });
 
-    // Hardware upgrade — only in quarters 2 and 4
+    // Hardware upgrade, only in quarters 2 and 4
     if (quarterCount === 2 || quarterCount === 4) {
       const hwUsd = 45000 + rand() * 18000;
       pushTx({
@@ -788,7 +788,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
         asset: 'USD',
         amount: -hwUsd,
         usd_value: hwUsd,
-        memo: 'ASIC expansion — hardware upgrade',
+        memo: 'ASIC expansion, hardware upgrade',
       });
       postJE({
         date: iso(addDays(qDate, 2)),
@@ -803,7 +803,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     // Quarterly depreciation JE
     postJE({
       date: iso(addDays(qDate, 30)),
-      memo: 'Quarterly depreciation — ASIC fleet',
+      memo: 'Quarterly depreciation, ASIC fleet',
       ref: `DEPR-Q${quarterCount}`,
       drCode: '5600',
       crCode: '1600',
@@ -847,7 +847,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     const date = iso(addDays(now, -inv.daysAgo));
     postJE({
       date,
-      memo: `Open invoice — ${inv.contact.name}`,
+      memo: `Open invoice, ${inv.contact.name}`,
       ref: inv.ref,
       drCode: '1200', // Accounts Receivable
       crCode: '4200', // Service Revenue
@@ -856,14 +856,14 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
   }
 
   // ── Payment requests (a couple of unpaid bills) ──────────────────────
-  // Full payment lifecycle for demo — mix of statuses to showcase the
+  // Full payment lifecycle for demo, mix of statuses to showcase the
   // approvals + payments-made flow.
   const payment_requests: TakeoutPaymentRequest[] = [
     // ── PENDING (awaiting approval) ──────────────────────────────────
     {
       id: U(),
       payee: contactPacPower.name,
-      description: 'Electricity — current period (est.)',
+      description: 'Electricity, current period (est.)',
       rejection_reason: null,
       amount: 21500,
       currency: 'USD',
@@ -894,7 +894,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactCryptoHost.name,
-      description: 'Colo hosting — next month',
+      description: 'Colo hosting, next month',
       rejection_reason: null,
       amount: 2800,
       currency: 'USD',
@@ -909,7 +909,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactMesaMining.name,
-      description: 'ASIC repair parts — hashboard replacements',
+      description: 'ASIC repair parts, hashboard replacements',
       rejection_reason: null,
       amount: 3600,
       currency: 'USD',
@@ -925,7 +925,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactPacPower.name,
-      description: 'Electricity — last period',
+      description: 'Electricity, last period',
       rejection_reason: null,
       amount: 20800,
       currency: 'USD',
@@ -940,7 +940,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactProfServ.name,
-      description: 'Monthly bookkeeping — last month',
+      description: 'Monthly bookkeeping, last month',
       rejection_reason: null,
       amount: 800,
       currency: 'USD',
@@ -955,7 +955,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     {
       id: U(),
       payee: contactFoundry.name,
-      description: 'Mining pool settlement — periodic true-up',
+      description: 'Mining pool settlement, periodic true-up',
       rejection_reason: null,
       amount: 1250,
       currency: 'USD',
@@ -970,7 +970,7 @@ export function generateMinerCompany(now: Date = new Date()): TakeoutFile {
     // ── REJECTED (with reason) ───────────────────────────────────────
     {
       id: U(),
-      payee: 'Bitcoin Miami 2026 — Sponsorship',
+      payee: 'Bitcoin Miami 2026, Sponsorship',
       description: 'Booth + branding package',
       rejection_reason:
         'Exceeds annual marketing budget; revisit at next board cycle with co-sponsor.',

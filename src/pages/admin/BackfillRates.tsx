@@ -17,11 +17,11 @@ interface BackfillRatesProps {
 type RunState = 'idle' | 'running' | 'done' | 'aborted';
 
 /**
- * BackfillRates — Admin tab for populating dual-currency amounts on pre-dual rows.
+ * BackfillRates, Admin tab for populating dual-currency amounts on pre-dual rows.
  *
  * Gated to OWNER role by the Admin page that renders it.
  * Progress is persisted to localStorage so the browser can resume if the tab
- * is closed mid-run. ZKA: all decrypt/encrypt happens in the browser — only
+ * is closed mid-run. ZKA: all decrypt/encrypt happens in the browser, only
  * ciphertext is written to Supabase.
  */
 export function BackfillRates({ orgId }: BackfillRatesProps) {
@@ -73,7 +73,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
           Populates <code className="bg-gray-100 px-1 rounded">amount_native</code> and{' '}
           <code className="bg-gray-100 px-1 rounded">amount_primary</code> on journal entry lines
           that predate the dual-currency upgrade. Decryption and encryption happen entirely in this
-          browser — nothing is sent to the server in plaintext.
+          browser, nothing is sent to the server in plaintext.
         </p>
       </div>
 
@@ -159,7 +159,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
           <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
           Backfill complete.{' '}
           {progress.pending > 0 &&
-            `${progress.pending} rows still have pending rates — use the Exchange Rates tab to resolve them manually.`}
+            `${progress.pending} rows still have pending rates, use the Exchange Rates tab to resolve them manually.`}
         </div>
       )}
       {runState === 'aborted' && (
@@ -168,7 +168,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
           style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
         >
           <Square className="w-3.5 h-3.5 flex-shrink-0" />
-          Run stopped. Progress is saved — click Start to resume.
+          Run stopped. Progress is saved, click Start to resume.
         </div>
       )}
       {runState === 'running' && (

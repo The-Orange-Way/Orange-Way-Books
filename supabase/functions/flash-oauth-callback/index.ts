@@ -1,30 +1,30 @@
 /**
- * flash-oauth-callback — Supabase Edge Function
+ * flash-oauth-callback, Supabase Edge Function
  *
  * Completes the Flash Connect OAuth handshake for the Orange Way Books platform
  * connection. The frontend (/admin/flash/callback) POSTs { code, state }
  * after Flash redirects the user back. This function:
  *
  *   1. Validates the caller has a Supabase session and is OWNER on at
- *      least one org (basic gate — the actual single-merchant model
+ *      least one org (basic gate, the actual single-merchant model
  *      means only an authorized operator should ever reach this in production).
  *   2. Looks up state in flash_oauth_state, single-use (deleted on read),
  *      not expired.
  *   3. Exchanges the authorization code at Flash /oauth/token (or
- *      returns mock tokens when MOCK_FLASH=true — Flash hasn't shipped
+ *      returns mock tokens when MOCK_FLASH=true, Flash hasn't shipped
  *      the base URL yet, so the rest of the flow can be wired up
  *      end-to-end against the mock).
  *   4. Upserts the singleton flash_platform_tokens row with the new
  *      access_token / refresh_token / expires_at / scopes.
  *
  * Env vars:
- *   FLASH_OAUTH_TOKEN_URL  — full URL to Flash /oauth/token. Required
+ *   FLASH_OAUTH_TOKEN_URL , full URL to Flash /oauth/token. Required
  *                            unless MOCK_FLASH=true.
- *   FLASH_CLIENT_ID        — confidential client id
- *   FLASH_CLIENT_SECRET    — confidential client secret
- *   FLASH_REDIRECT_URI     — the redirect URI registered with Flash
+ *   FLASH_CLIENT_ID       , confidential client id
+ *   FLASH_CLIENT_SECRET   , confidential client secret
+ *   FLASH_REDIRECT_URI    , the redirect URI registered with Flash
  *                            (must match the one used by the browser)
- *   MOCK_FLASH             — when 'true', returns deterministic fake
+ *   MOCK_FLASH            , when 'true', returns deterministic fake
  *                            tokens without calling Flash. Dev only.
  */
 

@@ -1,4 +1,4 @@
--- Invoicing — anon RPCs for the public hosted view
+-- Invoicing, anon RPCs for the public hosted view
 --
 -- The customer-facing hosted view (Bitwarden Send pattern) needs:
 --   1. An anon-callable RPC to fetch the encrypted share blob by its
@@ -6,7 +6,7 @@
 --      fragment of the share link and never reaches the server.
 --   2. An anon-callable RPC to record a view (increment counter +
 --      set viewed_at on first view). This is what flips status SENT
---      → VIEWED — the same status convention used by QuickBooks,
+--      → VIEWED, the same status convention used by QuickBooks,
 --      FreshBooks, Wave.
 --
 -- Both RPCs are SECURITY DEFINER + scope-restricted. They cannot

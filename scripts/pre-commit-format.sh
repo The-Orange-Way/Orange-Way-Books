@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# pre-commit-format.sh — auto-format staged files with prettier so commits
+# pre-commit-format.sh, auto-format staged files with prettier so commits
 # always land prettier-clean.
 #
 # How it works:
@@ -33,7 +33,7 @@ fi
 bunx prettier --write --log-level warn "${STAGED[@]}"
 
 # Detect which files prettier actually modified so we can tell the
-# contributor (and so we only re-stage what changed — a quiet `git add`
+# contributor (and so we only re-stage what changed, a quiet `git add`
 # of an untouched file is a no-op but the log makes the surprise visible).
 CHANGED=()
 for f in "${STAGED[@]}"; do

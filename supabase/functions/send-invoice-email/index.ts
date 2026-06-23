@@ -1,5 +1,5 @@
 /**
- * send-invoice-email — sends a transactional invoice email via Resend.
+ * send-invoice-email, sends a transactional invoice email via Resend.
  *
  * ZKA boundary: the client composes the full email body (subject + text +
  * HTML) from the decrypted invoice payload and the share URL. The server
@@ -77,7 +77,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
-    // Conservative rate limit. Invoice sending is interactive — 20 per
+    // Conservative rate limit. Invoice sending is interactive, 20 per
     // 5 min per user is enough for batch sends without enabling abuse.
     const rl = await rateLimit(adminClient, {
       scope: 'send-invoice-email',
@@ -122,8 +122,8 @@ serve(async (req) => {
     }
     // Per-invoice cap on top of the per-user rate limit above. A
     // compromised user could otherwise mail-bomb 20 different external
-    // addresses every 5 min — this caps each invoice to 5 sends per 24h.
-    // (M7 — 2026-05-19 audit.)
+    // addresses every 5 min, this caps each invoice to 5 sends per 24h.
+    // (M7, 2026-05-19 audit.)
     const perInvoice = await rateLimit(adminClient, {
       scope: 'send-invoice-email-by-invoice',
       subject: invoiceId,
@@ -162,7 +162,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invoice not found or not accessible' }, 404, cors);
     }
 
-    // Call Resend. We use the HTTP API directly — no SDK, no extra
+    // Call Resend. We use the HTTP API directly, no SDK, no extra
     // bundle weight. Failure surfaces as { error: ... } to the UI so
     // the operator can fix the address and retry.
     const resendBody: Record<string, unknown> = {
@@ -193,7 +193,7 @@ serve(async (req) => {
       return jsonResponse({ error: msg }, 502, cors);
     }
 
-    // Audit. Metadata only — no email body, no share URL. Non-fatal.
+    // Audit. Metadata only, no email body, no share URL. Non-fatal.
     try {
       await adminClient.from('vault_security_events').insert({
         user_id: caller.id,

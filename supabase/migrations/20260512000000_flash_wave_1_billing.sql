@@ -1,31 +1,31 @@
 -- ============================================================
--- Flash Wave 1 — billing accounts, subscriptions, and Flash
+-- Flash Wave 1, billing accounts, subscriptions, and Flash
 -- payment + OAuth state tables.
 -- ============================================================
 --
 -- What this migration does:
---   1. billing_accounts — who pays. Either a single org ('org') or a
+--   1. billing_accounts, who pays. Either a single org ('org') or a
 --      firm covering many orgs ('firm'). Wave 1 only writes 'org'.
---   2. organizations.billing_account_id — each org points at the
+--   2. organizations.billing_account_id, each org points at the
 --      billing_account that pays for it. Nullable so existing orgs
 --      stay valid until backfilled.
---   3. subscriptions — one per billing_account. plan + price live here;
+--   3. subscriptions, one per billing_account. plan + price live here;
 --      tiers come later by adding plan strings, no schema change.
---   4. flash_payments — one row per Flash payment link we create.
---   5. flash_payment_events — webhook log for debugging + idempotency.
---   6. flash_platform_tokens — single-row OAuth token store for the
+--   4. flash_payments, one row per Flash payment link we create.
+--   5. flash_payment_events, webhook log for debugging + idempotency.
+--   6. flash_platform_tokens, single-row OAuth token store for the
 --      Orange Way Books platform Flash connection. RLS enabled with NO policies
 --      so only service_role can touch it.
---   7. flash_oauth_state — short-lived CSRF + linking state for the
+--   7. flash_oauth_state, short-lived CSRF + linking state for the
 --      OAuth handshake.
 --
 -- RLS model:
---   * billing_accounts, subscriptions, flash_payments — readable by
+--   * billing_accounts, subscriptions, flash_payments, readable by
 --     the owner_user_id and by members of any org that points at the
 --     billing_account. Writes are service-role only (subscription
 --     state machine runs server-side).
 --   * flash_payment_events, flash_platform_tokens, flash_oauth_state
---     — RLS enabled, zero policies. Service role only.
+--    , RLS enabled, zero policies. Service role only.
 --
 -- Idempotency: every CREATE/ALTER is guarded.
 
@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_billing_accounts_owner
   ON public.billing_accounts(owner_user_id);
 
 -- ══════════════════════════════════════════════════════════════════════
--- 2. organizations.billing_account_id — must precede the billing_accounts
+-- 2. organizations.billing_account_id, must precede the billing_accounts
 --    RLS policy below since the policy joins through this column.
 -- ══════════════════════════════════════════════════════════════════════
 ALTER TABLE public.organizations
@@ -167,7 +167,7 @@ CREATE POLICY "flash_payments_select_billing_visible"
   );
 
 -- ══════════════════════════════════════════════════════════════════════
--- 5. flash_payment_events — service role only
+-- 5. flash_payment_events, service role only
 -- ══════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.flash_payment_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -186,7 +186,7 @@ ALTER TABLE public.flash_payment_events ENABLE ROW LEVEL SECURITY;
 -- No policies: service_role bypasses; no client access.
 
 -- ══════════════════════════════════════════════════════════════════════
--- 6. flash_platform_tokens — singleton, service role only
+-- 6. flash_platform_tokens, singleton, service role only
 -- ══════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.flash_platform_tokens (
   id TEXT PRIMARY KEY DEFAULT 'singleton',
@@ -201,7 +201,7 @@ ALTER TABLE public.flash_platform_tokens ENABLE ROW LEVEL SECURITY;
 -- No policies: service_role bypasses; clients must never read these.
 
 -- ══════════════════════════════════════════════════════════════════════
--- 7. flash_oauth_state — short-lived CSRF state, service role only
+-- 7. flash_oauth_state, short-lived CSRF state, service role only
 -- ══════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.flash_oauth_state (
   state TEXT PRIMARY KEY,

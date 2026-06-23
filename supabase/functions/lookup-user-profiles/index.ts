@@ -1,5 +1,5 @@
 /**
- * lookup-user-profiles — Supabase Edge Function
+ * lookup-user-profiles, Supabase Edge Function
  *
  * Returns email + display-name metadata from `auth.users` for a list of
  * user IDs that the CALLER is allowed to see.
@@ -9,7 +9,7 @@
  *      set in supabase/config.toml as defense-in-depth).
  *   2. Every requested user_id must share at least one organization with
  *      the caller (i.e. exist in the same org_members row set). User IDs
- *      the caller cannot see are silently dropped from the response — we
+ *      the caller cannot see are silently dropped from the response, we
  *      do NOT return 403 for them, because that would leak whether the
  *      ID exists in the project.
  *   3. Response is an array of { id, email, name } objects. Users without
@@ -33,9 +33,9 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 // Bound how many IDs a caller can request at once. Members of a single org
 // are rarely more than a few dozen. Lowered from 200 to 50 to cap the
-// auth.users hammering surface — combined with the per-user rate limit
+// auth.users hammering surface, combined with the per-user rate limit
 // (30/min) this caps at ~1.5k getUserById calls/min/user instead of 6k.
-// (M2 — 2026-05-19 audit.)
+// (M2, 2026-05-19 audit.)
 const MAX_USER_IDS_PER_CALL = 50;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
   // 3) Scope: which of the requested ids does the caller actually share an org with?
   // We read the caller's org_memberships, then intersect with the requested ids
   // via a single org_members query using the admin client (bypasses RLS so we
-  // can read other users' membership rows in the SAME org — which the caller
+  // can read other users' membership rows in the SAME org, which the caller
   // is already allowed to see via RLS on org_members_select in their own
   // session; we just can't use the caller's client here because RLS on
   // auth.users is not exposed to PostgREST at all).

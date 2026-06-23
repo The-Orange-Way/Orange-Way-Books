@@ -1,5 +1,5 @@
 /**
- * start-rekey-job — Supabase Edge Function.
+ * start-rekey-job, Supabase Edge Function.
  *
  * Owner-initiated entry point for a hard re-key. Validates authorization,
  * ensures no other active job exists for the org, counts rows across
@@ -7,7 +7,7 @@
  * `pending`. Returns the job id + row count + time estimate for the
  * 7-step safety dialog.
  *
- * DOES NOT perform any crypto — the client drives every stage after
+ * DOES NOT perform any crypto, the client drives every stage after
  * this. DOES NOT advance the job past `pending`; the client calls
  * `advance_rotation_job` as it progresses.
  *
@@ -39,7 +39,7 @@ const VALID_TRIGGERS = new Set(['first_time_setup', 'manual', 'post_revoke']);
 const VALID_REFRESH_MODES = new Set(['quick', 'deep']);
 
 // Tables we count rows for when estimating. Must match rekey.ts
-// BUSINESS_TABLES — if a table exists in one place but not the other
+// BUSINESS_TABLES, if a table exists in one place but not the other
 // the estimate is off but the job still runs correctly.
 const COUNTABLE_TABLES = [
   'transactions',
@@ -54,7 +54,7 @@ const COUNTABLE_TABLES = [
   'attachments',
 ] as const;
 
-// Rough estimate — 600 rows/sec for decrypt+encrypt round trip.
+// Rough estimate, 600 rows/sec for decrypt+encrypt round trip.
 const ROWS_PER_SECOND = 600;
 
 serve(async (req) => {
@@ -82,7 +82,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
-    // Aggressive rate limit — re-key jobs are heavy. One start per 30s
+    // Aggressive rate limit, re-key jobs are heavy. One start per 30s
     // is already far above legitimate usage.
     const rl = await rateLimit(adminClient, {
       scope: 'start-rekey-job',
@@ -179,14 +179,14 @@ serve(async (req) => {
     const newDekVersion = currentDekVersion + 1;
     const newOskVersion = currentOskVersion + 1;
 
-    // For first-time-setup, previous_* is NULL — the baseline is
+    // For first-time-setup, previous_* is NULL, the baseline is
     // placeholder wraps, not a real prior DEK. For manual / post_revoke,
     // previous_* is the pre-rotation version (used by emergency rollback).
     const prevDekVersion = triggerType === 'first_time_setup' ? null : currentDekVersion;
     const prevOskVersion = triggerType === 'first_time_setup' ? null : currentOskVersion;
 
     // Row count estimate across business tables. Each table is an
-    // independent count(*) — keeps DoS pressure bounded.
+    // independent count(*), keeps DoS pressure bounded.
     let rowsTotal = 0;
     for (const table of COUNTABLE_TABLES) {
       try {
@@ -223,7 +223,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Could not start the key update.' }, 500, cors);
     }
 
-    // Audit event — separate from advance_rotation_job's
+    // Audit event, separate from advance_rotation_job's
     // rekey.status_changed because this captures the SEED of the job.
     try {
       await adminClient.from('vault_security_events').insert({

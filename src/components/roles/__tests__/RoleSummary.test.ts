@@ -3,8 +3,8 @@
  *
  * Unit tests for the RoleSummary pure helpers (Gap 4 of Phase 4.2 polish).
  *
- * We only test the deterministic bits — `buildRoleSummary` and
- * `humanizeFeature` — and intentionally skip the React component render
+ * We only test the deterministic bits, `buildRoleSummary` and
+ * `humanizeFeature`, and intentionally skip the React component render
  * path because that's covered by manual UI verification and would
  * require jsdom + @testing-library infrastructure that the codebase
  * doesn't currently use for other components.

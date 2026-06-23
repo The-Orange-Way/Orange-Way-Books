@@ -5,7 +5,7 @@
 -- and (via the application's "Invite" action) triggers a Resend email
 -- to the invitee with a sign-up link.
 --
--- Global table (no org_id) — beta-gate is platform-wide, not per-org.
+-- Global table (no org_id), beta-gate is platform-wide, not per-org.
 -- Maintained by Orange Way Books staff via Admin > Beta tab. RLS restricts reads
 -- to authenticated Orange Way Books staff; the signup-side check runs SECURITY
 -- DEFINER through a function so anonymous signups can validate against

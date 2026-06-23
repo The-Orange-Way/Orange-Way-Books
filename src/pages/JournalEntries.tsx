@@ -119,8 +119,8 @@ type DatePreset =
   | 'custom';
 // Status vocabulary (T4.a Option A locked 2026-05-12):
 // journal_entries.status ∈ {DRAFT, POSTED, VOID, HIDDEN}. APPROVED was a
-// A prior label that meant "posted" — collapsed into POSTED. REVERSED was
-// A prior label for void-via-reversing-entry — collapsed into VOID; the
+// A prior label that meant "posted", collapsed into POSTED. REVERSED was
+// A prior label for void-via-reversing-entry, collapsed into VOID; the
 // reversal_of_id FK distinguishes a void reversal JE from any other.
 type JEStatusFilter = 'all' | 'DRAFT' | 'POSTED' | 'VOID';
 
@@ -309,7 +309,7 @@ function findPairingWarnings(
   const dr = lines.filter((l) => l.debitNum > 0);
   const cr = lines.filter((l) => l.creditNum > 0);
 
-  // 1. Same account showing on both sides — usually a typo, but the user
+  // 1. Same account showing on both sides, usually a typo, but the user
   //    might mean it (e.g. clearing an internal sub-account). Surface it.
   const drAccountIds = new Set(dr.map((l) => l.accountId));
   const collisions = cr.filter((l) => drAccountIds.has(l.accountId));
@@ -327,7 +327,7 @@ function findPairingWarnings(
     if (l.accountType) typesInPlay.add(l.accountType);
   }
 
-  // 2. Only P&L accounts — most real entries also touch a balance-sheet
+  // 2. Only P&L accounts, most real entries also touch a balance-sheet
   //    leg (cash, payables, equity). All-INCOME/EXPENSE is a smell.
   if (typesInPlay.size > 0) {
     let onlyPL = true;
@@ -346,16 +346,16 @@ function findPairingWarnings(
     }
   }
 
-  // 3. Equity moving directly against P&L. Almost always wrong — equity
+  // 3. Equity moving directly against P&L. Almost always wrong, equity
   //    moves through retained earnings, not directly through income.
   if (typesInPlay.has('EQUITY') && typesInPlay.has('INCOME') | typesInPlay.has('EXPENSE')) {
     warnings.push({
       code: 'equity-with-profit-and-loss',
-      message: 'Equity posted directly against income/expense. Unusual — worth a second look.',
+      message: 'Equity posted directly against income/expense. Unusual, worth a second look.',
     });
   }
 
-  // 4. Income posted against expense — should usually flow via a cash /
+  // 4. Income posted against expense, should usually flow via a cash /
   //    payables / receivables leg.
   const drTypes = new Set(
     dr.map((l) => l.accountType).filter((t): t is CanonicalAcctType => t !== null),
@@ -520,7 +520,7 @@ function AccountCombobox({
 export default function JournalEntries() {
   const { orgId, loading: orgLoading } = useUserOrg();
   const { encryptText, decryptText } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative.
+  // Capability gates, UI presence only; RLS still authoritative.
   const canWriteJE = useCapability('journal_entries.write', orgId);
   const canDeleteJE = useCapability('journal_entries.delete', orgId);
   const [orgName, setOrgName] = useState('');
@@ -563,7 +563,7 @@ export default function JournalEntries() {
   // Lock date from org_settings
   const [lockDate, setLockDate] = useState<string | null>(null);
 
-  // Manual rate dialog — shown when a JE line posts with rate_pending=true
+  // Manual rate dialog, shown when a JE line posts with rate_pending=true
   const [manualRateOpen, setManualRateOpen] = useState(false);
   const [manualRatePair, setManualRatePair] = useState<{
     walletCurrency: string;
@@ -587,7 +587,7 @@ export default function JournalEntries() {
       const result = await buildJournalEntryLineInsert({ ...params, encrypt: encryptText });
       if (result.pending) {
         toast.warning(
-          `Rate for ${params.wallet_currency}→${params.primary_currency} not available. Line saved as pending — resolve from the Pending Rates banner.`,
+          `Rate for ${params.wallet_currency}→${params.primary_currency} not available. Line saved as pending, resolve from the Pending Rates banner.`,
         );
       }
       return result.insert;
@@ -696,9 +696,9 @@ export default function JournalEntries() {
   }, [datePreset, customFrom, customTo]);
 
   const effectiveRangeLabels = useMemo(() => {
-    if (datePreset === 'all_time') return { from: '—', to: '—' };
-    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '—';
-    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '—';
+    if (datePreset === 'all_time') return { from: '-', to: '-' };
+    const from = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '-';
+    const to = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '-';
     return { from, to };
   }, [datePreset, dateRange.from, dateRange.to]);
 
@@ -717,7 +717,7 @@ export default function JournalEntries() {
 
   const filtered = useMemo(() => {
     let list = entries;
-    // Date range — entries have a plaintext `date` field (yyyy-MM-dd)
+    // Date range, entries have a plaintext `date` field (yyyy-MM-dd)
     list = list.filter((e) => {
       if (!e.date) return true;
       const d = new Date(e.date.includes('T') ? e.date : `${e.date}T12:00:00`);
@@ -825,7 +825,7 @@ export default function JournalEntries() {
       return;
     }
     const rows = buildJournalExportRows(sorted, lines, fmtAmount, btcDisplay, false);
-    const title = `${orgName || 'Organization'} — Journal entries — ${format(new Date(), 'yyyy-MM-dd')}`;
+    const title = `${orgName || 'Organization'}, Journal entries, ${format(new Date(), 'yyyy-MM-dd')}`;
     void printTable(title, [...(JOURNAL_CSV_HEADERS as readonly string[])], rows)
       .then((opened) => {
         if (opened) {
@@ -1258,7 +1258,7 @@ export default function JournalEntries() {
 
   return (
     <div className="p-6 space-y-4" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Row 1 — title left, search + actions right */}
+      {/* Row 1, title left, search + actions right */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-bold text-foreground">Journal Entries</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -1310,7 +1310,7 @@ export default function JournalEntries() {
         </div>
       </div>
 
-      {/* Row 2 — DATE RANGE (year + from/to) + STATUS on the right */}
+      {/* Row 2, DATE RANGE (year + from/to) + STATUS on the right */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
@@ -1407,7 +1407,7 @@ export default function JournalEntries() {
         </div>
       </div>
 
-      {/* Row 3 — quick preset pills */}
+      {/* Row 3, quick preset pills */}
       <div className="flex flex-wrap gap-1">
         {DATE_PRESETS.map((p) => (
           <Button
@@ -1431,7 +1431,7 @@ export default function JournalEntries() {
       {sorted.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center text-muted-foreground text-sm">
           {entries.length === 0 ? (
-            'No journal entries yet — create one to start your double-entry ledger.'
+            'No journal entries yet, create one to start your double-entry ledger.'
           ) : (
             <>
               <p>No journal entries match these filters.</p>
@@ -1443,7 +1443,7 @@ export default function JournalEntries() {
         </div>
       ) : (
         <>
-          {/* Bulk-action bar (Track 7) — same pattern as Transactions + Payments.
+          {/* Bulk-action bar (Track 7), same pattern as Transactions + Payments.
             Per-status guards inside the handlers do the right-thing on mixed
             selections silently. */}
           {selected.size > 0 && (
@@ -1593,7 +1593,7 @@ export default function JournalEntries() {
                                 ? entry.memo.length > 40
                                   ? entry.memo.slice(0, 40) + '...'
                                   : entry.memo
-                                : '—'}
+                                : '-'}
                             </span>
                             {statusBadge(entry.status)}
                             {entry.period_locked && (
@@ -1699,7 +1699,7 @@ export default function JournalEntries() {
                                       <TableCell className="text-xs">
                                         {line.account_code
                                           ? `${line.account_code} - ${line.account_name || ''}`
-                                          : line.account_name || '—'}
+                                          : line.account_name || '-'}
                                       </TableCell>
                                       <TableCell className="text-right font-mono text-xs">
                                         {Number(line.debit) > 0
@@ -1712,7 +1712,7 @@ export default function JournalEntries() {
                                           : ''}
                                       </TableCell>
                                       <TableCell className="text-xs text-muted-foreground">
-                                        {line.description || '—'}
+                                        {line.description || '-'}
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -1786,7 +1786,7 @@ export default function JournalEntries() {
                               ? entry.memo.length > 50
                                 ? entry.memo.slice(0, 50) + '…'
                                 : entry.memo
-                              : '—'}
+                              : '-'}
                           </span>
                           {statusBadge(entry.status)}
                           {entry.period_locked && (
@@ -1841,8 +1841,8 @@ export default function JournalEntries() {
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate">
                                     {line.account_code
-                                      ? `${line.account_code} — ${line.account_name || ''}`
-                                      : line.account_name || '—'}
+                                      ? `${line.account_code}, ${line.account_name || ''}`
+                                      : line.account_name || '-'}
                                   </div>
                                   {line.description && (
                                     <div className="text-muted-foreground truncate">
@@ -1986,7 +1986,7 @@ export default function JournalEntries() {
               </div>
             </div>
 
-            {/* Pinned-rate chip — shown when wallet currency ≠ primary */}
+            {/* Pinned-rate chip, shown when wallet currency ≠ primary */}
             {fCurrency &&
               primaryCurrency &&
               fCurrency.toUpperCase() !== primaryCurrency.toUpperCase() && (
@@ -2259,7 +2259,7 @@ function PinnedRateChip({
   if (pending)
     return (
       <p className="text-xs text-amber-600 dark:text-amber-400">
-        Rate for {walletCurrency}→{primaryCurrency} unavailable — line will save as pending.
+        Rate for {walletCurrency}→{primaryCurrency} unavailable, line will save as pending.
       </p>
     );
   if (!rate) return null;

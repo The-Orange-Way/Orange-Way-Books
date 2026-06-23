@@ -11,7 +11,7 @@ import {
 import { findImportedOrTxIds } from '@/lib/orImportBridge';
 
 /**
- * Decrypted transaction shape — matches the NormalizedTransaction emitted by
+ * Decrypted transaction shape, matches the NormalizedTransaction emitted by
  * orange-rails/supabase/functions/or-sync/index.ts when it stores
  * encrypted_payload on encrypted_transactions.
  *
@@ -96,7 +96,7 @@ export function TransactionList({
   /**
    * Set of OR external_ids that already have a corresponding OWB transactions
    * row imported by orImportBridge. Recomputed whenever rows or routing
-   * changes — drives the "in ledger" badge in the Routed-to column.
+   * changes, drives the "in ledger" badge in the Routed-to column.
    */
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
 
@@ -137,7 +137,7 @@ export function TransactionList({
   // Phase 5: once decrypted rows are available AND we have routing context,
   // ask OWB which OR external_ids already have a corresponding ledger row.
   // Scope the query to the destination wallets that this connection's
-  // mappings actually point at — keeps the query small and avoids touching
+  // mappings actually point at, keeps the query small and avoids touching
   // unrelated wallet histories.
   useEffect(() => {
     let cancelled = false;
@@ -162,7 +162,7 @@ export function TransactionList({
         if (!cancelled) setImportedIds(set);
       })
       .catch((err) => {
-        // Badge lookup is decorative — log but never block the row render.
+        // Badge lookup is decorative, log but never block the row render.
         console.warn('[TransactionList] findImportedOrTxIds failed:', err);
         if (!cancelled) setImportedIds(new Set());
       });
@@ -195,7 +195,7 @@ export function TransactionList({
   if (!rows || rows.length === 0) {
     return (
       <div className="text-xs text-muted-foreground py-2">
-        No transactions yet — click Sync to fetch the latest from your provider.
+        No transactions yet, click Sync to fetch the latest from your provider.
       </div>
     );
   }
@@ -246,7 +246,7 @@ function TransactionRow({
         <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">
           {tx.decryptError}
         </TableCell>
-        <TableCell className="text-xs text-muted-foreground">—</TableCell>
+        <TableCell className="text-xs text-muted-foreground">-</TableCell>
       </TableRow>
     );
   }
@@ -260,7 +260,7 @@ function TransactionRow({
       ? `${formatNumber(p.amount_sats)} sats`
       : typeof p.amount === 'number'
         ? `${formatMoney(p.amount)} ${p.currency ?? ''}`.trim()
-        : '—';
+        : '-';
   const memo = p.description | p.counterparty | (p.type ? capitalize(p.type) : '');
 
   const routedAccountName = resolveRouting ? resolveRouting(p.source_wallet_id) : null;

@@ -27,7 +27,7 @@ export interface RateLimitArgs {
 
 export interface RateLimitResult {
   allowed: boolean;
-  /** True when the DB call itself failed — we fail-open on errors so a
+  /** True when the DB call itself failed, we fail-open on errors so a
    *  Postgres hiccup doesn't take down the whole Edge Function. The call
    *  is logged for observability. */
   degraded: boolean;

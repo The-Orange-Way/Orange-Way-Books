@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# pre-push-gate.sh — enforce that /pr-this ran before any push to a public branch.
+# pre-push-gate.sh, enforce that /pr-this ran before any push to a public branch.
 #
 # Wire as a git pre-push hook (see scripts/install-hooks.sh).
 #
@@ -13,7 +13,7 @@
 #      (commit messages + diff).
 #   4. No secret-shaped strings in the diff that gitleaks would catch.
 #
-# Override (escape hatch — emits a loud warning, do not use casually):
+# Override (escape hatch, emits a loud warning, do not use casually):
 #   PR_THIS_BYPASS=1 git push
 #
 # Install on a fresh clone:
@@ -123,7 +123,7 @@ for sha in "${LOCAL_SHAS[@]}"; do
     echo "$MSG_HITS"
     FAIL=1
   fi
-  # Diff content — exclude the gate itself (whose regex literally contains the patterns).
+  # Diff content, exclude the gate itself (whose regex literally contains the patterns).
   DIFF_HITS=$(git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' 2>/dev/null \
     | grep -nEi "$PRIVATE_PATTERN" \
     | while IFS= read -r hit; do echo "$hit" | strip_doc | grep -qEi "$PRIVATE_PATTERN" && echo "$hit" || true; done \
@@ -186,5 +186,5 @@ if [ "$FAIL" != "0" ]; then
 fi
 
 green ""
-green "/pr-this pre-push gate PASSED — pushing."
+green "/pr-this pre-push gate PASSED, pushing."
 exit 0

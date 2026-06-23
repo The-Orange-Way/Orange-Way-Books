@@ -8,7 +8,7 @@
  *
  * ZKA Level 2: pure presentation. No data assumptions.
  *
- * Class naming convention: `owb-<feature>-<element>` — easy to grep and
+ * Class naming convention: `owb-<feature>-<element>`, easy to grep and
  * scoped enough to never collide with a utility framework.
  *
  * Implemented in-house for OWB.
@@ -223,7 +223,7 @@
   color: #666;
 }
 
-/* Centered donut layout — ring above, chip pills below */
+/* Centered donut layout, ring above, chip pills below */
 .owb-donut-panel {
   display: flex;
   flex-direction: column;
@@ -306,7 +306,7 @@
   border: 0;
 }
 
-/* Compact ledger health strip — green "all clear" or amber/red warning */
+/* Compact ledger health strip, green "all clear" or amber/red warning */
 .owb-ledger-strip {
   display: flex;
   align-items: flex-start;
@@ -360,7 +360,7 @@
   opacity: 0.85;
 }
 
-/* Metric trend chip — up/down arrow + percent, colored by sentiment */
+/* Metric trend chip, up/down arrow + percent, colored by sentiment */
 .owb-trend {
   display: inline-flex;
   align-items: center;
@@ -416,7 +416,7 @@
   min-width: 180px;
 }
 
-/* Activity teaser — replaces the full transactions table on dashboard */
+/* Activity teaser, replaces the full transactions table on dashboard */
 .owb-dashboard-activity-head {
   display: flex;
   align-items: center;

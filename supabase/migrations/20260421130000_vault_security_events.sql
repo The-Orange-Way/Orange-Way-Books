@@ -1,5 +1,5 @@
 -- ============================================================
--- vault_security_events — audit log for vault key-material events.
+-- vault_security_events, audit log for vault key-material events.
 -- ============================================================
 -- Scope: user-level authentication + key-management events (vault
 -- setup, unlock, recover, password change). Distinct from

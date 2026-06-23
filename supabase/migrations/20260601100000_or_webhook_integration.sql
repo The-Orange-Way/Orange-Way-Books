@@ -1,14 +1,14 @@
--- OR ↔ OWB webhook handshake — schema additions.
+-- OR ↔ OWB webhook handshake, schema additions.
 --
 -- Two changes:
---   1. organizations.or_subaccount_id — server-side mirror of the
+--   1. organizations.or_subaccount_id, server-side mirror of the
 --      browser's localStorage subaccount cache. Set by or-proxy after a
 --      successful or-provision call; queried by or-webhook-receiver to
 --      map subaccount_id → org_id when OR delivers sync.completed events.
 --      Mirrors the sibling personal-finance app's user_profiles.or_subaccount_id pattern but at the
 --      org grain since OWB is org-based (one subaccount per org).
 --
---   2. sync_events — append-only log of sync.completed receipts.
+--   2. sync_events, append-only log of sync.completed receipts.
 --      The Connections page subscribes via Supabase realtime so the UI
 --      refreshes the moment OR finishes a sync. or_event_id has a unique
 --      constraint so OR retries collapse to a single row.

@@ -1,5 +1,5 @@
 /**
- * Import from Orange Rails — wizard end-to-end test.
+ * Import from Orange Rails, wizard end-to-end test.
  *
  * Real flow against the deployed books.orangeway.dev:
  *
@@ -27,7 +27,7 @@
  *
  * Auth: reuses tests/e2e/lib/auth.ts helpers (shared with owb-full-suite).
  * Reads OWB_DEV_E2E_EMAIL / OWB_DEV_E2E_PASSWORD / OWB_DEV_E2E_VAULT_PASSWORD
- * env vars — set in CI from matching repo secrets. The dedicated E2E test
+ * env vars, set in CI from matching repo secrets. The dedicated E2E test
  * user is provisioned by tests/e2e/scripts/provision-e2e-user.js.
  */
 
@@ -47,7 +47,7 @@ const HAVE_CREDS =
 
 test.skip(
   !HAVE_CREDS,
-  'OWB_DEV_E2E_EMAIL / OWB_DEV_E2E_PASSWORD / OWB_DEV_E2E_VAULT_PASSWORD not set — skipping wizard E2E',
+  'OWB_DEV_E2E_EMAIL / OWB_DEV_E2E_PASSWORD / OWB_DEV_E2E_VAULT_PASSWORD not set, skipping wizard E2E',
 );
 
 // OWB's OR import wizard surface has not yet been verified to match the
@@ -55,7 +55,7 @@ test.skip(
 // sample-fixture upload, summary parsing). Skipping until the wizard UI
 // is confirmed identical or the spec is rewritten to OWB's actual flow.
 // Tracked as a follow-up to the E2E migration.
-test.skip(true, 'OWB OR import wizard UI not yet wired into this spec — see follow-up task');
+test.skip(true, 'OWB OR import wizard UI not yet wired into this spec, see follow-up task');
 
 /**
  * Client-side navigation that preserves the in-memory MEK. Uses
@@ -69,7 +69,7 @@ async function clientNavigate(page: Page, to: string): Promise<void> {
   }, to);
 }
 
-test('Import from Orange Rails — wizard E2E (single session)', async ({ page }) => {
+test('Import from Orange Rails, wizard E2E (single session)', async ({ page }) => {
   const fs = await import('node:fs');
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
 
@@ -85,7 +85,7 @@ test('Import from Orange Rails — wizard E2E (single session)', async ({ page }
   expect(page.url()).not.toMatch(/\/login/);
 
   // Step 2: client-side navigate to the OR import tab. NEVER use page.goto
-  // here — it would trigger a hard reload, wipe the MEK, lock the vault.
+  // here, it would trigger a hard reload, wipe the MEK, lock the vault.
   // Use the canonical /app/admin path: App.tsx routes the admin page under
   // /app/admin and the legacy /admin URL is a <Navigate to="/app/admin">
   // that strips the query string, so /admin?tab=or-import lands on the

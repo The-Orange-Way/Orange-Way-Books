@@ -10,9 +10,9 @@
     "2110": { "accountName": "VISA 4020", "debit": 0, "credit": 0 },
     "3100": { "accountName": "Retained Earnings", "debit": 0, "credit": 5000.00 },
     "4100": { "accountName": "Consulting Revenue", "debit": 0, "credit": 11000.00 },
-    "5210": { "accountName": "Software — Zoom", "debit": 19.99, "credit": 0 },
-    "5211": { "accountName": "Software — NameCheap", "debit": 14.66, "credit": 0 },
-    "5310": { "accountName": "Marketing — Vistaprint", "debit": 287.50, "credit": 0 },
-    "5410": { "accountName": "Professional Fees — Tax Software", "debit": 89.95, "credit": 0 }
+    "5210": { "accountName": "Software, Zoom", "debit": 19.99, "credit": 0 },
+    "5211": { "accountName": "Software, NameCheap", "debit": 14.66, "credit": 0 },
+    "5310": { "accountName": "Marketing, Vistaprint", "debit": 287.50, "credit": 0 },
+    "5410": { "accountName": "Professional Fees, Tax Software", "debit": 89.95, "credit": 0 }
   }
 }

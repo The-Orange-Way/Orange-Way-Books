@@ -1,4 +1,4 @@
--- Track 2 T3 v1 — void via reversing JE
+-- Track 2 T3 v1, void via reversing JE
 --
 -- Adds the link a reversing journal_entries row uses to point back at the
 -- original it nets to zero. The original transactions row's status field is

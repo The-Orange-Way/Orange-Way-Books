@@ -1,9 +1,9 @@
--- notifications — per-user inbox for system events.
+-- notifications, per-user inbox for system events.
 --
 -- Replaces the derived-counts approach the bell icon currently uses
 -- (which shows things like "N drafts" + "N pending mappings"). Those
 -- stay as derived; the new table is for events that don't have a
--- corresponding "current state to query" — e.g. "import completed an
+-- corresponding "current state to query", e.g. "import completed an
 -- hour ago", "period closed by Andrea this morning".
 --
 -- ZKA posture (initial):
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_unread
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- SELECT — only your own notifications, in any org you're a member of.
+-- SELECT, only your own notifications, in any org you're a member of.
 -- (Org membership is implicit: notifications are inserted with the
 -- user_id that the writer chose; we don't double-check here because
 -- the writer is service-role and already vetted org membership.)
@@ -60,7 +60,7 @@ CREATE POLICY "notifications_select_own"
   TO authenticated
   USING (user_id = auth.uid());
 
--- UPDATE — only allowed to flip read_at on your own rows. Other
+-- UPDATE, only allowed to flip read_at on your own rows. Other
 -- columns are immutable from the client.
 CREATE POLICY "notifications_update_own_read"
   ON public.notifications
@@ -69,7 +69,7 @@ CREATE POLICY "notifications_update_own_read"
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
--- INSERT — service role only. Anon / authenticated cannot write.
+-- INSERT, service role only. Anon / authenticated cannot write.
 -- (The DEFAULT-DENY behaviour of RLS when no policy matches is what
 -- enforces this; we add a comment for clarity rather than a no-op
 -- policy.)

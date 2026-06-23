@@ -10,7 +10,7 @@ import { PostHogProvider } from 'posthog-js/react';
 // SaaS builds set the key and get cookieless analytics: memory-only
 // persistence, no cookies, no localStorage tracking, no session
 // recording, no person profiles. Pageview + explicit captures only.
-// phc_ keys are PostHog "Project API Keys" — write-only, public-safe.
+// phc_ keys are PostHog "Project API Keys", write-only, public-safe.
 const posthogKey = import.meta.env.VITE_POSTHOG_KEY;
 const telemetryEnabled = typeof posthogKey === 'string' && posthogKey.length > 0;
 

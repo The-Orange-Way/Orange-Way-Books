@@ -1,4 +1,4 @@
--- S12 — Extend D9 last-role-removal trigger to clean up stale rows
+-- S12, Extend D9 last-role-removal trigger to clean up stale rows
 --
 -- The last-role-removal trigger `enforce_last_role_removal()` already deletes
 -- the user's `org_keys` row when their last active role in an org is
@@ -6,16 +6,16 @@
 -- tables hold equivalent per-(user,org) access material that should
 -- also be dropped at the same moment:
 --
---   • period_unlock_sessions — temporary unlock windows for closed
+--   • period_unlock_sessions, temporary unlock windows for closed
 --     periods. A stale row here doesn't grant write access on its own
 --     (RLS still requires capability), but it gives a revoked user a
 --     "valid" unlock context referenced by audit logs and downstream
 --     period-lock checks. Safer to drop.
 --
---   • org_member_signing_key_wraps — the user's wrap of the Org Signing Key.
+--   • org_member_signing_key_wraps, the user's wrap of the Org Signing Key.
 --     With the wrap in place, a revoked user with a still-valid token
 --     could load + use the signing key. The D9 cleanup removed their org_keys
---     wrap (so DEK is gone), but the signing-key wrap survived — leaving a
+--     wrap (so DEK is gone), but the signing-key wrap survived, leaving a
 --     small window where they could still sign payment mutations or
 --     other signing-key-gated operations. Drop the wrap as part of the same
 --     atomic cleanup so signing capability dies with the role.

@@ -1,4 +1,4 @@
--- S1 — Fix org_keys UPDATE / DELETE RLS to require active org membership
+-- S1, Fix org_keys UPDATE / DELETE RLS to require active org membership
 --
 -- Background
 -- ──────────
@@ -27,7 +27,7 @@
 -- This is idempotent: DROP POLICY IF EXISTS + CREATE POLICY.
 --
 -- Refs:
---   • Security review 2026-05-16 — finding E.1 (CRITICAL)
+--   • Security review 2026-05-16, finding E.1 (CRITICAL)
 --   • Earlier policies: supabase/migrations/20260416110000_org_keys.sql
 --                       supabase/migrations/20260417130000_idempotent_schema_backfill.sql
 

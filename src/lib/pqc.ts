@@ -3,7 +3,7 @@
  *
  * This module provides ONLY algorithmic primitives. All orchestration
  * (key wrapping per recipient, signature storage, vault lifecycle) lives
- * in neighbouring modules that import from here — see key-wrapping.ts
+ * in neighbouring modules that import from here, see key-wrapping.ts
  * and signatures.ts.
  *
  * Algorithms:
@@ -32,7 +32,7 @@ import { hkdf } from '@noble/hashes/hkdf.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 
 // ------------------------------------------------------------------
-// Sizes — derived from the standards, asserted at runtime.
+// Sizes, derived from the standards, asserted at runtime.
 // ------------------------------------------------------------------
 
 export const HYBRID_KEM_V1 = Object.freeze({
@@ -49,7 +49,7 @@ export const HYBRID_KEM_V1 = Object.freeze({
   mlkemCipherTextBytes: 1088,
   /** Length of the hybrid KEM shared secret (derived via HKDF-SHA-256). */
   sharedSecretBytes: 32,
-  /** HKDF-SHA-256 info string — bump this when the combiner output changes. */
+  /** HKDF-SHA-256 info string, bump this when the combiner output changes. */
   hkdfInfo: 'orangerails-hybrid-kem-v1',
 } as const);
 
@@ -70,7 +70,7 @@ export const ML_DSA_65 = Object.freeze({
 } as const);
 
 // ------------------------------------------------------------------
-// Helpers — byte concatenation and slicing without hidden allocations.
+// Helpers, byte concatenation and slicing without hidden allocations.
 // ------------------------------------------------------------------
 
 function concat(...parts: Uint8Array[]): Uint8Array {
@@ -92,13 +92,13 @@ function assertLength(label: string, bytes: Uint8Array, expected: number): void 
 }
 
 // ------------------------------------------------------------------
-// Hybrid KEM keypair — X25519 | ML-KEM-768.
+// Hybrid KEM keypair, X25519 | ML-KEM-768.
 // ------------------------------------------------------------------
 
 export interface HybridKemKeyPair {
-  /** concat(x25519_pub[32], mlkem768_pub[1184]) — HYBRID_KEM_PUBLIC_KEY_BYTES. */
+  /** concat(x25519_pub[32], mlkem768_pub[1184]), HYBRID_KEM_PUBLIC_KEY_BYTES. */
   publicKey: Uint8Array;
-  /** concat(x25519_sec[32], mlkem768_sec[2400]) — HYBRID_KEM_SECRET_KEY_BYTES. */
+  /** concat(x25519_sec[32], mlkem768_sec[2400]), HYBRID_KEM_SECRET_KEY_BYTES. */
   secretKey: Uint8Array;
 }
 
@@ -126,7 +126,7 @@ export function generateHybridKemKeyPair(): HybridKemKeyPair {
 }
 
 // ------------------------------------------------------------------
-// Hybrid KEM combiner — HKDF-SHA-256 over (ss_classical | ss_pq).
+// Hybrid KEM combiner, HKDF-SHA-256 over (ss_classical | ss_pq).
 // ------------------------------------------------------------------
 
 function combineSharedSecrets(ssClassical: Uint8Array, ssPostQuantum: Uint8Array): Uint8Array {
@@ -142,7 +142,7 @@ function combineSharedSecrets(ssClassical: Uint8Array, ssPostQuantum: Uint8Array
 export interface HybridKemCiphertext {
   /**
    * concat(x25519_ephemeral_pub[32], ml_kem768_ciphertext[1088])
-   * — HYBRID_KEM_CIPHERTEXT_BYTES.
+   *, HYBRID_KEM_CIPHERTEXT_BYTES.
    */
   ciphertext: Uint8Array;
   /** 32-byte HKDF-derived shared secret, suitable as an AES-256-GCM key. */
@@ -157,7 +157,7 @@ export interface HybridKemCiphertext {
  * blob.
  *
  * The returned sharedSecret is the HKDF-SHA-256 combination of the two
- * component shared secrets — safe even if one of the two underlying
+ * component shared secrets, safe even if one of the two underlying
  * primitives is later broken.
  */
 export function hybridEncapsulate(recipientPublicKey: Uint8Array): HybridKemCiphertext {
@@ -186,7 +186,7 @@ export function hybridEncapsulate(recipientPublicKey: Uint8Array): HybridKemCiph
  * recipient's secret key.
  *
  * Throws on length mismatch. ML-KEM's implicit-rejection design means a
- * tampered ciphertext will NOT throw — it will produce a different shared
+ * tampered ciphertext will NOT throw, it will produce a different shared
  * secret that will then fail downstream AES-GCM authentication. Callers
  * must rely on AEAD for integrity, not on this function throwing.
  */

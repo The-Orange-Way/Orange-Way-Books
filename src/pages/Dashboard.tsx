@@ -234,7 +234,7 @@ export default function Dashboard() {
     [journalLines, accounts],
   );
 
-  // Working capital is a stock — balance as of the period's end date vs prior end date.
+  // Working capital is a stock, balance as of the period's end date vs prior end date.
   const wcCurrentBalances = useMemo(
     () => computeAccountBalances(journalLines, accounts, { to: periodRange.current.to }),
     [journalLines, accounts, periodRange.current.to],
@@ -267,7 +267,7 @@ export default function Dashboard() {
   const dismissWelcome = () => {
     if (dontShowAgain) {
       localStorage.setItem('orangewaybooks.welcome_dismissed', 'true');
-      // Fire-and-forget — failure here doesn't block the user. localStorage
+      // Fire-and-forget, failure here doesn't block the user. localStorage
       // already keeps the dismissal sticky on this device; the server write
       // is the cross-device sync layer.
       void supabase.auth.updateUser({
@@ -280,7 +280,7 @@ export default function Dashboard() {
   const { formatAmount } = useFormatCurrency();
 
   const fmtPrimary = (amount: number | null, asset?: string) => {
-    if (amount == null) return '—';
+    if (amount == null) return '-';
     return formatAmount(amount, asset | primaryCurrency);
   };
 
@@ -328,13 +328,13 @@ export default function Dashboard() {
           <strong>Welcome to your Insights view</strong>
           <span className="owb-dashboard-sample-banner-detail">
             {' '}
-            — Add accounts and post transactions to see your live KPIs, working capital and
+            , Add accounts and post transactions to see your live KPIs, working capital and
             breakdowns.
           </span>
         </div>
       )}
 
-      {/* Period selector — applies to KPIs + Working Capital */}
+      {/* Period selector, applies to KPIs + Working Capital */}
       <div className="owb-period-bar">
         <span className="owb-period-bar-label">
           Period: {periodRange.label} · {periodRange.comparisonLabel}
@@ -608,19 +608,19 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Get started with a few quick steps:</p>
             <ol className="list-decimal list-inside space-y-2 text-sm">
               <li>
-                <strong>Create your first account</strong> — Head to the Accounts page and click "+
+                <strong>Create your first account</strong>, Head to the Accounts page and click "+
                 Add Account" to set up a BTC or fiat account.
               </li>
               <li>
-                <strong>Enter a transaction</strong> — Record your first income or expense on the
+                <strong>Enter a transaction</strong>, Record your first income or expense on the
                 Transactions page.
               </li>
               <li>
-                <strong>Create a journal entry</strong> — Use the Journal page to record
-                double-entry bookkeeping entries.
+                <strong>Create a journal entry</strong>, Use the Journal page to record double-entry
+                bookkeeping entries.
               </li>
               <li>
-                <strong>Run a report</strong> — Visit Reports to see your Profit & Loss, Balance
+                <strong>Run a report</strong>, Visit Reports to see your Profit & Loss, Balance
                 Sheet, or Trial Balance.
               </li>
             </ol>

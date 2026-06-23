@@ -1,5 +1,5 @@
 /**
- * complete-invite-wrap — Supabase Edge Function (Phase 4.3 + 4.5)
+ * complete-invite-wrap, Supabase Edge Function (Phase 4.3 + 4.5)
  *
  * Second-stage handler for the pending-invite pipeline. When a recipient
  * finishes vault setup and publishes their `user_vault_keys` row, the
@@ -133,7 +133,7 @@ serve(async (req) => {
 
     // Load the pending invite. It must be ready_to_wrap and tied to an
     // org the caller has `users.invite` in. The RLS policy already
-    // scopes SELECT to inviters, but the admin client bypasses RLS —
+    // scopes SELECT to inviters, but the admin client bypasses RLS
     // so we re-check the capability explicitly.
     const { data: pending, error: pendingErr } = await adminClient
       .from('pending_invites')
@@ -149,7 +149,7 @@ serve(async (req) => {
     }
     if (pending.status !== 'ready_to_wrap') {
       return jsonResponse(
-        { error: `Pending invite is in state '${pending.status}' — expected ready_to_wrap` },
+        { error: `Pending invite is in state '${pending.status}', expected ready_to_wrap` },
         409,
         cors,
       );
@@ -160,7 +160,7 @@ serve(async (req) => {
     }
     if (!pending.recipient_user_id) {
       return jsonResponse(
-        { error: 'Pending invite has no recipient_user_id — trigger may have lost the link' },
+        { error: 'Pending invite has no recipient_user_id, trigger may have lost the link' },
         500,
         cors,
       );
@@ -244,7 +244,7 @@ serve(async (req) => {
       // must NOT mark the row as a placeholder. If no active_key_versions
       // row exists yet, or the active version is still baseline 1 with
       // placeholder wraps elsewhere, the invitee wraps the placeholder
-      // — mark it so Phase 4.5 first-time-setup can migrate.
+      //, mark it so Phase 4.5 first-time-setup can migrate.
       const { data: active } = await adminClient
         .from('active_key_versions')
         .select('active_dek_key_version')

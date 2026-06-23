@@ -44,7 +44,7 @@
   {
     "date": "2024-02-05",
     "accountId": "acct-zoom",
-    "accountName": "Software — Zoom",
+    "accountName": "Software, Zoom",
     "accountCode": "5210",
     "debit": 19.99,
     "credit": 0,
@@ -65,7 +65,7 @@
   {
     "date": "2024-03-10",
     "accountId": "acct-namecheap",
-    "accountName": "Software — NameCheap",
+    "accountName": "Software, NameCheap",
     "accountCode": "5211",
     "debit": 14.66,
     "credit": 0,
@@ -86,7 +86,7 @@
   {
     "date": "2024-04-20",
     "accountId": "acct-vistaprint",
-    "accountName": "Marketing — Vistaprint",
+    "accountName": "Marketing, Vistaprint",
     "accountCode": "5310",
     "debit": 287.50,
     "credit": 0,
@@ -149,7 +149,7 @@
   {
     "date": "2024-09-15",
     "accountId": "acct-tax-software",
-    "accountName": "Professional Fees — Tax Software",
+    "accountName": "Professional Fees, Tax Software",
     "accountCode": "5410",
     "debit": 89.95,
     "credit": 0,

@@ -1,5 +1,5 @@
 /**
- * admin-update-user — Supabase Edge Function
+ * admin-update-user, Supabase Edge Function
  *
  * Server-side mutations for the Admin → Users → Edit User dialog.
  * Lets a caller with the `users.invite` capability update another
@@ -8,13 +8,13 @@
  *
  * We route all of this through an Edge Function (rather than the
  * browser supabase-js SDK) because every action requires the service
- * role key — `auth.admin.updateUserById`, `auth.admin.generateLink`,
+ * role key, `auth.admin.updateUserById`, `auth.admin.generateLink`,
  * and `auth.admin.inviteUserByEmail` are all admin-only endpoints.
  *
  * Authorization rules (ALL of them):
  *   1. Valid Supabase JWT on the request.
  *   2. Caller must hold `users.invite` in `org_id` (reuses the same
- *      capability the Add User flow checks — no new capability key
+ *      capability the Add User flow checks, no new capability key
  *      is introduced). Evaluated via the `user_has_capability` SQL
  *      function.
  *   3. Caller and target must both be rows in `org_members` for
@@ -61,7 +61,7 @@
  * (user_id, event, metadata). We store the *target* user in `user_id`
  * so the row shows up in the target's own audit view, and put the
  * caller + org + action in `metadata`. If the insert fails we log a
- * warning and continue — audit rows are nice-to-have, not a
+ * warning and continue, audit rows are nice-to-have, not a
  * blocking dependency for the user-visible action to complete.
  */
 
@@ -81,7 +81,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
 
 // Upper bound on display name length. Matches the schema-level sanity
-// limit we apply elsewhere — long enough for real names, short enough
+// limit we apply elsewhere, long enough for real names, short enough
 // to reject the obvious junk payloads.
 const MAX_NAME_LEN = 200;
 
@@ -105,19 +105,19 @@ const VALID_ACTIONS: readonly Action[] = [
   'end_support_session',
 ] as const;
 
-// Actions gated by the `users.revoke` capability — everything else uses
+// Actions gated by the `users.revoke` capability, everything else uses
 // `users.invite`. Keeps the authorization model explicit: editing user
 // profile fields is a subset of invite; removing them from an org is a
 // distinct privilege.
 //
 // Phase 4.4 actions (extend_role_expiry, grant_support_session,
-// end_support_session) are gated on `users.invite` — they're about
+// end_support_session) are gated on `users.invite`, they're about
 // granting or adjusting access, not removing it.
 const REVOKE_ACTIONS: ReadonlySet<Action> = new Set(['soft_revoke']);
 
 // Phase 4.4 actions that target a session_id (or work at the org
 // level) rather than a single target user. These skip the target-
-// user membership check — the action-specific handler validates the
+// user membership check, the action-specific handler validates the
 // relevant object (role_grant_id / session_id / support_email).
 const ORG_SCOPED_ACTIONS: ReadonlySet<Action> = new Set([
   'extend_role_expiry',
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
     }
 
     // Rate limit: 30 admin-update calls per caller per minute. Matches
-    // lookup-user-profiles — plenty of headroom for an admin doing
+    // lookup-user-profiles, plenty of headroom for an admin doing
     // bulk edits, nowhere near enough to brute-force inbox enumeration.
     const rl = await rateLimit(adminClient, {
       scope: 'admin-update-user',
@@ -259,12 +259,12 @@ Deno.serve(async (req) => {
 
     // 3) Capability check. Revoke actions require `users.revoke`
     //    (distinct capability per D7); everything else uses
-    //    `users.invite` — editing a user is a subset of inviting them.
+    //    `users.invite`, editing a user is a subset of inviting them.
     //
     //    end_support_session is a special case: either the
     //    customer Owner (users.invite) OR the support user themselves
     //    can end an active session. We do the capability check once
-    //    and set a flag — the handler below re-checks the "is support
+    //    and set a flag, the handler below re-checks the "is support
     //    user" path.
     const requiredCapability = REVOKE_ACTIONS.has(action) ? 'users.revoke' : 'users.invite';
     const { data: hasCap, error: capErr } = await adminClient.rpc('user_has_capability', {
@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
 
     if (action === 'update_email') {
       const newEmail = (payloadEmail ?? '').trim();
-      // email_confirm: false is the magic knob — it tells Supabase to
+      // email_confirm: false is the magic knob, it tells Supabase to
       // send a confirmation email to the NEW address instead of
       // silently flipping the auth.users.email column. The user has
       // to click the link before the change takes effect, which is
@@ -600,7 +600,7 @@ Deno.serve(async (req) => {
       const supportEmail = payloadSupportEmail.toLowerCase();
 
       // Look up or invite the support user. Paginate listUsers so large
-      // projects still resolve — same pattern as invite-org-member.
+      // projects still resolve, same pattern as invite-org-member.
       let supportUserId: string | null = null;
       let page = 1;
       while (page <= 50) {
@@ -647,7 +647,7 @@ Deno.serve(async (req) => {
       const grantedAtIso = grantedAt.toISOString();
       const expiresAtIso = expiresAt.toISOString();
 
-      // support_sessions row — the audit anchor (enforces the 24h cap
+      // support_sessions row, the audit anchor (enforces the 24h cap
       // via CHECK constraint).
       const { data: sessionRow, error: sessionErr } = await adminClient
         .from('support_sessions')
@@ -809,7 +809,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, ended: true }, 200, cors);
     }
 
-    // Shouldn't reach here — VALID_ACTIONS guard covers every branch.
+    // Shouldn't reach here, VALID_ACTIONS guard covers every branch.
     return jsonResponse({ error: 'Unknown action' }, 400, cors);
   } catch (err) {
     console.error('admin-update-user error:', err);
@@ -823,7 +823,7 @@ Deno.serve(async (req) => {
  * caller + org + action details into metadata and scope user_id to
  * the *target* so the event appears in that user's own audit trail.
  *
- * Failures are logged but do not propagate — the user-visible action
+ * Failures are logged but do not propagate, the user-visible action
  * has already succeeded by the time we get here, and losing an audit
  * row is strictly better than failing a legitimate update because
  * of an unrelated DB hiccup.

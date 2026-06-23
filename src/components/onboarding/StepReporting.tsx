@@ -13,14 +13,14 @@ import type { BitcoinDisplay } from '@/types';
 
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'BTC', label: 'BTC — Bitcoin' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
+  { value: 'USD', label: 'USD, US Dollar' },
+  { value: 'EUR', label: 'EUR, Euro' },
+  { value: 'GBP', label: 'GBP, British Pound' },
+  { value: 'BTC', label: 'BTC, Bitcoin' },
+  { value: 'CAD', label: 'CAD, Canadian Dollar' },
+  { value: 'AUD', label: 'AUD, Australian Dollar' },
+  { value: 'JPY', label: 'JPY, Japanese Yen' },
+  { value: 'CHF', label: 'CHF, Swiss Franc' },
 ];
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [

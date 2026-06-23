@@ -1,5 +1,5 @@
 /**
- * FxExposureDashboard — FX risk exposure widget.
+ * FxExposureDashboard, FX risk exposure widget.
  *
  * Shows per-currency balance breakdown, days since last rate update,
  * and pending revaluation items. One-click rate refresh per currency.
@@ -177,7 +177,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
       setExposures(result);
       setPendingRevalCount((pendingRes as any).count ?? 0);
     } catch {
-      // Non-critical widget — fail silently
+      // Non-critical widget, fail silently
     } finally {
       setLoading(false);
     }
@@ -198,7 +198,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
         });
         await load();
       } catch {
-        // Ignore — rate may be pending
+        // Ignore, rate may be pending
       } finally {
         setRefreshing((prev) => {
           const s = new Set(prev);
@@ -282,7 +282,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
                     {exp.totalPrimary != null ? (
                       formatAmount(exp.totalPrimary, primaryCurrency)
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="text-right py-2.5 pr-4">

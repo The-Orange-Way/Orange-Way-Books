@@ -20,14 +20,14 @@
  * `vault_unlock_failed` (which feeds the S10 5-in-15min sliding-window
  * lockout). Only genuine credential failures count:
  *
- *   • "Incorrect vault password"  — thrown by the verifier mismatch.
- *   • AES-GCM auth-tag failure on `unwrapMekWithKey` — surfaces as a
+ *   • "Incorrect vault password" , thrown by the verifier mismatch.
+ *   • AES-GCM auth-tag failure on `unwrapMekWithKey`, surfaces as a
  *     Web Crypto `OperationError` (DOMException) or a generic Error
  *     whose message contains "decrypt" / "operation". Both shapes
  *     happen when the KEK derived from the typed password is wrong.
  *
  * Network / RLS / session-rehydration / "no organization" errors must
- * NOT count — those are transient and should never lock the user out.
+ * NOT count, those are transient and should never lock the user out.
  */
 export function isCredentialError(err: unknown): boolean {
   if (err instanceof Error) {

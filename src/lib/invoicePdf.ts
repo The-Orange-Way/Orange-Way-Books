@@ -1,11 +1,11 @@
 /**
- * OWB Invoicing — printable invoice render.
+ * OWB Invoicing, printable invoice render.
  *
  * Uses the same print-window pattern as `recoveryBackup.ts`: open a new
  * browser window with a print-styled HTML page, trigger `window.print()`,
  * user picks "Save as PDF" or sends to a printer. No PDF library bundled.
  *
- * The invoice content stays in the browser the whole time — the server
+ * The invoice content stays in the browser the whole time, the server
  * never sees it. This is the same ZKA property that applies to every
  * other decrypted view in OWB.
  */

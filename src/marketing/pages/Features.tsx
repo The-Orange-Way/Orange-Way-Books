@@ -16,7 +16,7 @@ const FEATURE_GROUPS: ReadonlyArray<{
       },
       {
         name: 'AES-GCM field encryption',
-        body: 'Every sensitive field — amounts, memos, account names, contacts — is encrypted client-side.',
+        body: 'Every sensitive field, amounts, memos, account names, contacts, is encrypted client-side.',
       },
       {
         name: 'Per-org envelope encryption',
@@ -68,7 +68,7 @@ const FEATURE_GROUPS: ReadonlyArray<{
   },
   {
     heading: 'Real double-entry ledger',
-    intro: 'Built on a real ledger engine — not a spreadsheet pretending to be accounting.',
+    intro: 'Built on a real ledger engine, not a spreadsheet pretending to be accounting.',
     items: [
       {
         name: 'IFRS and US GAAP',
@@ -148,7 +148,7 @@ const FEATURE_GROUPS: ReadonlyArray<{
       },
       {
         name: 'Open-source self-hosting',
-        body: 'Move off our servers entirely — your data, your infrastructure.',
+        body: 'Move off our servers entirely, your data, your infrastructure.',
       },
       { name: 'Apache-2.0', body: 'No license fees, no vendor lock-in, ever.' },
     ],
@@ -175,7 +175,7 @@ export default function Features() {
         <header className="mb-16 text-center">
           <h1 className="text-4xl font-bold mb-4">Every feature, one page</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Orange Way Books is a full accounting platform — not a notebook with crypto support
+            Orange Way Books is a full accounting platform, not a notebook with crypto support
             bolted on. Here is everything it does today.
           </p>
         </header>

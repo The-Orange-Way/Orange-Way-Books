@@ -14,7 +14,7 @@
 -- error 42501 "permission denied for table X".
 --
 -- The "Automatically enable RLS on new tables" setting is still ON, so
--- new tables continue to default to deny-all until a policy is added —
+-- new tables continue to default to deny-all until a policy is added
 -- which is the property we wanted from disabling auto-exposure.
 
 BEGIN;
@@ -28,11 +28,11 @@ GRANT USAGE ON SCHEMA public TO authenticated, anon, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 
--- Sequences (id generators) — authenticated needs to advance them on insert.
+-- Sequences (id generators), authenticated needs to advance them on insert.
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 
--- Functions — authenticated needs to execute the SQL helpers our migrations
+-- Functions, authenticated needs to execute the SQL helpers our migrations
 -- defined (purge_expired_old_key_wraps, check_*_same_org, etc.).
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, service_role;
 

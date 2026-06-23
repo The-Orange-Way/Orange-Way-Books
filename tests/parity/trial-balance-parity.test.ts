@@ -1,5 +1,5 @@
 /**
- * V3 Parity — Trial Balance correctness against fixed datasets.
+ * V3 Parity, Trial Balance correctness against fixed datasets.
  *
  * This is P6 v1: a fixture-driven sanity check for V3's ledger engine.
  * Catches regressions in computeAccountBalances + computeTrialBalance
@@ -53,7 +53,7 @@ const FIXTURE_ROOT = join(__dirname, 'fixtures');
 
 const FIXTURES = ['inspire-2024-mini'] as const;
 
-describe.each(FIXTURES)('Trial Balance parity — fixture %s', (fixtureName) => {
+describe.each(FIXTURES)('Trial Balance parity, fixture %s', (fixtureName) => {
   const fixturePath = join(FIXTURE_ROOT, fixtureName);
   const accounts = loadJson<AccountInfo[]>(fixturePath, 'accounts.json');
   const lines = loadJson<JournalLine[]>(fixturePath, 'journal-lines.json');

@@ -17,7 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import { isCredentialError } from './vault-unlock-errors';
 
-describe('isCredentialError — S10 rate-limit policy boundary', () => {
+describe('isCredentialError, S10 rate-limit policy boundary', () => {
   it('flags "Incorrect vault password" as a credential failure', () => {
     expect(isCredentialError(new Error('Incorrect vault password'))).toBe(true);
   });
@@ -40,7 +40,7 @@ describe('isCredentialError — S10 rate-limit policy boundary', () => {
   it('does NOT flag "Session not yet ready" as a credential failure', () => {
     // Thrown when `getSession()` returns null on a hard reload before
     // the JWT is rehydrated. This is the heart of the C-G journey bug.
-    expect(isCredentialError(new Error('Session not yet ready — please try again.'))).toBe(false);
+    expect(isCredentialError(new Error('Session not yet ready, please try again.'))).toBe(false);
   });
 
   it('does NOT flag "Not authenticated" as a credential failure', () => {

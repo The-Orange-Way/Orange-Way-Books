@@ -18,6 +18,6 @@ export {
 
 export type { Event, SyncCompletedEvent, EventType } from './types.ts';
 
-// Low-level primitives — exported for advanced use cases (e.g. signing
+// Low-level primitives, exported for advanced use cases (e.g. signing
 // in fixtures/tests). Most consumers should use `constructEvent`.
 export { computeHmacSha256Hex, timingSafeEqualHex } from './verify.ts';

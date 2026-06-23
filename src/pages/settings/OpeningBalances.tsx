@@ -354,7 +354,7 @@ export default function OpeningBalances() {
                     <SelectContent>
                       {accounts.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
-                          {a.code ? `${a.code} — ${a.name}` : a.name}
+                          {a.code ? `${a.code}, ${a.name}` : a.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

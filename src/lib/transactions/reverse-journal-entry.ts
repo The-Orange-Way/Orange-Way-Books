@@ -1,7 +1,7 @@
 /**
  * Reverse a journal entry by writing a new JE that nets the original to zero.
  *
- * Track 7 — parallel to voidTransaction (T3 v1) but operates directly on a
+ * Track 7, parallel to voidTransaction (T3 v1) but operates directly on a
  * journal_entries row rather than walking via a parent transactions row.
  * Used by the Journal Entries page's Reverse action and Bulk Reverse.
  *
@@ -89,7 +89,7 @@ export async function reverseJournalEntry(
       ref_number: null,
       currency: origJeDec.currency,
       exchange_rate: origJeDec.exchange_rate,
-      // Reversals post immediately — they're meant to live the moment they're
+      // Reversals post immediately, they're meant to live the moment they're
       // written, same as the reverse behavior in the JE module.
       status: 'POSTED',
       source_type: 'VOID_REVERSAL',

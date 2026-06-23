@@ -36,7 +36,7 @@ export default function DocsIndex() {
               className="text-primary hover:underline"
               href="https://github.com/The-Orange-Way/Orange-Way-Books/blob/main/docs/OWB-ARCHITECTURE.md"
             >
-              OWB-ARCHITECTURE.md — system overview
+              OWB-ARCHITECTURE.md, system overview
             </a>
           </li>
           <li>
@@ -44,7 +44,7 @@ export default function DocsIndex() {
               className="text-primary hover:underline"
               href="https://github.com/The-Orange-Way/Orange-Way-Books/blob/main/docs/OWB-ZKA-BRIDGE.md"
             >
-              OWB-ZKA-BRIDGE.md — zero-knowledge architecture
+              OWB-ZKA-BRIDGE.md, zero-knowledge architecture
             </a>
           </li>
           <li>
@@ -52,7 +52,7 @@ export default function DocsIndex() {
               className="text-primary hover:underline"
               href="https://github.com/The-Orange-Way/Orange-Way-Books/blob/main/docs/OWB-ENTERPRISE-SECURITY.md"
             >
-              OWB-ENTERPRISE-SECURITY.md — enterprise security
+              OWB-ENTERPRISE-SECURITY.md, enterprise security
             </a>
           </li>
           <li>
@@ -60,7 +60,7 @@ export default function DocsIndex() {
               className="text-primary hover:underline"
               href="https://github.com/The-Orange-Way/Orange-Way-Books/blob/main/docs/OWB-MultiCurrency-Brain.md"
             >
-              OWB-MultiCurrency-Brain.md — FX & multi-currency
+              OWB-MultiCurrency-Brain.md, FX & multi-currency
             </a>
           </li>
         </ul>

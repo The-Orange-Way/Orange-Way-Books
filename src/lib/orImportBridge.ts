@@ -26,7 +26,7 @@
  * Account routing rule: ONLY accept an existing account whose name is
  * "Uncategorized Revenue/Income" or "Uncategorized Expense/Expenses". If none
  * exists, lazy-create one (one-time per org). We deliberately do NOT fall back
- * to "Other Income/Expenses" or to the first account of the matching type —
+ * to "Other Income/Expenses" or to the first account of the matching type
  * those are real categories users may have configured, and silently routing
  * imports into them buries the "needs review" signal. Better to always land
  * on "Uncategorized" so the user sees a clear bucket to triage.
@@ -121,7 +121,7 @@ const SOURCE_TAG = 'orangerails';
  *   - `or_connection_id` is OR's opaque connection id (already known to OWB
  *     via connection_account_map.or_connection_id).
  *
- * No amounts, memos, counterparties, or wallet identifiers go in here —
+ * No amounts, memos, counterparties, or wallet identifiers go in here
  * those remain in the encrypted columns (`encrypted_amount`, `memo`, etc.).
  */
 function buildOrSourceMetadata(orConnectionId: string, orTxId: string): Record<string, string> {
@@ -154,7 +154,7 @@ function resolveDestinationWalletId(
  *
  * When the OR-side currency disagrees with the OWB wallet's asset (e.g. user
  * mapped a BTC wallet to a SATS OWB wallet, or vice versa) we still convert
- * within the BTC ladder. For other mismatches we fall back to OR's amount —
+ * within the BTC ladder. For other mismatches we fall back to OR's amount
  * the user can re-categorize later.
  */
 function computeAmount(tx: DecryptedOrTx, walletAsset: string): { amount: number; asset: string } {
@@ -185,7 +185,7 @@ function computeAmount(tx: DecryptedOrTx, walletAsset: string): { amount: number
  *   2. Match by name only: "Uncategorized Revenue" / "Uncategorized Income"
  *      for inflows and "Uncategorized Expense" / "Uncategorized Expenses"
  *      for outflows.
- *   3. If neither variant exists, lazy-create one (a one-time cost per org —
+ *   3. If neither variant exists, lazy-create one (a one-time cost per org
  *      never via migration so existing orgs are not touched).
  *
  * NOT considered as fallbacks:

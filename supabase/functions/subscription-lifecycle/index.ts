@@ -1,5 +1,5 @@
 /**
- * subscription-lifecycle — daily cron that advances subscription status
+ * subscription-lifecycle, daily cron that advances subscription status
  * based on the lifecycle table:
  *
  *   trialing past trial_ends_at         → past_due (set past_due_since)
@@ -15,7 +15,7 @@
  * incoming request carries the SERVICE_ROLE key or a known cron secret
  * via the X-Cron-Secret header (env CRON_SECRET).
  *
- * Scheduling — pick ONE of:
+ * Scheduling, pick ONE of:
  *   1. Supabase pg_cron:
  *        select cron.schedule(
  *          'flash-lifecycle-daily', '17 4 * * *',
@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
     const report = await runOnce();
     return jsonResponse({ ok: true, report }, 200, cors);
   } catch (err) {
-    // Full error stays server-side. Don't echo `detail` to the client — it
+    // Full error stays server-side. Don't echo `detail` to the client, it
     // leaks library names + file paths.
     console.error('subscription-lifecycle error:', err);
     return jsonResponse({ error: 'Run failed' }, 500, cors);

@@ -1,19 +1,19 @@
--- Invoicing — org_settings extensions for invoicing
+-- Invoicing, org_settings extensions for invoicing
 --
 -- Adds:
---   invoice_next_number     — auto-increment counter for invoice numbering.
+--   invoice_next_number    , auto-increment counter for invoice numbering.
 --                             Plaintext; non-sensitive (the number itself is
 --                             shown on the customer-facing invoice).
---   invoice_prefix          — text prefix for the number (e.g. 'INV-2026-').
+--   invoice_prefix         , text prefix for the number (e.g. 'INV-2026-').
 --                             Plaintext; non-sensitive.
---   invoice_email_subject_template — Resend email subject; supports
+--   invoice_email_subject_template, Resend email subject; supports
 --                             {{invoice_number}} {{org_name}} placeholders.
---   invoice_email_body_template    — Resend email body markdown/html. Same
+--   invoice_email_body_template   , Resend email body markdown/html. Same
 --                             placeholders. Body is intentionally generic
 --                             so server-side rendering doesn't see business
---                             content — only the link.
---   default_payment_terms_days — default Net X days for new invoices.
---   public_org_name         — non-encrypted org display name used in:
+--                             content, only the link.
+--   default_payment_terms_days, default Net X days for new invoices.
+--   public_org_name        , non-encrypted org display name used in:
 --                             (a) the email subject/body templates above,
 --                             (b) the customer hosted view (so a recipient
 --                                 not yet decrypting in-browser sees who
@@ -77,7 +77,7 @@ BEGIN
     RAISE EXCEPTION 'org_settings row missing for this org' USING ERRCODE = 'P0002';
   END IF;
 
-  -- Format: "<prefix><zero-padded-3-digit-number>" — but allow > 999 to
+  -- Format: "<prefix><zero-padded-3-digit-number>", but allow > 999 to
   -- overflow naturally. 'INV-' + '001' / '042' / '1042' all valid.
   v_result := v_prefix | lpad(v_next::text, 3, '0');
   RETURN v_result;

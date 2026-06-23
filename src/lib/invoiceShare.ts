@@ -1,5 +1,5 @@
 /**
- * OWB Invoicing — Bitwarden Send pattern for the customer-facing hosted view.
+ * OWB Invoicing, Bitwarden Send pattern for the customer-facing hosted view.
  *
  * When an org sends an invoice, the org's browser:
  *   1. Builds the payload (decrypted invoice + line items) to render

@@ -1,15 +1,15 @@
 /**
- * Settings → Security page — Phase 4.5.
+ * Settings → Security page, Phase 4.5.
  *
  * Owner/Admin-only. Three sections:
  *
- *   1. Refresh team security — last refreshed + button to open the wizard.
- *   2. Download a backup — format picker + one-click export.
- *   3. Refresh history — list of jobs, with "Undo the last refresh" when
+ *   1. Refresh team security, last refreshed + button to open the wizard.
+ *   2. Download a backup, format picker + one-click export.
+ *   3. Refresh history, list of jobs, with "Undo the last refresh" when
  *      a job is within its 30-day window.
  *
  * Gated on users.invite capability. The existing settings/security
- * route (vault password change) is renamed — password change lives at
+ * route (vault password change) is renamed, password change lives at
  * settings/change-password going forward.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -191,7 +191,7 @@ export default function Security() {
         </div>
         <p className="text-sm text-muted-foreground">
           Your recovery code unlocks your vault if you ever forget your vault password. If you've
-          lost track of yours, generate a new one — this invalidates the old one.
+          lost track of yours, generate a new one, this invalidates the old one.
         </p>
         <Button variant="outline" onClick={() => navigate('/app/settings/recovery-code')}>
           Manage recovery code
@@ -205,7 +205,7 @@ export default function Security() {
           <h3 className="text-base font-semibold text-card-foreground">Master recovery code</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          One 12-word phrase that unlocks every organization you belong to. Optional — per-org
+          One 12-word phrase that unlocks every organization you belong to. Optional, per-org
           recovery codes still work independently.
         </p>
         <Button variant="outline" onClick={() => navigate('/app/settings/master-recovery')}>
@@ -311,8 +311,8 @@ export default function Security() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="csv">CSV — best for spreadsheets (recommended)</SelectItem>
-                <SelectItem value="json">JSON — machine-readable</SelectItem>
+                <SelectItem value="csv">CSV, best for spreadsheets (recommended)</SelectItem>
+                <SelectItem value="json">JSON, machine-readable</SelectItem>
               </SelectContent>
             </Select>
           </div>

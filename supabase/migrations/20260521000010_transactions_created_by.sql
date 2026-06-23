@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS transactions_org_created_by_idx
 -- Trigger fills created_by with auth.uid() when the client omits it.
 -- Existing call sites (Transactions.tsx, transaction-modal.tsx,
 -- orImportBridge.ts, takeout/import.ts, Wallets.tsx, DestinationAccountPicker.tsx)
--- don't need code changes — the trigger handles it. Clients can still
+-- don't need code changes, the trigger handles it. Clients can still
 -- pass created_by explicitly (e.g. import jobs running under a service
 -- role context) and the trigger respects that.
 CREATE OR REPLACE FUNCTION public.set_transaction_created_by()
@@ -43,7 +43,7 @@ CREATE TRIGGER trg_transactions_set_created_by
   FOR EACH ROW
   EXECUTE FUNCTION public.set_transaction_created_by();
 
--- 3. Tightened RLS — write_own now means own rows ─────────────
+-- 3. Tightened RLS, write_own now means own rows ─────────────
 -- write_own is the Bookkeeper grant; it should only allow operating on
 -- transactions the caller authored. Plain write (Accountant/Admin)
 -- continues to allow any row in the org.

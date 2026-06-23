@@ -1,5 +1,5 @@
 /**
- * Transfer Clearing — the system asset account every transfer journal
+ * Transfer Clearing, the system asset account every transfer journal
  * entry pivots through.
  *
  * Why the indirection: a cross-currency transfer (say 100 USD → 5,000 sats)
@@ -12,7 +12,7 @@
  *
  * Lookup strategy: under OWB's encrypted chart-of-accounts, the
  * plaintext `account_code` and `account_name` columns are anonymized
- * placeholders — the real values live in `encrypted_*`. So this module
+ * placeholders, the real values live in `encrypted_*`. So this module
  * pulls all CoA rows for the org, decrypts their names client-side, and
  * matches by case-insensitive equality. Same shape as the
  * Uncategorized-Revenue / Uncategorized-Expense lookups in
@@ -74,7 +74,7 @@ export async function findTransferClearingAccount(
         };
       }
     } catch {
-      // Undecryptable row (key mismatch) — skip rather than throw.
+      // Undecryptable row (key mismatch), skip rather than throw.
     }
   }
   return null;
@@ -83,7 +83,7 @@ export async function findTransferClearingAccount(
 /**
  * Lazy-create the Transfer Clearing row if missing. Mirrors the
  * orImportBridge ensureUncategorizedAccounts pattern. Safe to call
- * repeatedly — the find step short-circuits when the row exists.
+ * repeatedly, the find step short-circuits when the row exists.
  *
  * Throws if the row cannot be located or created.
  */

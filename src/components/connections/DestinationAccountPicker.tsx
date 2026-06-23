@@ -1,11 +1,11 @@
 /**
- * DestinationAccountPicker — Phase 3 second step of the add-connection flow.
+ * DestinationAccountPicker, Phase 3 second step of the add-connection flow.
  *
  * After the user picks WHICH source wallets to sync (WalletPickerStep), this
  * dialog asks WHERE each source wallet's transactions should land. The picker
  * is also re-opened later from the connection card via "Edit mapping".
  *
- * IMPORTANT — Phase 3 fix: the destination is a WALLET (rows from the
+ * IMPORTANT, Phase 3 fix: the destination is a WALLET (rows from the
  * `wallets` table), not a chart-of-accounts entry. The earlier Phase 3
  * implementation incorrectly inserted into `chart_of_accounts`, mixing the
  * accounting math layer (Asset/Liability/Equity/...) with the user-facing
@@ -260,7 +260,7 @@ export function DestinationAccountPicker({
       <Dialog
         open={open}
         onOpenChange={(o) => {
-          // Only close on explicit programmatic intent (via onCancel) — block
+          // Only close on explicit programmatic intent (via onCancel), block
           // backdrop / Escape close so a stray click doesn't lose the
           // partially-configured connection state.
           if (!o && !submitting) {
@@ -292,7 +292,7 @@ export function DestinationAccountPicker({
           <div className="space-y-3">
             {sourceWallets.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No source wallets selected — nothing to route.
+                No source wallets selected, nothing to route.
               </p>
             ) : (
               sourceWallets.map((w) => (
@@ -343,7 +343,7 @@ export function DestinationAccountPicker({
                           ))}
                           {wallets.length === 0 && !loadingWallets && (
                             <div className="px-2 py-2 text-xs text-muted-foreground">
-                              No wallets yet — create one with the + button.
+                              No wallets yet, create one with the + button.
                             </div>
                           )}
                         </SelectContent>
@@ -446,7 +446,7 @@ function CreateWalletInlineDialog({
     try {
       const balance = parseFloat(openingBalanceStr) | 0;
 
-      // Encrypted insert — same path Accounts.tsx uses for user-created wallets,
+      // Encrypted insert, same path Accounts.tsx uses for user-created wallets,
       // tagged with connection_type='orangerails' so we can later distinguish
       // wallets that were spawned from a connection mapping flow.
       const enc = await encryptWallet(
@@ -472,7 +472,7 @@ function CreateWalletInlineDialog({
       const newId = (newWallet as { id: string } | null)?.id;
       if (!newId) throw new Error('Wallet insert returned no id');
 
-      // Resolve + store asset→BTC rate. Failure is non-blocking — same
+      // Resolve + store asset→BTC rate. Failure is non-blocking, same
       // tolerance Accounts.tsx grants its create path.
       try {
         const rate = await resolveAssetToBtcRate(asset);
@@ -535,7 +535,7 @@ function CreateWalletInlineDialog({
     <Dialog
       open
       onOpenChange={() => {
-        /* close only via explicit Cancel — protect partial input */
+        /* close only via explicit Cancel, protect partial input */
       }}
     >
       <DialogContent

@@ -1,5 +1,5 @@
 /**
- * flash-status — Supabase Edge Function
+ * flash-status, Supabase Edge Function
  *
  * Owner-gated GET returning whether the platform Flash connection is
  * live. Reads flash_platform_tokens (service-role only, RLS blocks
@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
-  // M5 — 2026-05-19 audit. 60 status polls per user per minute; admin
+  // M5, 2026-05-19 audit. 60 status polls per user per minute; admin
   // pages typically poll once on mount + on demand.
   const rl = await rateLimit(admin, {
     scope: 'flash-status',

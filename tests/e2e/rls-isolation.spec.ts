@@ -1,21 +1,21 @@
 /**
- * RLS isolation smoke — single-user containment check.
+ * RLS isolation smoke, single-user containment check.
  *
  * Signs in as the e2e user, then queries every org-scoped table via the
  * REST API using the user's own session token. Asserts that every returned
  * row's org_id matches the user's own org. If RLS is missing or wrong,
- * this surfaces as "row visible whose org_id != user's org_id" — a hard
+ * this surfaces as "row visible whose org_id != user's org_id", a hard
  * failure.
  *
  * This is the "single-user containment" version of the isolation smoke.
  * It proves RLS filters MY queries to MY data. It does NOT prove another
  * user can't reach into my data (that requires 2 real users + cross-read
- * attempts) — that's a follow-up.
+ * attempts), that's a follow-up.
  *
  * Companion to the structural RLS audit (separate doc); this spec
  * checks the runtime effect of every policy.
  *
- * Runs on every owb-full-suite invocation (not gated) — it's read-only.
+ * Runs on every owb-full-suite invocation (not gated), it's read-only.
  */
 
 import { test, expect } from '@playwright/test';
@@ -28,7 +28,7 @@ interface SessionShape {
 
 // Tables that have an `org_id` column AND are user-visible (skip lookup
 // tables that intentionally blanket-allow SELECT, and webhook/internal
-// tables that have RLS-on + no policies — those return [] for the user role).
+// tables that have RLS-on + no policies, those return [] for the user role).
 const ORG_SCOPED_TABLES = [
   'chart_of_accounts',
   'wallets',
@@ -42,7 +42,7 @@ const ORG_SCOPED_TABLES = [
   'invoices',
 ];
 
-test('RLS isolation — every returned row has my org_id', async ({ page }) => {
+test('RLS isolation, every returned row has my org_id', async ({ page }) => {
   test.setTimeout(60_000);
   const baseURL = 'https://books.orangeway.dev';
 
@@ -137,10 +137,10 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
     if (resp.status !== 200) {
       // Some tables (e.g. `organizations` queried directly without filter)
       // may legitimately 200/[] or 401 depending on policy. Treat 4xx as
-      // a finding but don't fail the test on them — they prove the
+      // a finding but don't fail the test on them, they prove the
       // server refused the broad query, which is what we want.
       if (resp.status === 401 || resp.status === 403) {
-        // Hard-deny — fine.
+        // Hard-deny, fine.
         continue;
       }
       failures.push({

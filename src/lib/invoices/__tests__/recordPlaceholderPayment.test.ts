@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Unit tests for recordPlaceholderPayment — the producer end of the placeholder-merge
+// Unit tests for recordPlaceholderPayment, the producer end of the placeholder-merge
 // Wave Pattern A merge flow.
 //
 // Covers:
@@ -124,7 +124,7 @@ function makeSupabase() {
           return runDelete();
         },
         then(onFulfilled: (v: any) => unknown) {
-          // Default terminal — list-select or fire-and-forget write.
+          // Default terminal, list-select or fire-and-forget write.
           if (op === 'insert' && mode === 'list') {
             return runInsert().then(onFulfilled);
           }
@@ -190,7 +190,7 @@ vi.mock('@/lib/supabase', () => ({
 
 // Stable, predictable "encryption" so tests can assert on the
 // ciphertext format without crypto in scope. The shape matches what
-// encryptNumber / encryptText return at the call site — strings.
+// encryptNumber / encryptText return at the call site, strings.
 vi.mock('@/lib/crypto-fields', async () => {
   const real = await vi.importActual<typeof import('@/lib/crypto-fields')>('@/lib/crypto-fields');
   return {
@@ -367,7 +367,7 @@ describe('recordPlaceholderPayment', () => {
     expect(store.invoice_payments[0].is_placeholder).toBe(true);
   });
 
-  it('throws when mutation signing returns null — no writes occur', async () => {
+  it('throws when mutation signing returns null, no writes occur', async () => {
     signMutation.mockImplementationOnce(() => null);
 
     await expect(recordPlaceholderPayment(makeCall())).rejects.toThrow(/signing key/i);

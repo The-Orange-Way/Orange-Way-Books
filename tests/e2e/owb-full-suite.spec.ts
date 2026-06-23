@@ -1,5 +1,5 @@
 /**
- * Orange Way Books — full E2E suite.
+ * Orange Way Books, full E2E suite.
  *
  * Runs against books.orangeway.dev by default. Captures screenshots at
  * every key step into tests/e2e/__artifacts__/owb-full-suite-<run>/.
@@ -124,7 +124,7 @@ test.describe('B. Sign in + vault unlock', () => {
 //
 // Each authenticated test does its own page.goto + vault unlock via
 // gotoAuthed(). The S10 sliding-window cooldown only counts FAILED unlock
-// attempts (see src/context/VaultContext.tsx — "passwordAttempted = true"
+// attempts (see src/context/VaultContext.tsx, "passwordAttempted = true"
 // gate), so a sequence of successful unlocks with the correct password
 // does NOT trip the rate limit. This replaces the prior pushState pattern
 // which silently re-locked the vault and produced screenshots of the
@@ -133,7 +133,7 @@ test.describe('B. Sign in + vault unlock', () => {
 test.describe('C-E. Authenticated journey', () => {
   let sharedPage: Page;
 
-  // Sign in ONCE for the whole describe — the auth session cookie persists
+  // Sign in ONCE for the whole describe, the auth session cookie persists
   // across page.goto. The vault MEK is in-memory so it does need re-unlock
   // per goto, but successful unlocks do not count toward the failed-attempt
   // sliding-window cooldown.
@@ -207,7 +207,7 @@ test.describe('C-E. Authenticated journey', () => {
             .catch(() => false);
           expect(
             stillFinishing,
-            '/app dashboard should NOT show "Finishing setup…" pill — ledger_status not written to ready',
+            '/app dashboard should NOT show "Finishing setup…" pill, ledger_status not written to ready',
           ).toBe(false);
         }
         if (route === '/app/settings/master-recovery') {
@@ -219,7 +219,7 @@ test.describe('C-E. Authenticated journey', () => {
               .locator('h1, h2')
               .filter({ hasText: /Master recovery code/i })
               .first(),
-            'master-recovery heading should be visible — React error #310 regression',
+            'master-recovery heading should be visible, React error #310 regression',
           ).toBeVisible({ timeout: 5_000 });
         }
 

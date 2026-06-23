@@ -1,4 +1,4 @@
--- Phase 1 (external-ledger removal redesign) — Migration 1/9: Drop the old accounting tables.
+-- Phase 1 (external-ledger removal redesign), Migration 1/9: Drop the old accounting tables.
 --
 -- Migration plan tracked in commit history.
 --
@@ -7,16 +7,16 @@
 -- `je_ref_sequence`) are dropped CASCADE so dependent triggers, RLS policies, indexes,
 -- and foreign keys from other tables are torn down with them. The next 8 migrations
 -- rebuild them in the locked end-state shape:
---   - `chart_of_accounts` (replaces `legacy_account_map`) — fully encrypted structural metadata
---   - `journal_entries` — plaintext status + source_type, encrypted everything else
---   - `journal_entry_lines` — no $1 placeholder debit/credit columns; encrypted-only amounts
+--   - `chart_of_accounts` (replaces `legacy_account_map`), fully encrypted structural metadata
+--   - `journal_entries`, plaintext status + source_type, encrypted everything else
+--   - `journal_entry_lines`, no $1 placeholder debit/credit columns; encrypted-only amounts
 --   - Immutability trigger pair using JSONB diff (works on encrypted columns)
 --   - Partial UNIQUE on reversal_of_id to forbid double-reversal
 --   - RLS via capability system (user_has_capability)
 --   - next_je_ref_number + purge_import_job_artifacts adjusted to new schema
 --
 -- This migration is idempotent: re-running it after the rebuild migrations
--- have applied would silently no-op (IF EXISTS guard) — but we don't expect
+-- have applied would silently no-op (IF EXISTS guard), but we don't expect
 -- to re-run. The full-reset workflow drops `public` and applies all migrations
 -- from scratch.
 
@@ -46,5 +46,5 @@ DROP FUNCTION IF EXISTS public.purge_import_job_artifacts(UUID)      CASCADE;
 -- Until then, the trigger on audit_logs is left in place; calls to it will
 -- find journal_entries missing and fall through to the "row might have been
 -- deleted between write and audit insert" defensive branch (returns NEW).
--- That's a tolerable transient — the rebuild migrations land in the same
+-- That's a tolerable transient, the rebuild migrations land in the same
 -- deploy and immediately restore the table.

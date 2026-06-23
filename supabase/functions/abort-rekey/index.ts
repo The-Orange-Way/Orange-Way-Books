@@ -1,15 +1,15 @@
 /**
- * abort-rekey — Supabase Edge Function.
+ * abort-rekey, Supabase Edge Function.
  *
  * Two modes, chosen via the `mode` field:
  *
- *   1. `abort_in_flight` — stop a job that hasn't finalized yet.
+ *   1. `abort_in_flight`, stop a job that hasn't finalized yet.
  *      - Deletes new wraps (org_keys + org_member_signing_key_wraps) at
  *        the new key_version.
  *      - Deletes the new org_signing_keys row at the new key_version.
  *      - active_key_versions unchanged.
  *      - Rows that were partially re-keyed: this function does NOT
- *        revert them itself — it returns the set and expects the client
+ *        revert them itself, it returns the set and expects the client
  *        to decrypt with the new DEK, re-encrypt with the old DEK, and
  *        POST the revert batch back through rekey-batch. Until that
  *        revert batch runs, the row is readable under the NEW dek_key
@@ -20,13 +20,13 @@
  *        revert completes.
  *      - Job status → 'aborted'.
  *
- *   2. `rollback_after_complete` — emergency rollback after finalize,
+ *   2. `rollback_after_complete`, emergency rollback after finalize,
  *      within the 30-day rollback window.
  *      - active_key_versions flipped back to previous_*_key_version.
  *      - Job status → 'rolled_back'.
  *      - New wraps + new signing key row left on disk for audit.
  *      - Rows at the new dek_key_version are NOT reverted (the rollback
- *        window deliberately keeps both versions readable — new writes
+ *        window deliberately keeps both versions readable, new writes
  *        after rollback go to the restored active version, old rows
  *        stay decryptable under their recorded dek_key_version).
  *
@@ -145,7 +145,7 @@ serve(async (req) => {
     if (mode === 'abort_in_flight') {
       if (job.status === 'complete' || job.status === 'aborted' || job.status === 'rolled_back') {
         return jsonResponse(
-          { error: `Job is already in status '${job.status}' — cannot abort.` },
+          { error: `Job is already in status '${job.status}', cannot abort.` },
           409,
           cors,
         );

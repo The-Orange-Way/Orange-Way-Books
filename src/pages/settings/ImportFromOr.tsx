@@ -8,7 +8,7 @@
  * MVP scope:
  *   - File picker for the JSON payload
  *   - Validate via assertStagedImportPayload (shows source name, version, counts)
- *   - Commit button — writes import_jobs row, applies JEs in order
+ *   - Commit button, writes import_jobs row, applies JEs in order
  *   - Result panel with counts + errors
  *
  * Out of scope for v1:
@@ -182,7 +182,7 @@ export default function ImportFromOr() {
               {parsedPayload.summary.accounts}
               {parsedPayload.summary.accounts > 0 && (
                 <span className="text-xs text-muted-foreground ml-2">
-                  (skipped in v1 — use Admin CSV import)
+                  (skipped in v1, use Admin CSV import)
                 </span>
               )}
             </dd>
@@ -191,7 +191,7 @@ export default function ImportFromOr() {
               {parsedPayload.summary.contacts}
               {parsedPayload.summary.contacts > 0 && (
                 <span className="text-xs text-muted-foreground ml-2">
-                  (skipped in v1 — use Contacts CSV import)
+                  (skipped in v1, use Contacts CSV import)
                 </span>
               )}
             </dd>

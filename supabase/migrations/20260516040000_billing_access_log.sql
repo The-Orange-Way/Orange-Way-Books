@@ -1,17 +1,17 @@
--- S16 — Audit log for sensitive billing reads
+-- S16, Audit log for sensitive billing reads
 --
 -- billing_accounts, subscriptions, and flash_payments hold information
 -- that's not encrypted (Stripe customer ids, subscription plans, payment
 -- amounts) because the billing surface is operationally trusted, NOT
 -- under the ZKA contract. Reading these tables is governed by RLS today,
--- but the SELECT itself leaves no trail — which means we can't answer
+-- but the SELECT itself leaves no trail, which means we can't answer
 -- "who looked at my org's payment history last week?" or notice
 -- anomalous patterns.
 --
 -- This migration introduces:
---   1. public.billing_access_log — append-only record of who accessed
+--   1. public.billing_access_log, append-only record of who accessed
 --      which billing_account, when, and from what client context.
---   2. public.log_billing_access(...) RPC — SECURITY DEFINER, callable
+--   2. public.log_billing_access(...) RPC, SECURITY DEFINER, callable
 --      by any authenticated user. Inserts one row scoped to auth.uid().
 --
 -- The application calls the RPC on every page mount that displays
@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS public.billing_access_log (
   billing_account_id UUID NOT NULL REFERENCES public.billing_accounts(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id),
 
-  -- Plaintext context strings — short, non-sensitive labels:
+  -- Plaintext context strings, short, non-sensitive labels:
   --   'billing_page_view', 'invoice_pdf_open', 'subscription_status_check',
   --   'flash_status_admin_check', etc.
-  -- We DO NOT log full URLs / referrers — those can carry PII.
+  -- We DO NOT log full URLs / referrers, those can carry PII.
   access_context TEXT NOT NULL,
   client_ip INET NULL,
   user_agent TEXT NULL,
@@ -48,7 +48,7 @@ ALTER TABLE public.billing_access_log ENABLE ROW LEVEL SECURITY;
 
 -- Billing account owner can read their own access log.
 -- (Org members who share the billing account via organizations.billing_account_id
--- can also read — same audience as billing_accounts SELECT policy.)
+-- can also read, same audience as billing_accounts SELECT policy.)
 CREATE POLICY "billing_access_log_select_owner" ON public.billing_access_log
   FOR SELECT TO authenticated
   USING (

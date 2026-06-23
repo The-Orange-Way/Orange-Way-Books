@@ -80,7 +80,7 @@ export function jsonResponse(
 
 /**
  * Read the request body as text with a hard size cap. Returns null when the
- * body exceeds MAX_BODY_BYTES — the caller should respond with 413.
+ * body exceeds MAX_BODY_BYTES, the caller should respond with 413.
  *
  * We prefer Content-Length as a fast path but still enforce the cap while
  * streaming in case a client omits the header.

@@ -17,7 +17,7 @@ export type WebhookHeaders = Record<string, string | string[] | null | undefined
 export interface ConstructEventOptions {
   /**
    * Exact bytes of the request body as received, as a UTF-8 string.
-   * MUST NOT be `JSON.parse`d and re-stringified — any whitespace or
+   * MUST NOT be `JSON.parse`d and re-stringified, any whitespace or
    * key-ordering change will invalidate the signature.
    */
   rawBody: string;
@@ -41,7 +41,7 @@ const DEFAULT_TOLERANCE_SECONDS = 300;
 /**
  * Verify the signature on an Orange Rails webhook delivery and return a
  * typed `Event`. Throws `SignatureVerificationError` (or a subclass) on
- * any verification failure — never returns a partially-validated event.
+ * any verification failure, never returns a partially-validated event.
  *
  * Prefers `X-OR-Signature-V2` (Stripe-style `t=<ts>,v1=<hex>`) when
  * present, since v2 prevents replay. Falls back to legacy
@@ -121,7 +121,7 @@ async function verifyV2(args: {
     throw new SignatureVerificationError('X-OR-Signature-V2 did not match expected HMAC.');
   }
 
-  // Only enforce tolerance AFTER signature is valid — the timestamp is
+  // Only enforce tolerance AFTER signature is valid, the timestamp is
   // signed, so we know it wasn't tampered with at this point.
   const skew = Math.abs(args.now() - timestamp);
   if (skew > args.tolerance) {
@@ -197,7 +197,7 @@ function parseEvent(rawBody: string, eventId: string): Event {
   }
 
   // Surface the X-OR-Event-Id as event.id rather than trusting any id
-  // field embedded in the JSON body — the header is what dedupe keys on.
+  // field embedded in the JSON body, the header is what dedupe keys on.
   return {
     id: eventId,
     type: 'sync.completed',

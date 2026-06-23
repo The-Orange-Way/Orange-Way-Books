@@ -61,7 +61,7 @@ create policy "org_update"
 -- org_members ---------------------------------------------------------------
 
 -- Dangerous legacy policy: 'org_members_own' FOR ALL USING (user_id = auth.uid())
--- let any member update or delete their own role row — including an ADMIN
+-- let any member update or delete their own role row, including an ADMIN
 -- demoting themselves to OWNER by re-inserting. Replace with tight rules.
 drop policy if exists "org_members_own" on public.org_members;
 drop policy if exists "members_insert" on public.org_members;
@@ -78,7 +78,7 @@ create policy "org_members_select"
 -- INSERT: either you are creating your own first membership (classic
 -- onboarding flow) OR you are ADMIN/OWNER of the target org. In the OWNER
 -- case the invite-org-member edge function uses the service role, which
--- bypasses RLS — this clause is the defense-in-depth for direct SQL.
+-- bypasses RLS, this clause is the defense-in-depth for direct SQL.
 create policy "org_members_insert"
   on public.org_members
   for insert

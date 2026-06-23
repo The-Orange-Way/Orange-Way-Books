@@ -1,15 +1,15 @@
--- Part 2: Dual-Currency Journal Entry — Schema Migration
+-- Part 2: Dual-Currency Journal Entry, Schema Migration
 --
 -- Adds three-currency (wallet / primary / secondary-derived) support to the
 -- ledger, following IAS 21 / ASC 830. All new encrypted columns follow the
 -- existing ZKA Level-2 pattern: ciphertext stored in TEXT, numeric originals
 -- zeroed so the server never sees real values.
 --
--- Idempotent throughout — safe to run twice on the same database.
+-- Idempotent throughout, safe to run twice on the same database.
 -- Run order matters for FK targets; execute top-to-bottom.
 
 -- ============================================================
--- 1. exchange_rates — add bucketing, status, source_kind
+-- 1. exchange_rates, add bucketing, status, source_kind
 -- ============================================================
 
 -- Bucketed timestamp (UTC): DAY granularity → midnight; 5-min → floor.
@@ -32,7 +32,7 @@ ALTER TABLE public.exchange_rates
 ALTER TABLE public.exchange_rates
   ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
 
--- PENDING rows have null rate — drop the NOT NULL constraint that was on
+-- PENDING rows have null rate, drop the NOT NULL constraint that was on
 -- the original column.  ALTER COLUMN ... DROP NOT NULL is idempotent
 -- (silently succeeds if already nullable).
 do $$ begin
@@ -81,7 +81,7 @@ COMMENT ON COLUMN public.exchange_rates.confirmed_at IS
   'When the rate was confirmed (= fetched_at for auto-fetched; manually set when a PENDING row is resolved).';
 
 -- ============================================================
--- 2. journal_entry_lines — dual-amount encrypted columns
+-- 2. journal_entry_lines, dual-amount encrypted columns
 -- ============================================================
 
 -- 2a. Four new ZKA-encrypted columns (TEXT = base64 AES-GCM ciphertext).
@@ -111,7 +111,7 @@ ALTER TABLE public.journal_entry_lines
   ADD COLUMN IF NOT EXISTS encrypted_wallet_currency TEXT;
 
 -- 2b. Plaintext metadata columns (same privacy baseline as existing date
---     columns — disclosed at ZKA L2 as necessary metadata leakage).
+--     columns, disclosed at ZKA L2 as necessary metadata leakage).
 
 -- FK to the exchange_rates row whose rate was pinned.  NULL for pre-dual
 -- rows and for PENDING rows.
@@ -165,7 +165,7 @@ CREATE INDEX IF NOT EXISTS idx_jel_rate_pending
 -- Backfill dual_amounts_backfilled = true for rows that already have
 -- encrypted_debit populated (pre-dual rows that have been encrypted at
 -- L2 but not yet dual-amount-aware).  These rows are NOT backfilled for
--- amounts yet — just marked so the backfill page knows they're pre-dual.
+-- amounts yet, just marked so the backfill page knows they're pre-dual.
 -- (The backfill page will set them back to false before processing.)
 -- NOTE: intentionally left as false for all rows so the admin page can
 -- process them properly; this comment documents the decision.
@@ -194,7 +194,7 @@ COMMENT ON COLUMN public.journal_entry_lines.manual_rate_source IS
   'Non-null only when rate was entered manually. Source identifier (e.g. "OANDA.com", "CPA-quoted").';
 
 -- ============================================================
--- 3. org_primary_currency_history — audit log for primary
+-- 3. org_primary_currency_history, audit log for primary
 --    currency changes
 -- ============================================================
 
@@ -287,7 +287,7 @@ COMMENT ON TABLE public.org_primary_currency_history IS
   'Audit log of every primary-currency change for an org. Rows are immutable after insert. Used to determine primary_currency_at_posting for historical JE lines.';
 
 -- ============================================================
--- 4. org_settings — FX translation method + accounting
+-- 4. org_settings, FX translation method + accounting
 --    framework
 -- ============================================================
 
@@ -312,7 +312,7 @@ COMMENT ON COLUMN public.org_settings.accounting_framework IS
   'IFRS | US_GAAP | IFRS_AND_GAAP. Controls revaluation rules, disclosure language, and export audit footer. See OWB-MultiCurrency-Brain.md §8.';
 
 -- ============================================================
--- 5. fx_revaluation_runs — period-close revaluation audit log
+-- 5. fx_revaluation_runs, period-close revaluation audit log
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS public.fx_revaluation_runs (

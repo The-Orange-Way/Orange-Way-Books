@@ -280,7 +280,7 @@ export function ImportPopup({
                           row.data[c.toLowerCase().replace(/ /g, ' ')] |
                           row.data[c.toLowerCase()] |
                           row.data[c] |
-                          '—';
+                          '-';
                         return (
                           <td
                             key={c}

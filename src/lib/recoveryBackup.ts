@@ -1,9 +1,9 @@
 /**
- * S8 — printable / save-as-PDF recovery code backup.
+ * S8, printable / save-as-PDF recovery code backup.
  *
  * The native browser print pipeline is the smallest way to ship a PDF:
  *   1. open a new window with a print-styled HTML page
- *   2. trigger window.print() — user picks "Save as PDF" or sends to printer
+ *   2. trigger window.print(), user picks "Save as PDF" or sends to printer
  *
  * No new dependencies. Works in Chrome, Firefox, Safari, Edge.
  *
@@ -62,7 +62,7 @@ export function openRecoveryBackup({
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Orange Way Books — Recovery Code Backup</title>
+  <title>Orange Way Books, Recovery Code Backup</title>
   <style>
     @media print { @page { margin: 0.6in; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif; color: #111; max-width: 720px; margin: 32px auto; padding: 0 16px; line-height: 1.45; }
@@ -92,7 +92,7 @@ export function openRecoveryBackup({
     <button onclick="window.print()">Print / Save PDF</button>
   </div>
 
-  <h1>Orange Way Books — Recovery Code Backup</h1>
+  <h1>Orange Way Books, Recovery Code Backup</h1>
   <div class="meta">
     Organization: <strong>${orgLabel}</strong><br />
     Generated: ${esc(dateLabel)}
@@ -109,13 +109,13 @@ export function openRecoveryBackup({
     <b>Treat this paper like a key to your safe.</b>
     Anyone who has these 12 words can unlock your books without your vault password.
     If you lose this paper <em>and</em> forget your vault password, your encrypted data
-    cannot be recovered — Orange Way Books does not hold a copy and cannot reset it for you.
+    cannot be recovered, Orange Way Books does not hold a copy and cannot reset it for you.
     Do not photograph, email, or store this in cloud notes.
   </div>
 
   <div class="footer">
     <p>Store this sheet in a safe, deposit box, fireproof folder, or with a trusted custodian.</p>
-    <p>If you ever generate a new recovery code, this one stops working immediately — shred this paper.</p>
+    <p>If you ever generate a new recovery code, this one stops working immediately, shred this paper.</p>
   </div>
 
   <script>

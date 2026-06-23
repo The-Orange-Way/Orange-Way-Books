@@ -1,5 +1,5 @@
 /**
- * Phase 4.5 — Hard re-key client library.
+ * Phase 4.5, Hard re-key client library.
  *
  * Drives resumable key-rotation jobs end-to-end in the browser. The server
  * owns state (status, row counts, error log), we own crypto (new DEK +
@@ -36,7 +36,7 @@
  *     old DEK client-side, then POSTs the revert batch).
  *   - After complete (within rollback window): active_key_versions
  *     flipped back. Old wraps are still present because the 30-day
- *     purge hasn't fired — emergency rollback is a pointer flip only.
+ *     purge hasn't fired, emergency rollback is a pointer flip only.
  *
  * ── Customer copy ────────────────────────────────────────────────────
  *
@@ -61,14 +61,14 @@ export type RekeyTriggerType = 'first_time_setup' | 'manual' | 'post_revoke';
 /**
  * Quick vs Deep refresh mode.
  *
- *   - 'quick' — version-bump-only fast path. New security codes are
+ *   - 'quick', version-bump-only fast path. New security codes are
  *     generated + wrapped per member; existing row ciphertext stays on
  *     disk but dek_key_version is bumped so future reads pick the new
  *     code. Safe: removed people still can't read future data or forge
  *     writes. This is the default for routine refresh and post-revoke.
  *
- *   - 'deep' — every row is decrypted under the old DEK and re-encrypted
- *     under the new DEK. Maximum protection — even previously-cached
+ *   - 'deep', every row is decrypted under the old DEK and re-encrypted
+ *     under the new DEK. Maximum protection, even previously-cached
  *     ciphertext is meaningless. Use for suspected compromise, audits,
  *     or first-time hardening.
  *
@@ -95,7 +95,7 @@ export interface RekeyCallbacks {
   /**
    * Optional: for `trigger_type='first_time_setup'`, once the job
    * completes we queue a "your organization is secured" email for the
-   * Owner. The client holds the decrypted org name in memory (ZKA — the
+   * Owner. The client holds the decrypted org name in memory (ZKA, the
    * server can't read it). Pass both and we'll hand them to the
    * `queue-admin-email` edge function along with the recipient email
    * (caller's auth email).
@@ -115,7 +115,7 @@ export type RekeyOutcome = 'completed' | 'aborted' | 'rolled_back';
 export type OrgBackupFormat = 'csv' | 'json';
 
 // ---------------------------------------------------------------------------
-// Helpers — base64 + ciphertext re-encrypt primitives
+// Helpers, base64 + ciphertext re-encrypt primitives
 // ---------------------------------------------------------------------------
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -201,7 +201,7 @@ async function reencryptFieldUnderNewDek(
  * lists the base64-AES-GCM text columns on the row whose contents must
  * be migrated. `idColumn` is the row's primary key.
  *
- * The set matches crypto-fields.ts — keep in sync when a new encrypted
+ * The set matches crypto-fields.ts, keep in sync when a new encrypted
  * column is added to a table.
  */
 interface TableRekeyDescriptor {
@@ -361,7 +361,7 @@ const ROWS_PER_SECOND = 600;
  * key_rotation_jobs row, counts rows across business tables, and
  * returns an estimate the UI can show in the 7-step wizard.
  *
- * Does NOT perform any crypto — callers then call runRekeyJob(jobId).
+ * Does NOT perform any crypto, callers then call runRekeyJob(jobId).
  */
 export async function startRekeyJob(
   orgId: string,
@@ -439,7 +439,7 @@ export async function runRekeyJob(
 
   // Fetch the CURRENT active DEK so we can decrypt existing rows. We
   // fetch via the user's own org_keys wrap for the currently-active
-  // key_version — that's the DEK the user already holds in memory.
+  // key_version, that's the DEK the user already holds in memory.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -473,7 +473,7 @@ export async function runRekeyJob(
     await advanceRotation(jobId, 'wrapping_members');
 
     // Build the DEK wraps for every current member. Every member gets a
-    // DEK wrap (Auditor/Viewer included — they need reads; only the signing key is
+    // DEK wrap (Auditor/Viewer included, they need reads; only the signing key is
     // writer-gated).
     const dekWraps = await buildDekWraps(newDek, members, job.new_dek_key_version);
     await submitWrapBatches(
@@ -492,7 +492,7 @@ export async function runRekeyJob(
   // been processed so resume-after-close skips them.
   //
   // Quick refresh: always use the markAllRowsAsNewVersion fast
-  // path — bumps dek_key_version without re-encrypting, so removed
+  // path, bumps dek_key_version without re-encrypting, so removed
   // members are blocked from future data but existing ciphertext stays
   // on disk (readable under the OLD DEK during the rollback window).
   //
@@ -513,7 +513,7 @@ export async function runRekeyJob(
         callbacks,
       );
     } else if (!oldDekKey) {
-      // Deep refresh was requested but the old DEK is unavailable —
+      // Deep refresh was requested but the old DEK is unavailable
       // fall back to the Quick path so first-time-setup on placeholder
       // orgs still makes progress. TODO(Phase 4.5 follow-up): hydrate
       // the hybrid secret key via VaultContext so Deep refresh actually
@@ -540,7 +540,7 @@ export async function runRekeyJob(
     await advanceRotation(jobId, 'finalizing');
   }
 
-  // Finalize stage — atomic pointer flip.
+  // Finalize stage, atomic pointer flip.
   callbacks.onStageChange?.('finalizing');
   const { error: finalizeErr } = await supabase.functions.invoke('finalize-rekey', {
     body: { job_id: jobId },
@@ -587,7 +587,7 @@ export async function runRekeyJob(
  * trigger_type='first_time_setup' jobs.
  *
  * The sender daemon (Resend/Supabase SMTP) is out of scope for this
- * polish pass — the queue table holds messages until the dispatcher wires the
+ * polish pass, the queue table holds messages until the dispatcher wires the
  * actual delivery transport.
  */
 async function queueFirstTimeSetupEmail(args: {
@@ -654,7 +654,7 @@ export async function abortRekey(jobId: string, reason: string): Promise<void> {
 
 /**
  * Produce a fully-decrypted organization backup. Runs entirely in the
- * browser — the server never sees plaintext. Intended for the
+ * browser, the server never sees plaintext. Intended for the
  * "Download a backup" safety step in the rekey wizard.
  *
  * CSV format: ZIP of one CSV per table + one org.json metadata file.
@@ -783,14 +783,14 @@ async function fetchCurrentDek(orgId: string, userId: string): Promise<Uint8Arra
   if (w.is_placeholder) return null;
 
   // Unwrap via the user's own hybrid secret key. The caller must be in
-  // a state where VaultContext has the hybrid secret key available —
+  // a state where VaultContext has the hybrid secret key available
   // we route through the same unwrap pipeline the signing key uses.
   const strategy = KEY_WRAP_STRATEGIES[w.wrap_algo] ?? KEY_WRAP_STRATEGIES[DEFAULT_WRAP_ALGORITHM];
   if (!strategy) return null;
 
   // The caller is responsible for providing the hybrid secret key via
   // a side-channel if they need true decrypt here. For Phase 4.5 first
-  // rollout the placeholder path is the primary case — when real wraps
+  // rollout the placeholder path is the primary case, when real wraps
   // exist, a follow-up wires the hybrid unwrap. Return null for now so
   // the "mark rows as new version" fast path is chosen.
   //
@@ -815,7 +815,7 @@ async function fetchOrgMembers(orgId: string): Promise<MemberRow[]> {
     .select('user_id, user_vault_keys!inner(public_key_b64)')
     .eq('org_id', orgId);
   if (error) return [];
-  // Cast through unknown — Supabase typegen doesn't currently know about the
+  // Cast through unknown, Supabase typegen doesn't currently know about the
   // org_members → user_vault_keys join, so it returns SelectQueryError on
   // the inner field. The runtime shape is correct.
   return (
@@ -847,7 +847,7 @@ async function filterWriters(orgId: string, members: MemberRow[]): Promise<Write
       writers.push({ userId: m.user_id, publicKeyB64: m.public_key_b64 });
     }
   }
-  // At least one writer required — Owner always has the capability.
+  // At least one writer required, Owner always has the capability.
   if (writers.length === 0 && members.length > 0) {
     // Defensive fallback: include the caller themselves so minting doesn't fail.
     writers.push({ userId: members[0].user_id, publicKeyB64: members[0].public_key_b64 });
@@ -942,7 +942,7 @@ async function fetchAllRows(
   let from = 0;
 
   while (true) {
-    // Cast to any — Supabase typegen can't narrow on a dynamic table name
+    // Cast to any, Supabase typegen can't narrow on a dynamic table name
     // (BUSINESS_TABLES walks several tables in a loop). Runtime is correct.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
@@ -951,7 +951,7 @@ async function fetchAllRows(
       .eq(orgColumn, orgId)
       .range(from, from + pageSize - 1);
     if (error) {
-      // Missing table / permission issue — return what we have.
+      // Missing table / permission issue, return what we have.
       return out;
     }
     const rows = (data as Record<string, unknown>[] | null) ?? [];

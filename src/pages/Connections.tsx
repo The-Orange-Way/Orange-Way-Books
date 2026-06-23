@@ -64,7 +64,7 @@ const SUBACCOUNT_LS_PREFIX = 'or_subaccount_id_for_org_';
  * Stored as a JSON-encoded string array; entries are added on connection
  * create and removed once or-source-wallets-set succeeds. The current
  * implementation also shows a "Configure wallets" button on ANY connection
- * with zero source_wallets — the localStorage flag just lets us style the
+ * with zero source_wallets, the localStorage flag just lets us style the
  * incomplete ones distinctly.
  */
 const INCOMPLETE_CONNECTIONS_LS_PREFIX = 'or_incomplete_connections_for_org_';
@@ -87,7 +87,7 @@ function writeIncompleteSet(orgId: string | null, set: Set<string>): void {
   try {
     localStorage.setItem(INCOMPLETE_CONNECTIONS_LS_PREFIX + orgId, JSON.stringify(Array.from(set)));
   } catch {
-    /* swallow quota errors — incomplete tracking is a UX hint, not load-bearing */
+    /* swallow quota errors, incomplete tracking is a UX hint, not load-bearing */
   }
 }
 
@@ -106,7 +106,7 @@ interface ConnectionRow {
   status: 'active' | 'error' | 'disconnected';
   last_sync_at: string | null;
   encrypted_last_error: string | null;
-  /** Phase 3: per-wallet sync selection — empty for legacy connections. */
+  /** Phase 3: per-wallet sync selection, empty for legacy connections. */
   source_wallets?: RawSourceWallet[];
   // Decrypted client-side after fetch.
   decrypted_label?: string | null;
@@ -135,7 +135,7 @@ const PROVIDERS = [
     steps: [
       'Sign in to the Blink dashboard.',
       'Go to Settings → API keys (or use the link above).',
-      'Create a new key with read-only access — we only need to read your transactions.',
+      'Create a new key with read-only access, we only need to read your transactions.',
       'Copy the key and paste it below before it disappears (Blink only shows it once).',
     ],
   },
@@ -213,7 +213,7 @@ export default function Connections() {
   } = useVault();
 
   const [orgId, setOrgId] = useState<string | null>(null);
-  // Capability gate — UI presence only; RLS still authoritative on writes.
+  // Capability gate, UI presence only; RLS still authoritative on writes.
   const canWriteConnectors = useCapability('connectors.write', orgId);
   const [subaccountId, setSubaccountId] = useState<string | null>(null);
   const [connections, setConnections] = useState<ConnectionRow[]>([]);
@@ -226,7 +226,7 @@ export default function Connections() {
   // TransactionList refetches its rows.
   const [txRefreshKeys, setTxRefreshKeys] = useState<Record<string, number>>({});
 
-  // Phase 3 — wallet picker / destination mapping state.
+  // Phase 3, wallet picker / destination mapping state.
   const [walletPicker, setWalletPicker] = useState<{
     connectionId: string;
     providerType: string;
@@ -245,14 +245,14 @@ export default function Connections() {
   /** Org primary currency, needed by the bridge to compose dual-currency JEs. */
   const [primaryCurrency, setPrimaryCurrency] = useState<string>('USD');
   /**
-   * Per-connection bridge progress flag — drives the "Importing…" badge on
+   * Per-connection bridge progress flag, drives the "Importing…" badge on
    * the connection card so the user sees the second phase of "Sync now"
    * (OR-side fetch → OWB import) explicitly.
    */
   const [bridgingId, setBridgingId] = useState<string | null>(null);
   /** Connection ids where the user opened the picker but never completed it. */
   const [incompleteConnIds, setIncompleteConnIds] = useState<Set<string>>(new Set());
-  /** Branded delete confirmation — controlled state, replaces window.confirm. */
+  /** Branded delete confirmation, controlled state, replaces window.confirm. */
   const [deleteTarget, setDeleteTarget] = useState<ConnectionRow | null>(null);
 
   // Resolve org + subaccount on mount.
@@ -298,7 +298,7 @@ export default function Connections() {
   // metadata (currency, label) on each connection's source_wallets.
   const refreshList = useCallback(async () => {
     if (!subaccountId || !isUnlocked) {
-      // No subaccount yet (still provisioning or vault locked) — drop the
+      // No subaccount yet (still provisioning or vault locked), drop the
       // initial loading state so the empty-state card can render. Without
       // this, the page sat on "Loading…" forever for fresh accounts.
       setLoading(false);
@@ -395,9 +395,7 @@ export default function Connections() {
           // treated as completed (matches the DB default).
           switch (payload.new?.status ?? 'completed') {
             case 'failed':
-              toast.error(
-                'Orange Rails reported a sync failure — open the connection for details.',
-              );
+              toast.error('Orange Rails reported a sync failure, open the connection for details.');
               break;
             case 'deleted':
               toast.info('A connection was removed on the Orange Rails side.');
@@ -418,7 +416,7 @@ export default function Connections() {
   // connection list. Both feed the badges + the routing resolution used by
   // TransactionList. NOTE: `accountLookup` historically pointed at
   // chart_of_accounts; the bug fix routes destinations to the `wallets` table
-  // instead. We keep the variable name for minimal blast radius — it now
+  // instead. We keep the variable name for minimal blast radius, it now
   // holds wallets.id → wallet name.
   const refreshMappingsAndAccounts = useCallback(async () => {
     if (!orgId || !isUnlocked) return;
@@ -447,7 +445,7 @@ export default function Connections() {
               asset: fields.asset,
             });
           } catch {
-            /* non-fatal — name will render as "(unrouted)" placeholder. Most
+            /* non-fatal, name will render as "(unrouted)" placeholder. Most
              * commonly seen for orphaned mapping rows from the broken Phase 3
              * attempt that pointed at chart_of_accounts.id values. The user
              * fixes by re-running the picker via "Edit mapping" /
@@ -461,7 +459,7 @@ export default function Connections() {
     }
 
     // Primary currency for the bridge's dual-currency JE composition. Default
-    // to USD if org_settings is missing or undecryptable — the bridge falls
+    // to USD if org_settings is missing or undecryptable, the bridge falls
     // back to "rate pending" lines automatically.
     try {
       const { data: sData } = await supabase
@@ -501,7 +499,7 @@ export default function Connections() {
       .filter((w) => w.is_synced)
       .map((w) => {
         const accountIds = lookupRouting(mappingIndex, conn.id, w.external_wallet_id);
-        // 1:1 default — if multiple mappings exist, render the first; the
+        // 1:1 default, if multiple mappings exist, render the first; the
         // user can review the full set in the Edit Mapping dialog.
         const firstId = accountIds[0];
         const accountName = firstId ? (accountLookup.byId.get(firstId) ?? null) : null;
@@ -536,15 +534,15 @@ export default function Connections() {
       encrypted_label,
       encrypted_credentials,
     })) as { connection_id?: string };
-    toast.success('Connection added — your API key is encrypted and stored only as ciphertext.');
+    toast.success('Connection added, your API key is encrypted and stored only as ciphertext.');
     await refreshList();
 
-    // Phase 3 — discover wallets so the user can pick which to sync. Discovery
+    // Phase 3, discover wallets so the user can pick which to sync. Discovery
     // failure is non-fatal: the connection still works in legacy account-wide
     // mode, we just surface a warning toast.
     const newConnectionId = created?.connection_id;
     if (!newConnectionId) {
-      toast.warning('Connection saved but discovery skipped — wallet picker unavailable.');
+      toast.warning('Connection saved but discovery skipped, wallet picker unavailable.');
       return;
     }
 
@@ -577,13 +575,13 @@ export default function Connections() {
     } catch (err) {
       console.warn('[Connections] discovery failed', err);
       toast.warning(
-        'Connection saved. Wallet discovery failed — sync will pull all account transactions until you retry.',
+        'Connection saved. Wallet discovery failed, sync will pull all account transactions until you retry.',
       );
     }
   }
 
   /**
-   * Phase 3 — encrypt each picked wallet's metadata with ORK in the browser,
+   * Phase 3, encrypt each picked wallet's metadata with ORK in the browser,
    * then send the selection to or-source-wallets-set. On success, refresh and
    * advance to the destination-account picker.
    */
@@ -613,7 +611,7 @@ export default function Connections() {
       source_wallets: payloadWallets,
     });
 
-    // Clear incomplete-setup tracking — user finished the picker step.
+    // Clear incomplete-setup tracking, user finished the picker step.
     setIncompleteConnIds((prev) => {
       if (!prev.has(walletPicker.connectionId)) return prev;
       const next = new Set(prev);
@@ -625,7 +623,7 @@ export default function Connections() {
     const syncedSelections = selections.filter((s) => s.is_synced);
     toast.success(
       syncedSelections.length === 0
-        ? 'Wallet selection saved — sync paused until you re-open the picker.'
+        ? 'Wallet selection saved, sync paused until you re-open the picker.'
         : `Wallet selection saved (${syncedSelections.length} active).`,
     );
 
@@ -635,7 +633,7 @@ export default function Connections() {
 
     if (syncedSelections.length === 0) return;
 
-    // Step B — open the destination-account picker for the just-selected wallets.
+    // Step B, open the destination-account picker for the just-selected wallets.
     setDestPicker({
       connectionId,
       sourceWallets: syncedSelections.map((s) => ({
@@ -649,11 +647,11 @@ export default function Connections() {
 
   function handleSkipWalletPicks() {
     setWalletPicker(null);
-    toast.info('No wallets configured — sync will pull all account transactions until you retry.');
+    toast.info('No wallets configured, sync will pull all account transactions until you retry.');
   }
 
   /**
-   * Phase 3 — persist destination mappings to connection_account_map.
+   * Phase 3, persist destination mappings to connection_account_map.
    * encrypted_account_id is AES-256-GCM (vault MEK) over the chart_of_accounts.id.
    */
   async function handleSaveDestinations(
@@ -667,14 +665,14 @@ export default function Connections() {
       encryptText,
     });
     setDestPicker(null);
-    toast.success('Destination mapping saved — synced transactions will route here.');
+    toast.success('Destination mapping saved, synced transactions will route here.');
     await refreshMappingsAndAccounts();
   }
 
   function handleSkipDestinations() {
     setDestPicker(null);
     toast.info(
-      'Destination mapping skipped — synced transactions will show as unrouted until you set it.',
+      'Destination mapping skipped, synced transactions will show as unrouted until you set it.',
     );
   }
 
@@ -682,7 +680,7 @@ export default function Connections() {
   function handleEditMapping(conn: ConnectionRow) {
     const synced = (conn.decrypted_source_wallets ?? []).filter((w) => w.is_synced);
     if (synced.length === 0) {
-      // No source_wallets configured — fall through to the discovery-based
+      // No source_wallets configured, fall through to the discovery-based
       // resume flow. This typically means the user closed the picker before
       // finishing setup (intentionally or accidentally).
       void handleConfigureWallets(conn);
@@ -707,7 +705,7 @@ export default function Connections() {
    */
   async function handleConfigureWallets(conn: ConnectionRow) {
     if (!subaccountId) {
-      toast.error('OrangeRails not ready yet — try again in a moment.');
+      toast.error('OrangeRails not ready yet, try again in a moment.');
       return;
     }
     try {
@@ -763,7 +761,7 @@ export default function Connections() {
       setTxRefreshKeys((prev) => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
       await refreshList();
 
-      // Phase 5 — bridge OR-side rows into the OWB wallet ledger + JE pair.
+      // Phase 5, bridge OR-side rows into the OWB wallet ledger + JE pair.
       // We always run the bridge (even if `synced === 0`) because the user may
       // have just configured a destination mapping AFTER previously syncing,
       // in which case earlier-fetched rows still need to be imported. The
@@ -780,7 +778,7 @@ export default function Connections() {
   }
 
   /**
-   * Phase 5 bridge — fetch+decrypt this connection's OR transactions, then
+   * Phase 5 bridge, fetch+decrypt this connection's OR transactions, then
    * fan them out to OWB's `transactions` table and a balanced JE pair via
    * importOrTransactionsToV3.
    *
@@ -798,7 +796,7 @@ export default function Connections() {
       // Cursor: send the earliest `last_or_synced_at` across this
       // connection's mappings as `since` so OR can skip already-imported
       // transactions server-side once it accepts the parameter. Until OR
-      // adopts it, the param is ignored and the response is unchanged —
+      // adopts it, the param is ignored and the response is unchanged
       // dedup still happens client-side via the pre-batch lookup added in
       // an earlier change. The bridge writes a new cursor after a successful import
       // in a follow-up PR.
@@ -858,11 +856,11 @@ export default function Connections() {
         );
       } else if (result.unrouted > 0 && result.duplicates === 0) {
         toast.info(
-          `${result.unrouted} OR transaction${result.unrouted === 1 ? '' : 's'} await mapping — open Edit mapping to route them.`,
+          `${result.unrouted} OR transaction${result.unrouted === 1 ? '' : 's'} await mapping, open Edit mapping to route them.`,
         );
       } else if (result.errors.length > 0) {
         toast.warning(
-          `Bridge completed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'} — see console.`,
+          `Bridge completed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}, see console.`,
         );
       }
       if (result.errors.length > 0) {
@@ -882,7 +880,7 @@ export default function Connections() {
   }
 
   /**
-   * Delete request — shows the branded confirmation dialog. Actual delete
+   * Delete request, shows the branded confirmation dialog. Actual delete
    * runs via confirmDelete() once the user clicks the destructive action.
    */
   function handleDelete(conn: ConnectionRow) {
@@ -928,7 +926,7 @@ export default function Connections() {
         <div>
           <h1 className="text-2xl font-semibold">Connections</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sync your Bitcoin accounts via OrangeRails — wallets, exchanges, payment processors,
+            Sync your Bitcoin accounts via OrangeRails, wallets, exchanges, payment processors,
             mining pools. Zero-knowledge: your credentials are never readable by anyone but you.
           </p>
         </div>
@@ -997,7 +995,7 @@ export default function Connections() {
                     }>;
                   };
                   // OR returns transactions across the subaccount when no
-                  // server-side connection_id filter is honored — filter client-side
+                  // server-side connection_id filter is honored, filter client-side
                   // to be safe so each card only shows its own rows.
                   return (res.transactions ?? []).filter((t) => t.connection_id === c.id);
                 }}
@@ -1013,7 +1011,7 @@ export default function Connections() {
         <div className="flex items-center gap-2">
           <KeyRound className="w-3 h-3 shrink-0" />
           <span>
-            Your vault password derives the encryption keys in your browser — never sent anywhere.
+            Your vault password derives the encryption keys in your browser, never sent anywhere.
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1098,7 +1096,7 @@ function ConnectionCard({
   canWrite,
 }: {
   conn: ConnectionRow;
-  /** UI capability gate for connectors.write — hides edit/delete/configure
+  /** UI capability gate for connectors.write, hides edit/delete/configure
    *  buttons when the calling user lacks the cap. RLS is still authoritative. */
   canWrite: boolean;
   syncing: boolean;
@@ -1117,7 +1115,7 @@ function ConnectionCard({
   /**
    * Resolve a source_wallet_id to its destination OWB wallets.id (or null if
    * unrouted). TransactionList uses this to scope its "in ledger" badge
-   * lookup — it queries transactions filtered to the destination wallet ids
+   * lookup, it queries transactions filtered to the destination wallet ids
    * that this connection's mappings point at.
    */
   resolveDestinationWalletId: (sourceWalletId: string | null | undefined) => string | null;
@@ -1203,7 +1201,7 @@ function ConnectionCard({
               Edit mapping
             </Button>
           )}
-          {/* Bug #3 — Resume partial setup: any connection with no
+          {/* Bug #3, Resume partial setup: any connection with no
               source_wallets gets an explicit "Configure wallets" entry point.
               Setup-incomplete (localStorage-tracked) connections get a
               continue-style label; legacy / never-configured ones get the
@@ -1313,7 +1311,7 @@ function AddConnectionDialog({
     <Dialog
       open
       onOpenChange={() => {
-        /* close only via explicit Cancel — protect partially-typed credentials */
+        /* close only via explicit Cancel, protect partially-typed credentials */
       }}
     >
       <DialogContent

@@ -288,7 +288,7 @@ export default function MasterRecovery() {
         </h1>
         <p className="text-sm text-muted-foreground">
           A single 12-word phrase that unlocks <strong>every organization</strong> you belong to.
-          Optional — your per-org recovery codes still work independently.
+          Optional, your per-org recovery codes still work independently.
         </p>
       </div>
 
@@ -308,7 +308,7 @@ export default function MasterRecovery() {
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-medium mb-1">
-                This adds a recovery path — it doesn't replace per-org codes.
+                This adds a recovery path, it doesn't replace per-org codes.
               </p>
               <p>
                 Per-org recovery codes still work for their specific org. The master code is an
@@ -446,7 +446,7 @@ export default function MasterRecovery() {
             </Button>
           </div>
           <Button className="w-full" onClick={handleStartVerify}>
-            I have saved it — verify
+            I have saved it, verify
           </Button>
         </section>
       )}
