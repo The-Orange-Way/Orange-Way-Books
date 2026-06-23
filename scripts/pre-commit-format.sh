@@ -52,11 +52,15 @@ if [ ${#CHANGED[@]} -gt 0 ]; then
 fi
 
 # Em-dash gate. Scans the staged diff (additions only) for U+2014.
-# Skip the leak scanner itself: scripts/pre-publish-scan.sh contains a
-# regex string that intentionally matches the em-dash character to flag
-# it elsewhere; that's the one legitimate site.
+# Skip files that DEFINE the em-dash rule itself; they have to contain
+# the character to document it. Update this allow-list (here and in
+# scripts/pre-push-gate.sh) if a new house-style doc lands.
 EM_DASH_HITS=$(
-  git diff --cached -U0 -- ':(exclude)scripts/pre-publish-scan.sh' \
+  git diff --cached -U0 \
+    -- ':(exclude)scripts/pre-publish-scan.sh' \
+    ':(exclude)scripts/pre-commit-format.sh' \
+    ':(exclude)scripts/pre-push-gate.sh' \
+    ':(exclude)CONTRIBUTING.md' \
     | grep -E '^\+' \
     | grep -nE '—|&mdash;' \
     || true
