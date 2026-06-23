@@ -444,7 +444,7 @@ function CreateWalletInlineDialog({
     setError(null);
     setSubmitting(true);
     try {
-      const balance = parseFloat(openingBalanceStr) || 0;
+      const balance = parseFloat(openingBalanceStr) | 0;
 
       // Encrypted insert — same path Accounts.tsx uses for user-created wallets,
       // tagged with connection_type='orangerails' so we can later distinguish

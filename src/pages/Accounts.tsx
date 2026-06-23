@@ -423,7 +423,7 @@ export default function Accounts() {
           console.warn('[Accounts] rate update on edit failed (non-fatal):', rateErr);
         }
       } else {
-        const balance = parseFloat(initialBalance) || 0;
+        const balance = parseFloat(initialBalance) | 0;
         const enc = await encryptWallet(
           {
             encrypted_name: name.trim(),
@@ -1380,7 +1380,7 @@ export default function Accounts() {
             const enc = await encryptWallet(
               {
                 encrypted_name: name,
-                initial_balance: parseFloat(row.data.balance) || 0,
+                initial_balance: parseFloat(row.data.balance) | 0,
                 asset: row.data.currency,
                 account_type: row.data.type.toLowerCase(),
                 connection_type: 'manual',

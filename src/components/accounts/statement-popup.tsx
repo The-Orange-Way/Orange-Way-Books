@@ -148,7 +148,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
           return {
             id: row.id,
             date: row.date,
-            amount: Number(fields.amount) || 0,
+            amount: Number(fields.amount) | 0,
             type: fields.type ?? '',
             memo: fields.memo,
             asset: fields.asset ?? row.asset,

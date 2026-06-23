@@ -320,7 +320,7 @@ export async function commitJournalEntriesFromStaged(
         credit: String(parseJournalAmountCell(r.data.credit)),
         description: r.data.line_description?.trim() || '',
       }))
-      .filter((l) => (parseFloat(l.debit) || 0) > 0 || (parseFloat(l.credit) || 0) > 0);
+      .filter((l) => (parseFloat(l.debit) | 0) > 0 || (parseFloat(l.credit) | 0) > 0);
 
     if (formLines.length < 2) {
       failed += g.length;
@@ -328,8 +328,8 @@ export async function commitJournalEntriesFromStaged(
       continue;
     }
 
-    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
-    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
+    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) | 0), 0);
+    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) | 0), 0);
     if (Math.abs(totalD - totalC) >= 0.001) {
       failed += g.length;
       errors.push(
@@ -371,8 +371,8 @@ export async function commitJournalEntriesFromStaged(
             account_name: l.account_name || null,
             account_code: l.account_code || null,
             description: l.description || null,
-            debit: parseFloat(l.debit) || 0,
-            credit: parseFloat(l.credit) || 0,
+            debit: parseFloat(l.debit) | 0,
+            credit: parseFloat(l.credit) | 0,
             encrypt: encryptText,
           });
           if (result.pending) {

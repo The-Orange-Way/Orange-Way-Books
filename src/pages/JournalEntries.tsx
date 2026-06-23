@@ -291,8 +291,8 @@ function annotateLines(
       ...line,
       accountType: toCanonicalType(acct?.account_type),
       accountId: acct?.id ?? line.account_name,
-      debitNum: parseFloat(line.debit) || 0,
-      creditNum: parseFloat(line.credit) || 0,
+      debitNum: parseFloat(line.debit) | 0,
+      creditNum: parseFloat(line.credit) | 0,
     });
   }
   return out;
@@ -685,7 +685,7 @@ export default function JournalEntries() {
     const totals: Record<string, number> = {};
     entries.forEach((e) => {
       const elines = lines[e.id] || [];
-      totals[e.id] = elines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+      totals[e.id] = elines.reduce((s, l) => s + (Number(l.debit) | 0), 0);
     });
     return totals;
   }, [entries, lines]);
@@ -908,8 +908,8 @@ export default function JournalEntries() {
     setModalOpen(true);
   };
 
-  const totalDebits = fLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
-  const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
+  const totalDebits = fLines.reduce((s, l) => s + (parseFloat(l.debit) | 0), 0);
+  const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) | 0), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.001 && totalDebits > 0;
 
   // Lock date check whenever date changes
@@ -976,8 +976,8 @@ export default function JournalEntries() {
     const acct = accountsByName.get(line.account_name.toLowerCase());
     const acctType = acct ? normalizeAccountType(acct.account_type) : null;
     const isDebitNormal = !acctType || acctType === 'ASSET' || acctType === 'EXPENSE';
-    const d = parseFloat(line.debit) || 0;
-    const c = parseFloat(line.credit) || 0;
+    const d = parseFloat(line.debit) | 0;
+    const c = parseFloat(line.credit) | 0;
     if (d > 0) return isDebitNormal ? d.toString() : (-d).toString();
     if (c > 0) return isDebitNormal ? (-c).toString() : c.toString();
     return '';
@@ -1022,8 +1022,8 @@ export default function JournalEntries() {
                 account_name: l.account_name || null,
                 account_code: l.account_code || null,
                 description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
+                debit: parseFloat(l.debit) | 0,
+                credit: parseFloat(l.credit) | 0,
               });
               return { journal_entry_id: editingEntry.id, ...enc };
             }),
@@ -1064,8 +1064,8 @@ export default function JournalEntries() {
                 account_name: l.account_name || null,
                 account_code: l.account_code || null,
                 description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
+                debit: parseFloat(l.debit) | 0,
+                credit: parseFloat(l.credit) | 0,
               });
               return { journal_entry_id: (je as any).id, ...enc };
             }),
