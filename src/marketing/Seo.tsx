@@ -2,7 +2,7 @@ import { Helmet } from 'react-helmet-async';
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from './seo';
 
 interface SeoProps {
-  /** Page title, appended to ", Orange Way Books" automatically. */
+  /** Page title, appended to " | Orange Way Books" automatically. */
   title?: string;
   /** Meta description (≤160 chars). Falls back to site default. */
   description?: string;
@@ -30,8 +30,8 @@ export function Seo({
   isArticle = false,
 }: SeoProps) {
   const fullTitle = title
-    ? `${title}, ${SITE_NAME}`
-    : `${SITE_NAME}, Zero-Knowledge Bitcoin Accounting`;
+    ? `${title} | ${SITE_NAME}`
+    : `${SITE_NAME} | Zero-Knowledge Bitcoin Accounting`;
   const url = `${SITE_URL}${path}`;
   const fullImage = image.startsWith('http') ? image : `${SITE_URL}${image}`;
   const ldArray = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];

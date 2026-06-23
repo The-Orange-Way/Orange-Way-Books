@@ -220,7 +220,7 @@ export default function CompareStub() {
               <Row
                 cap="Category"
                 us="Zero-knowledge Bitcoin-native ledger"
-                them={profile?.category ?? '-'}
+                them={profile?.category ?? 'n/a'}
               />
               <Row
                 cap="Zero-knowledge encryption"
@@ -230,20 +230,20 @@ export default function CompareStub() {
               <Row
                 cap="Native Bitcoin / sats"
                 us="Yes, first-class currency"
-                them={profile?.bitcoinSupport ?? '-'}
+                them={profile?.bitcoinSupport ?? 'n/a'}
               />
-              <Row cap="Double-entry ledger" us="Yes" them={profile?.doubleEntry ?? '-'} />
+              <Row cap="Double-entry ledger" us="Yes" them={profile?.doubleEntry ?? 'n/a'} />
               <Row
                 cap="IFRS & US GAAP"
                 us="Yes, both, per-org switchable"
-                them={profile?.ifrsGaap ?? '-'}
+                them={profile?.ifrsGaap ?? 'n/a'}
               />
               <Row cap="Open source" us="Yes, Apache-2.0" them={profile?.openSource ?? 'No'} />
               <Row cap="Self-hostable" us="Yes" them={profile?.selfHostable ?? 'No'} />
               <Row
                 cap="Pricing"
                 us="Free for individuals; team tier on roadmap"
-                them={profile?.pricing ?? '-'}
+                them={profile?.pricing ?? 'n/a'}
               />
               <Row
                 cap="Vendor can read your books"

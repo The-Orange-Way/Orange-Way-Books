@@ -77,17 +77,17 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
 export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   {
     path: '/',
-    title: 'Orange Way Books, Zero-Knowledge Bitcoin Accounting',
+    title: 'Orange Way Books | Zero-Knowledge Bitcoin Accounting',
     description:
       'Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free.',
-    h1: 'Orange Way Books, Zero-Knowledge Bitcoin Accounting',
+    h1: 'Orange Way Books | Zero-Knowledge Bitcoin Accounting',
     summary:
       'Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed. Multi-currency BTC and fiat with historical exchange rates. Real server-side double-entry ledger. IFRS and US GAAP. Capability-based RBAC. ML-DSA-65 post-quantum signing keys. Full data takeout. Self-hostable.',
     jsonLd: [breadcrumb([{ name: 'Home', path: '/' }])],
   },
   {
     path: '/features',
-    title: 'Features, Orange Way Books',
+    title: 'Features | Orange Way Books',
     description:
       'Zero-knowledge encryption, Bitcoin-native multi-currency ledger, double-entry, IFRS/GAAP, RBAC, post-quantum signing, full data takeout.',
     h1: 'Orange Way Books Features',
@@ -102,7 +102,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/security',
-    title: 'Security & Zero-Knowledge Architecture, Orange Way Books',
+    title: 'Security & Zero-Knowledge Architecture | Orange Way Books',
     description:
       'How Orange Way Books makes it cryptographically impossible for the vendor to read your books: Argon2id, AES-GCM, ML-DSA-65, envelope encryption.',
     h1: 'Security & Zero-Knowledge Architecture',
@@ -117,7 +117,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/pricing',
-    title: 'Pricing, Orange Way Books',
+    title: 'Pricing | Orange Way Books',
     description:
       'Free for individuals. Free to self-host. Apache-2.0 licensed. Paid team tier on roadmap.',
     h1: 'Pricing',
@@ -132,7 +132,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/faq',
-    title: 'FAQ, Orange Way Books',
+    title: 'FAQ | Orange Way Books',
     description:
       'Answers about zero-knowledge encryption, Bitcoin-native accounting, IFRS/GAAP, self-hosting, comparisons to QuickBooks, Xero, Bitwave, and Cryptio.',
     h1: 'Frequently Asked Questions',
@@ -155,7 +155,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/about',
-    title: 'About, Orange Way Books',
+    title: 'About | Orange Way Books',
     description:
       'Why Orange Way Books exists: Bitcoin businesses cannot accept a vendor reading their books in the clear.',
     h1: 'About Orange Way Books',
@@ -170,7 +170,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/contact',
-    title: 'Contact, Orange Way Books',
+    title: 'Contact | Orange Way Books',
     description:
       'Get in touch with the Orange Way Books team. Open-source project, issues and PRs welcome on GitHub.',
     h1: 'Contact',
@@ -185,7 +185,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/compare',
-    title: 'Compare Orange Way Books, vs QuickBooks, Xero, Bitwave, Cryptio',
+    title: 'Compare Orange Way Books vs QuickBooks, Xero, Bitwave, Cryptio',
     description:
       'Side-by-side comparisons of Orange Way Books vs the leading SMB and crypto accounting tools.',
     h1: 'Compare Orange Way Books',
@@ -200,7 +200,7 @@ export const PUBLIC_ROUTES: PublicRouteMeta[] = [
   },
   {
     path: '/docs',
-    title: 'Docs, Orange Way Books',
+    title: 'Docs | Orange Way Books',
     description:
       'Curated documentation: architecture, data flow, zero-knowledge guide, multi-currency brain, ops guide, roadmap.',
     h1: 'Documentation',

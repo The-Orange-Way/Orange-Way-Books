@@ -39,9 +39,9 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 ## Why this exists
 
-> _"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization, and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations. The computer can be used as a tool to liberate and protect people, rather than to control them."_
+> _"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization (and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations). The computer can be used as a tool to liberate and protect people, rather than to control them."_
 >
-> **Hal Finney**, cypherpunks mailing list, November 1992
+> &nbsp;&nbsp;&nbsp;&nbsp;_Hal Finney, cypherpunks mailing list, November 1992_
 
 Thirty-four years later, every mainstream business-accounting product still operates the way Finney warned against.
 
