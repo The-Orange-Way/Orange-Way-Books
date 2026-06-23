@@ -48,11 +48,11 @@ function mapDateFormat(raw: string | null): OrgFormattingSettings['dateFormat'] 
 }
 
 function mapTimeFormat(raw: string | null): '12' | '24' {
-  return (raw === 'TWENTY_FOUR_HOUR') | (raw === '24') ? '24' : '12';
+  return raw === 'TWENTY_FOUR_HOUR' || raw === '24' ? '24' : '12';
 }
 
 function mapNumberFormat(raw: string | null): 'US' | 'EU' {
-  return (raw === 'EU_INTERNATIONAL') | (raw === 'eu') | (raw === 'EU') ? 'EU' : 'US';
+  return raw === 'EU_INTERNATIONAL' || raw === 'eu' || raw === 'EU' ? 'EU' : 'US';
 }
 
 export function useOrgSettings(): { settings: OrgFormattingSettings; loading: boolean } {
@@ -83,18 +83,18 @@ export function useOrgSettings(): { settings: OrgFormattingSettings; loading: bo
       if (!active) return;
 
       setSettings({
-        primaryCurrency: dec.primary_currency?.toUpperCase() | 'USD',
-        secondaryCurrency: dec.secondary_currency?.toUpperCase() | null,
-        bitcoinDisplayPreference: (dec.bitcoin_display as BitcoinDisplay) | 'sats',
+        primaryCurrency: dec.primary_currency?.toUpperCase() || 'USD',
+        secondaryCurrency: dec.secondary_currency?.toUpperCase() || null,
+        bitcoinDisplayPreference: (dec.bitcoin_display as BitcoinDisplay) || 'sats',
         numberFormat: mapNumberFormat(dec.number_format),
         dateFormat: mapDateFormat(dec.date_format),
         timeFormat: mapTimeFormat(dec.time_format),
         fiscalYearType:
-          (dec.fiscal_year_type === 'FISCAL') | (dec.fiscal_year_type === 'fiscal')
+          dec.fiscal_year_type === 'FISCAL' || dec.fiscal_year_type === 'fiscal'
             ? 'fiscal'
             : 'calendar',
         fiscalStartMonth: dec.fiscal_start_month,
-        timezone: dec.timezone | Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone: dec.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       setLoading(false);
     })();
@@ -115,8 +115,8 @@ export function useFormatCurrency() {
 
   const formatAmount = useCallback(
     (amount: number, currency?: string): string => {
-      const cur = (currency | settings.primaryCurrency).toUpperCase();
-      if ((cur === 'BTC') | (cur === 'SATS')) {
+      const cur = (currency || settings.primaryCurrency).toUpperCase();
+      if (cur === 'BTC' || cur === 'SATS') {
         return formatCrypto(amount, settings.bitcoinDisplayPreference);
       }
       return formatFiat(amount, cur, settings.numberFormat);
@@ -164,7 +164,7 @@ export function useFormatDate() {
       }
       const h = d.getHours();
       const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12 = (h % 12) | 12;
+      const h12 = h % 12 || 12;
       return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
     },
     [settings.timeFormat],

@@ -85,7 +85,7 @@ function mapToORBIPair(
   if (b === 'BTC') return { source: 'BTC', target: q, satsMultiplier: 1 };
   if (b === 'SATS') return { source: 'BTC', target: q, satsMultiplier: 1e-8 };
   // Stablecoin → USD direct
-  if ((b === 'USDT') | (b === 'USDC') | (b === 'DAI')) {
+  if (b === 'USDT' || b === 'USDC' || b === 'DAI') {
     return { source: b, target: q, satsMultiplier: 1 };
   }
   // We don't handle FIAT-FIAT, IDENTITY, or FIXED here — those are OWB's existing
@@ -98,7 +98,7 @@ function deriveSourceKindForORBI(base: string, quote: string): SourceKind {
   const b = base.toUpperCase();
   const q = quote.toUpperCase();
   // ORBI handles BTC↔fiat (CRYPTO_FIAT) and stablecoin↔fiat (also CRYPTO_FIAT to OWB)
-  if ((b === 'BTC') | (b === 'SATS') | (b === 'USDT') | (b === 'USDC') | (b === 'DAI')) {
+  if (b === 'BTC' || b === 'SATS' || b === 'USDT' || b === 'USDC' || b === 'DAI') {
     return 'CRYPTO_FIAT';
   }
   // Should not reach here given mapToORBIPair's gate, but type-safe fallback

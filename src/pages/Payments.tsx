@@ -351,7 +351,7 @@ export default function Payments() {
     return roles;
   }, [canCreatePayments, canApprovePayments, canPayPayments, canManageOrgForPayments]);
   const hasAnyPaymentAccess =
-    canReadPayments | canCreatePayments | canApprovePayments | canPayPayments;
+    canReadPayments || canCreatePayments || canApprovePayments || canPayPayments;
   const { formatAmount: fmtPaymentAmount, settings: paymentFmtSettings } = useFormatCurrency();
   const [orgName, setOrgName] = useState('');
 
@@ -599,7 +599,7 @@ export default function Payments() {
       // bad row from the UI and warn the user.
       let decryptFailures = 0;
       const decrypted: DecryptedPayment[] = [];
-      for (const row of (data | []) as any[]) {
+      for (const row of (data || []) as any[]) {
         try {
           const d = await decryptPaymentRequest(row, decryptText);
           // T4 PR E — decrypt frozen snapshots independently. Best-effort:
@@ -720,7 +720,7 @@ export default function Payments() {
     } else if (tab === 'approvals') {
       list = list.filter((r) => r.status === 'PENDING');
     } else if (tab === 'payments') {
-      list = list.filter((r) => (r.status === 'APPROVED') | (r.status === 'PAID'));
+      list = list.filter((r) => r.status === 'APPROVED' || r.status === 'PAID');
     }
     // Date range — filter on document_date with fallback to created_at (same field the "Request date" column shows)
     list = list.filter((r) => {
@@ -744,17 +744,18 @@ export default function Payments() {
       const q = search.toLowerCase();
       list = list.filter(
         (r) =>
-          (r.payee | '').toLowerCase().includes(q) ||
-          (r.description | '').toLowerCase().includes(q) ||
-          (r.ref_number | '').toLowerCase().includes(q) ||
-          (r.vendor_ref | '').toLowerCase().includes(q),
+          (r.payee || '').toLowerCase().includes(q) ||
+          (r.description || '').toLowerCase().includes(q) ||
+          (r.ref_number || '').toLowerCase().includes(q) ||
+          (r.vendor_ref || '').toLowerCase().includes(q),
       );
     }
     // Sort
     list = [...list].sort((a, b) => {
       let cmp = 0;
-      if (sortCol === 'ref_number') cmp = (a.ref_number | '').localeCompare(b.ref_number | '');
-      else if (sortCol === 'created_at') cmp = (a.created_at | '').localeCompare(b.created_at | '');
+      if (sortCol === 'ref_number') cmp = (a.ref_number || '').localeCompare(b.ref_number || '');
+      else if (sortCol === 'created_at')
+        cmp = (a.created_at || '').localeCompare(b.created_at || '');
       else if (sortCol === 'amount') cmp = a.amount - b.amount;
       else if (sortCol === 'status') cmp = a.status.localeCompare(b.status);
       return sortDir === 'asc' ? cmp : -cmp;
@@ -967,14 +968,14 @@ export default function Payments() {
       const encrypted = await encryptPaymentRequest(
         {
           payee: formPayee,
-          description: formDesc | null,
+          description: formDesc || null,
           rejection_reason: null,
           amount: amt,
           currency: formCurrency,
           status: resolvedStatus,
           request_type: formType,
-          vendor_ref: formVendorRef | null,
-          payment_address: formAddress | null,
+          vendor_ref: formVendorRef || null,
+          payment_address: formAddress || null,
         },
         encryptText,
       );
@@ -1154,7 +1155,7 @@ export default function Payments() {
         }
       }),
     );
-    opts.sort((a, b) => (a.code ?? '').localeCompare(b.code ?? '') | a.name.localeCompare(b.name));
+    opts.sort((a, b) => (a.code ?? '').localeCompare(b.code ?? '') || a.name.localeCompare(b.name));
     setAccountOptions(opts);
   }, [accountOptions.length, orgId, decryptText]);
 
@@ -1446,7 +1447,7 @@ export default function Payments() {
 
       for (const row of importRows) {
         try {
-          const payee = row.data.contact | '';
+          const payee = row.data.contact || '';
           const amtRaw = String(row.data.amount ?? '')
             .replace(/,/g, '')
             .trim();
@@ -1917,7 +1918,7 @@ export default function Payments() {
             ) : (
               pageRows.map((r) => {
                 const requestDate =
-                  r.document_date |
+                  r.document_date ||
                   (r.created_at ? format(new Date(r.created_at), 'yyyy-MM-dd') : null);
                 const requestDateLabel = requestDate
                   ? format(
@@ -2272,7 +2273,7 @@ export default function Payments() {
                     <span className="font-mono">
                       {lineItemsTotal.toFixed(2)} {formCurrency}
                     </span>
-                    {Math.abs(lineItemsTotal - (parseFloat(formAmount) | 0)) > 0.01 &&
+                    {Math.abs(lineItemsTotal - (parseFloat(formAmount) || 0)) > 0.01 &&
                       parseFloat(formAmount) > 0 && (
                         <span className="text-xs text-amber-700 ml-2">
                           (overrides the "Amount" field above)
@@ -2351,22 +2352,23 @@ export default function Payments() {
                   {reviewRow.description}
                 </div>
               )}
-              {reviewRow.payee_email_snapshot | reviewRow.payee_phone_snapshot && (
-                <div className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap gap-x-4 gap-y-1">
-                  {reviewRow.payee_email_snapshot && (
-                    <span>
-                      <span className="text-slate-500">📧 Email at creation:</span>{' '}
-                      <span className="font-mono">{reviewRow.payee_email_snapshot}</span>
-                    </span>
-                  )}
-                  {reviewRow.payee_phone_snapshot && (
-                    <span>
-                      <span className="text-slate-500">📞 Phone at creation:</span>{' '}
-                      <span className="font-mono">{reviewRow.payee_phone_snapshot}</span>
-                    </span>
-                  )}
-                </div>
-              )}
+              {reviewRow.payee_email_snapshot ||
+                (reviewRow.payee_phone_snapshot && (
+                  <div className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap gap-x-4 gap-y-1">
+                    {reviewRow.payee_email_snapshot && (
+                      <span>
+                        <span className="text-slate-500">📧 Email at creation:</span>{' '}
+                        <span className="font-mono">{reviewRow.payee_email_snapshot}</span>
+                      </span>
+                    )}
+                    {reviewRow.payee_phone_snapshot && (
+                      <span>
+                        <span className="text-slate-500">📞 Phone at creation:</span>{' '}
+                        <span className="font-mono">{reviewRow.payee_phone_snapshot}</span>
+                      </span>
+                    )}
+                  </div>
+                ))}
               {(dialogLineItems[reviewRow.id]?.length ?? 0) > 0 && (
                 <div className="border rounded-md text-sm">
                   <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-700">
@@ -2534,22 +2536,23 @@ export default function Payments() {
                   </span>
                 </div>
               </div>
-              {processRow.payee_email_snapshot | processRow.payee_phone_snapshot && (
-                <div className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap gap-x-4 gap-y-1">
-                  {processRow.payee_email_snapshot && (
-                    <span>
-                      <span className="text-slate-500">📧 Email at creation:</span>{' '}
-                      <span className="font-mono">{processRow.payee_email_snapshot}</span>
-                    </span>
-                  )}
-                  {processRow.payee_phone_snapshot && (
-                    <span>
-                      <span className="text-slate-500">📞 Phone at creation:</span>{' '}
-                      <span className="font-mono">{processRow.payee_phone_snapshot}</span>
-                    </span>
-                  )}
-                </div>
-              )}
+              {processRow.payee_email_snapshot ||
+                (processRow.payee_phone_snapshot && (
+                  <div className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap gap-x-4 gap-y-1">
+                    {processRow.payee_email_snapshot && (
+                      <span>
+                        <span className="text-slate-500">📧 Email at creation:</span>{' '}
+                        <span className="font-mono">{processRow.payee_email_snapshot}</span>
+                      </span>
+                    )}
+                    {processRow.payee_phone_snapshot && (
+                      <span>
+                        <span className="text-slate-500">📞 Phone at creation:</span>{' '}
+                        <span className="font-mono">{processRow.payee_phone_snapshot}</span>
+                      </span>
+                    )}
+                  </div>
+                ))}
               {(dialogLineItems[processRow.id]?.length ?? 0) > 0 && (
                 <div className="border rounded-md text-sm">
                   <div className="px-3 py-1.5 bg-gray-50 border-b text-xs font-semibold text-gray-700">

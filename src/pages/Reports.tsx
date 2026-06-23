@@ -791,7 +791,7 @@ function buildActivityLog(journalLines: JournalLine[], dateRange?: DateRange): A
       id: jeId,
       date: data.date,
       action: 'Journal Entry Posted',
-      description: data.descriptions.join('; ') | 'No description',
+      description: data.descriptions.join('; ') || 'No description',
       amount: Math.max(data.totalDebit, data.totalCredit),
       journalEntryId: jeId,
     });
@@ -925,7 +925,7 @@ function exportReportCsv(
         rows.push([
           e.date,
           e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
-          e.description | '',
+          e.description || '',
           csvAmt(e.debit),
           csvAmt(e.credit),
           csvAmt(e.runningBalance),
@@ -1057,7 +1057,7 @@ async function printReport(
         rows.push([
           e.date,
           e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
-          e.description | '',
+          e.description || '',
           e.debit,
           e.credit,
           e.runningBalance,
@@ -1745,9 +1745,9 @@ export default function Reports() {
         setPrimaryCurrency(dec.primary_currency || 'USD');
         setSecondaryCurrency(dec.secondary_currency || null);
         setBtcDisplay((dec.bitcoin_display as BitcoinDisplay) || 'sats');
-        setFramework(((sRes.data as any).accounting_framework as AuditFramework) | 'IFRS');
+        setFramework(((sRes.data as any).accounting_framework as AuditFramework) || 'IFRS');
         setFxTranslationMethod(
-          ((sRes.data as any).fx_translation_method as FxTranslationMethod) |
+          ((sRes.data as any).fx_translation_method as FxTranslationMethod) ||
             'historical-per-transaction',
         );
       }
@@ -1873,7 +1873,7 @@ export default function Reports() {
     if (!showFxReval && revalJeIds.size > 0) {
       lines = lines.filter((l) => !revalJeIds.has(l.journalEntryId));
     }
-    if ((currencyMode !== 'secondary') | (secondaryDisplayRate == null)) return lines;
+    if (currencyMode !== 'secondary' || secondaryDisplayRate == null) return lines;
     return lines.map((l) => ({
       ...l,
       debit: l.debit * secondaryDisplayRate,
@@ -2177,7 +2177,7 @@ export default function Reports() {
             className="flex border rounded-md overflow-hidden h-8"
             style={{ borderColor: 'var(--color-border)' }}
           >
-            {CURRENCY_MODES.filter((m) => !m.glOnly | (activeReport === 'general-ledger')).map(
+            {CURRENCY_MODES.filter((m) => !m.glOnly || activeReport === 'general-ledger').map(
               (m) => (
                 <button
                   key={m.value}

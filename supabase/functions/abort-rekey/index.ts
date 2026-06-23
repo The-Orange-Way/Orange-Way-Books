@@ -89,7 +89,7 @@ serve(async (req) => {
     if (raw === null) return jsonResponse({ error: 'Request body too large' }, 413, cors);
     let body: { job_id?: unknown; mode?: unknown; reason?: unknown };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }

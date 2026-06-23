@@ -31,24 +31,24 @@ export function parseCsvContacts(csvText: string): { rows: ImportPreviewRow[]; e
   const rows: ImportPreviewRow[] = parsed.map((data, i) => {
     const rowErrors: string[] = [];
     if (!data.name?.trim()) rowErrors.push('Name is required');
-    const rawType = data.type?.trim() | '';
+    const rawType = data.type?.trim() || '';
     const type =
-      VALID_TYPES.find((t) => t.toLowerCase() === rawType.toLowerCase()) |
+      VALID_TYPES.find((t) => t.toLowerCase() === rawType.toLowerCase()) ||
       (rawType ? null : 'Other');
     if (type === null) rowErrors.push(`Invalid type: ${rawType}`);
 
     return {
       rowIndex: i + 1,
       data: {
-        name: data.name | '',
-        type: type | 'Other',
-        email: data.email | '',
-        phone: data.phone | '',
-        street: data.street | '',
-        city: data.city | '',
-        state: data.state | '',
-        country: data.country | '',
-        zip: data.zip | '',
+        name: data.name || '',
+        type: type || 'Other',
+        email: data.email || '',
+        phone: data.phone || '',
+        street: data.street || '',
+        city: data.city || '',
+        state: data.state || '',
+        country: data.country || '',
+        zip: data.zip || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

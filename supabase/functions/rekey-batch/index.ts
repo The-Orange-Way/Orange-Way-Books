@@ -232,7 +232,7 @@ serve(async (req) => {
     }
     let body: { job_id?: unknown; stage?: unknown; batch?: unknown; mode?: unknown };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }

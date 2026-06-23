@@ -102,7 +102,7 @@ serve(async (req) => {
       reply_to?: unknown;
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }

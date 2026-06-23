@@ -75,9 +75,9 @@ function parseMappingCsv(text: string): { rows: MappingRow[]; errors: string[] }
   const rows: MappingRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(',').map((s) => s.trim());
-    const filename = cols[fIdx] | '';
-    const sourceRaw = (cols[sIdx] | '').toLowerCase();
-    const externalId = cols[eIdx] | '';
+    const filename = cols[fIdx] || '';
+    const sourceRaw = (cols[sIdx] || '').toLowerCase();
+    const externalId = cols[eIdx] || '';
     if (!filename || !sourceRaw || !externalId) {
       errors.push(`Row ${i + 1}: filename, source, external_id all required`);
       continue;

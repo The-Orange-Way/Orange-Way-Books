@@ -231,8 +231,8 @@ async function ensureUncategorizedAccounts(
       decoded.push({
         id: row.id as string,
         account_code: fields.account_code ?? null,
-        account_type: (fields.account_type | '').toUpperCase(),
-        account_name: fields.account_name | '',
+        account_type: (fields.account_type || '').toUpperCase(),
+        account_name: fields.account_name || '',
         is_archived: !!fields.is_archived,
       });
     } catch {
@@ -374,12 +374,12 @@ async function importSingleTx(
     return 'duplicate';
   }
 
-  const txDate = (orTx.timestamp | new Date().toISOString()).split('T')[0];
+  const txDate = (orTx.timestamp || new Date().toISOString()).split('T')[0];
   const { amount: rawAmount, asset } = computeAmount(orTx, destWallet.asset);
   // Statement popup uses signed amounts: + inflow, − outflow. Mirror that
   // sign convention so the wallet ledger reads correctly.
   const signedAmount = orTx.direction === 'in' ? Math.abs(rawAmount) : -Math.abs(rawAmount);
-  const memo = orTx.description | orTx.counterparty | orTx.type | '';
+  const memo = orTx.description || orTx.counterparty || orTx.type || '';
   const orSourceMeta = buildOrSourceMetadata(orConnectionId, orTx.id);
 
   // ── 1. transactions row ─────────────────────────────────────────────────
@@ -457,7 +457,7 @@ async function importSingleTx(
     debit: walletLineDebit,
     credit: walletLineCredit,
     account_name: destWallet.name,
-    description: memo | null,
+    description: memo || null,
     encrypt: encryptText,
   });
   const counterLine = await buildJournalEntryLineInsert({
@@ -467,7 +467,7 @@ async function importSingleTx(
     debit: counterLineDebit,
     credit: counterLineCredit,
     account_name: counterAccountName,
-    description: memo | null,
+    description: memo || null,
     encrypt: encryptText,
   });
 

@@ -84,7 +84,7 @@ function adminFetch(
       (r) => {
         let b = '';
         r.on('data', (c) => (b += c));
-        r.on('end', () => resolve({ status: r.statusCode | 0, body: b }));
+        r.on('end', () => resolve({ status: r.statusCode || 0, body: b }));
       },
     );
     req.on('error', reject);
@@ -199,8 +199,8 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       for (const c of Array.from(document.querySelectorAll('div'))) {
         const spans = c.querySelectorAll(':scope > span');
         if (spans.length !== 2) continue;
-        const m = (spans[0].textContent | '').trim().match(/^(\d+)\.?$/);
-        const w = (spans[1].textContent | '').trim();
+        const m = (spans[0].textContent || '').trim().match(/^(\d+)\.?$/);
+        const w = (spans[1].textContent || '').trim();
         if (m && /^[a-z]+$/.test(w)) map[parseInt(m[1])] = w;
       }
       return map;

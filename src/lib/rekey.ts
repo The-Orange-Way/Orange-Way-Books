@@ -459,7 +459,7 @@ export async function runRekeyJob(
     job.new_osk_key_version,
   );
 
-  if ((job.status === 'pending') | (job.status === 'generating_keys')) {
+  if (job.status === 'pending' || job.status === 'generating_keys') {
     callbacks.onStageChange?.('generating_keys');
     // advance pending -> generating_keys. Then we transition straight to
     // wrapping_members after the client materializes the new keys.

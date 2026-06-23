@@ -81,7 +81,7 @@ export default function ChangeVaultPassword() {
 
   const matches = newPassword.length > 0 && newPassword === confirm;
   const longEnough = newPassword.length >= MIN_VAULT_PASSWORD_LENGTH;
-  const differentFromCurrent = (newPassword !== currentPassword) | (newPassword.length === 0);
+  const differentFromCurrent = newPassword !== currentPassword || newPassword.length === 0;
   const canSubmit =
     !submitting &&
     !!currentPassword &&

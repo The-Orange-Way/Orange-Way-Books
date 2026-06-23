@@ -120,7 +120,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   );
 
   // ── Phase 3: create reversing JE ──────────────────────────────────────
-  const reversalMemo = `Reversal of ${origJeDec.memo | `tx ${p.txId.slice(0, 8)}`}${
+  const reversalMemo = `Reversal of ${origJeDec.memo || `tx ${p.txId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
   }`;
   const encReversingEntry = await encryptJournalEntry(

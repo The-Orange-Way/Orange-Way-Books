@@ -94,7 +94,7 @@ export function ExpensesInsightsCard({
       const amount = (line.debit || 0) - (line.credit || 0);
       if (amount <= 0) continue;
       const name = accountNameById.get(line.accountId) || 'Unknown';
-      totals.set(name, (totals.get(name) | 0) + amount);
+      totals.set(name, (totals.get(name) || 0) + amount);
     }
     const entries = [...totals.entries()]
       .map(([label, value]) => ({ label, value }))

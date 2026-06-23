@@ -400,8 +400,7 @@ function OrganizationTab({
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
-  const showBtcPref =
-    (settings.primary_currency === 'BTC') | (settings.secondary_currency === 'BTC');
+  const showBtcPref = settings.primary_currency === 'BTC' || settings.secondary_currency === 'BTC';
 
   const fetchOrgs = useCallback(async () => {
     setOrgsLoading(true);
@@ -626,7 +625,7 @@ function OrganizationTab({
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return (parts[0]?.[0] | '?').toUpperCase();
+    return (parts[0]?.[0] || '?').toUpperCase();
   };
 
   const visibleOrgs = showArchived ? orgs : orgs.filter((o) => !o.is_archived);
@@ -1498,7 +1497,7 @@ function UsersTab({
         console.warn('lookup-user-profiles returned an error:', profilesErr);
       } else if (profiles && Array.isArray(profiles)) {
         for (const p of profiles) {
-          profileMap[p.id] = { email: p.email | '', name: p.name | '' };
+          profileMap[p.id] = { email: p.email || '', name: p.name || '' };
         }
       }
     } catch (err) {
@@ -1517,10 +1516,10 @@ function UsersTab({
       } = await supabase.auth.getUser();
       if (user) {
         const existing = profileMap[user.id];
-        const metaName = user.user_metadata?.full_name | user.user_metadata?.name | '';
+        const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
         profileMap[user.id] = {
-          email: existing?.email | user.email | '',
-          name: existing?.name | metaName,
+          email: existing?.email || user.email || '',
+          name: existing?.name || metaName,
         };
       }
     } catch {
@@ -1534,8 +1533,8 @@ function UsersTab({
       grantedRoleNames: (grantsByUser.get(m.user_id) ?? []).sort(),
       grants: detailedGrantsByUser.get(m.user_id) ?? [],
       joined_at: m.joined_at,
-      email: profileMap[m.user_id]?.email | '',
-      name: profileMap[m.user_id]?.name | '',
+      email: profileMap[m.user_id]?.email || '',
+      name: profileMap[m.user_id]?.name || '',
       status: profileMap[m.user_id]?.email ? ('Active' as const) : ('Invited' as const),
     }));
 
@@ -1718,8 +1717,8 @@ function UsersTab({
    */
   useEffect(() => {
     if (editOpen && editMember) {
-      setEditName(editMember.name | '');
-      setEditEmail(editMember.email | '');
+      setEditName(editMember.name || '');
+      setEditEmail(editMember.email || '');
       setEmailPending(false);
     }
   }, [editOpen, editMember]);
@@ -1853,7 +1852,7 @@ function UsersTab({
   const executeExtendExpiry = async () => {
     if (!extendTarget || !orgId || !extendNewDate) return;
     const parsed = new Date(`${extendNewDate}T23:59:59`);
-    if (Number.isNaN(parsed.getTime()) | (parsed.getTime() <= Date.now())) {
+    if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now()) {
       toast.error('The new access end date must be in the future.');
       return;
     }
@@ -2652,7 +2651,7 @@ function UsersTab({
                     disabled={
                       savingName ||
                       editName.trim().length === 0 ||
-                      editName.trim() === (editMember.name | '').trim()
+                      editName.trim() === (editMember.name || '').trim()
                     }
                   >
                     {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
@@ -2682,7 +2681,7 @@ function UsersTab({
                       savingEmail ||
                       editEmail.trim().length === 0 ||
                       editEmail.trim().toLowerCase() ===
-                        (editMember.email | '').trim().toLowerCase() ||
+                        (editMember.email || '').trim().toLowerCase() ||
                       !/^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/.test(editEmail.trim())
                     }
                   >
@@ -2926,7 +2925,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
       .eq('org_id', orgId)
       .order('created_at');
     const decrypted = await Promise.all(
-      (data | []).map((a) =>
+      (data || []).map((a) =>
         decryptChartOfAccount(a, decryptText).then((fields) => ({ ...a, ...fields })),
       ),
     );
@@ -3092,9 +3091,9 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
                             onClick={() => {
                               setEditAccount(a);
                               setEditName(a.account_name);
-                              setEditArchived(a.is_archived | false);
-                              setEditType(a.account_type | g.type);
-                              setEditGroup(a.account_group | g.name);
+                              setEditArchived(a.is_archived || false);
+                              setEditType(a.account_type || g.type);
+                              setEditGroup(a.account_group || g.name);
                               setEditOpen(true);
                             }}
                             className="text-muted-foreground hover:text-foreground"
@@ -3188,7 +3187,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
                           onClick={() => {
                             setEditAccount(a);
                             setEditName(a.account_name);
-                            setEditArchived(a.is_archived | false);
+                            setEditArchived(a.is_archived || false);
                             setEditType(a.account_type);
                             setEditGroup(a.account_group);
                             setEditOpen(true);
@@ -3348,7 +3347,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
             .select('account_name, account_code, encrypted_name, key_version')
             .eq('org_id', orgId);
           const decryptedCoaNames = await Promise.all(
-            (existing | []).map(async (a: any) => {
+            (existing || []).map(async (a: any) => {
               if (a.key_version && a.encrypted_name) {
                 return decryptText(a.encrypted_name);
               }
@@ -3357,7 +3356,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
           );
           const existingNames = new Set(decryptedCoaNames.map((n: string) => n?.toLowerCase()));
           const existingCodes = new Set(
-            (existing | []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
+            (existing || []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
           );
           let created = 0,
             skipped = 0,
@@ -3366,9 +3365,9 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
           const warnings: string[] = [];
           for (const row of rows) {
             const name = row.data.name.trim();
-            const code = row.data.code?.trim() | '';
+            const code = row.data.code?.trim() || '';
             if (
-              existingNames.has(name.toLowerCase()) |
+              existingNames.has(name.toLowerCase()) ||
               (code && existingCodes.has(code.toLowerCase()))
             ) {
               skipped++;
@@ -3381,7 +3380,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               const enc = await encryptChartOfAccount(
                 {
                   account_name: name,
-                  account_code: code | null,
+                  account_code: code || null,
                   account_type: row.data.type,
                   account_sub_type: row.data.subtype || null,
                   account_group: null, // legacy field; not in new schema
@@ -3456,7 +3455,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
       .eq('org_id', orgId)
       .order('created_at');
     const decrypted = await Promise.all(
-      (data | []).map((c) =>
+      (data || []).map((c) =>
         decryptContact(c, decryptText).then((fields) => ({ ...c, ...fields })),
       ),
     );
@@ -3468,7 +3467,9 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
   }, [orgId]);
 
   const filtered = useMemo(() => {
-    const r = contacts.filter((c) => !search | c.name.toLowerCase().includes(search.toLowerCase()));
+    const r = contacts.filter(
+      (c) => !search || c.name.toLowerCase().includes(search.toLowerCase()),
+    );
     r.sort((a, b) =>
       sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
     );
@@ -3616,14 +3617,14 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
                         onClick={() => {
                           setForm({
                             name: c.name,
-                            street: c.street | '',
-                            city: c.city | '',
-                            state: c.state | '',
-                            zip: c.zip | '',
-                            country: c.country | '',
-                            email: c.email | '',
-                            phone: c.phone | '',
-                            type: c.type | '',
+                            street: c.street || '',
+                            city: c.city || '',
+                            state: c.state || '',
+                            zip: c.zip || '',
+                            country: c.country || '',
+                            email: c.email || '',
+                            phone: c.phone || '',
+                            type: c.type || '',
                           });
                           setEditId(c.id);
                           setEditOpen(true);
@@ -3831,7 +3832,7 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
             .select('name, key_version')
             .eq('org_id', orgId);
           const decryptedNames = await Promise.all(
-            (existing | []).map(async (c: any) => {
+            (existing || []).map(async (c: any) => {
               if (!c.key_version) return c.name;
               return decryptText(c.name);
             }),
@@ -3924,7 +3925,7 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
             .eq('org_id', orgId)
             .order('created_at');
           const decrypted = await Promise.all(
-            (data | []).map((a: any) =>
+            (data || []).map((a: any) =>
               decryptChartOfAccount(a, decryptText).then((fields) => ({ ...a, ...fields })),
             ),
           );
@@ -3943,7 +3944,7 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
             .eq('org_id', orgId)
             .order('created_at');
           const decrypted = await Promise.all(
-            (data | []).map((c: any) =>
+            (data || []).map((c: any) =>
               decryptContact(c, decryptText).then((f) => ({ ...c, ...f })),
             ),
           );
@@ -4051,13 +4052,13 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
 
     // Build config payload to encrypt
     const configPayload = JSON.stringify({
-      api_key: formApiKey | undefined,
-      api_secret: formApiSecret | undefined,
-      endpoint: formEndpoint | undefined,
+      api_key: formApiKey || undefined,
+      api_secret: formApiSecret || undefined,
+      endpoint: formEndpoint || undefined,
     });
     const encryptedConfig = await encryptText(configPayload);
     const encryptedLabel = await encryptText(
-      formLabel | CONNECTOR_DEFS.find((d) => d.type === selectedType)!.name,
+      formLabel || CONNECTOR_DEFS.find((d) => d.type === selectedType)!.name,
     );
 
     const { error } = await supabase.from('connectors').insert({
@@ -4145,7 +4146,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                    {def?.icon | <Plug className="w-5 h-5" />}
+                    {def?.icon || <Plug className="w-5 h-5" />}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -5103,7 +5104,7 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
                     </TableCell>
                     <TableCell className="text-xs">{r.entity_type}</TableCell>
                     <TableCell className="text-sm">
-                      {r.summary | <span className="text-muted-foreground">—</span>}
+                      {r.summary || <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">
                       {r.ip_address || ''}
@@ -5463,7 +5464,7 @@ function BetaAllowlistTab() {
         .insert({
           email: newEmail.trim().toLowerCase(),
           invited_by: user?.id ?? null,
-          note: newNote.trim() | null,
+          note: newNote.trim() || null,
         })
         .select()
         .single();

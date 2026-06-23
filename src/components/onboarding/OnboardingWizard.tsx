@@ -217,7 +217,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
           );
         toast.error('Chart of accounts setup hit an issue', {
           id: coaToast,
-          description: errMsg | 'You can retry from the dashboard.',
+          description: errMsg || 'You can retry from the dashboard.',
           duration: 10000,
         });
         // Re-throw so the user lands back on the wizard for a retry instead

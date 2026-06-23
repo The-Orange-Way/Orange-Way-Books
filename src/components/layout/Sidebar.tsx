@@ -88,9 +88,9 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
         }
 
         if (isActive) {
-          setUserEmail(user.email | '');
+          setUserEmail(user.email || '');
           const meta = user.user_metadata;
-          setUserName(meta?.full_name | meta?.name | user.email?.split('@')[0] | '');
+          setUserName(meta?.full_name || meta?.name || user.email?.split('@')[0] || '');
         }
 
         // Load all user org memberships
@@ -157,7 +157,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return (parts[0]?.[0] | '?').toUpperCase();
+    return (parts[0]?.[0] || '?').toUpperCase();
   };
 
   const isActive = (item: NavItem) => {

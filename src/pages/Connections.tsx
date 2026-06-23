@@ -526,7 +526,7 @@ export default function Connections() {
 
   async function handleAddConnection(params: { provider: string; label: string; apiKey: string }) {
     if (!subaccountId) throw new Error('Subaccount not ready yet');
-    const labelPlaintext = params.label | params.provider;
+    const labelPlaintext = params.label || params.provider;
     const encrypted_label = await encryptOrCipher(labelPlaintext);
     const encrypted_credentials = await encryptOrCipher(JSON.stringify({ api_key: params.apiKey }));
 
@@ -1062,7 +1062,7 @@ export default function Connections() {
           <>
             Delete the{' '}
             <span className="font-medium text-foreground">
-              {deleteTarget?.decrypted_label | deleteTarget?.provider_type}
+              {deleteTarget?.decrypted_label || deleteTarget?.provider_type}
             </span>{' '}
             connection? Synced transactions for this connection will also be removed. This cannot be
             undone.

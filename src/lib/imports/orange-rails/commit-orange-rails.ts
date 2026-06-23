@@ -106,8 +106,8 @@ function groupJournalEntries(rows: V3StagedRow[]): JournalEntryGroup[] {
     const date = rowField(row, 'je_date');
     const ref = rowField(row, 'je_ref_#');
     const memo = rowField(row, 'je_memo');
-    const status = rowField(row, 'je_status').toUpperCase() | 'POSTED';
-    const currency = rowField(row, 'wallet_currency').toUpperCase() | 'USD';
+    const status = rowField(row, 'je_status').toUpperCase() || 'POSTED';
+    const currency = rowField(row, 'wallet_currency').toUpperCase() || 'USD';
     const key = `${date}\x1f${ref}\x1f${memo}\x1f${status}\x1f${currency}`;
     if (current && currentKey === key) {
       current.lines.push(row);
@@ -115,7 +115,7 @@ function groupJournalEntries(rows: V3StagedRow[]): JournalEntryGroup[] {
       current = {
         date,
         refNumber: ref,
-        memo: memo | null,
+        memo: memo || null,
         status,
         currency,
         lines: [row],
@@ -299,9 +299,9 @@ export async function commitStagedImportPayload(
           date: group.date,
           debit,
           credit,
-          account_name: rowField(lineRow, 'account_name') | null,
-          account_code: rowField(lineRow, 'account_code') | null,
-          description: rowField(lineRow, 'line_description') | null,
+          account_name: rowField(lineRow, 'account_name') || null,
+          account_code: rowField(lineRow, 'account_code') || null,
+          description: rowField(lineRow, 'line_description') || null,
           encrypt: encryptText,
         });
         lineInserts.push({ journal_entry_id: journalEntryId, ...lineBuilt.insert });

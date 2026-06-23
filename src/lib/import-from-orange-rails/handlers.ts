@@ -69,7 +69,7 @@ export async function commitAccountsFromStaged(
     .eq('org_id', orgId);
 
   const decryptedCoaNames = await Promise.all(
-    (existing | []).map(async (a: any) => {
+    (existing || []).map(async (a: any) => {
       if (a.key_version && a.encrypted_name) {
         return decryptText(a.encrypted_name);
       }
@@ -78,7 +78,7 @@ export async function commitAccountsFromStaged(
   );
   const existingNames = new Set(decryptedCoaNames.map((n: string) => n?.toLowerCase()));
   const existingCodes = new Set(
-    (existing | []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
+    (existing || []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
   );
 
   let created = 0;
@@ -89,26 +89,26 @@ export async function commitAccountsFromStaged(
 
   for (const row of rows) {
     const name = row.data.name?.trim() ?? '';
-    const code = row.data.code?.trim() | '';
+    const code = row.data.code?.trim() || '';
     if (!name) {
       failed++;
       errors.push(`Row ${row.rowIndex + 1}: Name is required`);
       continue;
     }
-    if (existingNames.has(name.toLowerCase()) | (code && existingCodes.has(code.toLowerCase()))) {
+    if (existingNames.has(name.toLowerCase()) || (code && existingCodes.has(code.toLowerCase()))) {
       skipped++;
       warnings.push(`"${name}" already exists, skipped`);
       continue;
     }
     const normalBalance =
       row.data.normal_balance ||
-      ((row.data.type === 'ASSET') | (row.data.type === 'EXPENSE') ? 'DEBIT' : 'CREDIT');
+      (row.data.type === 'ASSET' || row.data.type === 'EXPENSE' ? 'DEBIT' : 'CREDIT');
     // Phase 2 (external-ledger removal): no legacy ledger account provisioning. Row inserted
     // directly into chart_of_accounts below.
     const enc = await encryptChartOfAccount(
       {
         account_name: name,
-        account_code: code | null,
+        account_code: code || null,
         account_type: row.data.type,
         account_group: row.data.subtype || null,
         account_category: row.data.category || null,
@@ -147,7 +147,7 @@ export async function commitContactsFromStaged(
     .eq('org_id', orgId);
 
   const decryptedNames = await Promise.all(
-    (existing | []).map(async (c: any) => {
+    (existing || []).map(async (c: any) => {
       if (!c.key_version) return c.name;
       return decryptText(c.name);
     }),
@@ -253,7 +253,7 @@ export async function commitJournalEntriesFromStaged(
     .from('journal_entries')
     .select('*')
     .eq('org_id', orgId);
-  for (const row of existingEntries | []) {
+  for (const row of existingEntries || []) {
     const dec = await decryptJournalEntry(row as any, decryptText);
     existingKeys.add(
       [
@@ -292,7 +292,7 @@ export async function commitJournalEntriesFromStaged(
       continue;
     }
 
-    const dateStr = (first.data.je_date | '').trim();
+    const dateStr = (first.data.je_date || '').trim();
     if (entryFallsInLockedPeriod(dateStr, lockDate)) {
       failed += g.length;
       errors.push(
@@ -302,7 +302,7 @@ export async function commitJournalEntriesFromStaged(
     }
 
     const currency = parseJournalCurrencyLabel(first.data.wallet_currency);
-    const memo = first.data.je_memo?.trim() | null;
+    const memo = first.data.je_memo?.trim() || null;
     let refNum = (first.data['je_ref_#'] ?? '').trim();
     if (!refNum) {
       try {
@@ -314,13 +314,13 @@ export async function commitJournalEntriesFromStaged(
 
     const formLines = g
       .map((r) => ({
-        account_code: r.data.account_code?.trim() | '',
-        account_name: r.data.account_name?.trim() | '',
+        account_code: r.data.account_code?.trim() || '',
+        account_name: r.data.account_name?.trim() || '',
         debit: String(parseJournalAmountCell(r.data.debit)),
         credit: String(parseJournalAmountCell(r.data.credit)),
-        description: r.data.line_description?.trim() | '',
+        description: r.data.line_description?.trim() || '',
       }))
-      .filter((l) => ((parseFloat(l.debit) | 0) > 0) | ((parseFloat(l.credit) | 0) > 0));
+      .filter((l) => (parseFloat(l.debit) || 0) > 0 || (parseFloat(l.credit) || 0) > 0);
 
     if (formLines.length < 2) {
       failed += g.length;
@@ -328,8 +328,8 @@ export async function commitJournalEntriesFromStaged(
       continue;
     }
 
-    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) | 0), 0);
-    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) | 0), 0);
+    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
+    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
     if (Math.abs(totalD - totalC) >= 0.001) {
       failed += g.length;
       errors.push(
@@ -342,7 +342,7 @@ export async function commitJournalEntriesFromStaged(
       const encEntry = await encryptJournalEntry(
         {
           memo,
-          ref_number: refNum | null,
+          ref_number: refNum || null,
           currency,
           exchange_rate: null,
           status: 'DRAFT',

@@ -60,7 +60,7 @@ function adminFetch(
       (r) => {
         let b = '';
         r.on('data', (c) => (b += c));
-        r.on('end', () => resolve({ status: r.statusCode | 0, body: b }));
+        r.on('end', () => resolve({ status: r.statusCode || 0, body: b }));
       },
     );
     req.on('error', reject);

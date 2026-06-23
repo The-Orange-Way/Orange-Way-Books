@@ -60,7 +60,7 @@ export async function writeAuditLog({
 
     const enc = await encryptAuditLog(
       {
-        summary: summary | null,
+        summary: summary || null,
         before_snapshot: before ? JSON.stringify(before) : null,
         after_snapshot: after ? JSON.stringify(after) : null,
       },
