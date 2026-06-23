@@ -256,11 +256,11 @@ type CanonicalAcctType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE'
 
 function toCanonicalType(raw: string | null | undefined): CanonicalAcctType | null {
   if (
-    (raw === 'ASSET') |
-    (raw === 'LIABILITY') |
-    (raw === 'EQUITY') |
-    (raw === 'INCOME') |
-    (raw === 'EXPENSE')
+    raw === 'ASSET' ||
+    raw === 'LIABILITY' ||
+    raw === 'EQUITY' ||
+    raw === 'INCOME' ||
+    raw === 'EXPENSE'
   ) {
     return raw;
   }
@@ -348,7 +348,7 @@ function findPairingWarnings(
 
   // 3. Equity moving directly against P&L. Almost always wrong — equity
   //    moves through retained earnings, not directly through income.
-  if (typesInPlay.has('EQUITY') && typesInPlay.has('INCOME') | typesInPlay.has('EXPENSE')) {
+  if ((typesInPlay.has('EQUITY') && typesInPlay.has('INCOME')) || typesInPlay.has('EXPENSE')) {
     warnings.push({
       code: 'equity-with-profit-and-loss',
       message: 'Equity posted directly against income/expense. Unusual — worth a second look.',
@@ -684,7 +684,7 @@ export default function JournalEntries() {
   const entryTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     entries.forEach((e) => {
-      const elines = lines[e.id] | [];
+      const elines = lines[e.id] || [];
       totals[e.id] = elines.reduce((s, l) => s + (Number(l.debit) | 0), 0);
     });
     return totals;
@@ -736,8 +736,8 @@ export default function JournalEntries() {
       const term = search.toLowerCase();
       list = list.filter(
         (e) =>
-          (e.memo | '').toLowerCase().includes(term) ||
-          (e.ref_number | '').toLowerCase().includes(term) ||
+          (e.memo || '').toLowerCase().includes(term) ||
+          (e.ref_number || '').toLowerCase().includes(term) ||
           e.currency.toLowerCase().includes(term),
       );
     }
@@ -752,11 +752,11 @@ export default function JournalEntries() {
         av = new Date(a.date).getTime();
         bv = new Date(b.date).getTime();
       } else if (sortKey === 'memo') {
-        av = (a.memo | '').toLowerCase();
-        bv = (b.memo | '').toLowerCase();
+        av = (a.memo || '').toLowerCase();
+        bv = (b.memo || '').toLowerCase();
       } else {
-        av = entryTotals[a.id] | 0;
-        bv = entryTotals[b.id] | 0;
+        av = entryTotals[a.id] || 0;
+        bv = entryTotals[b.id] || 0;
       }
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
@@ -796,7 +796,7 @@ export default function JournalEntries() {
 
   const fmtAmount = useCallback(
     (amount: number, currency: string) => {
-      if ((currency === 'BTC') | (currency === 'SATS'))
+      if (currency === 'BTC' || currency === 'SATS')
         return formatCrypto(currency === 'SATS' ? amount / 1e8 : amount, btcDisplay);
       return formatFiat(amount, ['USD', 'EUR', 'GBP'].includes(currency) ? currency : 'USD');
     },
@@ -848,7 +848,7 @@ export default function JournalEntries() {
       APPROVED: { bg: '#DCFCE7', color: '#16a34a' }, // legacy → renders like POSTED
       REVERSED: { bg: '#F3F4F6', color: '#6B7280' }, // legacy → renders like VOID
     };
-    const s = styles[status] | styles.DRAFT;
+    const s = styles[status] || styles.DRAFT;
     return (
       <Badge className="text-[10px]" style={{ background: s.bg, color: s.color, border: 'none' }}>
         {status}
@@ -884,21 +884,21 @@ export default function JournalEntries() {
   };
 
   const openEdit = (entry: JournalEntry) => {
-    if ((entry.status !== 'DRAFT') | entry.period_locked) return;
+    if (entry.status !== 'DRAFT' || entry.period_locked) return;
     setEditingEntry(entry);
     setFDate(new Date(entry.date));
     setFCurrency(entry.currency);
-    setFRefNum(entry.ref_number | '');
-    setFMemo(entry.memo | '');
-    const entryLines = lines[entry.id] | [];
+    setFRefNum(entry.ref_number || '');
+    setFMemo(entry.memo || '');
+    const entryLines = lines[entry.id] || [];
     setFLines(
       entryLines.length >= 2
         ? entryLines.map((l) => ({
-            account_code: l.account_code | '',
-            account_name: l.account_name | '',
+            account_code: l.account_code || '',
+            account_name: l.account_name || '',
             debit: l.debit ? String(l.debit) : '',
             credit: l.credit ? String(l.credit) : '',
-            description: l.description | '',
+            description: l.description || '',
           }))
         : [
             { account_code: '', account_name: '', debit: '', credit: '', description: '' },
@@ -939,7 +939,7 @@ export default function JournalEntries() {
     const acctType = acct ? normalizeAccountType(acct.account_type) : null;
     // For debit-normal accounts (Asset, Expense): positive = debit, negative = credit
     // For credit-normal accounts (Liability, Equity, Income/Revenue): positive = credit, negative = debit
-    const isDebitNormal = !acctType | (acctType === 'ASSET') | (acctType === 'EXPENSE');
+    const isDebitNormal = !acctType || acctType === 'ASSET' || acctType === 'EXPENSE';
     const absAmt = Math.abs(amount).toString();
     if (isDebitNormal) {
       return amount > 0 ? { debit: absAmt, credit: '' } : { debit: '', credit: absAmt };
@@ -975,7 +975,7 @@ export default function JournalEntries() {
   const getSimpleAmount = (line: FormLine): string => {
     const acct = accountsByName.get(line.account_name.toLowerCase());
     const acctType = acct ? normalizeAccountType(acct.account_type) : null;
-    const isDebitNormal = !acctType | (acctType === 'ASSET') | (acctType === 'EXPENSE');
+    const isDebitNormal = !acctType || acctType === 'ASSET' || acctType === 'EXPENSE';
     const d = parseFloat(line.debit) | 0;
     const c = parseFloat(line.credit) | 0;
     if (d > 0) return isDebitNormal ? d.toString() : (-d).toString();
@@ -992,8 +992,8 @@ export default function JournalEntries() {
       if (editingEntry) {
         const encEntry = await encryptJournalEntry(
           {
-            memo: fMemo | null,
-            ref_number: fRefNum | null,
+            memo: fMemo || null,
+            ref_number: fRefNum || null,
             currency: fCurrency,
             exchange_rate: null,
             status: editingEntry.status,
@@ -1013,7 +1013,7 @@ export default function JournalEntries() {
         await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', editingEntry.id);
         const encLines = await Promise.all(
           fLines
-            .filter((l) => l.debit | l.credit)
+            .filter((l) => l.debit || l.credit)
             .map(async (l) => {
               const enc = await buildLineInsert({
                 wallet_currency: fCurrency,
@@ -1022,8 +1022,8 @@ export default function JournalEntries() {
                 account_name: l.account_name || null,
                 account_code: l.account_code || null,
                 description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
+                debit: parseFloat(l.debit) | 0,
+                credit: parseFloat(l.credit) | 0,
               });
               return { journal_entry_id: editingEntry.id, ...enc };
             }),
@@ -1032,8 +1032,8 @@ export default function JournalEntries() {
       } else {
         const encEntry = await encryptJournalEntry(
           {
-            memo: fMemo | null,
-            ref_number: fRefNum | null,
+            memo: fMemo || null,
+            ref_number: fRefNum || null,
             currency: fCurrency,
             exchange_rate: null,
             status: 'DRAFT',
@@ -1055,7 +1055,7 @@ export default function JournalEntries() {
 
         const encLines = await Promise.all(
           fLines
-            .filter((l) => l.debit | l.credit)
+            .filter((l) => l.debit || l.credit)
             .map(async (l) => {
               const enc = await buildLineInsert({
                 wallet_currency: fCurrency,
@@ -1064,8 +1064,8 @@ export default function JournalEntries() {
                 account_name: l.account_name || null,
                 account_code: l.account_code || null,
                 description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
+                debit: parseFloat(l.debit) | 0,
+                credit: parseFloat(l.credit) | 0,
               });
               return { journal_entry_id: (je as any).id, ...enc };
             }),
@@ -1210,7 +1210,7 @@ export default function JournalEntries() {
     const blockers = Array.from(selected)
       .map((id) => entries.find((e) => e.id === id))
       .filter(
-        (e): e is (typeof entries)[number] => !!e && (e.status !== 'DRAFT') | e.period_locked,
+        (e): e is (typeof entries)[number] => (!!e && e.status !== 'DRAFT') || e.period_locked,
       );
     if (blockers.length > 0) {
       alert(
@@ -1536,8 +1536,8 @@ export default function JournalEntries() {
               <TableBody>
                 {sorted.map((entry) => {
                   const expanded = expandedIds.has(entry.id);
-                  const entryLines = lines[entry.id] | [];
-                  const total = entryTotals[entry.id] | 0;
+                  const entryLines = lines[entry.id] || [];
+                  const total = entryTotals[entry.id] || 0;
                   const isDraft = entry.status === 'DRAFT';
                   const canEdit = isDraft && !entry.period_locked;
                   const canReverse =
@@ -1625,11 +1625,11 @@ export default function JournalEntries() {
                             className="text-[10px]"
                             style={{
                               background:
-                                (entry.currency === 'BTC') | (entry.currency === 'SATS')
+                                entry.currency === 'BTC' || entry.currency === 'SATS'
                                   ? 'var(--color-brand-orange-light)'
                                   : '#EFF6FF',
                               color:
-                                (entry.currency === 'BTC') | (entry.currency === 'SATS')
+                                entry.currency === 'BTC' || entry.currency === 'SATS'
                                   ? 'var(--color-brand-orange)'
                                   : '#2563EB',
                               border: 'none',
@@ -1734,13 +1734,13 @@ export default function JournalEntries() {
           <div className="md:hidden space-y-2">
             {sorted.map((entry) => {
               const expanded = expandedIds.has(entry.id);
-              const entryLines = lines[entry.id] | [];
-              const total = entryTotals[entry.id] | 0;
+              const entryLines = lines[entry.id] || [];
+              const total = entryTotals[entry.id] || 0;
               const isDraft = entry.status === 'DRAFT';
               const canEdit = isDraft && !entry.period_locked;
               const canReverse =
                 entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
-              const isBtcCurrency = (entry.currency === 'BTC') | (entry.currency === 'SATS');
+              const isBtcCurrency = entry.currency === 'BTC' || entry.currency === 'SATS';
               return (
                 <div
                   key={entry.id}
@@ -2148,7 +2148,7 @@ export default function JournalEntries() {
               <div>
                 {isBalanced ? (
                   <span className="text-green-600 text-sm font-medium">✓ Balanced</span>
-                ) : (totalDebits > 0) | (totalCredits > 0) ? (
+                ) : totalDebits > 0 || totalCredits > 0 ? (
                   <span className="text-red-600 text-sm font-medium">
                     ✗ Out of balance by {fmtAmount(Math.abs(totalDebits - totalCredits), fCurrency)}
                   </span>

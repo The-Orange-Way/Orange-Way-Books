@@ -83,7 +83,7 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
     throw new StagedImportValidationError('source is required');
   }
   for (const k of ['name', 'version', 'exportedAt'] as const) {
-    if ((typeof source[k] !== 'string') | ((source[k] as string).length === 0)) {
+    if (typeof source[k] !== 'string' || (source[k] as string).length === 0) {
       throw new StagedImportValidationError(`source.${k} must be a non-empty string`);
     }
   }
@@ -141,7 +141,7 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
 export function mapSourceToType(name: string): 'wave' | 'quickbooks' | 'orange_rails' | null {
   const lower = name.toLowerCase();
   if (lower === 'wave') return 'wave';
-  if ((lower === 'quickbooks') | (lower === 'qb') | (lower === 'qbo')) return 'quickbooks';
-  if ((lower === 'orange_rails') | (lower === 'or')) return 'orange_rails';
+  if (lower === 'quickbooks' || lower === 'qb' || lower === 'qbo') return 'quickbooks';
+  if (lower === 'orange_rails' || lower === 'or') return 'orange_rails';
   return null;
 }

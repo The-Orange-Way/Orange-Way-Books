@@ -299,13 +299,13 @@ export async function parseValidationReport(
   }
   const headers = rows[headerIndex];
   const accountLookup = columnIndex(headers, ['account', 'account name', 'name']);
-  const accountIdx = implicitFirstColumn | (accountLookup === -1) ? 0 : accountLookup;
+  const accountIdx = implicitFirstColumn || accountLookup === -1 ? 0 : accountLookup;
   const amountIdx = columnIndex(headers, ['amount', 'balance', 'total']);
   const currencyIdx = columnIndex(headers, ['currency']);
   const lines: ParsedValidationReportLine[] = [];
   for (const row of rows.slice(headerIndex + 1)) {
     const accountName = (row[accountIdx] ?? '').trim();
-    if (!accountName | /^total\b/i.test(accountName)) continue;
+    if (!accountName || /^total\b/i.test(accountName)) continue;
     const rawAmount = amountIdx === -1 ? '' : (row[amountIdx] ?? '');
     // Hierarchical BS/P&L rows with no amount are section headers
     // (e.g. "ASSETS", "Current Assets") — skip them.

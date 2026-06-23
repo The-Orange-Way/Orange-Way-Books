@@ -103,7 +103,7 @@ serve(async (req) => {
       org_name_decrypted?: unknown;
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }

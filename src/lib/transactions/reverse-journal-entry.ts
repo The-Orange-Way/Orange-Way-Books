@@ -80,7 +80,7 @@ export async function reverseJournalEntry(
   );
 
   // ── Build reversing wrapper JE ───────────────────────────────────────
-  const reversalMemo = `Reversal of ${origJeDec.ref_number || origJeDec.memo | `JE ${p.journalEntryId.slice(0, 8)}`}${
+  const reversalMemo = `Reversal of ${origJeDec.ref_number || origJeDec.memo || `JE ${p.journalEntryId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
   }`;
   const encReversing = await encryptJournalEntry(

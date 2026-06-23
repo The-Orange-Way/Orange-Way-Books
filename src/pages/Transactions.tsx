@@ -241,7 +241,7 @@ export default function Transactions() {
   // crashed the page with React error #311 (hooks-order violation).
   const canWriteTxAll = useCapability('transactions.write', orgId);
   const canWriteTxOwn = useCapability('transactions.write_own', orgId);
-  const canWriteTxAny = canWriteTxAll | canWriteTxOwn;
+  const canWriteTxAny = canWriteTxAll || canWriteTxOwn;
   const [orgName, setOrgName] = useState('');
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [wallets, setWallets] = useState<WalletOption[]>([]);
@@ -311,7 +311,7 @@ export default function Transactions() {
     setLegacyJournalId(orgData?.external_journal_id || null);
     if (orgData) {
       const decOrg = await decryptOrganization(
-        { name: orgData.name | '', key_version: orgData.key_version ?? null } as any,
+        { name: orgData.name || '', key_version: orgData.key_version ?? null } as any,
         decryptText,
       );
       setOrgName((decOrg.name ?? '').trim());
@@ -344,7 +344,7 @@ export default function Transactions() {
             ? await decryptText(c.type).catch(() => null)
             : c.type
           : null;
-        return { id: c.id, name: name | '[Encrypted]', kind: kind ?? 'OTHER' };
+        return { id: c.id, name: name || '[Encrypted]', kind: kind ?? 'OTHER' };
       }),
     );
     setContacts(decryptedContacts);
@@ -432,7 +432,7 @@ export default function Transactions() {
   const pendingRateLineCount = useMemo(
     () =>
       txs.filter(
-        (t) => t.asset === 'BTC' && (t.exchange_rate == null) | (Number(t.exchange_rate) === 0),
+        (t) => (t.asset === 'BTC' && t.exchange_rate == null) || Number(t.exchange_rate) === 0,
       ).length,
     [txs],
   );
@@ -447,11 +447,11 @@ export default function Transactions() {
       }
       if (search) {
         const term = search.toLowerCase();
-        const wName = tx.account_id ? walletMap[tx.account_id] | '' : '';
+        const wName = tx.account_id ? walletMap[tx.account_id] || '' : '';
         if (
           !tx.type.toLowerCase().includes(term) &&
           !tx.asset.toLowerCase().includes(term) &&
-          !(tx.memo | '').toLowerCase().includes(term) &&
+          !(tx.memo || '').toLowerCase().includes(term) &&
           !wName.toLowerCase().includes(term)
         )
           return false;
@@ -486,7 +486,7 @@ export default function Transactions() {
       }
       // Amount range — compare absolute amounts so inflow/outflow symmetry
       // doesn't surprise the user. Blank min/max bypasses that side.
-      if ((amountMin !== '') | (amountMax !== '')) {
+      if (amountMin !== '' || amountMax !== '') {
         const abs = Math.abs(Number(tx.amount));
         if (amountMin !== '') {
           const min = Number(amountMin);
@@ -754,7 +754,7 @@ export default function Transactions() {
         orgId: orgId!,
         legacyJournalId,
         date: format(new Date(), 'yyyy-MM-dd'),
-        reason: reason | undefined,
+        reason: reason || undefined,
         encryptText,
         decryptText,
         loadOrgSigningKey,
@@ -882,8 +882,9 @@ export default function Transactions() {
       .map((id) => txs.find((t) => t.id === id))
       .filter(
         (tx): tx is TxRow =>
-          !!tx &&
-          (tx.status === 'POSTED') | (tx.status === 'VOID') | (tx.cleared_status === 'RECONCILED'),
+          (!!tx && tx.status === 'POSTED') ||
+          tx.status === 'VOID' ||
+          tx.cleared_status === 'RECONCILED',
       );
     if (blockers.length > 0) {
       alert(
@@ -1366,7 +1367,7 @@ export default function Transactions() {
                         {tx.date ? format(new Date(`${tx.date}T12:00:00`), 'MM-dd-yyyy') : '—'}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '—'}
+                        {tx.account_id ? walletMap[tx.account_id] || '[Encrypted]' : '—'}
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         <span className={isIn ? 'font-medium text-green-600' : 'text-foreground'}>
@@ -1501,19 +1502,20 @@ export default function Transactions() {
                           </span>
                           <span className="text-muted-foreground">·</span>
                           <span className="truncate">
-                            {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : '—'}
+                            {tx.account_id ? walletMap[tx.account_id] || '[Encrypted]' : '—'}
                           </span>
                         </div>
-                        {tx.to_from | (tx.type === 'Transfer') && (
-                          <div className="mt-1 text-xs truncate">
-                            {tx.type === 'Transfer' ? 'Transfer' : tx.to_from}
-                            {tx.type === 'Transfer' && tx.linked_tx_id && (
-                              <Badge variant="outline" className="ml-1 text-[9px]">
-                                Linked
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                        {tx.to_from ||
+                          (tx.type === 'Transfer' && (
+                            <div className="mt-1 text-xs truncate">
+                              {tx.type === 'Transfer' ? 'Transfer' : tx.to_from}
+                              {tx.type === 'Transfer' && tx.linked_tx_id && (
+                                <Badge variant="outline" className="ml-1 text-[9px]">
+                                  Linked
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
                         {tx.memo && (
                           <div className="mt-1 text-xs text-muted-foreground truncate">
                             {tx.memo.length > 60 ? tx.memo.slice(0, 60) + '…' : tx.memo}
@@ -1726,7 +1728,7 @@ export default function Transactions() {
                 ) : (
                   wallets.map((w) => {
                     const checked = walletFilter.has(w.id);
-                    const label = walletMap[w.id] | '[Encrypted]';
+                    const label = walletMap[w.id] || '[Encrypted]';
                     return (
                       <label
                         key={w.id}
@@ -1891,7 +1893,7 @@ export default function Transactions() {
                   <div>
                     <div className="text-xs text-muted-foreground">{tx.date}</div>
                     <div className="text-sm font-medium">
-                      {tx.account_id ? walletMap[tx.account_id] | '[Encrypted]' : 'No wallet'}
+                      {tx.account_id ? walletMap[tx.account_id] || '[Encrypted]' : 'No wallet'}
                     </div>
                     <Badge variant="outline" className="text-[10px] mt-1">
                       {isIn ? 'Inflow' : 'Outflow'}
@@ -2034,9 +2036,9 @@ export default function Transactions() {
               .eq('org_id', orgId),
             supabase.from('contacts').select('*').eq('org_id', orgId),
           ]);
-          const walletList = (wRes.data as any[]) | [];
-          const accountList = (aRes.data as any[]) | [];
-          const contactList = (cRes.data as any[]) | [];
+          const walletList = (wRes.data as any[]) || [];
+          const accountList = (aRes.data as any[]) || [];
+          const contactList = (cRes.data as any[]) || [];
 
           // Decrypt wallet names so CSV wallet-name matching works
           const decryptedWalletList = await Promise.all(

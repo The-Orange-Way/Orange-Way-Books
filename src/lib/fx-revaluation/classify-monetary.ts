@@ -79,14 +79,14 @@ export function classifyMonetary(
   const group = (account.accountGroup ?? '').toLowerCase().trim();
 
   // Revenue/Expense don't get revalued on the B/S
-  if ((type === 'REVENUE') | (type === 'INCOME') | (type === 'EXPENSE')) return 'ignore';
+  if (type === 'REVENUE' || type === 'INCOME' || type === 'EXPENSE') return 'ignore';
 
   if (MONETARY_GROUPS.has(group)) return 'monetary';
   if (NON_MONETARY_GROUPS.has(group)) return 'non-monetary';
 
   // Default by type
-  if ((type === 'ASSETS') | (type === 'ASSET')) return 'monetary';
-  if ((type === 'LIABILITIES') | (type === 'LIABILITY')) return 'monetary';
+  if (type === 'ASSETS' || type === 'ASSET') return 'monetary';
+  if (type === 'LIABILITIES' || type === 'LIABILITY') return 'monetary';
   if (type === 'EQUITY') return 'non-monetary';
 
   return 'ignore';

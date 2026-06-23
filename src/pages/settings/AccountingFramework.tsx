@@ -77,9 +77,9 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
-          setFramework(((data as any).accounting_framework as AuditFramework) | 'IFRS');
+          setFramework(((data as any).accounting_framework as AuditFramework) || 'IFRS');
           setTranslationMethod(
-            ((data as any).fx_translation_method as FxTranslationMethod) |
+            ((data as any).fx_translation_method as FxTranslationMethod) ||
               'historical-per-transaction',
           );
         }

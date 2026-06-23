@@ -32,7 +32,7 @@ function summarizeMonth(
   let expenses = 0;
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
-    if ((t === 'revenue') | (t === 'income')) revenue += b.balance;
+    if (t === 'revenue' || t === 'income') revenue += b.balance;
     else if (t === 'expense') expenses += b.balance;
   }
   return {

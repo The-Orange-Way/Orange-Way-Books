@@ -88,7 +88,7 @@ test.describe('A. Anonymous marketing', () => {
     test(`A ${p} loads`, async ({ page }) => {
       const res = await page.goto(p, { waitUntil: 'networkidle' });
       expect(res?.status() ?? 0, p).toBeLessThan(400);
-      await shot(page, `anon${p.replace(/\//g, '-') | '-root'}`);
+      await shot(page, `anon${p.replace(/\//g, '-') || '-root'}`);
     });
   }
 });

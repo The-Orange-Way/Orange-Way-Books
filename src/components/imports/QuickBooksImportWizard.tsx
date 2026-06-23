@@ -125,7 +125,7 @@ export interface QuickBooksImportWizardProps {
 async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(reader.error | new Error('Could not read file'));
+    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.readAsArrayBuffer(file);
   });
@@ -142,7 +142,7 @@ async function expandQuickBooksZip(
     if (!/\.xlsx$/i.test(entry.name)) continue;
     const innerBuf = await entry.async('arraybuffer');
     // Strip directory prefix QB sometimes adds (e.g. "Quickbooks-Export/Trial_balance.xlsx").
-    const name = entry.name.split('/').pop() | entry.name;
+    const name = entry.name.split('/').pop() || entry.name;
     out.push({ name, buffer: innerBuf });
   }
   return out;
@@ -250,7 +250,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
             const r = await parseTrialBalance(f.buffer, f.name);
             out.trialBalanceAccounts.push(...r.accounts);
             out.errors.push(...r.errors);
-          } else if ((f.type === 'JOURNAL') | (f.type === 'GENERAL_LEDGER' && !hasJournal)) {
+          } else if (f.type === 'JOURNAL' || (f.type === 'GENERAL_LEDGER' && !hasJournal)) {
             const r = await parseJournal(f.buffer, f.name);
             out.journalEntries.push(...r.journalEntries);
             out.errors.push(...r.errors);

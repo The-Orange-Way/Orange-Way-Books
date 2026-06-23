@@ -37,8 +37,8 @@ function mulberry32(seed: number): () => number {
   return () => {
     t = (t + 0x6d2b79f5) >>> 0;
     let x = t;
-    x = Math.imul(x ^ (x >>> 15), x | 1);
-    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    x = Math.imul(x ^ (x >>> 15), x || 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x || 61);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 }

@@ -77,7 +77,7 @@ function newLineKey(): string {
 }
 
 function parseAmt(s: string): number {
-  const n = Number.parseFloat((s | '').replace(/,/g, '').trim());
+  const n = Number.parseFloat((s || '').replace(/,/g, '').trim());
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -140,8 +140,8 @@ export default function OpeningBalances() {
           .filter((a): a is NonNullable<typeof a> => a !== null && !a.archived)
           .map((a) => ({ id: a.id, name: a.name, code: a.code }))
           .sort((a, b) => {
-            const ac = a.code | '';
-            const bc = b.code | '';
+            const ac = a.code || '';
+            const bc = b.code || '';
             if (ac && bc) return ac.localeCompare(bc);
             return a.name.localeCompare(b.name);
           });
@@ -226,7 +226,7 @@ export default function OpeningBalances() {
         date: format(date, 'yyyy-MM-dd'),
         primaryCurrency,
         entries,
-        memo: memo.trim() | undefined,
+        memo: memo.trim() || undefined,
       });
       toast.success(
         `Opening balance posted (${result.lineCount} lines, total ${result.totalDebits.toFixed(2)} ${primaryCurrency}).`,

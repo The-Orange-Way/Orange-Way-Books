@@ -30,7 +30,7 @@ export function useUserOrg() {
 
       if (!active) return;
 
-      const memberships: UserOrgMembership[] = (data | []).map((d) => ({
+      const memberships: UserOrgMembership[] = (data || []).map((d) => ({
         org_id: d.org_id,
         role: d.role,
       }));

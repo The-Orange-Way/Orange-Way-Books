@@ -143,7 +143,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   // "I saved this" before continuing. For manually-typed passwords, this
   // gate does not apply — the user already saw the characters as they typed.
   const requiresSavedCheck = generated !== null;
-  const isValid = meetsLength && meetsScore && matches && !requiresSavedCheck | savedConfirmed;
+  const isValid = (meetsLength && meetsScore && matches && !requiresSavedCheck) || savedConfirmed;
 
   const handleGenerate = () => {
     const phrase = generatePassphrase();

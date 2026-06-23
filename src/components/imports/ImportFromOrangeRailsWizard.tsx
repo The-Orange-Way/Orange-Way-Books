@@ -372,16 +372,17 @@ export function ImportFromOrangeRailsWizard({
               ))}
             </div>
 
-            {payloadHasEmptyAccountRows(payload) | payloadHasEmptyContactRows(payload) && (
-              <DefaultMappingPanel
-                accountOptions={accountOptions}
-                contactOptions={contactOptions}
-                selections={defaults}
-                onChange={setDefaults}
-                hasEmptyAccounts={payloadHasEmptyAccountRows(payload)}
-                hasEmptyContacts={payloadHasEmptyContactRows(payload)}
-              />
-            )}
+            {payloadHasEmptyAccountRows(payload) ||
+              (payloadHasEmptyContactRows(payload) && (
+                <DefaultMappingPanel
+                  accountOptions={accountOptions}
+                  contactOptions={contactOptions}
+                  selections={defaults}
+                  onChange={setDefaults}
+                  hasEmptyAccounts={payloadHasEmptyAccountRows(payload)}
+                  hasEmptyContacts={payloadHasEmptyContactRows(payload)}
+                />
+              ))}
 
             <div className="flex justify-between gap-2 pt-2">
               <Button variant="outline" onClick={reset}>

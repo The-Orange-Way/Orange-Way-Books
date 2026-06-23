@@ -56,7 +56,7 @@ export function SourceWalletBadges({ wallets }: SourceWalletBadgesProps) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {sorted.map((w) => {
-        const label = w.label?.trim() | w.currency;
+        const label = w.label?.trim() || w.currency;
         return (
           <span
             key={w.id}

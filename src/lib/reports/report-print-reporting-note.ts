@@ -22,7 +22,7 @@ export function reportPrintReportingNote(
     return undefined;
   }
 
-  const p = (primaryCurrency.trim() | 'USD').toUpperCase();
+  const p = (primaryCurrency.trim() || 'USD').toUpperCase();
   const s = secondaryCurrency?.trim().toUpperCase() ?? null;
 
   switch (currencyMode) {

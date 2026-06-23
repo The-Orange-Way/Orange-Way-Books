@@ -88,8 +88,8 @@ function eraForDate(date: string, eras: PrimaryCurrencyEra[]): string | null {
   // eras are ordered oldest-first; walk backwards to find the active era
   for (let i = eras.length - 1; i >= 0; i--) {
     const era = eras[i];
-    const afterStart = !era.from | (date >= era.from);
-    const beforeEnd = !era.to | (date <= era.to);
+    const afterStart = !era.from || date >= era.from;
+    const beforeEnd = !era.to || date <= era.to;
     if (afterStart && beforeEnd) return era.currency;
   }
   return null;

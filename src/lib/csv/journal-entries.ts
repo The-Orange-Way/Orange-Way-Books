@@ -132,7 +132,7 @@ export function parseCsvJournalEntries(
     if ((hasDebit || hasCredit) && !data.account_name?.trim()) {
       rowErrors.push('Account name is required when there is a Debit or Credit amount');
     }
-    if (data.account_name?.trim() && hasDebit | hasCredit) {
+    if ((data.account_name?.trim() && hasDebit) || hasCredit) {
       if (!accountNames.has(data.account_name.trim().toLowerCase())) {
         rowErrors.push(
           `Account "${data.account_name.trim()}" not found. Use Admin > Chart of Accounts names.`,

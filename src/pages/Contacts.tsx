@@ -457,13 +457,15 @@ export default function ContactsPage() {
                     </Button>
                   </div>
                 </div>
-                {c.email | c.phone | c.city && (
-                  <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                    {c.email && <p>{c.email}</p>}
-                    {c.phone && <p>{c.phone}</p>}
-                    {c.city && <p>{c.city}</p>}
-                  </div>
-                )}
+                {c.email ||
+                  c.phone ||
+                  (c.city && (
+                    <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                      {c.email && <p>{c.email}</p>}
+                      {c.phone && <p>{c.phone}</p>}
+                      {c.city && <p>{c.city}</p>}
+                    </div>
+                  ))}
               </div>
             ))}
           </div>

@@ -82,7 +82,7 @@ function customerScore(counterparty: string | null, customer: string): number {
 }
 
 function dateScore(depositDate: string, candidate: InvoiceCandidate): number {
-  const ref = candidate.due_date | candidate.issue_date;
+  const ref = candidate.due_date || candidate.issue_date;
   if (!ref) return 0.3; // unknown — small bias
   const a = Date.parse(depositDate);
   const b = Date.parse(ref);
