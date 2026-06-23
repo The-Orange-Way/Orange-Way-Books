@@ -262,8 +262,8 @@ function resolveClassifications(
 }
 
 function inferFallbackBucket(account: ParsedTrialBalanceAccount): FallbackBucket {
-  const debit = Number(account.debit) | 0;
-  const credit = Number(account.credit) | 0;
+  const debit = Number(account.debit) || 0;
+  const credit = Number(account.credit) || 0;
   if (credit > debit) return 'INCOME';
   return 'EXPENSE';
 }
