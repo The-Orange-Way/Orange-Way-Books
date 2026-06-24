@@ -321,7 +321,7 @@ export function computeWalletBalances(
   }
 
   return wallets.map((w) => {
-    const initial = Number(w.initial_balance) | 0;
+    const initial = Number(w.initial_balance) || 0;
     const txTotal = round2(txByWallet.get(w.id) || 0);
     const nativeBalance = round2(initial + txTotal);
     const hasPrimary = primaryByWallet.has(w.id);
@@ -528,8 +528,8 @@ export function computeGeneralLedger(
 
     const current = runningBalances.get(line.accountId!) || 0;
     const delta = isDebitNormal(info.accountType)
-      ? (Number(line.debit) | 0) - (Number(line.credit) | 0)
-      : (Number(line.credit) | 0) - (Number(line.debit) | 0);
+      ? (Number(line.debit) || 0) - (Number(line.credit) || 0)
+      : (Number(line.credit) || 0) - (Number(line.debit) || 0);
     const newBalance = round2(current + delta);
     runningBalances.set(line.accountId!, newBalance);
 
@@ -538,8 +538,8 @@ export function computeGeneralLedger(
       accountName: info.name,
       accountCode: info.code,
       description: line.description,
-      debit: Number(line.debit) | 0,
-      credit: Number(line.credit) | 0,
+      debit: Number(line.debit) || 0,
+      credit: Number(line.credit) || 0,
       runningBalance: newBalance,
       journalEntryId: line.journalEntryId,
     });

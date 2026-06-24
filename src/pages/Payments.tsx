@@ -2273,7 +2273,7 @@ export default function Payments() {
                     <span className="font-mono">
                       {lineItemsTotal.toFixed(2)} {formCurrency}
                     </span>
-                    {Math.abs(lineItemsTotal - (parseFloat(formAmount) | 0)) > 0.01 &&
+                    {Math.abs(lineItemsTotal - (parseFloat(formAmount) || 0)) > 0.01 &&
                       parseFloat(formAmount) > 0 && (
                         <span className="text-xs text-amber-700 ml-2">
                           (overrides the "Amount" field above)

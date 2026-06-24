@@ -126,8 +126,8 @@ export function validateOpeningBalanceEntries(entries: OpeningBalanceEntry[]): {
 
     // `| 0` would truncate to int32 and lose every sub-dollar amount,
     // breaking the parity test and every real opening balance. Use ||.
-    const dr = Number(e.debit) | 0;
-    const cr = Number(e.credit) | 0;
+    const dr = Number(e.debit) || 0;
+    const cr = Number(e.credit) || 0;
     if (dr < 0 || cr < 0) {
       throw new OpeningBalanceValidationError(
         `Entry ${i + 1} (${e.accountName}): amounts must be non-negative.`,
