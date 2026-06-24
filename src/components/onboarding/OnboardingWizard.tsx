@@ -290,7 +290,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         </div>
         <Progress value={progress} className="h-1.5 mb-6" />
 
-        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm overflow-hidden">
           {currentStep === 0 && (
             <StepVaultPassword
               onNext={(result) => {
