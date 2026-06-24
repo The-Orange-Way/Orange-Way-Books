@@ -413,7 +413,7 @@ export default function Invoices() {
   };
 
   const formTotal = useMemo(() => {
-    return formLines.reduce((acc, l) => acc + (parseFloat(l.amount) | 0), 0);
+    return formLines.reduce((acc, l) => acc + (parseFloat(l.amount) || 0), 0);
   }, [formLines]);
 
   const addLine = () => {
@@ -519,7 +519,7 @@ export default function Invoices() {
         const lineEnc = await encryptInvoiceLineItem(
           {
             description: l.description,
-            amount: parseFloat(l.amount) | 0,
+            amount: parseFloat(l.amount) || 0,
             quantity: null,
             unit_price: null,
             chart_of_accounts_id: l.chart_of_accounts_id,
