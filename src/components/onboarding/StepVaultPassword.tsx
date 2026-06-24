@@ -213,17 +213,24 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
             <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
               Recovery code
             </p>
+            {/* min-w-0 on each grid cell (and break-words on the word span)
+                is load-bearing: without it, a long EFF-wordlist word like
+                "specifically" forces the cell wider than its 1fr column,
+                which in turn forces the card wider than its max-w-lg shell,
+                which makes the w-full Continue button bleed past the card
+                edge. Grid's minmax(0,1fr) alone is not enough because flex
+                children default to min-width:auto = content-width. */}
             <div className="grid grid-cols-3 gap-2" data-testid="recovery-code-grid">
               {words.map((word, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-1.5 text-sm"
+                  className="flex items-center gap-1.5 text-sm min-w-0"
                   data-testid={`recovery-word-${i}`}
                 >
                   <span className="w-5 text-right text-xs text-muted-foreground shrink-0">
                     {i + 1}.
                   </span>
-                  <span className="font-mono font-medium">{word}</span>
+                  <span className="font-mono font-medium break-words min-w-0">{word}</span>
                 </div>
               ))}
             </div>
