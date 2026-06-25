@@ -45,7 +45,7 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 Thirty-four years later, every mainstream business-accounting product still operates the way Finney warned against.
 
-**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Based on each vendor's published security documentation, every one of them stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. _"Bank-level encryption"_ means TLS in transit and AES at rest, with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
+**QuickBooks. Xero. FreshBooks. Wave. NetSuite. Sage.** Based on [each vendor's published security documentation](./docs/COMPETITOR-ENCRYPTION-CITATIONS.md), every one of them stores your chart of accounts, customer details, vendor contracts, journal entries, payroll, margins, and runway in a form the operator's servers can read. _"Bank-level encryption"_ means TLS in transit and AES at rest, with the keys the operator holds. One breach, one subpoena, one curious employee, one rogue administrator, and years of financial narrative are legible to someone who is not your bookkeeper.
 
 That bargain made sense when "the cloud" was new. It makes less sense when:
 
