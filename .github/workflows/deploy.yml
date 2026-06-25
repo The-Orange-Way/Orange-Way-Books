@@ -23,7 +23,10 @@ jobs:
   build-and-deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+    # Hotfix branches (hotfix/prod-*) target the prod environment so
+    # vars.VITE_* resolve to the prod values; otherwise the build ships
+    # without Supabase env and the prod bundle dies on first load.
+    environment: ${{ startsWith(github.ref_name, 'hotfix/prod-') && 'prod' || github.ref_name }}
     steps:
       - uses: actions/checkout@v6
 
@@ -54,7 +57,7 @@ jobs:
       - name: Pick Pages project for this branch
         id: target
         run: |
-          if [ "${{ github.ref_name }}" = "prod" ]; then
+          if [ "${{ github.ref_name }}" = "prod" ] || [[ "${{ github.ref_name }}" == hotfix/prod-* ]]; then
             echo "project=owb-prod" >> "$GITHUB_OUTPUT"
             echo "verify_url=https://books.orangeway.app" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "dev" ]; then
@@ -65,6 +68,15 @@ jobs:
             exit 0
           fi
 
+      - name: Pick wrangler branch tag (must match CF Pages production branch)
+        id: cfbranch
+        run: |
+          if [ "${{ steps.target.outputs.project }}" = "owb-prod" ]; then
+            echo "branch=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy to ${{ steps.target.outputs.project }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -72,7 +84,7 @@ jobs:
         run: |
           bunx wrangler@4.92.0 pages deploy dist \
             --project-name=${{ steps.target.outputs.project }} \
-            --branch=${{ github.ref_name }} \
+            --branch=${{ steps.cfbranch.outputs.branch }} \
             --commit-dirty=true
 
       - name: Verify deploy
