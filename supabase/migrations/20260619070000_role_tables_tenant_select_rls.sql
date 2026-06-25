@@ -16,6 +16,31 @@
 --   role_definitions: NULL org_id (global presets) OR org_id matches a
 --                     row in org_members for the caller.
 --   role_capabilities: same, joined through role_definitions.
+--
+-- The DROP POLICY / CREATE POLICY pair is wrapped in an explicit
+-- transaction so authenticated readers in flight at apply time never
+-- see the RLS-enabled-but-no-SELECT-policy state between the two
+-- statements (which defaults to deny). Without the wrap, a request
+-- mid-apply on either table would 0-row even for legitimate callers.
+--
+-- Pattern: any DROP POLICY + CREATE POLICY on a live RLS-enabled
+-- table belongs inside BEGIN; ... COMMIT;. The Postgres
+-- AccessExclusiveLock acquired by the DROP holds through the CREATE,
+-- so concurrent readers queue and observe the new policy directly,
+-- never the policy-less interim. Apply this to every future
+-- RLS-policy rewrite.
+--
+-- Editor's note (2026-06-24): this transaction wrap was added to
+-- the file retroactively. The original migration (without
+-- the wrap) had already been applied to OWB DEV + PROD via the
+-- Supabase Management API; the on-disk file content therefore
+-- differs from the SQL that originally executed against
+-- supabase_migrations.schema_migrations. Supabase keys applied
+-- migrations by version not by content hash, so no re-execution
+-- occurs. The wrap activates only on a fresh apply (new project,
+-- disaster recovery restore from migration files).
+
+BEGIN;
 
 DROP POLICY IF EXISTS "role_definitions_select_all_authenticated" ON public.role_definitions;
 CREATE POLICY "role_definitions_select_global_or_member"
@@ -44,3 +69,5 @@ CREATE POLICY "role_capabilities_select_global_or_member"
         )
     )
   );
+
+COMMIT;
