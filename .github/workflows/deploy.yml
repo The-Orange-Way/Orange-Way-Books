@@ -62,6 +62,15 @@ jobs:
             exit 0
           fi
 
+      - name: Pick wrangler branch tag (must match CF Pages production branch)
+        id: cfbranch
+        run: |
+          if [ "${{ steps.target.outputs.project }}" = "owb-prod" ]; then
+            echo "branch=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy to ${{ steps.target.outputs.project }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -69,7 +78,7 @@ jobs:
         run: |
           bunx wrangler@4.92.0 pages deploy dist \
             --project-name=${{ steps.target.outputs.project }} \
-            --branch=${{ github.ref_name }} \
+            --branch=${{ steps.cfbranch.outputs.branch }} \
             --commit-dirty=true
 
       - name: Verify deploy
