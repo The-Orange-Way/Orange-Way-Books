@@ -153,7 +153,7 @@ This is a cypherpunk project. Its success depends on community scrutiny, not cor
 - **Ledger backend.** A Rust ledger backend with blind-mode journals lives under `legacy/`. If you like database internals and want to remove plaintext amounts from the storage layer entirely, this is the surface.
 - **Bitcoin & Lightning connectors.** Orange Rails handles the aggregation layer (the equivalent of Plaid), but Bitcoin-native businesses want bookkeeping-aware integrations with the tooling they already run: BTCPay Server for invoicing, Mempool for on-chain reconciliation, Voltage / Umbrel / Start9 for self-hosted Lightning, Strike / Blink / Cashu mints for fiat-rails-plus-Lightning. Build the import/categorization story for any of these.
 
-Start at [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) and [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md) for the doc map; [`SECURITY.md`](./SECURITY.md) for the threat model.
+Start at [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md) for the doc map; [`SECURITY.md`](./SECURITY.md) for the threat model.
 
 ### Designers
 
@@ -199,17 +199,17 @@ The project is managed with [Bun](https://bun.sh). CI runs `bun install --frozen
 
 ## Documentation
 
-| Doc                                                                    | What's in it                                                                                     |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md)         | Map of every doc and when to read which. Start here.                                             |
-| [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md)                       | Commit-message conventions, PR style, branch model, security rules.                              |
-| [`docs/OWB-ENTERPRISE-SECURITY.md`](./docs/OWB-ENTERPRISE-SECURITY.md) | System overview, data flow, what's encrypted vs. plaintext.                                      |
-| [`docs/OWB-MULTIUSER-DESIGN.md`](./docs/OWB-MULTIUSER-DESIGN.md)       | Multi-user organization design (roles, key hierarchy, invite + revoke).                          |
-| [`docs/OWB-USER-MANAGEMENT-ZKA.md`](./docs/OWB-USER-MANAGEMENT-ZKA.md) | Track-D multi-user spec (per-org key, hybrid post-quantum wrap, custody options).                |
-| [`docs/OWB-MultiCurrency-Brain.md`](./docs/OWB-MultiCurrency-Brain.md) | Multi-currency, FX, IFRS vs. GAAP. The accountant-readable reference.                            |
-| [`docs/COMPETITIVE-ANALYSIS.md`](./docs/COMPETITIVE-ANALYSIS.md)       | Survey of role models across QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting. |
-| [`SECURITY.md`](./SECURITY.md)                                         | Threat model, cryptographic primitives, key rotation, disclosure policy.                         |
-| [`TERMS.md`](./TERMS.md)                                               | Placeholder Terms of Service (legal review pending).                                             |
+| Doc                                                                    | What's in it                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`docs/DOCUMENTATION-INDEX.md`](./docs/DOCUMENTATION-INDEX.md)         | Map of every doc and when to read which. Start here.                                              |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md)                                 | License of contributions, commit-message + PR conventions, branch model, git hooks, ground rules. |
+| [`docs/OWB-ENTERPRISE-SECURITY.md`](./docs/OWB-ENTERPRISE-SECURITY.md) | System overview, data flow, what's encrypted vs. plaintext.                                       |
+| [`docs/OWB-MULTIUSER-DESIGN.md`](./docs/OWB-MULTIUSER-DESIGN.md)       | Multi-user organization design (roles, key hierarchy, invite + revoke).                           |
+| [`docs/OWB-USER-MANAGEMENT-ZKA.md`](./docs/OWB-USER-MANAGEMENT-ZKA.md) | Track-D multi-user spec (per-org key, hybrid post-quantum wrap, custody options).                 |
+| [`docs/OWB-MultiCurrency-Brain.md`](./docs/OWB-MultiCurrency-Brain.md) | Multi-currency, FX, IFRS vs. GAAP. The accountant-readable reference.                             |
+| [`docs/COMPETITIVE-ANALYSIS.md`](./docs/COMPETITIVE-ANALYSIS.md)       | Survey of role models across QuickBooks, Xero, Wave, Zoho, FreshBooks, Odoo, ERPNext, Akaunting.  |
+| [`SECURITY.md`](./SECURITY.md)                                         | Threat model, cryptographic primitives, key rotation, disclosure policy.                          |
+| [`TERMS.md`](./TERMS.md)                                               | Placeholder Terms of Service (legal review pending).                                              |
 
 ---
 

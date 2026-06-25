@@ -18,7 +18,7 @@
 
 0. **`README.md`** (repo root): Story, positioning, and quick start.
 1. **`SECURITY.md`**: Threat model, encryption stack, what the server sees.
-2. **`docs/CONTRIBUTING.md`**: Canonical commit + PR format and the hard rules.
+2. **`CONTRIBUTING.md`** (repo root): Canonical commit + PR format, branch model, git hooks, and the hard rules.
 3. **`docs/OWB-MultiCurrency-Brain.md`**: Multi-currency system reference: three-currency model (IAS 21 / ASC 830), rate pinning, FX revaluation, functional currency change, translation methods.
 4. **`docs/OWB-USER-MANAGEMENT-ZKA.md`**: Multi-user key sharing and roles (DEK, KEM wrap, revoke, custody).
 5. **`supabase/migrations/*.sql`**: **Authoritative** for Postgres tables, columns, RLS, and triggers (generated clients must match these).
