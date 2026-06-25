@@ -109,6 +109,13 @@ const SECRET_KEY_PATTERNS = [
   /^body$/i,
   /^request_body$/i,
   /^response_body$/i,
+  // Alternative body-field names the Sentry Deno SDK or future helpers
+  // might use when normalising the request/response onto an event. We
+  // never want any of these to ship; the blanket-redact stance applies
+  // regardless of which key the SDK happens to land them under.
+  /^payload$/i,
+  /^raw$/i,
+  /^raw_body$/i,
 ];
 
 const TOKEN_PATTERNS: Array<[RegExp, string]> = [
@@ -276,7 +283,21 @@ export function initEdgeSentry(): void {
   if (!dsn) return;
   initialised = true;
 
-  const functionSlug = Deno.env.get('SUPABASE_FUNCTION_NAME') ?? 'unknown';
+  // Supabase Edge runtime does not expose a documented function-name env
+  // var. The Step 5 audit flagged the old SUPABASE_FUNCTION_NAME
+  // read as always falling through to 'unknown'. Derive from the running
+  // file path instead: supabase deploys each function under
+  // /home/deno/functions/<slug>/index.ts at runtime, and `import.meta.url`
+  // reflects that. Falls back to 'unknown' if the URL shape ever changes.
+  const functionSlug = (() => {
+    try {
+      const u = new URL(import.meta.url);
+      const match = u.pathname.match(/\/functions\/([^/]+)\/[^/]+\.[tj]s$/);
+      return match?.[1] ?? Deno.env.get('SUPABASE_FUNCTION_NAME') ?? 'unknown';
+    } catch {
+      return Deno.env.get('SUPABASE_FUNCTION_NAME') ?? 'unknown';
+    }
+  })();
   const projectRef = (() => {
     const url = Deno.env.get('SUPABASE_URL');
     if (!url) return 'unknown';

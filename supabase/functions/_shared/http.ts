@@ -14,7 +14,20 @@ import { captureEdgeError, initEdgeSentry } from './sentry.ts';
 // Initialise on module load. The wrapper is a no-op when SENTRY_DSN is
 // unset, so importing _shared/http carries no cost on builds without
 // observability wired up.
-initEdgeSentry();
+//
+// Wrapped in try/catch: a malformed SENTRY_DSN (or a future SDK change
+// that throws on init) must never crash every function's cold start.
+// Telemetry is non-essential; the catch swallows the error after a
+// single warn line so a self-hoster sees a signal in function logs
+// without taking down their workload.
+try {
+  initEdgeSentry();
+} catch (err) {
+  console.warn(
+    '[sentry] initEdgeSentry threw at module load; telemetry disabled for this invocation:',
+    err instanceof Error ? err.message : String(err),
+  );
+}
 
 /** Max JSON body we accept from clients. 256 KB is plenty for every call
  *  site in this repo (exchange-rate params, invites, GraphQL mutations).
