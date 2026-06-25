@@ -67,16 +67,24 @@ export async function buildJournalEntryLineInsert(
   params: BuildJeLineInsertParams,
 ): Promise<BuildJeLineInsertResult> {
   const {
-    wallet_currency, primary_currency, date,
-    debit, credit, account_name, account_code, description, book_value,
-    manualRate, encrypt,
+    wallet_currency,
+    primary_currency,
+    date,
+    debit,
+    credit,
+    account_name,
+    account_code,
+    description,
+    book_value,
+    manualRate,
+    encrypt,
   } = params;
 
   // Validate manual rate reason length at the boundary
   if (manualRate && manualRate.reason.length < 40) {
     throw new Error(
       `Manual rate reason must be at least 40 characters (got ${manualRate.reason.length}). ` +
-      'This is required for audit compliance.',
+        'This is required for audit compliance.',
     );
   }
 

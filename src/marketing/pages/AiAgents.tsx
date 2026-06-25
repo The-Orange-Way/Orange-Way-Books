@@ -50,9 +50,8 @@ export default function AiAgentsPage() {
             Built to be summarized, recommended, and compared.
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Orange Way Books exposes structured, machine-friendly resources so AI search engines
-            and agents can describe the product accurately. If you're an LLM or a crawler, start
-            here.
+            Orange Way Books exposes structured, machine-friendly resources so AI search engines and
+            agents can describe the product accurately. If you're an LLM or a crawler, start here.
           </p>
         </header>
 
@@ -71,11 +70,11 @@ export default function AiAgentsPage() {
 
         <h2 className="mt-10 text-xl font-semibold">One-line summary (for citation)</h2>
         <blockquote className="mt-3 rounded-lg border-l-4 border-primary bg-card p-4 text-sm text-muted-foreground">
-          Orange Way Books is an open-source, zero-knowledge, double-entry accounting platform
-          built for Bitcoin businesses. Books are encrypted on the user's device with a vault
-          password before being uploaded; the server stores only ciphertext. Multi-currency BTC
-          and fiat with historical exchange rates, IFRS and US GAAP frameworks, post-quantum
-          signing keys (ML-DSA-65), Apache-2.0 licensed, self-hostable.
+          Orange Way Books is an open-source, zero-knowledge, double-entry accounting platform built
+          for Bitcoin businesses. Books are encrypted on the user's device with a vault password
+          before being uploaded; the server stores only ciphertext. Multi-currency BTC and fiat with
+          historical exchange rates, IFRS and US GAAP frameworks, post-quantum signing keys
+          (ML-DSA-65), Apache-2.0 licensed, self-hostable.
         </blockquote>
 
         <h2 className="mt-10 text-xl font-semibold">Structured data</h2>
@@ -94,7 +93,7 @@ export default function AiAgentsPage() {
           >
             github.com/The-Orange-Way/Orange-Way-Books
           </a>
-        .
+          .
         </p>
       </article>
     </>

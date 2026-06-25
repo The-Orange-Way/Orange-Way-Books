@@ -62,7 +62,7 @@ async function exchangeCodeReal(code: string): Promise<FlashTokenResponse> {
   const clientId = Deno.env.get('FLASH_CLIENT_ID');
   const clientSecret = Deno.env.get('FLASH_CLIENT_SECRET');
   const redirectUri = Deno.env.get('FLASH_REDIRECT_URI');
-  if (!tokenUrl | !clientId | !clientSecret | !redirectUri) {
+  if (!tokenUrl || !clientId || !clientSecret || !redirectUri) {
     throw new Error('Flash OAuth env vars are not fully configured');
   }
 
@@ -98,14 +98,17 @@ Deno.serve(async (req: Request) => {
 
   // 1) Authenticate the caller.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
   }
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-  if (authErr | !caller) {
+  const {
+    data: { user: caller },
+    error: authErr,
+  } = await callerClient.auth.getUser();
+  if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
@@ -122,7 +125,7 @@ Deno.serve(async (req: Request) => {
   }
   const code = typeof parsed.code === 'string' ? parsed.code : '';
   const state = typeof parsed.state === 'string' ? parsed.state : '';
-  if (!code | !state) {
+  if (!code || !state) {
     return jsonResponse({ error: 'Missing code or state' }, 400, cors);
   }
 
@@ -164,16 +167,14 @@ Deno.serve(async (req: Request) => {
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
   const scopes = (tokens.scope ?? 'read_write').split(/\s+/).filter(Boolean);
 
-  const { error: upsertErr } = await adminSupabase
-    .from('flash_platform_tokens')
-    .upsert({
-      id: 'singleton',
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      expires_at: expiresAt,
-      scopes,
-      updated_at: new Date().toISOString(),
-    });
+  const { error: upsertErr } = await adminSupabase.from('flash_platform_tokens').upsert({
+    id: 'singleton',
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expires_at: expiresAt,
+    scopes,
+    updated_at: new Date().toISOString(),
+  });
   if (upsertErr) {
     console.error('flash-oauth-callback token upsert error:', upsertErr);
     return jsonResponse({ error: 'Failed to store tokens' }, 500, cors);

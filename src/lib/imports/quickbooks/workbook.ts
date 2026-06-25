@@ -28,7 +28,10 @@ export function cellToString(value: unknown): string {
   if (typeof value === 'object') {
     const richText = (value as { richText?: Array<{ text?: string }> }).richText;
     if (Array.isArray(richText)) {
-      return richText.map((part) => part.text ?? '').join('').trim();
+      return richText
+        .map((part) => part.text ?? '')
+        .join('')
+        .trim();
     }
     const text = (value as { text?: string }).text;
     if (typeof text === 'string') return text.trim();
@@ -92,7 +95,10 @@ export function columnIndex(headers: string[], names: string[]): number {
 }
 
 export function parseMoney(value: string): string {
-  const trimmed = value.replace(/[$,]/g, '').replace(/^\((.*)\)$/, '-$1').trim();
+  const trimmed = value
+    .replace(/[$,]/g, '')
+    .replace(/^\((.*)\)$/, '-$1')
+    .trim();
   if (!trimmed) return '0';
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? String(parsed) : '0';

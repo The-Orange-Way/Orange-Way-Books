@@ -26,7 +26,9 @@ describe('Orange Rails contract (OWB side)', () => {
   });
 
   it('rejects wrong contractVersion', () => {
-    expect(() => assertStagedImportPayload({ ...MINIMAL, contractVersion: 99 })).toThrow(/contractVersion/);
+    expect(() => assertStagedImportPayload({ ...MINIMAL, contractVersion: 99 })).toThrow(
+      /contractVersion/,
+    );
   });
 
   it('rejects missing source', () => {

@@ -43,7 +43,8 @@ type LoadState =
   | { kind: 'ready'; meta: ServerMeta; payload: InvoiceSharePayload };
 
 function formatAmount(amount: number, currency: string): string {
-  if (currency === 'BTC') return `₿ ${amount.toLocaleString(undefined, { maximumFractionDigits: 8 })}`;
+  if (currency === 'BTC')
+    return `₿ ${amount.toLocaleString(undefined, { maximumFractionDigits: 8 })}`;
   try {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
   } catch {
@@ -64,7 +65,8 @@ export default function PublicInvoice() {
     if (!shareKey) {
       setState({
         kind: 'error',
-        message: 'This link is missing its decryption key. The key lives in the part after the # — make sure the URL was copied in full from your email.',
+        message:
+          'This link is missing its decryption key. The key lives in the part after the # — make sure the URL was copied in full from your email.',
       });
       return;
     }
@@ -72,7 +74,9 @@ export default function PublicInvoice() {
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await (supabase as any).rpc('get_public_invoice', { p_url_id: urlId });
+        const { data, error } = await (supabase as any).rpc('get_public_invoice', {
+          p_url_id: urlId,
+        });
         if (cancelled) return;
         if (error) throw new Error(error.message);
         const rows = (data ?? []) as ServerMeta[];
@@ -91,7 +95,8 @@ export default function PublicInvoice() {
         } catch (err) {
           setState({
             kind: 'error',
-            message: 'Could not decrypt the invoice. The link may be corrupted or the decryption key in the URL was modified.',
+            message:
+              'Could not decrypt the invoice. The link may be corrupted or the decryption key in the URL was modified.',
           });
           return;
         }
@@ -108,7 +113,9 @@ export default function PublicInvoice() {
         setState({ kind: 'error', message: `Could not load invoice: ${msg}` });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [urlId]);
 
   // ── Render ──
@@ -153,7 +160,9 @@ export default function PublicInvoice() {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-xl font-bold text-primary font-mono">{payload.invoice_number}</div>
+              <div className="text-xl font-bold text-primary font-mono">
+                {payload.invoice_number}
+              </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {payload.issue_date ? `Issued ${payload.issue_date}` : ''}
                 {payload.due_date ? ` · Due ${payload.due_date}` : ''}
@@ -167,15 +176,23 @@ export default function PublicInvoice() {
           {/* Customer + amount */}
           <div className="grid grid-cols-2 gap-6 mb-4">
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Bill to</h3>
+              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Bill to
+              </h3>
               <p className="font-semibold">{payload.customer_name}</p>
               {payload.customer_email && <p className="text-sm">{payload.customer_email}</p>}
               {payload.customer_phone && <p className="text-sm">{payload.customer_phone}</p>}
-              {payload.customer_address && <p className="text-sm whitespace-pre-wrap">{payload.customer_address}</p>}
+              {payload.customer_address && (
+                <p className="text-sm whitespace-pre-wrap">{payload.customer_address}</p>
+              )}
             </div>
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Amount due</h3>
-              <p className="text-2xl font-bold text-primary">{formatAmount(payload.amount, payload.currency)}</p>
+              <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Amount due
+              </h3>
+              <p className="text-2xl font-bold text-primary">
+                {formatAmount(payload.amount, payload.currency)}
+              </p>
             </div>
           </div>
 
@@ -193,17 +210,27 @@ export default function PublicInvoice() {
               <tbody>
                 {payload.lines.map((l, i) => (
                   <tr key={i} className="border-b border-border/40">
-                    <td className="py-2.5">{l.description | '—'}</td>
-                    <td className="py-2.5 text-right font-mono text-xs">{l.quantity != null ? l.quantity : ''}</td>
-                    <td className="py-2.5 text-right font-mono text-xs">{l.unit_price != null ? formatAmount(l.unit_price, payload.currency) : ''}</td>
-                    <td className="py-2.5 text-right font-mono">{formatAmount(l.amount, payload.currency)}</td>
+                    <td className="py-2.5">{l.description || '—'}</td>
+                    <td className="py-2.5 text-right font-mono text-xs">
+                      {l.quantity != null ? l.quantity : ''}
+                    </td>
+                    <td className="py-2.5 text-right font-mono text-xs">
+                      {l.unit_price != null ? formatAmount(l.unit_price, payload.currency) : ''}
+                    </td>
+                    <td className="py-2.5 text-right font-mono">
+                      {formatAmount(l.amount, payload.currency)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={3} className="text-right pt-3 font-semibold">Total</td>
-                  <td className="text-right pt-3 font-bold font-mono">{formatAmount(payload.amount, payload.currency)}</td>
+                  <td colSpan={3} className="text-right pt-3 font-semibold">
+                    Total
+                  </td>
+                  <td className="text-right pt-3 font-bold font-mono">
+                    {formatAmount(payload.amount, payload.currency)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -219,7 +246,9 @@ export default function PublicInvoice() {
 
           {payload.payment_instructions && (
             <div className="mt-3 p-3 rounded-md bg-primary/5 border border-primary/30 text-sm">
-              <p className="font-semibold text-xs uppercase tracking-wider mb-1 text-primary">Payment instructions</p>
+              <p className="font-semibold text-xs uppercase tracking-wider mb-1 text-primary">
+                Payment instructions
+              </p>
               <p className="whitespace-pre-wrap">{payload.payment_instructions}</p>
             </div>
           )}
@@ -243,7 +272,8 @@ export default function PublicInvoice() {
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          This invoice was decrypted in your browser. The sender's bookkeeping platform never sees your contents in plaintext.
+          This invoice was decrypted in your browser. The sender's bookkeeping platform never sees
+          your contents in plaintext.
         </p>
       </div>
     </div>

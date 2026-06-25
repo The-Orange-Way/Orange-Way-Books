@@ -1,10 +1,22 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { ManualRate } from '@/lib/exchange/build-je-line-insert';
 
 const RATE_SOURCES = [
@@ -30,7 +42,12 @@ interface ManualRateDialogProps {
 }
 
 export function ManualRateDialog({
-  open, onClose, walletCurrency, primaryCurrency, date, onConfirm,
+  open,
+  onClose,
+  walletCurrency,
+  primaryCurrency,
+  date,
+  onConfirm,
 }: ManualRateDialogProps) {
   const [rateInput, setRateInput] = useState('');
   const [source, setSource] = useState('');
@@ -42,7 +59,7 @@ export function ManualRateDialog({
 
   const handleConfirm = () => {
     setError(null);
-    if (!rateInput | !Number.isFinite(rateValue) | rateValue <= 0) {
+    if (!rateInput || !Number.isFinite(rateValue) || rateValue <= 0) {
       setError('Enter a valid positive exchange rate.');
       return;
     }
@@ -51,29 +68,45 @@ export function ManualRateDialog({
       return;
     }
     if (reason.length < REASON_MIN_LENGTH) {
-      setError(`Reason must be at least ${REASON_MIN_LENGTH} characters (${reasonRemaining} more needed).`);
+      setError(
+        `Reason must be at least ${REASON_MIN_LENGTH} characters (${reasonRemaining} more needed).`,
+      );
       return;
     }
     onConfirm({ rate: rateValue, reason, source });
     // Reset for next open
-    setRateInput(''); setSource(''); setReason(''); setError(null);
+    setRateInput('');
+    setSource('');
+    setReason('');
+    setError(null);
   };
 
   const handleClose = () => {
-    setRateInput(''); setSource(''); setReason(''); setError(null);
+    setRateInput('');
+    setSource('');
+    setReason('');
+    setError(null);
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Enter Exchange Rate Manually</DialogTitle>
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
-          The automatic rate for <strong>{walletCurrency} → {primaryCurrency}</strong> on{' '}
-          <strong>{date}</strong> could not be fetched. Enter the rate from a reliable source.{' '}
+          The automatic rate for{' '}
+          <strong>
+            {walletCurrency} → {primaryCurrency}
+          </strong>{' '}
+          on <strong>{date}</strong> could not be fetched. Enter the rate from a reliable source.{' '}
           <a
             href="/docs/OWB-MultiCurrency-Brain.md#9-edge-cases"
             className="underline text-primary"
@@ -107,7 +140,9 @@ export function ManualRateDialog({
               </SelectTrigger>
               <SelectContent>
                 {RATE_SOURCES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -128,17 +163,18 @@ export function ManualRateDialog({
               onChange={(e) => setReason(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Minimum {REASON_MIN_LENGTH} characters — required for audit compliance (IAS 21 / ASC 830).
+              Minimum {REASON_MIN_LENGTH} characters — required for audit compliance (IAS 21 / ASC
+              830).
             </p>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+          <Button variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
           <Button onClick={handleConfirm}>Confirm Rate</Button>
         </DialogFooter>
       </DialogContent>

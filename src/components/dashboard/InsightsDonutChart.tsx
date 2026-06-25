@@ -28,7 +28,7 @@ export function buildDonutSliceViews(
 ): InsightsDonutSliceView[] {
   const positive = slices.filter((s) => s.value > 1e-9);
   const total = positive.reduce((sum, s) => sum + s.value, 0);
-  if (total <= 0 | positive.length === 0) return [];
+  if (total <= 0 || positive.length === 0) return [];
   const colors = assignDonutColors(positive.length);
   const rawPercents = positive.map((s) => (s.value / total) * 100);
   const rounded = rawPercents.map((p) => Math.round(p * 10) / 10);
@@ -61,7 +61,11 @@ export interface InsightsDonutRingProps {
 export function InsightsDonutRing({ slices }: InsightsDonutRingProps) {
   const gradient = useMemo(() => buildConicGradient(slices), [slices]);
   if (slices.length === 0) {
-    return <div className="owb-insights-donut-empty" aria-hidden="true">No data</div>;
+    return (
+      <div className="owb-insights-donut-empty" aria-hidden="true">
+        No data
+      </div>
+    );
   }
   return (
     <div
@@ -100,7 +104,9 @@ export function InsightsDonutChart({ slices, formatValue, centerLabel }: Insight
     <div className="owb-donut-panel">
       <div className="owb-donut-ring-wrap">
         <InsightsDonutRing slices={slices} />
-        <div className="owb-donut-center" aria-hidden="true">{center}</div>
+        <div className="owb-donut-center" aria-hidden="true">
+          {center}
+        </div>
       </div>
       <div className="owb-donut-chips" role="list" aria-label="Breakdown">
         {slices.map((row) => (
@@ -110,7 +116,11 @@ export function InsightsDonutChart({ slices, formatValue, centerLabel }: Insight
             className="owb-donut-chip"
             title={`${row.label}: ${formatValue(row.value)} (${row.percent.toFixed(0)}%)`}
           >
-            <span className="owb-donut-chip-dot" style={{ background: row.color }} aria-hidden="true" />
+            <span
+              className="owb-donut-chip-dot"
+              style={{ background: row.color }}
+              aria-hidden="true"
+            />
             <span className="owb-donut-chip-name">{row.label}</span>
             <span className="owb-donut-chip-pct">{row.percent.toFixed(0)}%</span>
           </span>

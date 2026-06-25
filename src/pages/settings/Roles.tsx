@@ -44,7 +44,12 @@ import RoleSummary from '@/components/roles/RoleSummary';
 // ---------------------------------------------------------------------------
 
 function PresetBadge({ isSystem }: { isSystem: boolean }) {
-  if (isSystem) return <Badge variant="secondary" className="ml-2">Default role</Badge>;
+  if (isSystem)
+    return (
+      <Badge variant="secondary" className="ml-2">
+        Default role
+      </Badge>
+    );
   return <Badge className="ml-2">Custom</Badge>;
 }
 
@@ -134,8 +139,11 @@ function CapabilityChecklist({
   canManageRoles: boolean;
 }) {
   const { capabilities, byFeature, loading: capsLoading } = useAllCapabilities();
-  const { keys, loading: roleCapsLoading, refresh: refreshRoleCaps } =
-    useRoleCapabilities(selectedRole?.id ?? null);
+  const {
+    keys,
+    loading: roleCapsLoading,
+    refresh: refreshRoleCaps,
+  } = useRoleCapabilities(selectedRole?.id ?? null);
 
   // Local draft state for unsaved edits.
   const [draft, setDraft] = useState<Set<string> | null>(null);
@@ -150,7 +158,8 @@ function CapabilityChecklist({
     setShowAllCaps(false);
   }, [selectedRole?.id]);
 
-  const editable = selectedRole != null && !selectedRole.is_system && hasAdvancedTier && canManageRoles;
+  const editable =
+    selectedRole != null && !selectedRole.is_system && hasAdvancedTier && canManageRoles;
   const effective = draft ?? keys;
   const dirty = draft != null;
 
@@ -163,7 +172,7 @@ function CapabilityChecklist({
   };
 
   const save = async () => {
-    if (!selectedRole | !draft | !editable) return;
+    if (!selectedRole || !draft || !editable) return;
     setSaving(true);
 
     // Diff against the persisted set to emit minimal row changes.
@@ -230,18 +239,14 @@ function CapabilityChecklist({
           {!editable && !selectedRole.is_system && !hasAdvancedTier && (
             <span className="text-xs text-amber-600">Upgrade required</span>
           )}
-          <Button
-            size="sm"
-            onClick={save}
-            disabled={!editable | !dirty | saving}
-          >
+          <Button size="sm" onClick={save} disabled={!editable || !dirty || saving}>
             <Save className="w-3 h-3" />
             {saving ? 'Saving…' : 'Save changes'}
           </Button>
         </div>
       </div>
       <div className="p-4 max-h-[calc(100vh-400px)] overflow-y-auto space-y-4">
-        {(capsLoading | roleCapsLoading) ? (
+        {capsLoading || roleCapsLoading ? (
           <div className="text-sm text-muted-foreground">Loading permissions…</div>
         ) : (
           <>
@@ -274,39 +279,40 @@ function CapabilityChecklist({
               </button>
             )}
 
-            {(editable | showAllCaps) && (
-              <div>
-                {[...byFeature.entries()].map(([feature, capsInFeature]) => (
-                  <div key={feature}>
-                    <FeatureHeader feature={feature} />
-                    <div className="space-y-1.5">
-                      {capsInFeature.map((c) => (
-                        <label
-                          key={c.key}
-                          className={`flex items-start gap-2 py-1.5 px-2 rounded hover:bg-accent/50 ${
-                            editable ? 'cursor-pointer' : 'cursor-default opacity-90'
-                          }`}
-                        >
-                          <Checkbox
-                            checked={effective.has(c.key)}
-                            onCheckedChange={() => toggle(c.key)}
-                            disabled={!editable}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1 min-w-0">
-                            {/* User-facing label is the plain-English description.
+            {editable ||
+              (showAllCaps && (
+                <div>
+                  {[...byFeature.entries()].map(([feature, capsInFeature]) => (
+                    <div key={feature}>
+                      <FeatureHeader feature={feature} />
+                      <div className="space-y-1.5">
+                        {capsInFeature.map((c) => (
+                          <label
+                            key={c.key}
+                            className={`flex items-start gap-2 py-1.5 px-2 rounded hover:bg-accent/50 ${
+                              editable ? 'cursor-pointer' : 'cursor-default opacity-90'
+                            }`}
+                          >
+                            <Checkbox
+                              checked={effective.has(c.key)}
+                              onCheckedChange={() => toggle(c.key)}
+                              disabled={!editable}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              {/* User-facing label is the plain-English description.
                                 We intentionally do NOT render c.key, signing key, or Scoped-DEK
                                 badges — those are internal cryptography primitives
                                 that accountants and bookkeepers don't need to see. */}
-                            <div className="text-sm">{c.description}</div>
-                          </div>
-                        </label>
-                      ))}
+                              <div className="text-sm">{c.description}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              ))}
           </>
         )}
       </div>
@@ -340,7 +346,11 @@ interface GrantRow {
  *   3. shortened UUID ("73db615f…") — never the full UUID.
  * The caller is responsible for passing trimmed values.
  */
-function formatMemberLabel(m: { user_id: string; email: string | null; name: string | null }): string {
+function formatMemberLabel(m: {
+  user_id: string;
+  email: string | null;
+  name: string | null;
+}): string {
   const name = (m.name ?? '').trim();
   if (name) return name;
   const email = (m.email ?? '').trim();
@@ -384,7 +394,7 @@ function UserAssignmentSection({
     // Resolve display name + email via the lookup-user-profiles edge
     // function. Wait for the session first so cold-start invocations
     // don't race the auth token being attached (401 on first render).
-    let profileMap: Record<string, { email: string; name: string }> = {};
+    const profileMap: Record<string, { email: string; name: string }> = {};
     if (userIds.length > 0) {
       try {
         await supabase.auth.getSession();
@@ -413,7 +423,9 @@ function UserAssignmentSection({
     // Fallback patch: even if the edge function worked (or failed), make
     // sure the signed-in user's own row never renders as a bare UUID.
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user && !profileMap[user.id]) {
         profileMap[user.id] = {
           email: user.email ?? '',
@@ -430,8 +442,8 @@ function UserAssignmentSection({
     setMembers(
       (memberRows ?? []).map((m: any) => ({
         user_id: m.user_id,
-        email: profileMap[m.user_id]?.email | null,
-        name: profileMap[m.user_id]?.name | null,
+        email: profileMap[m.user_id]?.email || null,
+        name: profileMap[m.user_id]?.name || null,
       })),
     );
     setGrants(
@@ -456,13 +468,11 @@ function UserAssignmentSection({
       toast.error('Pick a role first');
       return;
     }
-    const { error } = await supabase
-      .from('org_member_roles')
-      .insert({
-        org_id: orgId,
-        user_id: userId,
-        role_definition_id: roleId,
-      });
+    const { error } = await supabase.from('org_member_roles').insert({
+      org_id: orgId,
+      user_id: userId,
+      role_definition_id: roleId,
+    });
     if (error) {
       toast.error(`Failed to add role: ${error.message}`);
       return;
@@ -502,7 +512,9 @@ function UserAssignmentSection({
           <UserPlus className="w-4 h-4" /> Who has a role
         </div>
         {!canManage && (
-          <span className="text-xs text-muted-foreground">Viewer mode — ask an Owner/Admin to edit</span>
+          <span className="text-xs text-muted-foreground">
+            Viewer mode — ask an Owner/Admin to edit
+          </span>
         )}
       </div>
       {loading ? (
@@ -558,9 +570,7 @@ function UserAssignmentSection({
                     >
                       <option value="">Add another role…</option>
                       {roles
-                        .filter(
-                          (r) => !userGrants.some((g) => g.role_definition_id === r.id),
-                        )
+                        .filter((r) => !userGrants.some((g) => g.role_definition_id === r.id))
                         .map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.name} {r.is_system ? '(default)' : '(custom)'}
@@ -619,7 +629,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
   const cloneEnabled = selectedRole != null && hasAdvancedTier && canManageRoles;
 
   const onClone = async () => {
-    if (!selectedRole | !orgId | !cloneEnabled) return;
+    if (!selectedRole || !orgId || !cloneEnabled) return;
     setCloneBusy(true);
     // Copy the role_definitions row as a new org-scoped custom role.
     const newName = `${selectedRole.name} (copy)`;
@@ -633,7 +643,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
       })
       .select('id')
       .single();
-    if (roleErr | !newRole) {
+    if (roleErr || !newRole) {
       setCloneBusy(false);
       toast.error(`Failed to clone: ${roleErr?.message ?? 'unknown error'}`);
       return;
@@ -645,14 +655,12 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
       .select('capability_key')
       .eq('role_id', selectedRole.id);
     if (srcCaps && srcCaps.length > 0) {
-      const { error: capsErr } = await supabase
-        .from('role_capabilities')
-        .insert(
-          srcCaps.map((c: { capability_key: string }) => ({
-            role_id: newRole.id,
-            capability_key: c.capability_key,
-          })),
-        );
+      const { error: capsErr } = await supabase.from('role_capabilities').insert(
+        srcCaps.map((c: { capability_key: string }) => ({
+          role_id: newRole.id,
+          capability_key: c.capability_key,
+        })),
+      );
       if (capsErr) {
         setCloneBusy(false);
         toast.error(`Copied role but failed to copy permissions: ${capsErr.message}`);
@@ -667,19 +675,13 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
   };
 
   if (!orgId) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">
-        Waiting for org context…
-      </div>
-    );
+    return <div className="p-6 text-sm text-muted-foreground">Waiting for org context…</div>;
   }
 
   // When embedded in /admin the shell already supplies padding and a
   // page-level heading ("Admin") — we render a slimmer header and skip
   // the width clamp/outer padding.
-  const outerClasses = embedded
-    ? 'space-y-6'
-    : 'p-6 max-w-7xl mx-auto space-y-6';
+  const outerClasses = embedded ? 'space-y-6' : 'p-6 max-w-7xl mx-auto space-y-6';
 
   return (
     <div className={outerClasses}>
@@ -712,7 +714,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
           <Button
             variant="outline"
             onClick={onClone}
-            disabled={!cloneEnabled | cloneBusy}
+            disabled={!cloneEnabled || cloneBusy}
             title={
               !hasAdvancedTier
                 ? 'Requires Advanced plan'
@@ -745,11 +747,7 @@ export default function Roles({ embedded = false }: RolesProps = {}) {
         </div>
       )}
 
-      <UserAssignmentSection
-        orgId={orgId}
-        roles={roles}
-        canManage={canManageUsers}
-      />
+      <UserAssignmentSection orgId={orgId} roles={roles} canManage={canManageUsers} />
     </div>
   );
 }

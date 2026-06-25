@@ -7,14 +7,26 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { useOrgSettings, useFormatCurrency } from '@/hooks/useOrgSettings';
-import { decryptChartOfAccount, decryptJournalEntryLine, encryptJournalEntry } from '@/lib/crypto-fields';
+import {
+  decryptChartOfAccount,
+  decryptJournalEntryLine,
+  encryptJournalEntry,
+} from '@/lib/crypto-fields';
 import { computeAccountBalances } from '@/lib/ledger-engine';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import {
@@ -55,14 +67,18 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (active) setUserId(user?.id ?? null);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const primaryCurrency = settings.primaryCurrency;
-  const framework = (settings as any).accounting_framework | 'IFRS';
+  const framework = (settings as any).accounting_framework || 'IFRS';
 
   const [step, setStep] = useState<WizardStep>('period');
   const [periodEnd, setPeriodEnd] = useState(() => {
@@ -89,13 +105,16 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
 
   // Fetch and decrypt all data needed for the preview
   const handleComputePreview = useCallback(async () => {
-    if (!orgId | !decryptText | !primaryCurrency) return;
+    if (!orgId || !decryptText || !primaryCurrency) return;
     setLoading(true);
     setError(null);
     try {
       // Fetch accounts, JE lines (up to period end), and wallets
       const [acctRes, jeRes, walletRes] = await Promise.all([
-        supabase.from('chart_of_accounts' as any).select('*').eq('org_id', orgId),
+        supabase
+          .from('chart_of_accounts' as any)
+          .select('*')
+          .eq('org_id', orgId),
         supabase
           .from('journal_entry_lines')
           .select('*, journal_entries!inner(date, org_id)')
@@ -113,10 +132,10 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
             name: fields.account_name,
             code: fields.account_code,
             accountType: fields.account_type,
-            accountGroup: fields.account_group | '',
-            accountCategory: fields.account_category | null,
+            accountGroup: fields.account_group || '',
+            accountCategory: fields.account_category || null,
           };
-        })
+        }),
       );
 
       const rawLines = (jeRes.data as any[]) ?? [];
@@ -138,7 +157,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
             primaryCurrencyAtPosting: l.primary_currency_at_posting ?? null,
             ratePending: l.rate_pending ?? false,
           };
-        })
+        }),
       );
 
       const balances = computeAccountBalances(journalLines, accounts);
@@ -174,12 +193,12 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
 
   // Post the revaluation run and create JEs
   const handleConfirm = useCallback(async () => {
-    if (!preview | !orgId | !userId | !encryptText | !decryptText) return;
+    if (!preview || !orgId || !userId || !encryptText || !decryptText) return;
     setLoading(true);
     setError(null);
     try {
       // Insert the run record (draft status)
-      const result = await postRevaluation(preview, orgId, userId, notes | undefined);
+      const result = await postRevaluation(preview, orgId, userId, notes || undefined);
 
       // Create the main revaluation JE
       const jeDate = preview.periodEnd;
@@ -201,7 +220,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         .insert({ org_id: orgId, date: jeDate, ...encEntry } as any)
         .select()
         .single();
-      if (jeErr | !je) throw new Error(`Failed to create JE: ${jeErr?.message}`);
+      if (jeErr || !je) throw new Error(`Failed to create JE: ${jeErr?.message}`);
 
       const jeId = (je as any).id;
 
@@ -281,7 +300,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         .insert({ org_id: orgId, date: reverseDate, ...encReverseEntry } as any)
         .select()
         .single();
-      if (revErr | !reverseJe) throw new Error(`Failed to create reversal JE: ${revErr?.message}`);
+      if (revErr || !reverseJe) throw new Error(`Failed to create reversal JE: ${revErr?.message}`);
 
       const reverseJeId = (reverseJe as any).id;
 
@@ -294,7 +313,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       // Re-build reversed lines properly
       const encReverseLines: any[] = [];
       for (const line of preview.lines) {
-        const debit = line.delta > 0 ? line.delta : 0;   // reversed
+        const debit = line.delta > 0 ? line.delta : 0; // reversed
         const credit = line.delta > 0 ? 0 : Math.abs(line.delta);
         const enc = await buildJournalEntryLineInsert({
           wallet_currency: primaryCurrency,
@@ -323,7 +342,11 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           credit: netCredit,
           encrypt: encryptText,
         });
-        encReverseLines.push({ journal_entry_id: reverseJeId, account_id: fxGainLossAccountId, ...enc });
+        encReverseLines.push({
+          journal_entry_id: reverseJeId,
+          account_id: fxGainLossAccountId,
+          ...enc,
+        });
       }
       if (encReverseLines.length > 0) {
         await supabase.from('journal_entry_lines').insert(encReverseLines as any);
@@ -354,8 +377,8 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       <div>
         <h3 className="text-base font-semibold">FX Revaluation</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-          Remeasure monetary balance-sheet items at the closing rate per IAS 21 / ASC 830.
-          A journal entry posts to P&L as Unrealized FX Gain/Loss and auto-reverses on the next period open.
+          Remeasure monetary balance-sheet items at the closing rate per IAS 21 / ASC 830. A journal
+          entry posts to P&L as Unrealized FX Gain/Loss and auto-reverses on the next period open.
         </p>
       </div>
 
@@ -365,14 +388,23 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           <span key={s} className="flex items-center gap-1">
             {i > 0 && <span className="text-muted-foreground/40">›</span>}
             <span className={step === s ? 'text-foreground font-medium' : ''}>
-              {s === 'period' ? '1. Period' : s === 'preview' ? '2. Preview' : s === 'confirm' ? '3. Confirm' : '4. Done'}
+              {s === 'period'
+                ? '1. Period'
+                : s === 'preview'
+                  ? '2. Preview'
+                  : s === 'confirm'
+                    ? '3. Confirm'
+                    : '4. Done'}
             </span>
           </span>
         ))}
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' }}>
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' }}
+        >
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
           {error}
         </div>
@@ -383,14 +415,10 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         <div className="space-y-4 max-w-sm">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Period End Date</Label>
-            <Input
-              type="date"
-              value={periodEnd}
-              onChange={e => setPeriodEnd(e.target.value)}
-            />
+            <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
             <p className="text-xs text-muted-foreground">
-              Closing rates on this date are used to remeasure monetary items.
-              The reversal entry will post on {periodEnd ? addOneDay(periodEnd) : '—'}.
+              Closing rates on this date are used to remeasure monetary items. The reversal entry
+              will post on {periodEnd ? addOneDay(periodEnd) : '—'}.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -399,10 +427,19 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           </div>
           <Button
             onClick={handleComputePreview}
-            disabled={loading | !periodEnd | !orgId}
+            disabled={loading || !periodEnd || !orgId}
             style={{ background: 'var(--color-brand-orange)', color: 'white' }}
           >
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Computing…</> : <>Compute Preview <ArrowRight className="w-4 h-4 ml-2" /></>}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Computing…
+              </>
+            ) : (
+              <>
+                Compute Preview <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </div>
       )}
@@ -411,7 +448,10 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       {step === 'preview' && preview && (
         <div className="space-y-4">
           {preview.lines.length === 0 ? (
-            <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534' }}>
+            <div
+              className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+              style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534' }}
+            >
               <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
               No revaluation adjustments needed — all monetary items are already at closing rate.
             </div>
@@ -424,22 +464,40 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
                       <th className="text-left py-2 pr-4 font-medium">Account</th>
                       <th className="text-right py-2 pr-4 font-medium">Currency</th>
                       <th className="text-right py-2 pr-4 font-medium">Balance (native)</th>
-                      <th className="text-right py-2 pr-4 font-medium">Pinned ({primaryCurrency})</th>
-                      <th className="text-right py-2 pr-4 font-medium">Closing ({primaryCurrency})</th>
+                      <th className="text-right py-2 pr-4 font-medium">
+                        Pinned ({primaryCurrency})
+                      </th>
+                      <th className="text-right py-2 pr-4 font-medium">
+                        Closing ({primaryCurrency})
+                      </th>
                       <th className="text-right py-2 font-medium">Delta</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.lines.map(l => (
+                    {preview.lines.map((l) => (
                       <tr key={l.accountId} className="border-b border-border/50 hover:bg-muted/30">
                         <td className="py-2 pr-4 font-medium text-foreground">{l.accountName}</td>
-                        <td className="text-right py-2 pr-4 font-mono text-xs text-muted-foreground">{l.currency}</td>
-                        <td className="text-right py-2 pr-4 font-mono text-xs">{l.balanceNative.toLocaleString()}</td>
-                        <td className="text-right py-2 pr-4 font-mono text-xs">{formatAmount(l.pinnedPrimary, primaryCurrency)}</td>
-                        <td className="text-right py-2 pr-4 font-mono text-xs">{formatAmount(l.currentPrimary, primaryCurrency)}</td>
-                        <td className={`text-right py-2 font-mono text-xs font-semibold ${l.delta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className="text-right py-2 pr-4 font-mono text-xs text-muted-foreground">
+                          {l.currency}
+                        </td>
+                        <td className="text-right py-2 pr-4 font-mono text-xs">
+                          {l.balanceNative.toLocaleString()}
+                        </td>
+                        <td className="text-right py-2 pr-4 font-mono text-xs">
+                          {formatAmount(l.pinnedPrimary, primaryCurrency)}
+                        </td>
+                        <td className="text-right py-2 pr-4 font-mono text-xs">
+                          {formatAmount(l.currentPrimary, primaryCurrency)}
+                        </td>
+                        <td
+                          className={`text-right py-2 font-mono text-xs font-semibold ${l.delta > 0 ? 'text-green-600' : 'text-red-600'}`}
+                        >
                           <span className="flex items-center justify-end gap-0.5">
-                            {l.delta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {l.delta > 0 ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3" />
+                            )}
                             {formatAmount(Math.abs(l.delta), primaryCurrency)}
                           </span>
                         </td>
@@ -454,23 +512,37 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
                 {[
                   { label: 'Total Gain', value: preview.totalGain, color: 'text-green-600' },
                   { label: 'Total Loss', value: preview.totalLoss, color: 'text-red-600' },
-                  { label: 'Net Delta', value: preview.netDelta, color: preview.netDelta >= 0 ? 'text-green-600' : 'text-red-600' },
-                ].map(s => (
-                  <div key={s.label} className="border rounded-lg px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
+                  {
+                    label: 'Net Delta',
+                    value: preview.netDelta,
+                    color: preview.netDelta >= 0 ? 'text-green-600' : 'text-red-600',
+                  },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="border rounded-lg px-4 py-3"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
                     <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-                    <p className={`text-lg font-bold font-mono ${s.color}`}>{formatAmount(s.value, primaryCurrency)}</p>
+                    <p className={`text-lg font-bold font-mono ${s.color}`}>
+                      {formatAmount(s.value, primaryCurrency)}
+                    </p>
                   </div>
                 ))}
               </div>
 
               <div className="text-xs text-muted-foreground px-1">
-                Period end: <strong>{preview.periodEnd}</strong> · Auto-reversal: <strong>{preview.reverseOn}</strong> · Framework: <strong>{preview.framework}</strong>
+                Period end: <strong>{preview.periodEnd}</strong> · Auto-reversal:{' '}
+                <strong>{preview.reverseOn}</strong> · Framework:{' '}
+                <strong>{preview.framework}</strong>
               </div>
             </>
           )}
 
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleReset}>← Back</Button>
+            <Button variant="outline" onClick={handleReset}>
+              ← Back
+            </Button>
             {preview.lines.length > 0 && (
               <Button
                 onClick={() => setStep('confirm')}
@@ -489,9 +561,22 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
             <p className="font-semibold">You are about to post:</p>
             <ul className="list-disc list-inside text-xs space-y-0.5 mt-1">
-              <li>A revaluation JE dated <strong>{preview.periodEnd}</strong> with {preview.lines.length} monetary account adjustment{preview.lines.length !== 1 ? 's' : ''}</li>
-              <li>Net P&L impact: <strong>{preview.netDelta >= 0 ? '+' : ''}{formatAmount(preview.netDelta, primaryCurrency)}</strong> ({preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss'})</li>
-              <li>An auto-reversal JE will post on <strong>{preview.reverseOn}</strong></li>
+              <li>
+                A revaluation JE dated <strong>{preview.periodEnd}</strong> with{' '}
+                {preview.lines.length} monetary account adjustment
+                {preview.lines.length !== 1 ? 's' : ''}
+              </li>
+              <li>
+                Net P&L impact:{' '}
+                <strong>
+                  {preview.netDelta >= 0 ? '+' : ''}
+                  {formatAmount(preview.netDelta, primaryCurrency)}
+                </strong>{' '}
+                ({preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss'})
+              </li>
+              <li>
+                An auto-reversal JE will post on <strong>{preview.reverseOn}</strong>
+              </li>
             </ul>
           </div>
 
@@ -500,18 +585,27 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
             <Input
               placeholder="e.g. Q1 2026 period-end revaluation"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => setStep('preview')}>← Back</Button>
+            <Button variant="outline" onClick={() => setStep('preview')}>
+              ← Back
+            </Button>
             <Button
               onClick={handleConfirm}
               disabled={loading}
               style={{ background: 'var(--color-brand-orange)', color: 'white' }}
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Posting…</> : 'Confirm & Post'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Posting…
+                </>
+              ) : (
+                'Confirm & Post'
+              )}
             </Button>
           </div>
         </div>
@@ -520,12 +614,16 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
       {/* ── Step 4: Done ── */}
       {step === 'done' && runResult && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm px-4 py-3 rounded-lg" style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534' }}>
+          <div
+            className="flex items-center gap-2 text-sm px-4 py-3 rounded-lg"
+            style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#166534' }}
+          >
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <div>
               <p className="font-semibold">Revaluation posted successfully.</p>
               <p className="text-xs mt-0.5">
-                JE created for {preview!.periodEnd}. Auto-reversal scheduled for {preview!.reverseOn}.
+                JE created for {preview!.periodEnd}. Auto-reversal scheduled for{' '}
+                {preview!.reverseOn}.
               </p>
             </div>
           </div>
@@ -548,7 +646,9 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           <p className="text-xs text-muted-foreground">
             No revaluations run yet.{' '}
             {step === 'period' && (
-              <button className="underline" onClick={loadHistory}>Load history</button>
+              <button className="underline" onClick={loadHistory}>
+                Load history
+              </button>
             )}
           </p>
         ) : (
@@ -563,16 +663,22 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
               </tr>
             </thead>
             <tbody>
-              {history.map(h => (
+              {history.map((h) => (
                 <tr key={h.id} className="border-b border-border/50">
                   <td className="py-1.5 pr-4 font-mono">{h.period_end}</td>
                   <td className="py-1.5 pr-4">{h.framework}</td>
                   <td className="py-1.5 pr-4">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      h.status === 'posted' ? 'bg-green-100 text-green-700' :
-                      h.status === 'reversed' ? 'bg-gray-100 text-gray-600' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>{h.status}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        h.status === 'posted'
+                          ? 'bg-green-100 text-green-700'
+                          : h.status === 'reversed'
+                            ? 'bg-gray-100 text-gray-600'
+                            : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {h.status}
+                    </span>
                   </td>
                   <td className="py-1.5 pr-4 font-mono">{h.reverse_on}</td>
                   <td className="py-1.5 text-muted-foreground">{h.notes ?? '—'}</td>

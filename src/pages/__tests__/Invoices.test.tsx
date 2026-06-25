@@ -79,10 +79,54 @@ vi.mock('@/lib/exports/csv', () => ({
 // (vi.mock factories run before module top-level code).
 const { __INVOICES, __updateMock, __makeChain } = vi.hoisted(() => {
   const INVOICES = [
-    { id: 'inv-1', invoice_number: 'INV-001', status: 'DRAFT',   amount: 100, currency: 'USD', issue_date: '2026-05-01', due_date: '2026-05-15', sent_at: null, paid_at: null, __customer: 'Acme Corp' },
-    { id: 'inv-2', invoice_number: 'INV-002', status: 'SENT',    amount: 250, currency: 'USD', issue_date: '2026-05-02', due_date: '2026-05-16', sent_at: '2026-05-02T00:00:00Z', paid_at: null, __customer: 'Beta LLC' },
-    { id: 'inv-3', invoice_number: 'INV-003', status: 'PAID',    amount: 999, currency: 'EUR', issue_date: '2026-05-03', due_date: '2026-05-17', sent_at: '2026-05-03T00:00:00Z', paid_at: '2026-05-05T00:00:00Z', __customer: 'Gamma Inc' },
-    { id: 'inv-4', invoice_number: 'INV-004', status: 'DRAFT',   amount:  42, currency: 'USD', issue_date: '2026-05-04', due_date: null,         sent_at: null, paid_at: null, __customer: 'Delta Co' },
+    {
+      id: 'inv-1',
+      invoice_number: 'INV-001',
+      status: 'DRAFT',
+      amount: 100,
+      currency: 'USD',
+      issue_date: '2026-05-01',
+      due_date: '2026-05-15',
+      sent_at: null,
+      paid_at: null,
+      __customer: 'Acme Corp',
+    },
+    {
+      id: 'inv-2',
+      invoice_number: 'INV-002',
+      status: 'SENT',
+      amount: 250,
+      currency: 'USD',
+      issue_date: '2026-05-02',
+      due_date: '2026-05-16',
+      sent_at: '2026-05-02T00:00:00Z',
+      paid_at: null,
+      __customer: 'Beta LLC',
+    },
+    {
+      id: 'inv-3',
+      invoice_number: 'INV-003',
+      status: 'PAID',
+      amount: 999,
+      currency: 'EUR',
+      issue_date: '2026-05-03',
+      due_date: '2026-05-17',
+      sent_at: '2026-05-03T00:00:00Z',
+      paid_at: '2026-05-05T00:00:00Z',
+      __customer: 'Gamma Inc',
+    },
+    {
+      id: 'inv-4',
+      invoice_number: 'INV-004',
+      status: 'DRAFT',
+      amount: 42,
+      currency: 'USD',
+      issue_date: '2026-05-04',
+      due_date: null,
+      sent_at: null,
+      paid_at: null,
+      __customer: 'Delta Co',
+    },
   ];
   const updateMock = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
   function makeChain(data: any) {
@@ -90,6 +134,17 @@ const { __INVOICES, __updateMock, __makeChain } = vi.hoisted(() => {
     const chain: any = {
       select: () => chain,
       eq: () => chain,
+      is: () => chain,
+      or: () => chain,
+      in: () => chain,
+      neq: () => chain,
+      gte: () => chain,
+      lte: () => chain,
+      // .contains() (PostgREST jsonb @> operator) and .not() (negation
+      // wrapper) were added to call sites after this stub was written.
+      // Keep them as chainable no-ops so tests reach their assertions.
+      contains: () => chain,
+      not: () => chain,
       order: () => chain,
       limit: () => chain,
       maybeSingle: () => Promise.resolve({ data: Array.isArray(data) ? null : data, error: null }),
@@ -106,11 +161,26 @@ const updateMock = __updateMock;
 
 vi.mock('@/lib/supabase', () => {
   const builder = (table: string) => {
-    if (table === 'invoices') return { ...__makeChain(__INVOICES), update: __updateMock, delete: () => __makeChain(null), insert: () => __makeChain({ id: 'new' }) };
+    if (table === 'invoices')
+      return {
+        ...__makeChain(__INVOICES),
+        update: __updateMock,
+        delete: () => __makeChain(null),
+        insert: () => __makeChain({ id: 'new' }),
+      };
     if (table === 'org_settings') {
-      return __makeChain({ public_org_name: 'Acme Org', invoice_email_subject_template: null, invoice_email_body_template: null });
+      return __makeChain({
+        public_org_name: 'Acme Org',
+        invoice_email_subject_template: null,
+        invoice_email_body_template: null,
+      });
     }
-    return { ...__makeChain([]), update: vi.fn(() => __makeChain(null)), delete: () => __makeChain(null), insert: () => __makeChain({ id: 'new' }) };
+    return {
+      ...__makeChain([]),
+      update: vi.fn(() => __makeChain(null)),
+      delete: () => __makeChain(null),
+      insert: () => __makeChain({ id: 'new' }),
+    };
   };
   return {
     supabase: {
@@ -148,12 +218,16 @@ beforeEach(() => {
 describe('Invoices page (I4)', () => {
   it('renders all decrypted invoice rows from the org', async () => {
     await renderAndWait();
+    // Scope assertions to the desktop table. The page renders both a
+    // desktop <Table> (testid="invoice-row") and a mobile card list
+    // (testid="invoice-row-mobile"); jsdom mounts both regardless of the
+    // CSS hidden classes, so a bare getByText would find each name twice.
     const rows = screen.getAllByTestId('invoice-row');
     expect(rows).toHaveLength(4);
-    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-    expect(screen.getByText('Beta LLC')).toBeInTheDocument();
-    expect(screen.getByText('Gamma Inc')).toBeInTheDocument();
-    expect(screen.getByText('Delta Co')).toBeInTheDocument();
+    expect(screen.getAllByText('Acme Corp').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Beta LLC').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Gamma Inc').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Delta Co').length).toBeGreaterThan(0);
   });
 
   it('filters rows by plaintext status (DRAFT chip narrows to two rows)', async () => {
@@ -165,8 +239,8 @@ describe('Invoices page (I4)', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('invoice-row')).toHaveLength(2);
     });
-    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-    expect(screen.getByText('Delta Co')).toBeInTheDocument();
+    expect(screen.getAllByText('Acme Corp').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Delta Co').length).toBeGreaterThan(0);
     expect(screen.queryByText('Beta LLC')).not.toBeInTheDocument();
   });
 

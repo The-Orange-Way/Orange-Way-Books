@@ -52,7 +52,7 @@ const SOURCE_PREFIX: Record<ImportSource, string> = {
  *   buildImportRefNumber('wave', '1402433495770403519') === 'WAVE-1402433495770403519'
  */
 export function buildImportRefNumber(source: ImportSource, externalId: string): string {
-  if (!externalId | externalId.length === 0) {
+  if (!externalId || externalId.length === 0) {
     throw new Error('buildImportRefNumber: externalId required');
   }
   return `${SOURCE_PREFIX[source]}-${externalId}`;
@@ -106,7 +106,7 @@ export function parseImportRefNumber(
  *   buildOpeningBalanceHmacInput('2024-01-01') === 'open-bal-2024-01-01'
  */
 export function buildImportHmacInput(source: ImportSource, externalId: string): string {
-  if (!externalId | externalId.length === 0) {
+  if (!externalId || externalId.length === 0) {
     throw new Error('buildImportHmacInput: externalId required');
   }
   return `${source}-${externalId}`.toLowerCase();
@@ -153,7 +153,7 @@ export async function mintInternalJeRefNumber(
   orgId: string,
   year: number,
 ): Promise<string> {
-  if (year < 1900 | year > 2999) {
+  if (year < 1900 || year > 2999) {
     throw new Error(`mintInternalJeRefNumber: year out of range (${year})`);
   }
   const { data, error } = await supabase.rpc('next_je_ref_number', {
@@ -163,7 +163,7 @@ export async function mintInternalJeRefNumber(
   if (error) {
     throw new Error(`next_je_ref_number RPC failed: ${error.message}`);
   }
-  if (typeof data !== 'string' | data.length === 0) {
+  if (typeof data !== 'string' || data.length === 0) {
     throw new Error('next_je_ref_number returned empty value');
   }
   return data;
@@ -184,7 +184,7 @@ export async function purgeImportJobArtifacts(
   if (error) {
     throw new Error(`purge_import_job_artifacts RPC failed: ${error.message}`);
   }
-  if (!data | typeof data !== 'object') {
+  if (!data || typeof data !== 'object') {
     throw new Error('purge_import_job_artifacts returned no data');
   }
   return data as { import_job_id: string; org_id: string; journal_entries_deleted: number };

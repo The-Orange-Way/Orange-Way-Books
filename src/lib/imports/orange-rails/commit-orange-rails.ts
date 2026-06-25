@@ -25,10 +25,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  encryptJournalEntry,
-  type JournalEntryFields,
-} from '../../crypto-fields';
+import { encryptJournalEntry, type JournalEntryFields } from '../../crypto-fields';
 import { buildJournalEntryLineInsert } from '../../exchange/build-je-line-insert';
 import {
   buildImportRefNumber,
@@ -62,7 +59,10 @@ export interface CommitResult {
 }
 
 export class StagedImportCommitError extends Error {
-  constructor(message: string, public importJobId?: string) {
+  constructor(
+    message: string,
+    public importJobId?: string,
+  ) {
     super(message);
     this.name = 'StagedImportCommitError';
   }
@@ -106,14 +106,19 @@ function groupJournalEntries(rows: V3StagedRow[]): JournalEntryGroup[] {
     const date = rowField(row, 'je_date');
     const ref = rowField(row, 'je_ref_#');
     const memo = rowField(row, 'je_memo');
-    const status = rowField(row, 'je_status').toUpperCase() | 'POSTED';
-    const currency = rowField(row, 'wallet_currency').toUpperCase() | 'USD';
+    const status = rowField(row, 'je_status').toUpperCase() || 'POSTED';
+    const currency = rowField(row, 'wallet_currency').toUpperCase() || 'USD';
     const key = `${date}\x1f${ref}\x1f${memo}\x1f${status}\x1f${currency}`;
     if (current && currentKey === key) {
       current.lines.push(row);
     } else {
       current = {
-        date, refNumber: ref, memo: memo | null, status, currency, lines: [row],
+        date,
+        refNumber: ref,
+        memo: memo || null,
+        status,
+        currency,
+        lines: [row],
       };
       groups.push(current);
       currentKey = key;
@@ -160,7 +165,9 @@ export async function commitStagedImportPayload(
   const fileHash = options.fileHash ?? null;
   const rowCount = payload.staged.journalEntries?.length ?? 0;
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const userId = user?.id ?? null;
 
   const { data: jobRow, error: jobErr } = await supabase
@@ -181,7 +188,7 @@ export async function commitStagedImportPayload(
     .select('id')
     .single();
 
-  if (jobErr | !jobRow) {
+  if (jobErr || !jobRow) {
     throw new StagedImportCommitError(
       `import_jobs insert failed: ${jobErr?.message ?? 'no row returned'}`,
     );
@@ -196,7 +203,10 @@ export async function commitStagedImportPayload(
 
   // 4. Commit journal entries.
   const journalEntryRows = payload.staged.journalEntries ?? [];
-  if (journalEntryRows.length === 0 && (payload.staged.accounts?.length | payload.staged.contacts?.length)) {
+  if (
+    journalEntryRows.length === 0 &&
+    (payload.staged.accounts?.length || payload.staged.contacts?.length)
+  ) {
     // v1 only commits JEs. Surface that clearly.
     await supabase
       .from('import_jobs')
@@ -212,7 +222,9 @@ export async function commitStagedImportPayload(
       status: 'failed',
       journalEntriesCreated: 0,
       journalLinesCreated: 0,
-      errors: ['v1 only commits journalEntries; upload accounts + contacts via inline CSV widgets first.'],
+      errors: [
+        'v1 only commits journalEntries; upload accounts + contacts via inline CSV widgets first.',
+      ],
     };
   }
 
@@ -238,7 +250,7 @@ export async function commitStagedImportPayload(
 
       const fields: JournalEntryFields = {
         memo: group.memo,
-        ref_number: group.refNumber | null,
+        ref_number: group.refNumber || null,
         currency: group.currency,
         exchange_rate: null,
         status: group.status,
@@ -261,11 +273,13 @@ export async function commitStagedImportPayload(
         .select('id')
         .single();
 
-      if (jeErr | !jeData) {
+      if (jeErr || !jeData) {
         // 23505 = unique_violation on (org_id, hmac_import_external_id).
         // That means this exact import has been done before. Surface clearly.
         if (jeErr?.code === '23505') {
-          errors.push(`JE ${group.refNumber}: already imported (hmac conflict). Run purge_import_job_artifacts to retry.`);
+          errors.push(
+            `JE ${group.refNumber}: already imported (hmac conflict). Run purge_import_job_artifacts to retry.`,
+          );
         } else {
           errors.push(`JE ${group.refNumber}: insert failed (${jeErr?.message ?? 'no row'})`);
         }
@@ -285,9 +299,9 @@ export async function commitStagedImportPayload(
           date: group.date,
           debit,
           credit,
-          account_name: rowField(lineRow, 'account_name') | null,
-          account_code: rowField(lineRow, 'account_code') | null,
-          description: rowField(lineRow, 'line_description') | null,
+          account_name: rowField(lineRow, 'account_name') || null,
+          account_code: rowField(lineRow, 'account_code') || null,
+          description: rowField(lineRow, 'line_description') || null,
           encrypt: encryptText,
         });
         lineInserts.push({ journal_entry_id: journalEntryId, ...lineBuilt.insert });

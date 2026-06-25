@@ -1,7 +1,40 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useVault } from '@/context/VaultContext';
-import { Settings, Users, BookOpen, Contact, Plug, Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Zap, RefreshCw, ArrowLeftRight, Landmark, CheckCircle2, XCircle, Loader2, Key, KeyRound, Mail, ExternalLink, LayoutGrid, List, Archive, ArchiveRestore, ShieldCheck, Shield, Clock, Lock, Send } from 'lucide-react';
+import {
+  Settings,
+  Users,
+  BookOpen,
+  Contact,
+  Plug,
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  Upload,
+  Zap,
+  RefreshCw,
+  ArrowLeftRight,
+  Landmark,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Key,
+  KeyRound,
+  Mail,
+  ExternalLink,
+  LayoutGrid,
+  List,
+  Archive,
+  ArchiveRestore,
+  ShieldCheck,
+  Shield,
+  Clock,
+  Lock,
+  Send,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { writeAuditLog } from '@/lib/audit-logger';
 import { useUserOrg } from '@/hooks/useUserOrg';
@@ -11,8 +44,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -27,8 +72,21 @@ import {
   type ImportDeps,
 } from '@/lib/import-from-orange-rails/handlers';
 import { parseCsvContacts, CONTACT_COLUMNS, CONTACT_SAMPLE_CSV } from '@/lib/csv/contacts';
-import { parseCsvChartOfAccounts, COA_COLUMNS, CHART_OF_ACCOUNTS_SAMPLE_CSV } from '@/lib/csv/chart-of-accounts';
-import { encryptOrganization, decryptOrganization, encryptContact, decryptContact, encryptOrgSettings, decryptOrgSettings, encryptChartOfAccount, decryptChartOfAccount } from '@/lib/crypto-fields';
+import {
+  parseCsvChartOfAccounts,
+  COA_COLUMNS,
+  CHART_OF_ACCOUNTS_SAMPLE_CSV,
+} from '@/lib/csv/chart-of-accounts';
+import {
+  encryptOrganization,
+  decryptOrganization,
+  encryptContact,
+  decryptContact,
+  encryptOrgSettings,
+  decryptOrgSettings,
+  encryptChartOfAccount,
+  decryptChartOfAccount,
+} from '@/lib/crypto-fields';
 import { buildTakeoutFile, downloadTakeout } from '@/lib/takeout/export';
 import { importTakeoutFile, wipeOrgData } from '@/lib/takeout/import';
 import type { TakeoutFile } from '@/lib/takeout/schema';
@@ -55,18 +113,74 @@ import {
 import RekeyWizard from '@/components/rekey/RekeyWizard';
 
 /* ───── types ───── */
-type Tab = 'organization' | 'users' | 'roles' | 'coa' | 'contacts' | 'connectors' | 'data' | 'or-import' | 'rates' | 'backfill' | 'revaluation' | 'framework' | 'currency' | 'exposure' | 'security';
+type Tab =
+  | 'organization'
+  | 'users'
+  | 'roles'
+  | 'coa'
+  | 'contacts'
+  | 'connectors'
+  | 'data'
+  | 'or-import'
+  | 'rates'
+  | 'backfill'
+  | 'revaluation'
+  | 'framework'
+  | 'currency'
+  | 'exposure'
+  | 'security';
 type CoaSubTab = 'income-expense' | 'balance-sheet';
 
 const CURRENCIES = [
-  'BTC', 'SATS',
-  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF',
-  'MXN', 'BRL', 'CLP', 'COP', 'PEN', 'ARS',
-  'SGD', 'HKD', 'INR', 'KRW', 'THB', 'IDR', 'MYR', 'PHP',
-  'NOK', 'SEK', 'DKK', 'CZK', 'PLN', 'HUF', 'TRY',
-  'ILS', 'AED', 'ZAR', 'NZD',
+  'BTC',
+  'SATS',
+  'USD',
+  'EUR',
+  'GBP',
+  'CAD',
+  'AUD',
+  'JPY',
+  'CHF',
+  'MXN',
+  'BRL',
+  'CLP',
+  'COP',
+  'PEN',
+  'ARS',
+  'SGD',
+  'HKD',
+  'INR',
+  'KRW',
+  'THB',
+  'IDR',
+  'MYR',
+  'PHP',
+  'NOK',
+  'SEK',
+  'DKK',
+  'CZK',
+  'PLN',
+  'HUF',
+  'TRY',
+  'ILS',
+  'AED',
+  'ZAR',
+  'NZD',
 ];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const IE_GROUPS = [
   { name: 'Sales', type: 'INCOME' },
@@ -93,18 +207,37 @@ const BS_GROUPS = [
 
 function typeBadgeColor(t: string) {
   switch (t) {
-    case 'INCOME': return 'bg-green-100 text-green-800';
-    case 'EXPENSE': return 'bg-red-100 text-red-800';
-    case 'ASSETS': return 'bg-blue-100 text-blue-800';
-    case 'LIABILITIES': return 'bg-amber-100 text-amber-800';
-    case 'EQUITY': return 'bg-purple-100 text-purple-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case 'INCOME':
+      return 'bg-green-100 text-green-800';
+    case 'EXPENSE':
+      return 'bg-red-100 text-red-800';
+    case 'ASSETS':
+      return 'bg-blue-100 text-blue-800';
+    case 'LIABILITIES':
+      return 'bg-amber-100 text-amber-800';
+    case 'EQUITY':
+      return 'bg-purple-100 text-purple-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
   }
 }
 
 const ADMIN_TAB_KEYS: Tab[] = [
-  'organization','users','roles','coa','contacts','connectors','data','or-import',
-  'rates','backfill','revaluation','framework','currency','exposure','security',
+  'organization',
+  'users',
+  'roles',
+  'coa',
+  'contacts',
+  'connectors',
+  'data',
+  'or-import',
+  'rates',
+  'backfill',
+  'revaluation',
+  'framework',
+  'currency',
+  'exposure',
+  'security',
 ];
 
 function isValidTab(v: string | null): v is Tab {
@@ -164,11 +297,13 @@ export default function Admin() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-1">Admin</h1>
-      <p className="text-sm text-muted-foreground mb-6">Organization settings and team management</p>
+      <p className="text-sm text-muted-foreground mb-6">
+        Organization settings and team management
+      </p>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-border mb-6">
-        {tabs.map(t => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => handleSetTab(t.key)}
@@ -196,8 +331,12 @@ export default function Admin() {
       {tab === 'backfill' && <BackfillRates orgId={orgId} />}
       {tab === 'revaluation' && <RevaluationWizard orgId={orgId} />}
       {tab === 'framework' && <AccountingFramework orgId={orgId} />}
-      {tab === 'currency' && <ChangePrimaryCurrency orgId={orgId} currentPrimary={orgSettings.primaryCurrency} />}
-      {tab === 'exposure' && <FxExposureDashboard orgId={orgId} primaryCurrency={orgSettings.primaryCurrency} />}
+      {tab === 'currency' && (
+        <ChangePrimaryCurrency orgId={orgId} currentPrimary={orgSettings.primaryCurrency} />
+      )}
+      {tab === 'exposure' && (
+        <FxExposureDashboard orgId={orgId} primaryCurrency={orgSettings.primaryCurrency} />
+      )}
       {tab === 'security' && <SecurityTab orgId={orgId} />}
       {tab === 'audit-log' && <AuditLogTab orgId={orgId} />}
       {tab === 'period-close' && <PeriodCloseTab orgId={orgId} />}
@@ -213,9 +352,15 @@ interface OrgTile {
   is_archived: boolean;
 }
 
-function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg: (id: string) => void }) {
+function OrganizationTab({
+  orgId,
+  switchOrg,
+}: {
+  orgId: string | null;
+  switchOrg: (id: string) => void;
+}) {
   const { encryptText, decryptText } = useVault();
-  // Capability gate — UI presence only. Members lacking org.manage see a
+  // Capability gate, UI presence only. Members lacking org.manage see a
   // read-only view of organization data; RLS still authoritative on writes.
   const canManageOrg = useCapability('org.manage', orgId);
   const [saving, setSaving] = useState(false);
@@ -248,27 +393,35 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
     time_format: '12h',
     number_format: 'us',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    // T4 PR C — approval threshold for payment requests.
+    // T4 PR C, approval threshold for payment requests.
     approval_threshold_amount: null as number | null,
     approval_threshold_currency: '' as string,
   });
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
-  const showBtcPref = settings.primary_currency === 'BTC' | settings.secondary_currency === 'BTC';
+  const showBtcPref = settings.primary_currency === 'BTC' || settings.secondary_currency === 'BTC';
 
   const fetchOrgs = useCallback(async () => {
     setOrgsLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setOrgsLoading(false); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setOrgsLoading(false);
+      return;
+    }
 
     const { data: memberships } = await supabase
       .from('org_members')
       .select('org_id')
       .eq('user_id', user.id);
-    if (!memberships?.length) { setOrgsLoading(false); return; }
+    if (!memberships?.length) {
+      setOrgsLoading(false);
+      return;
+    }
 
-    const orgIds = memberships.map(m => m.org_id);
+    const orgIds = memberships.map((m) => m.org_id);
     const { data: orgRows } = await supabase
       .from('organizations')
       .select('id, name, key_version, is_archived')
@@ -279,39 +432,49 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         orgRows.map(async (org) => {
           const dec = await decryptOrganization(org, decryptText);
           return { id: org.id, name: dec.name, is_archived: org.is_archived ?? false };
-        })
+        }),
       );
       setOrgs(decrypted);
     }
     setOrgsLoading(false);
   }, [decryptText]);
 
-  useEffect(() => { fetchOrgs(); }, [fetchOrgs]);
+  useEffect(() => {
+    fetchOrgs();
+  }, [fetchOrgs]);
 
   useEffect(() => {
     if (!orgId) return;
     (async () => {
-      const { data: org } = await supabase.from('organizations').select('name, key_version').eq('id', orgId).maybeSingle();
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, key_version')
+        .eq('id', orgId)
+        .maybeSingle();
       if (org) {
         const decrypted = await decryptOrganization(org, decryptText);
         setOrgName(decrypted.name);
       }
-      const { data: s } = await supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle();
+      const { data: s } = await supabase
+        .from('org_settings')
+        .select('*')
+        .eq('org_id', orgId)
+        .maybeSingle();
       if (s) {
         const dec = await decryptOrgSettings(s, decryptText);
         setSettings({
-          primary_currency: dec.primary_currency | 'USD',
-          secondary_currency: dec.secondary_currency | null,
-          bitcoin_display: dec.bitcoin_display | 'sats',
-          fiscal_year_type: dec.fiscal_year_type | 'calendar',
-          fiscal_start_month: dec.fiscal_start_month | 1,
-          journal_lock_date: s.journal_lock_date | '',
-          date_format: dec.date_format | 'MM-DD-YYYY',
-          time_format: dec.time_format | '12h',
-          number_format: dec.number_format | 'us',
-          timezone: dec.timezone | Intl.DateTimeFormat().resolvedOptions().timeZone,
+          primary_currency: dec.primary_currency || 'USD',
+          secondary_currency: dec.secondary_currency || null,
+          bitcoin_display: dec.bitcoin_display || 'sats',
+          fiscal_year_type: dec.fiscal_year_type || 'calendar',
+          fiscal_start_month: dec.fiscal_start_month || 1,
+          journal_lock_date: s.journal_lock_date || '',
+          date_format: dec.date_format || 'MM-DD-YYYY',
+          time_format: dec.time_format || '12h',
+          number_format: dec.number_format || 'us',
+          timezone: dec.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           approval_threshold_amount: dec.approval_threshold_amount ?? null,
-          approval_threshold_currency: dec.approval_threshold_currency | '',
+          approval_threshold_currency: dec.approval_threshold_currency || '',
         });
       }
     })();
@@ -320,27 +483,40 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
   const handleSave = async () => {
     if (!orgId) return;
     setSaving(true);
-    const enc = await encryptOrgSettings({
-      primary_currency: settings.primary_currency,
-      secondary_currency: settings.secondary_currency | null,
-      bitcoin_display: settings.bitcoin_display,
-      fiscal_year_type: settings.fiscal_year_type,
-      fiscal_start_month: settings.fiscal_start_month,
-      date_format: settings.date_format,
-      time_format: settings.time_format,
-      number_format: settings.number_format,
-      timezone: settings.timezone,
-      // T4 PR C — approval threshold. NULL when input is empty.
-      approval_threshold_amount: settings.approval_threshold_amount,
-      approval_threshold_currency: settings.approval_threshold_currency | null,
-    }, encryptText);
-    await supabase.from('org_settings').upsert({
-      org_id: orgId,
-      ...enc,
-      secondary_currency: enc.secondary_currency | null,
-      journal_lock_date: settings.journal_lock_date | null,
-    }, { onConflict: 'org_id' });
-    writeAuditLog({ orgId, action: 'UPDATE', entityType: 'org_settings', entityId: orgId, summary: 'Updated organization settings', encrypt: encryptText });
+    const enc = await encryptOrgSettings(
+      {
+        primary_currency: settings.primary_currency,
+        secondary_currency: settings.secondary_currency || null,
+        bitcoin_display: settings.bitcoin_display,
+        fiscal_year_type: settings.fiscal_year_type,
+        fiscal_start_month: settings.fiscal_start_month,
+        date_format: settings.date_format,
+        time_format: settings.time_format,
+        number_format: settings.number_format,
+        timezone: settings.timezone,
+        // T4 PR C, approval threshold. NULL when input is empty.
+        approval_threshold_amount: settings.approval_threshold_amount,
+        approval_threshold_currency: settings.approval_threshold_currency || null,
+      },
+      encryptText,
+    );
+    await supabase.from('org_settings').upsert(
+      {
+        org_id: orgId,
+        ...enc,
+        secondary_currency: enc.secondary_currency || null,
+        journal_lock_date: settings.journal_lock_date || null,
+      },
+      { onConflict: 'org_id' },
+    );
+    writeAuditLog({
+      orgId,
+      action: 'UPDATE',
+      entityType: 'org_settings',
+      entityId: orgId,
+      summary: 'Updated organization settings',
+      encrypt: encryptText,
+    });
     setSaving(false);
     toast.success('Settings saved');
   };
@@ -349,8 +525,14 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
     if (!addName.trim()) return;
     setAddSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error('Not authenticated'); setAddSaving(false); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Not authenticated');
+        setAddSaving(false);
+        return;
+      }
 
       const enc = await encryptOrganization({ name: addName.trim() }, encryptText);
       const { data: newOrg, error: orgError } = await supabase
@@ -359,8 +541,8 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         .select('id')
         .single();
 
-      if (orgError | !newOrg) {
-        toast.error(`Failed to create org: ${orgError?.message | 'Unknown error'}`);
+      if (orgError || !newOrg) {
+        toast.error(`Failed to create org: ${orgError?.message || 'Unknown error'}`);
         setAddSaving(false);
         return;
       }
@@ -368,29 +550,41 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
       // Ensure the creator is OWNER of the new org.
       // An AFTER INSERT trigger on organizations handles this automatically
       // but we upsert defensively in case the trigger hasn't been deployed.
-      await supabase.from('org_members').upsert(
-        { org_id: newOrg.id, user_id: user.id, role: 'OWNER' },
-        { onConflict: 'user_id,org_id' },
-      );
+      await supabase
+        .from('org_members')
+        .upsert(
+          { org_id: newOrg.id, user_id: user.id, role: 'OWNER' },
+          { onConflict: 'user_id,org_id' },
+        );
 
       // Create default org_settings
-      const defaultSettings = await encryptOrgSettings({
-        primary_currency: 'USD',
-        secondary_currency: null,
-        bitcoin_display: 'sats',
-        fiscal_year_type: 'calendar',
-        fiscal_start_month: 1,
-        date_format: 'MM-DD-YYYY',
-        time_format: '12h',
-        number_format: 'us',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }, encryptText);
+      const defaultSettings = await encryptOrgSettings(
+        {
+          primary_currency: 'USD',
+          secondary_currency: null,
+          bitcoin_display: 'sats',
+          fiscal_year_type: 'calendar',
+          fiscal_start_month: 1,
+          date_format: 'MM-DD-YYYY',
+          time_format: '12h',
+          number_format: 'us',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        encryptText,
+      );
       await supabase.from('org_settings').insert({
         org_id: newOrg.id,
         ...defaultSettings,
       });
 
-      writeAuditLog({ orgId: newOrg.id, action: 'CREATE', entityType: 'organization', entityId: newOrg.id, summary: `Created organization: ${addName.trim()}`, encrypt: encryptText });
+      writeAuditLog({
+        orgId: newOrg.id,
+        action: 'CREATE',
+        entityType: 'organization',
+        entityId: newOrg.id,
+        summary: `Created organization: ${addName.trim()}`,
+        encrypt: encryptText,
+      });
       toast.success('Organization created');
       setAddOpen(false);
       setAddName('');
@@ -402,11 +596,14 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
   };
 
   const handleEditSave = async () => {
-    if (!editOrg | !editName.trim()) return;
+    if (!editOrg || !editName.trim()) return;
     setEditSaving(true);
     try {
       const enc = await encryptOrganization({ name: editName.trim() }, encryptText);
-      await supabase.from('organizations').update({ ...enc }).eq('id', editOrg.id);
+      await supabase
+        .from('organizations')
+        .update({ ...enc })
+        .eq('id', editOrg.id);
       toast.success('Organization renamed');
       setEditOpen(false);
       setEditOrg(null);
@@ -428,11 +625,11 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return (parts[0]?.[0] | '?').toUpperCase();
+    return (parts[0]?.[0] || '?').toUpperCase();
   };
 
-  const visibleOrgs = showArchived ? orgs : orgs.filter(o => !o.is_archived);
-  const archivedCount = orgs.filter(o => o.is_archived).length;
+  const visibleOrgs = showArchived ? orgs : orgs.filter((o) => !o.is_archived);
+  const archivedCount = orgs.filter((o) => o.is_archived).length;
   const fiscalEnd = (settings.fiscal_start_month + 10) % 12;
 
   return (
@@ -443,19 +640,40 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
           <h2 className="text-sm font-semibold text-foreground">Your Organizations</h2>
           <div className="flex items-center gap-2">
             {archivedCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setShowArchived(!showArchived)} className="text-xs text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowArchived(!showArchived)}
+                className="text-xs text-muted-foreground"
+              >
                 <Archive className="w-3.5 h-3.5 mr-1" />
                 {showArchived ? 'Hide' : 'Show'} archived ({archivedCount})
               </Button>
             )}
-            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Grid view">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Grid view"
+            >
               <LayoutGrid className="w-4 h-4" />
             </button>
-            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="List view">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              title="List view"
+            >
               <List className="w-4 h-4" />
             </button>
             {canManageOrg && (
-              <Button size="sm" onClick={() => { setAddName(''); setAddOpen(true); }} className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" data-testid="org-add">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setAddName('');
+                  setAddOpen(true);
+                }}
+                className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+                data-testid="org-add"
+              >
                 <Plus className="w-4 h-4 mr-1" /> Add Organization
               </Button>
             )}
@@ -467,10 +685,18 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : visibleOrgs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">No organizations yet. Create one to get started.</div>
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No organizations yet. Create one to get started.
+          </div>
         ) : (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
-            {visibleOrgs.map(org => {
+          <div
+            className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+                : 'space-y-3'
+            }
+          >
+            {visibleOrgs.map((org) => {
               const isActive = org.id === orgId;
               return (
                 <div
@@ -482,16 +708,22 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
                         ? 'border-border bg-muted/30 opacity-60'
                         : 'border-border bg-card hover:border-[var(--color-brand-orange)]/50'
                   } ${!isActive && !org.is_archived ? 'cursor-pointer' : ''}`}
-                  onClick={() => { if (!isActive && !org.is_archived) switchOrg(org.id); }}
+                  onClick={() => {
+                    if (!isActive && !org.is_archived) switchOrg(org.id);
+                  }}
                 >
-                  <div className={`flex items-center gap-3 ${viewMode === 'list' ? '' : 'flex-col text-center'}`}>
+                  <div
+                    className={`flex items-center gap-3 ${viewMode === 'list' ? '' : 'flex-col text-center'}`}
+                  >
                     <div
                       className="flex items-center justify-center flex-shrink-0"
                       style={{
                         width: viewMode === 'grid' ? 48 : 40,
                         height: viewMode === 'grid' ? 48 : 40,
                         borderRadius: '50%',
-                        background: isActive ? 'var(--color-brand-orange)' : 'var(--color-gray-200)',
+                        background: isActive
+                          ? 'var(--color-brand-orange)'
+                          : 'var(--color-gray-200)',
                         color: isActive ? 'white' : 'var(--color-gray-600)',
                         fontSize: viewMode === 'grid' ? 16 : 14,
                         fontWeight: 700,
@@ -500,18 +732,42 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
                       {getInitials(org.name)}
                     </div>
                     <div className={viewMode === 'list' ? 'flex-1 min-w-0' : ''}>
-                      <div className="font-semibold text-sm text-foreground truncate">{org.name}</div>
+                      <div className="font-semibold text-sm text-foreground truncate">
+                        {org.name}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        {org.is_archived ? 'Archived' : isActive ? 'Active organization' : 'Click to switch'}
+                        {org.is_archived
+                          ? 'Archived'
+                          : isActive
+                            ? 'Active organization'
+                            : 'Click to switch'}
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1 ${viewMode === 'grid' ? 'absolute top-2 right-2' : ''}`}>
+                    <div
+                      className={`flex items-center gap-1 ${viewMode === 'grid' ? 'absolute top-2 right-2' : ''}`}
+                    >
                       {org.is_archived ? (
-                        <button onClick={(e) => { e.stopPropagation(); handleArchiveToggle(org); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Unarchive">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchiveToggle(org);
+                          }}
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Unarchive"
+                        >
                           <ArchiveRestore className="w-3.5 h-3.5" />
                         </button>
                       ) : (
-                        <button onClick={(e) => { e.stopPropagation(); setEditOrg(org); setEditName(org.name); setEditOpen(true); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditOrg(org);
+                            setEditName(org.name);
+                            setEditOpen(true);
+                          }}
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Edit"
+                        >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -526,16 +782,29 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
 
       {/* ── Settings for Active Org ── */}
       <div className="border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground mb-4">Settings — {orgName | 'Active Organization'}</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-4">
+          Settings: {orgName || 'Active Organization'}
+        </h2>
       </div>
 
       <div className="max-w-2xl space-y-8">
         {/* Primary Currency */}
         <div className="space-y-2">
           <Label className="font-semibold">Primary Accounting Currency</Label>
-          <Select value={settings.primary_currency} onValueChange={v => setSettings(p => ({ ...p, primary_currency: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+          <Select
+            value={settings.primary_currency}
+            onValueChange={(v) => setSettings((p) => ({ ...p, primary_currency: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 
@@ -549,9 +818,18 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
                 { val: 'btc-easy', label: 'BTC 0.00 050 000' },
                 { val: 'sats', label: '⚡ 1,500,000' },
                 { val: 'bitcoins', label: '₿ 1,500,000' },
-              ].map(o => (
-                <label key={o.val} className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer text-sm ${settings.bitcoin_display === o.val ? 'border-[var(--color-brand-orange)] bg-[var(--color-brand-orange-light)]' : 'border-border'}`}>
-                  <input type="radio" name="btc-display" checked={settings.bitcoin_display === o.val} onChange={() => setSettings(p => ({ ...p, bitcoin_display: o.val }))} className="sr-only" />
+              ].map((o) => (
+                <label
+                  key={o.val}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer text-sm ${settings.bitcoin_display === o.val ? 'border-[var(--color-brand-orange)] bg-[var(--color-brand-orange-light)]' : 'border-border'}`}
+                >
+                  <input
+                    type="radio"
+                    name="btc-display"
+                    checked={settings.bitcoin_display === o.val}
+                    onChange={() => setSettings((p) => ({ ...p, bitcoin_display: o.val }))}
+                    className="sr-only"
+                  />
                   {o.label}
                 </label>
               ))}
@@ -562,11 +840,22 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         {/* Secondary Currency */}
         <div className="space-y-2">
           <Label className="font-semibold">Secondary Reporting Currency</Label>
-          <Select value={settings.secondary_currency | 'none'} onValueChange={v => setSettings(p => ({ ...p, secondary_currency: v === 'none' ? null : v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+          <Select
+            value={settings.secondary_currency || 'none'}
+            onValueChange={(v) =>
+              setSettings((p) => ({ ...p, secondary_currency: v === 'none' ? null : v }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
-              {CURRENCIES.filter(c => c !== settings.primary_currency).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {CURRENCIES.filter((c) => c !== settings.primary_currency).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -575,9 +864,14 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         <div className="space-y-2">
           <Label className="font-semibold">Accounting Year</Label>
           <div className="flex gap-4">
-            {['calendar', 'fiscal'].map(v => (
+            {['calendar', 'fiscal'].map((v) => (
               <label key={v} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="radio" name="fy-type" checked={settings.fiscal_year_type === v} onChange={() => setSettings(p => ({ ...p, fiscal_year_type: v }))} />
+                <input
+                  type="radio"
+                  name="fy-type"
+                  checked={settings.fiscal_year_type === v}
+                  onChange={() => setSettings((p) => ({ ...p, fiscal_year_type: v }))}
+                />
                 {v === 'calendar' ? 'Calendar Year' : 'Fiscal Year'}
               </label>
             ))}
@@ -586,9 +880,22 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
             <div className="flex gap-4 mt-2">
               <div className="flex-1">
                 <Label className="text-xs text-muted-foreground">Start Month</Label>
-                <Select value={String(settings.fiscal_start_month)} onValueChange={v => setSettings(p => ({ ...p, fiscal_start_month: Number(v) }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}</SelectContent>
+                <Select
+                  value={String(settings.fiscal_start_month)}
+                  onValueChange={(v) =>
+                    setSettings((p) => ({ ...p, fiscal_start_month: Number(v) }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={m} value={String(i + 1)}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="flex-1">
@@ -602,8 +909,15 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         {/* Journal Lock Date */}
         <div className="space-y-2">
           <Label className="font-semibold">Journal Lock Date</Label>
-          <Input type="date" value={settings.journal_lock_date} onChange={e => setSettings(p => ({ ...p, journal_lock_date: e.target.value }))} className="max-w-xs" />
-          <p className="text-xs text-muted-foreground">Entries on or before this date cannot be edited.</p>
+          <Input
+            type="date"
+            value={settings.journal_lock_date}
+            onChange={(e) => setSettings((p) => ({ ...p, journal_lock_date: e.target.value }))}
+            className="max-w-xs"
+          />
+          <p className="text-xs text-muted-foreground">
+            Entries on or before this date cannot be edited.
+          </p>
         </div>
 
         {/* Approval Threshold (T4 PR C). When set, any payment
@@ -619,26 +933,31 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
               min="0"
               step="any"
               value={settings.approval_threshold_amount ?? ''}
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
-                setSettings(p => ({ ...p, approval_threshold_amount: v ? Number(v) : null }));
+                setSettings((p) => ({ ...p, approval_threshold_amount: v ? Number(v) : null }));
               }}
               className="flex-1"
             />
             <Select
-              value={settings.approval_threshold_currency | 'USD'}
-              onValueChange={v => setSettings(p => ({ ...p, approval_threshold_currency: v }))}
+              value={settings.approval_threshold_currency || 'USD'}
+              onValueChange={(v) => setSettings((p) => ({ ...p, approval_threshold_currency: v }))}
             >
-              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'BTC', 'SATS'].map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'BTC', 'SATS'].map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <p className="text-xs text-muted-foreground">
-            Any payment request over this amount auto-flags as Pending for approval, regardless of who submitted it. Leave blank to disable.
+            Any payment request over this amount auto-flags as Pending for approval, regardless of
+            who submitted it. Leave blank to disable.
           </p>
         </div>
 
@@ -646,9 +965,14 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         <div className="space-y-2">
           <Label className="font-semibold">Date Format</Label>
           <div className="flex gap-4">
-            {['MM-DD-YYYY', 'DD-MM-YYYY', 'YYYY-MM-DD'].map(f => (
+            {['MM-DD-YYYY', 'DD-MM-YYYY', 'YYYY-MM-DD'].map((f) => (
               <label key={f} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="radio" name="date-fmt" checked={settings.date_format === f} onChange={() => setSettings(p => ({ ...p, date_format: f }))} />
+                <input
+                  type="radio"
+                  name="date-fmt"
+                  checked={settings.date_format === f}
+                  onChange={() => setSettings((p) => ({ ...p, date_format: f }))}
+                />
                 {f}
               </label>
             ))}
@@ -659,9 +983,17 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         <div className="space-y-2">
           <Label className="font-semibold">Time Format</Label>
           <div className="flex gap-4">
-            {[{ v: '12h', l: '12-hour' }, { v: '24h', l: '24-hour' }].map(o => (
+            {[
+              { v: '12h', l: '12-hour' },
+              { v: '24h', l: '24-hour' },
+            ].map((o) => (
               <label key={o.v} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="radio" name="time-fmt" checked={settings.time_format === o.v} onChange={() => setSettings(p => ({ ...p, time_format: o.v }))} />
+                <input
+                  type="radio"
+                  name="time-fmt"
+                  checked={settings.time_format === o.v}
+                  onChange={() => setSettings((p) => ({ ...p, time_format: o.v }))}
+                />
                 {o.l}
               </label>
             ))}
@@ -672,9 +1004,17 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         <div className="space-y-2">
           <Label className="font-semibold">Number Format</Label>
           <div className="flex gap-4">
-            {[{ v: 'us', l: 'US / Standard (1,250.00)' }, { v: 'eu', l: 'EU / International (1.250,00)' }].map(o => (
+            {[
+              { v: 'us', l: 'US / Standard (1,250.00)' },
+              { v: 'eu', l: 'EU / International (1.250,00)' },
+            ].map((o) => (
               <label key={o.v} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="radio" name="num-fmt" checked={settings.number_format === o.v} onChange={() => setSettings(p => ({ ...p, number_format: o.v }))} />
+                <input
+                  type="radio"
+                  name="num-fmt"
+                  checked={settings.number_format === o.v}
+                  onChange={() => setSettings((p) => ({ ...p, number_format: o.v }))}
+                />
                 {o.l}
               </label>
             ))}
@@ -684,8 +1024,13 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
         {/* Timezone */}
         <div className="space-y-2">
           <Label className="font-semibold">Timezone</Label>
-          <Select value={settings.timezone} onValueChange={v => setSettings(p => ({ ...p, timezone: v }))}>
-            <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+          <Select
+            value={settings.timezone}
+            onValueChange={(v) => setSettings((p) => ({ ...p, timezone: v }))}
+          >
+            <SelectTrigger className="max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {[
                 { value: 'America/New_York', label: 'Eastern Time (US)' },
@@ -704,13 +1049,22 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
                 { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
                 { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
                 { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
-              ].map(tz => <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>)}
+              ].map((tz) => (
+                <SelectItem key={tz.value} value={tz.value}>
+                  {tz.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         {canManageOrg && (
-          <Button onClick={handleSave} disabled={saving} className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" data-testid="org-save-settings">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+            data-testid="org-save-settings"
+          >
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         )}
@@ -720,15 +1074,25 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
           <div className="border-t border-border pt-6 mt-8">
             <h3 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h3>
             <div className="flex flex-wrap gap-2">
-              <Button variant="destructive" onClick={() => setDeleteModal(true)} data-testid="org-delete">Delete Organization</Button>
-              <Button asChild variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteModal(true)}
+                data-testid="org-delete"
+              >
+                Delete Organization
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-50"
+              >
                 <Link to="/app/settings/demo-data">Wipe bookkeeping data</Link>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
-              "Delete Organization" removes the whole workspace. "Wipe bookkeeping data" empties the bookkeeping
-              tables but keeps your membership, billing, and the organization record — useful for resetting a demo
-              org or a test account.
+              "Delete Organization" removes the whole workspace. "Wipe bookkeeping data" empties the
+              bookkeeping tables but keeps your membership, billing, and the organization record,
+              useful for resetting a demo org or a test account.
             </p>
           </div>
         )}
@@ -737,46 +1101,107 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
       {/* ── Add Organization Modal ── */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Organization</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Organization</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Organization Name *</Label>
-              <Input value={addName} onChange={e => setAddName(e.target.value)} placeholder="e.g. My Company LLC" onKeyDown={e => { if (e.key === 'Enter' && addName.trim()) handleAddOrg(); }} />
+              <Input
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                placeholder="e.g. My Company LLC"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && addName.trim()) handleAddOrg();
+                }}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!addName.trim() | addSaving} onClick={handleAddOrg}>
-              {addSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Creating...</> : 'Create Organization'}
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+              disabled={!addName.trim() || addSaving}
+              onClick={handleAddOrg}
+            >
+              {addSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Creating...
+                </>
+              ) : (
+                'Create Organization'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── Edit Organization Modal ── */}
-      <Dialog open={editOpen} onOpenChange={v => { if (!v) { setEditOpen(false); setEditOrg(null); } }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setEditOpen(false);
+            setEditOrg(null);
+          }
+        }}
+      >
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Organization</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit Organization</DialogTitle>
+          </DialogHeader>
           {editOrg && (
             <div className="space-y-4">
               <div>
                 <Label>Organization Name *</Label>
-                <Input value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && editName.trim()) handleEditSave(); }} />
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editName.trim()) handleEditSave();
+                  }}
+                />
               </div>
               <div className="border-t border-border pt-4">
-                <Button variant="outline" size="sm" onClick={() => { handleArchiveToggle(editOrg); setEditOpen(false); setEditOrg(null); }} className="text-muted-foreground">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleArchiveToggle(editOrg);
+                    setEditOpen(false);
+                    setEditOrg(null);
+                  }}
+                  className="text-muted-foreground"
+                >
                   <Archive className="w-4 h-4 mr-1" />
                   {editOrg.is_archived ? 'Unarchive Organization' : 'Archive Organization'}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {editOrg.is_archived ? 'Unarchive to make this organization active again.' : 'Archived organizations are hidden from the main view but not deleted.'}
+                  {editOrg.is_archived
+                    ? 'Unarchive to make this organization active again.'
+                    : 'Archived organizations are hidden from the main view but not deleted.'}
                 </p>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditOpen(false); setEditOrg(null); }}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" disabled={!editName.trim() | editSaving} onClick={handleEditSave}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditOpen(false);
+                setEditOrg(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+              disabled={!editName.trim() || editSaving}
+              onClick={handleEditSave}
+            >
               {editSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -786,25 +1211,41 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
       {/* ── Delete Organization Modal ── */}
       <Dialog open={deleteModal} onOpenChange={setDeleteModal}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Delete Organization</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Type <strong>{orgName}</strong> to confirm deletion. This action cannot be undone.</p>
-          <Input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} placeholder="Organization name" />
+          <DialogHeader>
+            <DialogTitle>Delete Organization</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Type <strong>{orgName}</strong> to confirm deletion. This action cannot be undone.
+          </p>
+          <Input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="Organization name"
+          />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModal(false)}>Cancel</Button>
-            <Button variant="destructive" disabled={deleteConfirm !== orgName | saving} onClick={async () => {
-              if (!orgId) return;
-              setSaving(true);
-              const { error } = await supabase.from('organizations').delete().eq('id', orgId);
-              setSaving(false);
-              if (error) {
-                toast.error(`Delete failed: ${error.message}`);
-              } else {
-                toast.success('Organization deleted');
-                setDeleteModal(false);
-                localStorage.removeItem('owb_active_org');
-                window.location.href = '/';
-              }
-            }}>{saving ? 'Deleting...' : 'Delete Forever'}</Button>
+            <Button variant="outline" onClick={() => setDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== orgName || saving}
+              onClick={async () => {
+                if (!orgId) return;
+                setSaving(true);
+                const { error } = await supabase.from('organizations').delete().eq('id', orgId);
+                setSaving(false);
+                if (error) {
+                  toast.error(`Delete failed: ${error.message}`);
+                } else {
+                  toast.success('Organization deleted');
+                  setDeleteModal(false);
+                  localStorage.removeItem('orangewaybooks.active_org');
+                  window.location.href = '/';
+                }
+              }}
+            >
+              {saving ? 'Deleting...' : 'Delete Forever'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -825,7 +1266,7 @@ function OrganizationTab({ orgId, switchOrg }: { orgId: string | null; switchOrg
 //
 // UsersTab reads role names from `org_member_roles → role_definitions(name)`.
 // The Edit User dialog is a pure info view + "Manage role assignments"
-// jump to the Roles tab — it never writes to `org_members.role`. Role
+// jump to the Roles tab, it never writes to `org_members.role`. Role
 // changes happen exclusively through the Roles-tab UserAssignmentSection
 // (Grant / Revoke against `role_definitions`).
 
@@ -836,7 +1277,7 @@ interface RolePreset {
 }
 
 interface MemberRoleGrant {
-  /** org_member_roles.id — drives the "Extend" button payload. */
+  /** org_member_roles.id, drives the "Extend" button payload. */
   grantId: string;
   roleName: string;
   /** ISO 8601 string or null for non-expiring grants. */
@@ -849,8 +1290,8 @@ interface MemberRow {
   id: string;
   user_id: string;
   org_id: string;
-  grantedRoleNames: string[];    // from org_member_roles → role_definitions
-  grants: MemberRoleGrant[];     // Phase 4.4 — per-grant expiry + source
+  grantedRoleNames: string[]; // from org_member_roles → role_definitions
+  grants: MemberRoleGrant[]; // Phase 4.4, per-grant expiry + source
   joined_at: string | null;
   email: string;
   name: string;
@@ -879,7 +1320,9 @@ function expiryTier(expiresAt: string | null): { tier: ExpiryTier; msUntil: numb
 
 function formatExpiryDate(expiresAt: string): string {
   return new Date(expiresAt).toLocaleDateString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 
@@ -907,7 +1350,10 @@ function UsersTab({
   const [saving, setSaving] = useState(false);
 
   // Phase 4.4 extend-expiry dialog state.
-  const [extendTarget, setExtendTarget] = useState<{ member: MemberRow; grant: MemberRoleGrant } | null>(null);
+  const [extendTarget, setExtendTarget] = useState<{
+    member: MemberRow;
+    grant: MemberRoleGrant;
+  } | null>(null);
   const [extendNewDate, setExtendNewDate] = useState<string>('');
   const [extendSaving, setExtendSaving] = useState(false);
 
@@ -921,14 +1367,16 @@ function UsersTab({
     expires_at: string;
     support_user_id: string;
   } | null>(null);
-  const [supportHistory, setSupportHistory] = useState<Array<{
-    id: string;
-    granted_at: string;
-    expires_at: string;
-    ended_at: string | null;
-    end_reason: string | null;
-    support_user_id: string;
-  }>>([]);
+  const [supportHistory, setSupportHistory] = useState<
+    Array<{
+      id: string;
+      granted_at: string;
+      expires_at: string;
+      ended_at: string | null;
+      end_reason: string | null;
+      support_user_id: string;
+    }>
+  >([]);
   const [endingSupport, setEndingSupport] = useState(false);
 
   // Edit-user dialog form state. Decoupled from editMember so the user
@@ -942,7 +1390,7 @@ function UsersTab({
   // same member after a successful change doesn't keep stale state.
   const [emailPending, setEmailPending] = useState(false);
   // Per-button loading flags. One shared `saving` flag would disable
-  // every button whenever any single one is in flight — confusing UX
+  // every button whenever any single one is in flight, confusing UX
   // when e.g. "Save name" is running and you want to also see the
   // password reset button remain visually enabled.
   const [savingName, setSavingName] = useState(false);
@@ -965,7 +1413,7 @@ function UsersTab({
       if (!active) return;
       if (error) {
         // Defensive: if the table doesn't exist yet (pre-4.2 migration
-        // environments) we degrade gracefully — the dropdown will show
+        // environments) we degrade gracefully, the dropdown will show
         // the legacy names via the fallback below.
         console.warn('role_definitions query failed, falling back to legacy names:', error.message);
         setRolePresets([]);
@@ -973,14 +1421,16 @@ function UsersTab({
       }
       setRolePresets((data ?? []) as RolePreset[]);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Default the Add User selection to the first preset once they load.
   useEffect(() => {
     if (!addRoleId && rolePresets.length > 0) {
       // Prefer the "Member" preset as a reasonable default if present.
-      const memberPreset = rolePresets.find(p => p.name.toLowerCase() === 'member');
+      const memberPreset = rolePresets.find((p) => p.name.toLowerCase() === 'member');
       setAddRoleId((memberPreset ?? rolePresets[0]).id);
     }
   }, [rolePresets, addRoleId]);
@@ -989,7 +1439,7 @@ function UsersTab({
     if (!orgId) return;
     setLoading(true);
     const { data: rawMembers } = await supabase.from('org_members').select('*').eq('org_id', orgId);
-    if (!rawMembers | rawMembers.length === 0) {
+    if (!rawMembers || rawMembers.length === 0) {
       setMembers([]);
       setLoading(false);
       return;
@@ -1029,8 +1479,8 @@ function UsersTab({
     }
 
     // Try to look up user profiles via edge function (names + emails from auth.users)
-    const userIds = rawMembers.map(m => m.user_id);
-    let profileMap: Record<string, { email: string; name: string }> = {};
+    const userIds = rawMembers.map((m) => m.user_id);
+    const profileMap: Record<string, { email: string; name: string }> = {};
     try {
       // Wait for the session so the first render doesn't fire the invoke
       // before the Authorization header is attached (401 silently yields
@@ -1047,11 +1497,11 @@ function UsersTab({
         console.warn('lookup-user-profiles returned an error:', profilesErr);
       } else if (profiles && Array.isArray(profiles)) {
         for (const p of profiles) {
-          profileMap[p.id] = { email: p.email | '', name: p.name | '' };
+          profileMap[p.id] = { email: p.email || '', name: p.name || '' };
         }
       }
     } catch (err) {
-      // Network / transport error — log and fall through to the
+      // Network / transport error, log and fall through to the
       // current-user fallback below.
       console.warn('lookup-user-profiles unavailable:', err);
     }
@@ -1061,49 +1511,54 @@ function UsersTab({
     // (`getUser()` is a cheap local-session read, no network round-trip
     // once the session is warm.)
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const existing = profileMap[user.id];
-        const metaName = user.user_metadata?.full_name | user.user_metadata?.name | '';
+        const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
         profileMap[user.id] = {
-          email: existing?.email | user.email | '',
-          name: existing?.name | metaName,
+          email: existing?.email || user.email || '',
+          name: existing?.name || metaName,
         };
       }
     } catch {
-      // Ignore — worst case we just show a truncated UUID for that row.
+      // Ignore, worst case we just show a truncated UUID for that row.
     }
 
-    const enriched: MemberRow[] = rawMembers.map(m => ({
+    const enriched: MemberRow[] = rawMembers.map((m) => ({
       id: m.id,
       user_id: m.user_id,
       org_id: m.org_id,
       grantedRoleNames: (grantsByUser.get(m.user_id) ?? []).sort(),
       grants: detailedGrantsByUser.get(m.user_id) ?? [],
       joined_at: m.joined_at,
-      email: profileMap[m.user_id]?.email | '',
-      name: profileMap[m.user_id]?.name | '',
-      status: profileMap[m.user_id]?.email ? 'Active' as const : 'Invited' as const,
+      email: profileMap[m.user_id]?.email || '',
+      name: profileMap[m.user_id]?.name || '',
+      status: profileMap[m.user_id]?.email ? ('Active' as const) : ('Invited' as const),
     }));
 
     setMembers(enriched);
     setLoading(false);
   }, [orgId]);
 
-  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
     if (!s) return members;
-    return members.filter(m =>
-      m.name.toLowerCase().includes(s) ||
-      m.email.toLowerCase().includes(s) ||
-      m.grantedRoleNames.some(n => n.toLowerCase().includes(s))
+    return members.filter(
+      (m) =>
+        m.name.toLowerCase().includes(s) ||
+        m.email.toLowerCase().includes(s) ||
+        m.grantedRoleNames.some((n) => n.toLowerCase().includes(s)),
     );
   }, [members, search]);
 
   const selectedPreset = useMemo(
-    () => rolePresets.find(p => p.id === addRoleId) ?? null,
+    () => rolePresets.find((p) => p.id === addRoleId) ?? null,
     [rolePresets, addRoleId],
   );
   const selectedPresetIsAuditor = (selectedPreset?.name ?? '') === 'Auditor';
@@ -1135,7 +1590,7 @@ function UsersTab({
   }, [selectedPresetIsAuditor]);
 
   const handleAddUser = async () => {
-    if (!orgId | !addEmail.trim()) return;
+    if (!orgId || !addEmail.trim()) return;
     if (!selectedPreset) {
       toast.error('Pick a role first');
       return;
@@ -1186,14 +1641,14 @@ function UsersTab({
       });
       if (error) throw error;
 
-      const message = (data as { message?: string } | null)?.message
-        ?? `Invitation sent to ${addEmail.trim()}`;
+      const message =
+        (data as { message?: string } | null)?.message ?? `Invitation sent to ${addEmail.trim()}`;
       toast.success(message);
       setAddOpen(false);
       setAddEmail('');
       setAddExpiresAt('');
       // Reset role selection to the Member preset for the next invite.
-      const memberPreset = rolePresets.find(p => p.name.toLowerCase() === 'member');
+      const memberPreset = rolePresets.find((p) => p.name.toLowerCase() === 'member');
       setAddRoleId((memberPreset ?? rolePresets[0])?.id ?? '');
       fetchMembers();
     } catch (err) {
@@ -1235,7 +1690,7 @@ function UsersTab({
       toast.error((res as { ok: false; message: string }).message);
       return;
     }
-    toast.success(`${target.name | target.email | 'User'} removed from organization`);
+    toast.success(`${target.name || target.email || 'User'} removed from organization`);
     setRevokeTarget(null);
     // If the Edit dialog was open on this user, close it too.
     if (editMember?.user_id === target.user_id) {
@@ -1262,8 +1717,8 @@ function UsersTab({
    */
   useEffect(() => {
     if (editOpen && editMember) {
-      setEditName(editMember.name | '');
-      setEditEmail(editMember.email | '');
+      setEditName(editMember.name || '');
+      setEditEmail(editMember.email || '');
       setEmailPending(false);
     }
   }, [editOpen, editMember]);
@@ -1273,13 +1728,18 @@ function UsersTab({
    * shape. Supabase's functions.invoke returns `error` when the
    * function itself failed OR when the status is non-2xx (with the
    * response body as `context.response`). We peel the JSON error
-   * string out so we can show it as a toast — the edge function is
+   * string out so we can show it as a toast, the edge function is
    * careful to only put user-friendly copy there.
    */
   const invokeAdminUpdate = async (
     targetUserId: string,
     orgId: string,
-    action: 'update_name' | 'update_email' | 'send_password_reset' | 'resend_invite' | 'soft_revoke',
+    action:
+      | 'update_name'
+      | 'update_email'
+      | 'send_password_reset'
+      | 'resend_invite'
+      | 'soft_revoke',
     payload?: { name?: string; email?: string },
   ): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; message: string }> => {
     try {
@@ -1290,13 +1750,15 @@ function UsersTab({
         // Supabase wraps non-2xx responses in a FunctionsHttpError with
         // the raw Response on `context.response`. Read the JSON body
         // to surface the server-authored error copy.
-        let msg = error.message | 'Request failed';
+        let msg = error.message || 'Request failed';
         const ctx = (error as { context?: { response?: Response } }).context;
         if (ctx?.response) {
           try {
             const parsed = await ctx.response.clone().json();
             if (parsed && typeof parsed.error === 'string') msg = parsed.error;
-          } catch { /* fall through with the generic message */ }
+          } catch {
+            /* fall through with the generic message */
+          }
         }
         console.warn(`admin-update-user ${action} failed:`, msg);
         return { ok: false, message: msg };
@@ -1317,7 +1779,9 @@ function UsersTab({
       return;
     }
     setSavingName(true);
-    const res = await invokeAdminUpdate(editMember.user_id, editMember.org_id, 'update_name', { name: trimmed });
+    const res = await invokeAdminUpdate(editMember.user_id, editMember.org_id, 'update_name', {
+      name: trimmed,
+    });
     setSavingName(false);
     if (!res.ok) {
       toast.error((res as { ok: false; message: string }).message);
@@ -1326,7 +1790,7 @@ function UsersTab({
     toast.success('Name updated');
     // Optimistically reflect the new name in the open dialog so the
     // "changed" detector doesn't immediately re-enable the Save button.
-    setEditMember(prev => (prev ? { ...prev, name: trimmed } : prev));
+    setEditMember((prev) => (prev ? { ...prev, name: trimmed } : prev));
     fetchMembers();
   };
 
@@ -1340,7 +1804,9 @@ function UsersTab({
       return;
     }
     setSavingEmail(true);
-    const res = await invokeAdminUpdate(editMember.user_id, editMember.org_id, 'update_email', { email: trimmed });
+    const res = await invokeAdminUpdate(editMember.user_id, editMember.org_id, 'update_email', {
+      email: trimmed,
+    });
     setSavingEmail(false);
     if (!res.ok) {
       toast.error((res as { ok: false; message: string }).message);
@@ -1349,7 +1815,7 @@ function UsersTab({
     toast.success('Confirmation email sent to new address');
     setEmailPending(true);
     // We intentionally do NOT optimistically update editMember.email
-    // here — the email change isn't real until the user clicks the
+    // here, the email change isn't real until the user clicks the
     // confirmation link. fetchMembers() will show the old email
     // until the link is clicked, which matches reality.
   };
@@ -1357,7 +1823,11 @@ function UsersTab({
   const handleSendPasswordReset = async () => {
     if (!editMember) return;
     setSavingReset(true);
-    const res = await invokeAdminUpdate(editMember.user_id, editMember.org_id, 'send_password_reset');
+    const res = await invokeAdminUpdate(
+      editMember.user_id,
+      editMember.org_id,
+      'send_password_reset',
+    );
     setSavingReset(false);
     if (!res.ok) {
       toast.error((res as { ok: false; message: string }).message);
@@ -1380,9 +1850,9 @@ function UsersTab({
 
   // ── Phase 4.4 extend expiry ───────────────────────────────────────
   const executeExtendExpiry = async () => {
-    if (!extendTarget | !orgId | !extendNewDate) return;
+    if (!extendTarget || !orgId || !extendNewDate) return;
     const parsed = new Date(`${extendNewDate}T23:59:59`);
-    if (Number.isNaN(parsed.getTime()) | parsed.getTime() <= Date.now()) {
+    if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now()) {
       toast.error('The new access end date must be in the future.');
       return;
     }
@@ -1401,17 +1871,21 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to extend access.';
+        let msg = error.message || 'Failed to extend access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
             if (parsedErr && typeof parsedErr.error === 'string') msg = parsedErr.error;
-          } catch { /* */ }
+          } catch {
+            /* */
+          }
         }
         toast.error(msg);
         return;
       }
-      toast.success(`Access extended to ${formatExpiryDate((data as { new_expires_at: string }).new_expires_at)}.`);
+      toast.success(
+        `Access extended to ${formatExpiryDate((data as { new_expires_at: string }).new_expires_at)}.`,
+      );
       setExtendTarget(null);
       setExtendNewDate('');
       fetchMembers();
@@ -1445,12 +1919,16 @@ function UsersTab({
     }>;
     setSupportHistory(rows);
     const active = rows.find((r) => !r.ended_at && new Date(r.expires_at).getTime() > Date.now());
-    setActiveSupportSession(active
-      ? { id: active.id, expires_at: active.expires_at, support_user_id: active.support_user_id }
-      : null);
+    setActiveSupportSession(
+      active
+        ? { id: active.id, expires_at: active.expires_at, support_user_id: active.support_user_id }
+        : null,
+    );
   }, [orgId]);
 
-  useEffect(() => { loadSupportSessions(); }, [loadSupportSessions]);
+  useEffect(() => {
+    loadSupportSessions();
+  }, [loadSupportSessions]);
 
   const executeGrantSupport = async () => {
     if (!orgId) return;
@@ -1473,19 +1951,22 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to grant support access.';
+        let msg = error.message || 'Failed to grant support access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
             if (parsedErr && typeof parsedErr.error === 'string') msg = parsedErr.error;
-          } catch { /* */ }
+          } catch {
+            /* */
+          }
         }
         toast.error(msg);
         return;
       }
       const d = data as { expires_at: string };
       const untilLabel = new Date(d.expires_at).toLocaleString(undefined, {
-        hour: 'numeric', minute: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
       });
       toast.success(`Support can view your organization until ${untilLabel}.`);
       setSupportGrantOpen(false);
@@ -1501,7 +1982,7 @@ function UsersTab({
   };
 
   const executeEndSupport = async () => {
-    if (!orgId | !activeSupportSession) return;
+    if (!orgId || !activeSupportSession) return;
     setEndingSupport(true);
     try {
       const { error } = await supabase.functions.invoke('admin-update-user', {
@@ -1513,12 +1994,14 @@ function UsersTab({
       });
       if (error) {
         const ctx = (error as { context?: { response?: Response } }).context;
-        let msg = error.message | 'Failed to end support access.';
+        let msg = error.message || 'Failed to end support access.';
         if (ctx?.response) {
           try {
             const parsedErr = await ctx.response.clone().json();
             if (parsedErr && typeof parsedErr.error === 'string') msg = parsedErr.error;
-          } catch { /* */ }
+          } catch {
+            /* */
+          }
         }
         toast.error(msg);
         return;
@@ -1543,65 +2026,73 @@ function UsersTab({
   const [pendingWrapCount, setPendingWrapCount] = useState(0);
   const [wrapCompleting, setWrapCompleting] = useState(false);
 
-  const completePendingWraps = useCallback(async (silent = false) => {
-    if (!orgId) return;
-    setWrapCompleting(true);
-    try {
-      const { data: ready, error } = await supabase
-        .from('pending_invites' as any)
-        .select('id, recipient_user_id')
-        .eq('org_id', orgId)
-        .eq('status', 'ready_to_wrap');
-      if (error) {
-        console.warn('[invite] pending_invites fetch failed:', error.message);
-        return;
-      }
-      const rows = (ready ?? []) as unknown as Array<{ id: string; recipient_user_id: string | null }>;
-      let ok = 0;
-      let failed = 0;
-      for (const row of rows) {
-        if (!row.recipient_user_id) {
-          failed += 1;
-          continue;
+  const completePendingWraps = useCallback(
+    async (silent = false) => {
+      if (!orgId) return;
+      setWrapCompleting(true);
+      try {
+        const { data: ready, error } = await supabase
+          .from('pending_invites' as any)
+          .select('id, recipient_user_id')
+          .eq('org_id', orgId)
+          .eq('status', 'ready_to_wrap');
+        if (error) {
+          console.warn('[invite] pending_invites fetch failed:', error.message);
+          return;
         }
-        try {
-          const { publicKeyB64 } = await lookupRecipientPublicKey(row.recipient_user_id);
-          if (!publicKeyB64) {
-            // The trigger believes they have a keypair but we can't
-            // read it — likely an RLS race. Skip and retry next cycle.
+        const rows = (ready ?? []) as unknown as Array<{
+          id: string;
+          recipient_user_id: string | null;
+        }>;
+        let ok = 0;
+        let failed = 0;
+        for (const row of rows) {
+          if (!row.recipient_user_id) {
             failed += 1;
             continue;
           }
-          // Placeholder org DEK — Phase 4.5 will replace this with the
-          // real shared DEK payload. Each invite gets its own random
-          // slot so the 4.5 migration can pivot per-wrap without
-          // rewriting history.
-          const orgDek = generatePlaceholderOrgDek();
-          const payload = await wrapOrgDekForRecipient(orgDek, publicKeyB64);
-          const { error: completeErr } = await supabase.functions.invoke(
-            'complete-invite-wrap',
-            { body: { pending_invite_id: row.id, wrapped_dek: payload } },
-          );
-          if (completeErr) throw completeErr;
-          ok += 1;
-        } catch (err) {
-          console.warn('[invite] complete-invite-wrap failed for', row.id, err);
-          failed += 1;
+          try {
+            const { publicKeyB64 } = await lookupRecipientPublicKey(row.recipient_user_id);
+            if (!publicKeyB64) {
+              // The trigger believes they have a keypair but we can't
+              // read it, likely an RLS race. Skip and retry next cycle.
+              failed += 1;
+              continue;
+            }
+            // Placeholder org DEK, Phase 4.5 will replace this with the
+            // real shared DEK payload. Each invite gets its own random
+            // slot so the 4.5 migration can pivot per-wrap without
+            // rewriting history.
+            const orgDek = generatePlaceholderOrgDek();
+            const payload = await wrapOrgDekForRecipient(orgDek, publicKeyB64);
+            const { error: completeErr } = await supabase.functions.invoke('complete-invite-wrap', {
+              body: { pending_invite_id: row.id, wrapped_dek: payload },
+            });
+            if (completeErr) throw completeErr;
+            ok += 1;
+          } catch (err) {
+            console.warn('[invite] complete-invite-wrap failed for', row.id, err);
+            failed += 1;
+          }
         }
+        if (!silent) {
+          if (ok > 0) toast.success(`Completed ${ok} pending invite${ok === 1 ? '' : 's'}`);
+          if (failed > 0)
+            toast.error(
+              `${failed} invite${failed === 1 ? '' : 's'} could not be completed, retry in a moment`,
+            );
+        }
+        await fetchMembers();
+      } finally {
+        setWrapCompleting(false);
       }
-      if (!silent) {
-        if (ok > 0) toast.success(`Completed ${ok} pending invite${ok === 1 ? '' : 's'}`);
-        if (failed > 0) toast.error(`${failed} invite${failed === 1 ? '' : 's'} could not be completed — retry in a moment`);
-      }
-      await fetchMembers();
-    } finally {
-      setWrapCompleting(false);
-    }
-  }, [orgId, fetchMembers]);
+    },
+    [orgId, fetchMembers],
+  );
 
   // Load the pending-wrap count on mount + subscribe to realtime INSERTs
   // / UPDATEs on pending_invites. Any row transitioning into
-  // ready_to_wrap triggers an auto-complete attempt — the Owner sees
+  // ready_to_wrap triggers an auto-complete attempt, the Owner sees
   // a success toast without having to click anything.
   useEffect(() => {
     if (!orgId) return;
@@ -1650,7 +2141,7 @@ function UsersTab({
 
   return (
     <div className="space-y-4">
-      {/* Phase 4.4 — Orange Way Books Support access section. Customer-first
+      {/* Phase 4.4, Orange Way Books Support access section. Customer-first
           copy intentionally avoids: no "signing key", no "session TTL", no "capability". */}
       <div className="border border-border rounded-lg p-4 bg-muted/20">
         {activeSupportSession ? (
@@ -1658,12 +2149,14 @@ function UsersTab({
             <div className="flex items-center gap-2 text-sm">
               <ShieldCheck className="w-4 h-4 text-green-700" />
               <span>
-                Support access active — ends at{' '}
+                Support access active. Ends at{' '}
                 <strong>
                   {new Date(activeSupportSession.expires_at).toLocaleString(undefined, {
-                    hour: 'numeric', minute: '2-digit',
+                    hour: 'numeric',
+                    minute: '2-digit',
                   })}
-                </strong>.
+                </strong>
+                .
               </span>
             </div>
             <Button
@@ -1681,7 +2174,8 @@ function UsersTab({
             <div className="text-sm">
               <div className="font-medium">Orange Way Books support access</div>
               <div className="text-muted-foreground">
-                Give Orange Way Books support temporary access to help you. You can end the session any time.
+                Give Orange Way Books support temporary access to help you. You can end the session
+                any time.
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setSupportGrantOpen(true)}>
@@ -1698,7 +2192,8 @@ function UsersTab({
               {supportHistory.slice(0, 5).map((s) => (
                 <div key={s.id} className="flex justify-between gap-3">
                   <span>
-                    {new Date(s.granted_at).toLocaleString()} → {s.ended_at ? new Date(s.ended_at).toLocaleString() : 'active'}
+                    {new Date(s.granted_at).toLocaleString()} →{' '}
+                    {s.ended_at ? new Date(s.ended_at).toLocaleString() : 'active'}
                   </span>
                   <span className="text-muted-foreground">
                     {s.ended_at ? (s.end_reason ?? 'ended') : 'active'}
@@ -1713,7 +2208,12 @@ function UsersTab({
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
         </div>
         {pendingWrapCount > 0 && (
           <Button
@@ -1730,14 +2230,17 @@ function UsersTab({
             Finish {pendingWrapCount} invite{pendingWrapCount === 1 ? '' : 's'}
           </Button>
         )}
-        <Button onClick={() => {
-          setAddEmail('');
-          // Default role selection to the Member preset (matches the
-          // post-submit reset in handleAddUser + the initial-load useEffect).
-          const memberPreset = rolePresets.find(p => p.name.toLowerCase() === 'member');
-          setAddRoleId((memberPreset ?? rolePresets[0])?.id ?? '');
-          setAddOpen(true);
-        }} className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white">
+        <Button
+          onClick={() => {
+            setAddEmail('');
+            // Default role selection to the Member preset (matches the
+            // post-submit reset in handleAddUser + the initial-load useEffect).
+            const memberPreset = rolePresets.find((p) => p.name.toLowerCase() === 'member');
+            setAddRoleId((memberPreset ?? rolePresets[0])?.id ?? '');
+            setAddOpen(true);
+          }}
+          className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+        >
           <Plus className="w-4 h-4 mr-1" /> Add User
         </Button>
       </div>
@@ -1755,110 +2258,139 @@ function UsersTab({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading users...
-              </td></tr>
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+                  Loading users...
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No users found.</td></tr>
-            ) : filtered.map(m => {
-              // Role grants from `org_member_roles` → `role_definitions` are
-              // the single source of truth. A member with no active grant
-              // renders as an em-dash; admins assign roles on the Roles tab.
-              const hasGrant = m.grantedRoleNames.length > 0;
-              const roleLabel = hasGrant ? m.grantedRoleNames.join(', ') : '\u2014';
-              // Phase 4.4: find the earliest-expiring grant for this
-              // member. Surfaces a single badge on the row even when
-              // the member holds multiple time-boxed grants.
-              const earliestExpiringGrant = m.grants
-                .filter((g) => g.expiresAt !== null)
-                .sort((a, b) =>
-                  new Date(a.expiresAt as string).getTime() - new Date(b.expiresAt as string).getTime(),
-                )[0] ?? null;
-              const tier = earliestExpiringGrant
-                ? expiryTier(earliestExpiringGrant.expiresAt).tier
-                : 'none';
-              const badgeClass: Record<ExpiryTier, string> = {
-                none: '',
-                green: 'bg-green-50 text-green-700 border border-green-200',
-                amber: 'bg-amber-50 text-amber-700 border border-amber-200',
-                red: 'bg-red-50 text-red-700 border border-red-200',
-                expired: 'bg-red-50 text-red-700 border border-red-200 line-through',
-              };
-              return (
-                <tr key={m.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${tier === 'expired' ? 'opacity-60' : ''}`}>
-                  <td className="px-4 py-3 font-medium">{m.name | m.email?.split('@')[0] | m.user_id.slice(0, 8) + '...'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.email | '\u2014'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className="text-xs font-semibold px-2 py-0.5 rounded bg-muted"
-                        title={hasGrant
-                          ? 'Assigned on the Roles tab'
-                          : 'No role assigned — add one on the Roles tab'}
-                      >
-                        {roleLabel}
-                      </span>
-                      {earliestExpiringGrant && tier !== 'none' && (
-                        <>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${badgeClass[tier]}`}>
-                            {tier === 'expired'
-                              ? 'Expired'
-                              : `Expires ${formatExpiryDate(earliestExpiringGrant.expiresAt as string)}`}
-                          </span>
-                          {earliestExpiringGrant.source === 'auditor_invite' && tier !== 'expired' && (
-                            <button
-                              onClick={() => {
-                                setExtendTarget({ member: m, grant: earliestExpiringGrant });
-                                // Seed dialog with 90 days from today, capped at 1 year.
-                                setExtendNewDate(ninetyDaysFromNowIsoDate());
-                              }}
-                              className="text-xs text-[var(--color-brand-orange)] hover:underline"
-                              title="Extend access"
-                            >
-                              Extend
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {m.status === 'Active' ? (
-                      <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded text-xs font-medium">Active</span>
-                    ) : (
-                      <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs font-medium">Invited</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={() => { setEditMember(m); setEditOpen(true); }}
-                        className="text-muted-foreground hover:text-foreground"
-                        title="Edit member details"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setRevokeTarget(m)}
-                        className="text-muted-foreground hover:text-red-600"
-                        title="Remove from organization"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      {onManageRoles && (
-                        <button
-                          onClick={onManageRoles}
-                          className="text-xs text-[var(--color-brand-orange)] hover:underline whitespace-nowrap"
-                          title="Assign or remove roles on the Roles tab"
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((m) => {
+                // Role grants from `org_member_roles` → `role_definitions` are
+                // the single source of truth. A member with no active grant
+                // renders as an em-dash; admins assign roles on the Roles tab.
+                const hasGrant = m.grantedRoleNames.length > 0;
+                const roleLabel = hasGrant ? m.grantedRoleNames.join(', ') : '\u2014';
+                // Phase 4.4: find the earliest-expiring grant for this
+                // member. Surfaces a single badge on the row even when
+                // the member holds multiple time-boxed grants.
+                const earliestExpiringGrant =
+                  m.grants
+                    .filter((g) => g.expiresAt !== null)
+                    .sort(
+                      (a, b) =>
+                        new Date(a.expiresAt as string).getTime() -
+                        new Date(b.expiresAt as string).getTime(),
+                    )[0] ?? null;
+                const tier = earliestExpiringGrant
+                  ? expiryTier(earliestExpiringGrant.expiresAt).tier
+                  : 'none';
+                const badgeClass: Record<ExpiryTier, string> = {
+                  none: '',
+                  green: 'bg-green-50 text-green-700 border border-green-200',
+                  amber: 'bg-amber-50 text-amber-700 border border-amber-200',
+                  red: 'bg-red-50 text-red-700 border border-red-200',
+                  expired: 'bg-red-50 text-red-700 border border-red-200 line-through',
+                };
+                return (
+                  <tr
+                    key={m.id}
+                    className={`border-b border-border last:border-0 hover:bg-muted/30 ${tier === 'expired' ? 'opacity-60' : ''}`}
+                  >
+                    <td className="px-4 py-3 font-medium">
+                      {m.name || m.email?.split('@')[0] || m.user_id.slice(0, 8) + '...'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{m.email || '\u2014'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded bg-muted"
+                          title={
+                            hasGrant
+                              ? 'Assigned on the Roles tab'
+                              : 'No role assigned, add one on the Roles tab'
+                          }
                         >
-                          Manage roles
-                        </button>
+                          {roleLabel}
+                        </span>
+                        {earliestExpiringGrant && tier !== 'none' && (
+                          <>
+                            <span
+                              className={`text-xs font-medium px-2 py-0.5 rounded ${badgeClass[tier]}`}
+                            >
+                              {tier === 'expired'
+                                ? 'Expired'
+                                : `Expires ${formatExpiryDate(earliestExpiringGrant.expiresAt as string)}`}
+                            </span>
+                            {earliestExpiringGrant.source === 'auditor_invite' &&
+                              tier !== 'expired' && (
+                                <button
+                                  onClick={() => {
+                                    setExtendTarget({ member: m, grant: earliestExpiringGrant });
+                                    // Seed dialog with 90 days from today, capped at 1 year.
+                                    setExtendNewDate(ninetyDaysFromNowIsoDate());
+                                  }}
+                                  className="text-xs text-[var(--color-brand-orange)] hover:underline"
+                                  title="Extend access"
+                                >
+                                  Extend
+                                </button>
+                              )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.status === 'Active' ? (
+                        <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded text-xs font-medium">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs font-medium">
+                          Invited
+                        </span>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => {
+                            setEditMember(m);
+                            setEditOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Edit member details"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setRevokeTarget(m)}
+                          className="text-muted-foreground hover:text-red-600"
+                          title="Remove from organization"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        {onManageRoles && (
+                          <button
+                            onClick={onManageRoles}
+                            className="text-xs text-[var(--color-brand-orange)] hover:underline whitespace-nowrap"
+                            title="Assign or remove roles on the Roles tab"
+                          >
+                            Manage roles
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -1866,22 +2398,37 @@ function UsersTab({
       {/* Add User Modal */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add User</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add User</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Email *</Label>
-              <Input value={addEmail} onChange={e => setAddEmail(e.target.value)} placeholder="user@example.com" type="email" />
+              <Input
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                placeholder="user@example.com"
+                type="email"
+              />
             </div>
             <div>
               <Label>Role *</Label>
               <Select value={addRoleId} onValueChange={setAddRoleId}>
-                <SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
                 <SelectContent>
                   {rolePresets.length === 0 ? (
-                    <SelectItem value="__none__" disabled>Loading roles…</SelectItem>
-                  ) : rolePresets.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
+                    <SelectItem value="__none__" disabled>
+                      Loading roles…
+                    </SelectItem>
+                  ) : (
+                    rolePresets.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {selectedPreset?.description && (
@@ -1905,12 +2452,14 @@ function UsersTab({
               </div>
             )}
             <div className="bg-muted/50 border border-border rounded-md p-3 text-xs text-muted-foreground">
-              Capability bundle comes from the <strong>Roles</strong> tab — open it to see
-              exactly what this role can do, or to create a custom role.
+              Capability bundle comes from the <strong>Roles</strong> tab, open it to see exactly
+              what this role can do, or to create a custom role.
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               disabled={
@@ -1921,13 +2470,20 @@ function UsersTab({
               }
               onClick={handleAddUser}
             >
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Sending...</> : 'Send Invitation'}
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Sending...
+                </>
+              ) : (
+                'Send Invitation'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Phase 4.4 — Extend access dialog. */}
+      {/* Phase 4.4, Extend access dialog. */}
       <Dialog
         open={!!extendTarget}
         onOpenChange={(open) => {
@@ -1945,7 +2501,10 @@ function UsersTab({
             <div className="space-y-3 text-sm">
               <p>
                 Change the access end date for{' '}
-                <strong>{extendTarget.member.name | extendTarget.member.email | 'this user'}</strong>.
+                <strong>
+                  {extendTarget.member.name || extendTarget.member.email || 'this user'}
+                </strong>
+                .
                 {extendTarget.grant.expiresAt && (
                   <> Current end date: {formatExpiryDate(extendTarget.grant.expiresAt)}.</>
                 )}
@@ -1965,7 +2524,10 @@ function UsersTab({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => { setExtendTarget(null); setExtendNewDate(''); }}
+              onClick={() => {
+                setExtendTarget(null);
+                setExtendNewDate('');
+              }}
               disabled={extendSaving}
             >
               Cancel
@@ -1973,15 +2535,22 @@ function UsersTab({
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               onClick={executeExtendExpiry}
-              disabled={extendSaving | !extendNewDate}
+              disabled={extendSaving || !extendNewDate}
             >
-              {extendSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Saving…</> : 'Extend access'}
+              {extendSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Saving…
+                </>
+              ) : (
+                'Extend access'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Phase 4.4 — Grant Orange Way Books Support access. */}
+      {/* Phase 4.4, Grant Orange Way Books Support access. */}
       <Dialog open={supportGrantOpen} onOpenChange={setSupportGrantOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1989,7 +2558,8 @@ function UsersTab({
           </DialogHeader>
           <div className="space-y-4 text-sm">
             <p className="text-muted-foreground">
-              Support can view your organization for the window you pick. You can end the session any time.
+              Support can view your organization for the window you pick. You can end the session
+              any time.
             </p>
             <div>
               <Label>Support email *</Label>
@@ -2009,7 +2579,9 @@ function UsersTab({
                 value={String(supportDurationHours)}
                 onValueChange={(v) => setSupportDurationHours(Number(v) as 1 | 6 | 12 | 24)}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">1 hour</SelectItem>
                   <SelectItem value="6">6 hours</SelectItem>
@@ -2023,15 +2595,26 @@ function UsersTab({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSupportGrantOpen(false)} disabled={supportGrantSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setSupportGrantOpen(false)}
+              disabled={supportGrantSaving}
+            >
               Cancel
             </Button>
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               onClick={executeGrantSupport}
-              disabled={supportGrantSaving | !supportEmail.trim()}
+              disabled={supportGrantSaving || !supportEmail.trim()}
             >
-              {supportGrantSaving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Granting…</> : 'Give access'}
+              {supportGrantSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Granting…
+                </>
+              ) : (
+                'Give access'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2042,20 +2625,22 @@ function UsersTab({
           email to the new address), a button to send a password-reset
           email, a conditional "Resend invite" button for still-invited
           members, plus a danger-zone Remove action at the bottom.
-          Role changes are NEVER written from this dialog — they live
+          Role changes are NEVER written from this dialog, they live
           exclusively in the Roles tab's UserAssignmentSection. */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
           {editMember && (
             <div className="space-y-5">
-              {/* Name — editable */}
+              {/* Name, editable */}
               <div>
                 <Label className="text-xs text-muted-foreground">Name</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input
                     value={editName}
-                    onChange={e => setEditName(e.target.value)}
+                    onChange={(e) => setEditName(e.target.value)}
                     placeholder="Full name"
                     disabled={savingName}
                   />
@@ -2066,7 +2651,7 @@ function UsersTab({
                     disabled={
                       savingName ||
                       editName.trim().length === 0 ||
-                      editName.trim() === (editMember.name | '').trim()
+                      editName.trim() === (editMember.name || '').trim()
                     }
                   >
                     {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
@@ -2077,14 +2662,14 @@ function UsersTab({
                 </p>
               </div>
 
-              {/* Email — editable, confirmation required */}
+              {/* Email, editable, confirmation required */}
               <div>
                 <Label className="text-xs text-muted-foreground">Email</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input
                     type="email"
                     value={editEmail}
-                    onChange={e => setEditEmail(e.target.value)}
+                    onChange={(e) => setEditEmail(e.target.value)}
                     placeholder="user@example.com"
                     disabled={savingEmail}
                   />
@@ -2095,7 +2680,8 @@ function UsersTab({
                     disabled={
                       savingEmail ||
                       editEmail.trim().length === 0 ||
-                      editEmail.trim().toLowerCase() === (editMember.email | '').trim().toLowerCase() ||
+                      editEmail.trim().toLowerCase() ===
+                        (editMember.email || '').trim().toLowerCase() ||
                       !/^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/.test(editEmail.trim())
                     }
                   >
@@ -2103,38 +2689,51 @@ function UsersTab({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  A confirmation link is sent to the new address. Their vault password and data are unaffected.
+                  A confirmation link is sent to the new address. Their vault password and data are
+                  unaffected.
                 </p>
                 {emailPending && (
                   <div className="mt-2">
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 border border-amber-200">
+                    <Badge
+                      variant="secondary"
+                      className="bg-amber-50 text-amber-700 border border-amber-200"
+                    >
                       Pending user confirmation
                     </Badge>
                   </div>
                 )}
               </div>
 
-              {/* Role — read-only, jump to Roles tab to edit */}
+              {/* Role, read-only, jump to Roles tab to edit */}
               <div>
                 <Label className="text-xs text-muted-foreground">Role</Label>
                 <p className="text-sm mt-1">
-                  {editMember.grantedRoleNames.length > 0
-                    ? editMember.grantedRoleNames.join(', ')
-                    : <span className="text-muted-foreground">No role assigned</span>}
+                  {editMember.grantedRoleNames.length > 0 ? (
+                    editMember.grantedRoleNames.join(', ')
+                  ) : (
+                    <span className="text-muted-foreground">No role assigned</span>
+                  )}
                 </p>
                 {onManageRoles && (
                   <div className="bg-muted/50 border border-border rounded-md p-3 flex items-center justify-between mt-2">
                     <span className="text-xs text-muted-foreground">
                       Change role grants for this user
                     </span>
-                    <Button variant="outline" size="sm" onClick={() => { setEditOpen(false); onManageRoles(); }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditOpen(false);
+                        onManageRoles();
+                      }}
+                    >
                       Manage role assignments <ArrowLeftRight className="w-3 h-3 ml-1" />
                     </Button>
                   </div>
                 )}
               </div>
 
-              {/* Password reset — sign-in credential only, NOT vault */}
+              {/* Password reset, sign-in credential only, NOT vault */}
               <div>
                 <Button
                   variant="outline"
@@ -2142,9 +2741,11 @@ function UsersTab({
                   onClick={handleSendPasswordReset}
                   disabled={savingReset}
                 >
-                  {savingReset
-                    ? <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                    : <KeyRound className="w-4 h-4 mr-1" />}
+                  {savingReset ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : (
+                    <KeyRound className="w-4 h-4 mr-1" />
+                  )}
                   Send password reset email
                 </Button>
                 <p className="text-xs text-muted-foreground mt-1.5">
@@ -2152,7 +2753,7 @@ function UsersTab({
                 </p>
               </div>
 
-              {/* Resend invite — only for invited users who haven't accepted yet */}
+              {/* Resend invite, only for invited users who haven't accepted yet */}
               {editMember.status === 'Invited' && (
                 <div>
                   <Button
@@ -2161,31 +2762,45 @@ function UsersTab({
                     onClick={handleResendInvite}
                     disabled={savingResend}
                   >
-                    {savingResend
-                      ? <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                      : <Mail className="w-4 h-4 mr-1" />}
+                    {savingResend ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <Mail className="w-4 h-4 mr-1" />
+                    )}
                     Resend invite email
                   </Button>
                 </div>
               )}
 
-              {/* Danger zone — visually separated from the edit controls */}
+              {/* Danger zone, visually separated from the edit controls */}
               <div className="border-t border-border pt-4 mt-2">
-                <Button variant="destructive" size="sm" onClick={handleRemoveMember} disabled={saving}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleRemoveMember}
+                  disabled={saving}
+                >
                   <Trash2 className="w-4 h-4 mr-1" /> Remove from Organization
                 </Button>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Remove / soft-revoke confirm modal (Bitwarden pattern — D11).
+      {/* Remove / soft-revoke confirm modal (Bitwarden pattern, D11).
           One click + one confirm. Hard re-key is separate. */}
-      <Dialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
+      <Dialog
+        open={!!revokeTarget}
+        onOpenChange={(open) => {
+          if (!open) setRevokeTarget(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove from organization</DialogTitle>
@@ -2193,13 +2808,13 @@ function UsersTab({
           {revokeTarget && (
             <div className="space-y-3 text-sm">
               <p>
-                Remove <strong>{revokeTarget.name | revokeTarget.email | 'this user'}</strong>{' '}
+                Remove <strong>{revokeTarget.name || revokeTarget.email || 'this user'}</strong>{' '}
                 from this organization? They will lose access to future data in this org.
               </p>
               <p className="text-muted-foreground">
-                This does not delete their account — they can still sign in and access any other
-                organizations they belong to. Refreshing your team's security so a removed
-                member can't read data they already opened on their device is a separate
+                This does not delete their account. They can still sign in and access any other
+                organizations they belong to. Refreshing your team's security so a removed member
+                can't read data they already opened on their device is a separate
                 <em> security refresh</em> step, which you'll be offered next.
               </p>
             </div>
@@ -2210,10 +2825,16 @@ function UsersTab({
             </Button>
             <Button
               variant="destructive"
-              disabled={revokeSaving | !revokeTarget}
-              onClick={() => { if (revokeTarget) void executeSoftRevoke(revokeTarget); }}
+              disabled={revokeSaving || !revokeTarget}
+              onClick={() => {
+                if (revokeTarget) void executeSoftRevoke(revokeTarget);
+              }}
             >
-              {revokeSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              {revokeSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-1" />
+              )}
               Remove
             </Button>
           </DialogFooter>
@@ -2223,7 +2844,12 @@ function UsersTab({
       {/* Phase 4.5: post-revoke rotate-keys prompt. Offered, not
           forced. Opens the wizard at Screen 2 since the admin already
           confirmed the removal. */}
-      <Dialog open={!!rekeyPromptFor} onOpenChange={(open) => { if (!open) setRekeyPromptFor(null); }}>
+      <Dialog
+        open={!!rekeyPromptFor}
+        onOpenChange={(open) => {
+          if (!open) setRekeyPromptFor(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Refresh your team's security?</DialogTitle>
@@ -2231,11 +2857,12 @@ function UsersTab({
           {rekeyPromptFor && (
             <div className="space-y-3 text-sm">
               <p>
-                <strong>{rekeyPromptFor.name | rekeyPromptFor.email | 'This person'}</strong> has been
-                removed. They can still read any data they've already opened on their device.
+                <strong>{rekeyPromptFor.name || rekeyPromptFor.email || 'This person'}</strong> has
+                been removed. They can still read any data they've already opened on their device.
               </p>
               <p className="text-muted-foreground">
-                Refresh your team's security so they can't read that data anymore? This takes a few minutes.
+                Refresh your team's security so they can't read that data anymore? This takes a few
+                minutes.
               </p>
             </div>
           )}
@@ -2243,7 +2870,12 @@ function UsersTab({
             <Button variant="outline" onClick={() => setRekeyPromptFor(null)}>
               Not now
             </Button>
-            <Button onClick={() => { setRekeyPromptFor(null); setRekeyWizardOpen(true); }}>
+            <Button
+              onClick={() => {
+                setRekeyPromptFor(null);
+                setRekeyWizardOpen(true);
+              }}
+            >
               Refresh security now
             </Button>
           </DialogFooter>
@@ -2268,7 +2900,7 @@ function UsersTab({
 /* ═══════════════════════════ Chart of Accounts Tab ═══════════════════════════ */
 function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative on writes.
+  // Capability gates, UI presence only; RLS still authoritative on writes.
   const canWriteAccounts = useCapability('accounts.write', orgId);
   const [subTab, setSubTab] = useState<CoaSubTab>('income-expense');
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -2287,33 +2919,50 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
 
   const fetchAccounts = async () => {
     if (!orgId) return;
-    const { data } = await supabase.from('chart_of_accounts').select('*').eq('org_id', orgId).order('created_at');
-    const decrypted = await Promise.all((data | []).map(a => decryptChartOfAccount(a, decryptText).then(fields => ({ ...a, ...fields }))));
+    const { data } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at');
+    const decrypted = await Promise.all(
+      (data || []).map((a) =>
+        decryptChartOfAccount(a, decryptText).then((fields) => ({ ...a, ...fields })),
+      ),
+    );
     setAccounts(decrypted);
   };
 
-  useEffect(() => { fetchAccounts(); }, [orgId]);
+  useEffect(() => {
+    fetchAccounts();
+  }, [orgId]);
 
   const groups = subTab === 'income-expense' ? IE_GROUPS : BS_GROUPS;
 
   const toggleGroup = (name: string) => {
-    setExpanded(prev => {
+    setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
       return next;
     });
   };
 
   const handleAdd = async () => {
-    if (!orgId | !addName.trim()) return;
-    const enc = await encryptChartOfAccount({
-      account_name: addName.trim(),
-      account_code: null,
-      account_type: addType,
-      account_group: addGroup,
-      account_category: null,
-      is_archived: false,
-    }, encryptText);
+    if (!orgId || !addName.trim()) return;
+    const enc = await encryptChartOfAccount(
+      {
+        account_name: addName.trim(),
+        account_code: null,
+        account_type: addType,
+        account_group: addGroup,
+        account_category: null,
+        is_archived: false,
+      },
+      encryptText,
+    );
     await supabase.from('chart_of_accounts').insert({
       org_id: orgId,
       ...enc,
@@ -2326,25 +2975,29 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
 
   const handleEditSave = async () => {
     if (!editAccount) return;
-    if (!editType | !editGroup) {
+    if (!editType || !editGroup) {
       toast.error('Pick a type and group before saving.');
       return;
     }
-    const [encrypted_name, encrypted_account_type, encrypted_account_group, encrypted_is_archived] = await Promise.all([
-      encryptText(editName),
-      encryptText(editType),
-      encryptText(editGroup),
-      encryptText(editArchived ? 'true' : 'false'),
-    ]);
-    await supabase.from('chart_of_accounts').update({
-      account_name: crypto.randomUUID(), // opaque placeholder
-      encrypted_name,
-      account_type: encrypted_account_type,
-      account_group: encrypted_account_group,
-      is_archived: false,
-      encrypted_is_archived,
-      key_version: 2,
-    }).eq('id', editAccount.id);
+    const [encrypted_name, encrypted_account_type, encrypted_account_group, encrypted_is_archived] =
+      await Promise.all([
+        encryptText(editName),
+        encryptText(editType),
+        encryptText(editGroup),
+        encryptText(editArchived ? 'true' : 'false'),
+      ]);
+    await supabase
+      .from('chart_of_accounts')
+      .update({
+        account_name: crypto.randomUUID(), // opaque placeholder
+        encrypted_name,
+        account_type: encrypted_account_type,
+        account_group: encrypted_account_group,
+        is_archived: false,
+        encrypted_is_archived,
+        key_version: 2,
+      })
+      .eq('id', editAccount.id);
     setEditOpen(false);
     fetchAccounts();
     toast.success('Account updated');
@@ -2354,54 +3007,115 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-1 border-b border-border">
-          {[{ key: 'income-expense' as CoaSubTab, label: 'Income & Expense' }, { key: 'balance-sheet' as CoaSubTab, label: 'Balance Sheet' }].map(t => (
-            <button key={t.key} onClick={() => setSubTab(t.key)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${subTab === t.key ? 'border-[var(--color-brand-orange)] text-[var(--color-brand-orange)]' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+          {[
+            { key: 'income-expense' as CoaSubTab, label: 'Income & Expense' },
+            { key: 'balance-sheet' as CoaSubTab, label: 'Balance Sheet' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setSubTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${subTab === t.key ? 'border-[var(--color-brand-orange)] text-[var(--color-brand-orange)]' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            >
               {t.label}
             </button>
           ))}
         </div>
         <div className="flex gap-2">
           {canWriteAccounts && (
-            <Button variant="outline" size="sm" onClick={() => setCoaImportOpen(true)} data-testid="coa-import-csv">
-              <Upload className="w-4 h-4 mr-1" />Import CSV
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCoaImportOpen(true)}
+              data-testid="coa-import-csv"
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              Import CSV
             </Button>
           )}
         </div>
       </div>
 
       <div className="space-y-2">
-        {groups.map(g => {
-          const groupAccounts = accounts.filter(a => a.account_group === g.name && a.account_type === g.type);
+        {groups.map((g) => {
+          const groupAccounts = accounts.filter(
+            (a) => a.account_group === g.name && a.account_type === g.type,
+          );
           const isExpanded = expanded.has(g.name);
           return (
             <div key={g.name} className="border border-border rounded-lg overflow-hidden">
-              <button onClick={() => toggleGroup(g.name)} className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+              <button
+                onClick={() => toggleGroup(g.name)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
                 <div className="flex items-center gap-3">
-                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
                   <span className="font-semibold text-sm">{g.name}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${typeBadgeColor(g.type)}`}>{g.type}</span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${typeBadgeColor(g.type)}`}
+                  >
+                    {g.type}
+                  </span>
                 </div>
               </button>
               {isExpanded && (
                 <div className="border-t border-border">
                   {groupAccounts.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-muted-foreground italic">No accounts in this group.</p>
-                  ) : groupAccounts.map(a => (
-                    <div key={a.id} className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/20">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm">{a.account_name}</span>
-                        {a.account_code && <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{a.account_code}</span>}
-                        {a.is_archived && <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Archived</span>}
+                    <p className="px-4 py-3 text-sm text-muted-foreground italic">
+                      No accounts in this group.
+                    </p>
+                  ) : (
+                    groupAccounts.map((a) => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/20"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm">{a.account_name}</span>
+                          {a.account_code && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              {a.account_code}
+                            </span>
+                          )}
+                          {a.is_archived && (
+                            <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                              Archived
+                            </span>
+                          )}
+                        </div>
+                        {canWriteAccounts && (
+                          <button
+                            onClick={() => {
+                              setEditAccount(a);
+                              setEditName(a.account_name);
+                              setEditArchived(a.is_archived || false);
+                              setEditType(a.account_type || g.type);
+                              setEditGroup(a.account_group || g.name);
+                              setEditOpen(true);
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                            data-testid="coa-edit-account"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      {canWriteAccounts && (
-                        <button onClick={() => { setEditAccount(a); setEditName(a.account_name); setEditArchived(a.is_archived | false); setEditType(a.account_type | g.type); setEditGroup(a.account_group | g.name); setEditOpen(true); }} className="text-muted-foreground hover:text-foreground" data-testid="coa-edit-account">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                   {canWriteAccounts && (
-                    <button onClick={() => { setAddGroup(g.name); setAddType(g.type); setAddName(''); setAddOpen(true); }} className="w-full px-4 py-2.5 text-sm text-[var(--color-brand-orange)] hover:bg-muted/20 flex items-center gap-1" data-testid="coa-add-account">
+                    <button
+                      onClick={() => {
+                        setAddGroup(g.name);
+                        setAddType(g.type);
+                        setAddName('');
+                        setAddOpen(true);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm text-[var(--color-brand-orange)] hover:bg-muted/20 flex items-center gap-1"
+                      data-testid="coa-add-account"
+                    >
                       <Plus className="w-3.5 h-3.5" /> Add Account
                     </button>
                   )}
@@ -2411,45 +3125,76 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
           );
         })}
         {(() => {
-          const ieTypes = new Set(IE_GROUPS.map(g => g.type));
-          const bsTypes = new Set(BS_GROUPS.map(g => g.type));
+          const ieTypes = new Set(IE_GROUPS.map((g) => g.type));
+          const bsTypes = new Set(BS_GROUPS.map((g) => g.type));
           const tabTypes = subTab === 'income-expense' ? ieTypes : bsTypes;
           const tabGroups = subTab === 'income-expense' ? IE_GROUPS : BS_GROUPS;
-          const tabGroupKeys = new Set(tabGroups.map(g => `${g.name}|${g.type}`));
+          const tabGroupKeys = new Set(tabGroups.map((g) => `${g.name}|${g.type}`));
           // Show an "Unfiled" bucket for accounts whose type is in this tab but
-          // whose (group, type) tuple doesn't match any configured group — e.g.
+          // whose (group, type) tuple doesn't match any configured group, e.g.
           // QB-imported accounts that wrote enum-style groups. This is the only
           // way the user can see and re-classify them.
-          const unfiled = accounts.filter(a =>
-            a.account_type && tabTypes.has(a.account_type) &&
-            !tabGroupKeys.has(`${a.account_group}|${a.account_type}`)
+          const unfiled = accounts.filter(
+            (a) =>
+              a.account_type &&
+              tabTypes.has(a.account_type) &&
+              !tabGroupKeys.has(`${a.account_group}|${a.account_type}`),
           );
           if (unfiled.length === 0) return null;
           const isExpanded = expanded.has('__unfiled');
           return (
             <div className="border border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-              <button onClick={() => toggleGroup('__unfiled')} className="w-full flex items-center justify-between px-4 py-3 bg-amber-100/40 hover:bg-amber-100/70 transition-colors">
+              <button
+                onClick={() => toggleGroup('__unfiled')}
+                className="w-full flex items-center justify-between px-4 py-3 bg-amber-100/40 hover:bg-amber-100/70 transition-colors"
+              >
                 <div className="flex items-center gap-3">
-                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  <span className="font-semibold text-sm">Unfiled — needs review</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-900">{unfiled.length}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                  <span className="font-semibold text-sm">Unfiled, needs review</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-900">
+                    {unfiled.length}
+                  </span>
                 </div>
               </button>
               {isExpanded && (
                 <div className="border-t border-amber-200">
                   <p className="px-4 py-2 text-xs text-amber-900 bg-amber-50">
-                    These accounts have a type or group that doesn&apos;t match any configured bucket.
-                    Open each one and pick a Type + Group so it shows up in your chart.
+                    These accounts have a type or group that doesn&apos;t match any configured
+                    bucket. Open each one and pick a Type + Group so it shows up in your chart.
                   </p>
-                  {unfiled.map(a => (
-                    <div key={a.id} className="flex items-center justify-between px-4 py-2.5 border-b border-amber-100 last:border-0 hover:bg-amber-50">
+                  {unfiled.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between px-4 py-2.5 border-b border-amber-100 last:border-0 hover:bg-amber-50"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="text-sm">{a.account_name}</span>
-                        {a.account_code && <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{a.account_code}</span>}
-                        <span className="text-[10px] text-amber-700">{a.account_type} · {a.account_group}</span>
+                        {a.account_code && (
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {a.account_code}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-amber-700">
+                          {a.account_type} · {a.account_group}
+                        </span>
                       </div>
                       {canWriteAccounts && (
-                        <button onClick={() => { setEditAccount(a); setEditName(a.account_name); setEditArchived(a.is_archived | false); setEditType(a.account_type); setEditGroup(a.account_group); setEditOpen(true); }} className="text-muted-foreground hover:text-foreground" data-testid="coa-edit-unfiled">
+                        <button
+                          onClick={() => {
+                            setEditAccount(a);
+                            setEditName(a.account_name);
+                            setEditArchived(a.is_archived || false);
+                            setEditType(a.account_type);
+                            setEditGroup(a.account_group);
+                            setEditOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                          data-testid="coa-edit-unfiled"
+                        >
                           <Pencil className="w-4 h-4" />
                         </button>
                       )}
@@ -2465,12 +3210,26 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
       {/* Add Account Modal */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Account</DialogTitle></DialogHeader>
-          <p className="text-xs text-muted-foreground">Group: {addGroup} ({addType})</p>
-          <div><Label>Name *</Label><Input value={addName} onChange={e => setAddName(e.target.value)} /></div>
+          <DialogHeader>
+            <DialogTitle>Add Account</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Group: {addGroup} ({addType})
+          </p>
+          <div>
+            <Label>Name *</Label>
+            <Input value={addName} onChange={(e) => setAddName(e.target.value)} />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" onClick={handleAdd}>Save</Button>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+              onClick={handleAdd}
+            >
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2478,9 +3237,14 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
       {/* Edit Account Modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Account</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit Account</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <div><Label>Name *</Label><Input value={editName} onChange={e => setEditName(e.target.value)} /></div>
+            <div>
+              <Label>Name *</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Type *</Label>
@@ -2488,14 +3252,18 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
                   value={editType}
                   onValueChange={(v) => {
                     setEditType(v);
-                    const validGroup = [...IE_GROUPS, ...BS_GROUPS].find((g) => g.type === v && g.name === editGroup);
+                    const validGroup = [...IE_GROUPS, ...BS_GROUPS].find(
+                      (g) => g.type === v && g.name === editGroup,
+                    );
                     if (!validGroup) {
                       const firstForType = [...IE_GROUPS, ...BS_GROUPS].find((g) => g.type === v);
                       if (firstForType) setEditGroup(firstForType.name);
                     }
                   }}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="INCOME">Income</SelectItem>
                     <SelectItem value="EXPENSE">Expense</SelectItem>
@@ -2508,29 +3276,40 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
               <div>
                 <Label>Group *</Label>
                 <Select value={editGroup} onValueChange={setEditGroup}>
-                  <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select group" />
+                  </SelectTrigger>
                   <SelectContent>
                     {[...IE_GROUPS, ...BS_GROUPS]
                       .filter((g) => g.type === editType)
                       .map((g) => (
-                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        <SelectItem key={g.name} value={g.name}>
+                          {g.name}
+                        </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Type + Group control where the account appears in your chart. Use this to fix
-              imported accounts that landed in the wrong place.
+              Type + Group control where the account appears in your chart. Use this to fix imported
+              accounts that landed in the wrong place.
             </p>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox checked={editArchived} onCheckedChange={v => setEditArchived(!!v)} />
+              <Checkbox checked={editArchived} onCheckedChange={(v) => setEditArchived(!!v)} />
               {editArchived ? 'Unarchive this account' : 'Archive this account'}
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" onClick={handleEditSave}>Save</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+              onClick={handleEditSave}
+            >
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2538,7 +3317,10 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
       {/* COA CSV Import */}
       <ImportPopup
         open={coaImportOpen}
-        onClose={() => { setCoaImportOpen(false); fetchAccounts(); }}
+        onClose={() => {
+          setCoaImportOpen(false);
+          fetchAccounts();
+        }}
         entityName="Accounts"
         sampleCsvContent={CHART_OF_ACCOUNTS_SAMPLE_CSV}
         sampleFileName="chart-of-accounts-sample.csv"
@@ -2552,51 +3334,72 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
         ]}
         parseCsv={parseCsvChartOfAccounts}
         onImportRows={async (rows: ImportPreviewRow[]): Promise<ImportResult> => {
-          if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+          if (!orgId)
+            return {
+              created: 0,
+              skipped: 0,
+              failed: rows.length,
+              errors: ['No organization found'],
+            };
           // Check existing accounts in chart_of_accounts
-          const { data: existing } = await supabase.from('chart_of_accounts' as any).select('account_name, account_code, encrypted_name, key_version').eq('org_id', orgId);
+          const { data: existing } = await supabase
+            .from('chart_of_accounts' as any)
+            .select('account_name, account_code, encrypted_name, key_version')
+            .eq('org_id', orgId);
           const decryptedCoaNames = await Promise.all(
-            (existing | []).map(async (a: any) => {
+            (existing || []).map(async (a: any) => {
               if (a.key_version && a.encrypted_name) {
                 return decryptText(a.encrypted_name);
               }
               return a.account_name;
-            })
+            }),
           );
           const existingNames = new Set(decryptedCoaNames.map((n: string) => n?.toLowerCase()));
-          const existingCodes = new Set((existing | []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean));
-          let created = 0, skipped = 0, failed = 0;
+          const existingCodes = new Set(
+            (existing || []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
+          );
+          let created = 0,
+            skipped = 0,
+            failed = 0;
           const errors: string[] = [];
           const warnings: string[] = [];
           for (const row of rows) {
             const name = row.data.name.trim();
-            const code = row.data.code?.trim() | '';
-            if (existingNames.has(name.toLowerCase()) | (code && existingCodes.has(code.toLowerCase()))) {
+            const code = row.data.code?.trim() || '';
+            if (
+              existingNames.has(name.toLowerCase()) ||
+              (code && existingCodes.has(code.toLowerCase()))
+            ) {
               skipped++;
-              warnings.push(`"${name}" already exists — skipped`);
+              warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
-            // Phase 2 (legacy-ledger removal): chart_of_accounts is Postgres-only.
-            // No legacy ledger backend provisioning step; row goes straight into the new schema.
+            // Phase 2 (external-ledger removal): chart_of_accounts is Postgres-only.
+            // No the ledger provisioning step; row goes straight into the new schema.
             try {
-              const enc = await encryptChartOfAccount({
-                account_name: name,
-                account_code: code | null,
-                account_type: row.data.type,
-                account_sub_type: row.data.subtype | null,
-                account_group: null,       // legacy field; not in new schema
-                account_category: null,    // legacy field; not in new schema
-                description: null,
-                is_group: false,
-                is_system: false,          // user-imported, not system-seeded
-                is_archived: false,
-                allowed_currencies: null,
-                parent_id: null,
-              }, encryptText);
-              const { error: insertError } = await supabase.from('chart_of_accounts' as any).insert({
-                org_id: orgId,
-                ...enc,
-              });
+              const enc = await encryptChartOfAccount(
+                {
+                  account_name: name,
+                  account_code: code || null,
+                  account_type: row.data.type,
+                  account_sub_type: row.data.subtype || null,
+                  account_group: null, // legacy field; not in new schema
+                  account_category: null, // legacy field; not in new schema
+                  description: null,
+                  is_group: false,
+                  is_system: false, // user-imported, not system-seeded
+                  is_archived: false,
+                  allowed_currencies: null,
+                  parent_id: null,
+                },
+                encryptText,
+              );
+              const { error: insertError } = await supabase
+                .from('chart_of_accounts' as any)
+                .insert({
+                  org_id: orgId,
+                  ...enc,
+                });
               if (insertError) {
                 failed++;
                 errors.push(`Row ${row.rowIndex + 1}: ${insertError.message}`);
@@ -2620,7 +3423,7 @@ function ChartOfAccountsTab({ orgId }: { orgId: string | null }) {
 /* ═══════════════════════════ Contacts (To/From) Tab ═══════════════════════════ */
 function ContactsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gates — UI presence only; RLS still authoritative on writes.
+  // Capability gates, UI presence only; RLS still authoritative on writes.
   const canWriteContacts = useCapability('contacts.write', orgId);
   const canDeleteContacts = useCapability('contacts.delete', orgId);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -2630,22 +3433,46 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
   const [perPage, setPerPage] = useState(10);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', street: '', city: '', state: '', zip: '', country: '', email: '', phone: '', type: '' });
+  const [form, setForm] = useState({
+    name: '',
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: '',
+    email: '',
+    phone: '',
+    type: '',
+  });
   const [editId, setEditId] = useState('');
   const [importOpen, setImportOpen] = useState(false);
 
   const fetchContacts = async () => {
     if (!orgId) return;
-    const { data } = await supabase.from('contacts').select('*').eq('org_id', orgId).order('created_at');
-    const decrypted = await Promise.all((data | []).map(c => decryptContact(c, decryptText).then(fields => ({ ...c, ...fields }))));
+    const { data } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at');
+    const decrypted = await Promise.all(
+      (data || []).map((c) =>
+        decryptContact(c, decryptText).then((fields) => ({ ...c, ...fields })),
+      ),
+    );
     setContacts(decrypted);
   };
 
-  useEffect(() => { fetchContacts(); }, [orgId]);
+  useEffect(() => {
+    fetchContacts();
+  }, [orgId]);
 
   const filtered = useMemo(() => {
-    let r = contacts.filter(c => !search | c.name.toLowerCase().includes(search.toLowerCase()));
-    r.sort((a, b) => sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+    const r = contacts.filter(
+      (c) => !search || c.name.toLowerCase().includes(search.toLowerCase()),
+    );
+    r.sort((a, b) =>
+      sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
+    );
     return r;
   }, [contacts, search, sortDir]);
 
@@ -2655,18 +3482,21 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
   const endIdx = Math.min((page + 1) * perPage, filtered.length);
 
   const handleSave = async () => {
-    if (!orgId | !form.name.trim()) return;
-    const encrypted = await encryptContact({
-      name: form.name,
-      street: form.street | null,
-      city: form.city | null,
-      state: form.state | null,
-      zip: form.zip | null,
-      country: form.country | null,
-      email: form.email | null,
-      phone: form.phone | null,
-      type: form.type | null,
-    }, encryptText);
+    if (!orgId || !form.name.trim()) return;
+    const encrypted = await encryptContact(
+      {
+        name: form.name,
+        street: form.street || null,
+        city: form.city || null,
+        state: form.state || null,
+        zip: form.zip || null,
+        country: form.country || null,
+        email: form.email || null,
+        phone: form.phone || null,
+        type: form.type || null,
+      },
+      encryptText,
+    );
     if (editId) {
       await supabase.from('contacts').update(encrypted).eq('id', editId);
     } else {
@@ -2674,7 +3504,17 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
     }
     setAddOpen(false);
     setEditOpen(false);
-    setForm({ name: '', street: '', city: '', state: '', zip: '', country: '', email: '', phone: '', type: '' });
+    setForm({
+      name: '',
+      street: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: '',
+      email: '',
+      phone: '',
+      type: '',
+    });
     setEditId('');
     fetchContacts();
     toast.success(editId ? 'Contact updated' : 'Contact created');
@@ -2691,15 +3531,47 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search contacts..." value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} className="pl-9" />
+          <Input
+            placeholder="Search contacts..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
+            className="pl-9"
+          />
         </div>
         {canWriteContacts && (
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} data-testid="contacts-import">
-            <Upload className="w-4 h-4 mr-1" />Import
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            data-testid="contacts-import"
+          >
+            <Upload className="w-4 h-4 mr-1" />
+            Import
           </Button>
         )}
         {canWriteContacts && (
-          <Button onClick={() => { setForm({ name: '', street: '', city: '', state: '', zip: '', country: '', email: '', phone: '', type: '' }); setEditId(''); setAddOpen(true); }} className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" data-testid="contacts-new">
+          <Button
+            onClick={() => {
+              setForm({
+                name: '',
+                street: '',
+                city: '',
+                state: '',
+                zip: '',
+                country: '',
+                email: '',
+                phone: '',
+                type: '',
+              });
+              setEditId('');
+              setAddOpen(true);
+            }}
+            className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+            data-testid="contacts-new"
+          >
             <Plus className="w-4 h-4 mr-1" /> Add To/From
           </Button>
         )}
@@ -2709,7 +3581,10 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground cursor-pointer select-none" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              <th
+                className="text-left px-4 py-3 font-medium text-muted-foreground cursor-pointer select-none"
+                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+              >
                 NAME {sortDir === 'asc' ? '▲' : '▼'}
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">STREET</th>
@@ -2722,25 +3597,57 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
           </thead>
           <tbody>
             {pageData.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No contacts found.</td></tr>
-            ) : pageData.map(c => (
-              <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                <td className="px-4 py-3 font-medium">{c.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.street | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.city | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.state | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.zip | '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{c.country | '—'}</td>
-                <td className="px-4 py-3 flex gap-2">
-                  {canWriteContacts && (
-                    <button onClick={() => { setForm({ name: c.name, street: c.street | '', city: c.city | '', state: c.state | '', zip: c.zip | '', country: c.country | '', email: c.email | '', phone: c.phone | '', type: c.type | '' }); setEditId(c.id); setEditOpen(true); }} className="text-muted-foreground hover:text-foreground" data-testid="contacts-edit"><Pencil className="w-4 h-4" /></button>
-                  )}
-                  {canDeleteContacts && (
-                    <button onClick={() => handleDelete(c.id)} className="text-muted-foreground hover:text-red-600" data-testid="contacts-delete"><Trash2 className="w-4 h-4" /></button>
-                  )}
+              <tr>
+                <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No contacts found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              pageData.map((c) => (
+                <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-3 font-medium">{c.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.street || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.state || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.zip || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.country || '—'}</td>
+                  <td className="px-4 py-3 flex gap-2">
+                    {canWriteContacts && (
+                      <button
+                        onClick={() => {
+                          setForm({
+                            name: c.name,
+                            street: c.street || '',
+                            city: c.city || '',
+                            state: c.state || '',
+                            zip: c.zip || '',
+                            country: c.country || '',
+                            email: c.email || '',
+                            phone: c.phone || '',
+                            type: c.type || '',
+                          });
+                          setEditId(c.id);
+                          setEditOpen(true);
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                        data-testid="contacts-edit"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {canDeleteContacts && (
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="text-muted-foreground hover:text-red-600"
+                        data-testid="contacts-delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -2748,46 +3655,149 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
       {/* Pagination */}
       {filtered.length > 0 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Showing {startIdx}–{endIdx} of {filtered.length}</span>
+          <span>
+            Showing {startIdx}–{endIdx} of {filtered.length}
+          </span>
           <div className="flex items-center gap-3">
-            <Select value={String(perPage)} onValueChange={v => { setPerPage(Number(v)); setPage(0); }}>
-              <SelectTrigger className="w-20 h-8"><SelectValue /></SelectTrigger>
+            <Select
+              value={String(perPage)}
+              onValueChange={(v) => {
+                setPerPage(Number(v));
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="25">25</SelectItem>
                 <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
           </div>
         </div>
       )}
 
       {/* Add/Edit Modal */}
-      <Dialog open={addOpen | editOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setEditOpen(false); } }}>
+      <Dialog
+        open={addOpen || editOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setAddOpen(false);
+            setEditOpen(false);
+          }
+        }}
+      >
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? 'Edit Contact' : 'Add To/From'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editId ? 'Edit Contact' : 'Add To/From'}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
-            <div><Label>Name *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Type</Label><Input value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} placeholder="Vendor, Customer, ..." /></div>
-              <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></div>
-            </div>
-            <div><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
-            <div><Label>Street</Label><Input value={form.street} onChange={e => setForm(p => ({ ...p, street: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>City</Label><Input value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></div>
-              <div><Label>State</Label><Input value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} /></div>
+            <div>
+              <Label>Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>ZIP</Label><Input value={form.zip} onChange={e => setForm(p => ({ ...p, zip: e.target.value }))} /></div>
-              <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></div>
+              <div>
+                <Label>Type</Label>
+                <Input
+                  value={form.type}
+                  onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+                  placeholder="Vendor, Customer, ..."
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Street</Label>
+              <Input
+                value={form.street}
+                onChange={(e) => setForm((p) => ({ ...p, street: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>City</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Input
+                  value={form.state}
+                  onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>ZIP</Label>
+                <Input
+                  value={form.zip}
+                  onChange={(e) => setForm((p) => ({ ...p, zip: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Country</Label>
+                <Input
+                  value={form.country}
+                  onChange={(e) => setForm((p) => ({ ...p, country: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setAddOpen(false); setEditOpen(false); }}>Cancel</Button>
-            <Button className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" onClick={handleSave}>{editId ? 'Save Changes' : 'Save'}</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddOpen(false);
+                setEditOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+              onClick={handleSave}
+            >
+              {editId ? 'Save Changes' : 'Save'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2795,7 +3805,10 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
       {/* CSV Import */}
       <ImportPopup
         open={importOpen}
-        onClose={() => { setImportOpen(false); fetchContacts(); }}
+        onClose={() => {
+          setImportOpen(false);
+          fetchContacts();
+        }}
         entityName="Contacts"
         sampleCsvContent={CONTACT_SAMPLE_CSV}
         sampleFileName="contacts-sample.csv"
@@ -2807,42 +3820,61 @@ function ContactsTab({ orgId }: { orgId: string | null }) {
         ]}
         parseCsv={parseCsvContacts}
         onImportRows={async (rows: ImportPreviewRow[]): Promise<ImportResult> => {
-          if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
-          const { data: existing } = await supabase.from('contacts').select('name, key_version').eq('org_id', orgId);
+          if (!orgId)
+            return {
+              created: 0,
+              skipped: 0,
+              failed: rows.length,
+              errors: ['No organization found'],
+            };
+          const { data: existing } = await supabase
+            .from('contacts')
+            .select('name, key_version')
+            .eq('org_id', orgId);
           const decryptedNames = await Promise.all(
-            (existing | []).map(async (c: any) => {
+            (existing || []).map(async (c: any) => {
               if (!c.key_version) return c.name;
               return decryptText(c.name);
-            })
+            }),
           );
           const existingNames = new Set(decryptedNames.map((n: string) => n?.toLowerCase()));
-          let created = 0, skipped = 0, failed = 0;
+          let created = 0,
+            skipped = 0,
+            failed = 0;
           const errors: string[] = [];
           const warnings: string[] = [];
           for (const row of rows) {
             const name = row.data.name.trim();
             if (existingNames.has(name.toLowerCase())) {
               skipped++;
-              warnings.push(`"${name}" already exists — skipped`);
+              warnings.push(`"${name}" already exists, skipped`);
               continue;
             }
-            const encrypted = await encryptContact({
-              name,
-              street: row.data.street | null,
-              city: row.data.city | null,
-              state: row.data.state | null,
-              zip: row.data.zip | null,
-              country: row.data.country | null,
-              email: row.data.email | null,
-              phone: row.data.phone | null,
-              type: row.data.type | null,
-            }, encryptText);
+            const encrypted = await encryptContact(
+              {
+                name,
+                street: row.data.street || null,
+                city: row.data.city || null,
+                state: row.data.state || null,
+                zip: row.data.zip || null,
+                country: row.data.country || null,
+                email: row.data.email || null,
+                phone: row.data.phone || null,
+                type: row.data.type || null,
+              },
+              encryptText,
+            );
             const { error } = await supabase.from('contacts').insert({
               org_id: orgId,
               ...encrypted,
             });
-            if (error) { failed++; errors.push(`Row ${row.rowIndex + 1}: ${error.message}`); }
-            else { created++; existingNames.add(name.toLowerCase()); }
+            if (error) {
+              failed++;
+              errors.push(`Row ${row.rowIndex + 1}: ${error.message}`);
+            } else {
+              created++;
+              existingNames.add(name.toLowerCase());
+            }
           }
           return { created, skipped, failed, errors, warnings };
         }}
@@ -2858,7 +3890,7 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
   const [open, setOpen] = useState(false);
 
   // Stable deps object so the wizard's handler identity doesn't change every
-  // render — keeps the wizard's internal state clean across uploads.
+  // render, keeps the wizard's internal state clean across uploads.
   const deps = useMemo<ImportDeps>(
     () => ({ orgId, encryptText, decryptText }),
     [orgId, encryptText, decryptText],
@@ -2870,23 +3902,15 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-medium mb-1">Import from Orange Rails</h2>
         <p className="text-sm text-muted-foreground">
           Upload a single <code>.or-import.json</code> file produced by an Orange Rails plugin
-          (Wave, QuickBooks, ShakePay, Wallet of Satoshi). The wizard validates the bundle,
-          shows what's inside, and commits each section into this org.
+          (Wave, QuickBooks, ShakePay, Wallet of Satoshi). The wizard validates the bundle, shows
+          what's inside, and commits each section into this org.
         </p>
       </div>
-      <Button
-        onClick={() => setOpen(true)}
-        disabled={!orgId}
-        data-testid="open-or-import-wizard"
-      >
+      <Button onClick={() => setOpen(true)} disabled={!orgId} data-testid="open-or-import-wizard">
         <Upload className="w-4 h-4 mr-2" />
         Open import wizard
       </Button>
-      {!orgId && (
-        <p className="text-xs text-muted-foreground">
-          Select an organization first.
-        </p>
-      )}
+      {!orgId && <p className="text-xs text-muted-foreground">Select an organization first.</p>}
       <ImportFromOrangeRailsWizard
         open={open}
         onClose={() => setOpen(false)}
@@ -2901,15 +3925,15 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
             .eq('org_id', orgId)
             .order('created_at');
           const decrypted = await Promise.all(
-            (data | []).map((a: any) =>
+            (data || []).map((a: any) =>
               decryptChartOfAccount(a, decryptText).then((fields) => ({ ...a, ...fields })),
             ),
           );
           return decrypted
             .filter((a: any) => !a.is_archived)
             .map((a: any) => ({
-              code: a.account_code | a.id,
-              name: a.account_name | '(unnamed)',
+              code: a.account_code || a.id,
+              name: a.account_name || '(unnamed)',
             }));
         }}
         loadContactOptions={async () => {
@@ -2920,9 +3944,11 @@ function OrangeRailsImportTab({ orgId }: { orgId: string | null }) {
             .eq('org_id', orgId)
             .order('created_at');
           const decrypted = await Promise.all(
-            (data | []).map((c: any) => decryptContact(c, decryptText).then((f) => ({ ...c, ...f }))),
+            (data || []).map((c: any) =>
+              decryptContact(c, decryptText).then((f) => ({ ...c, ...f })),
+            ),
           );
-          return decrypted.map((c: any) => ({ code: c.id, name: c.name | '(unnamed)' }));
+          return decrypted.map((c: any) => ({ code: c.id, name: c.name || '(unnamed)' }));
         }}
       />
     </div>
@@ -2940,15 +3966,31 @@ interface ConnectorConfig {
   config_encrypted: string | null;
 }
 
-const CONNECTOR_DEFS: { type: ConnectorType; name: string; icon: React.ReactNode; desc: string }[] = [
-  { type: 'blink', name: 'Blink (Lightning)', icon: <Zap className="w-6 h-6" />, desc: 'Send and receive Lightning payments via Blink wallet API' },
-  { type: 'exchange', name: 'Exchange API', icon: <ArrowLeftRight className="w-6 h-6" />, desc: 'Import trades and balances from Coinbase, Kraken, and others' },
-  { type: 'bank', name: 'Bank Feed', icon: <Landmark className="w-6 h-6" />, desc: 'Connect bank accounts for automatic transaction import' },
-];
+const CONNECTOR_DEFS: { type: ConnectorType; name: string; icon: React.ReactNode; desc: string }[] =
+  [
+    {
+      type: 'blink',
+      name: 'Blink (Lightning)',
+      icon: <Zap className="w-6 h-6" />,
+      desc: 'Send and receive Lightning payments via Blink wallet API',
+    },
+    {
+      type: 'exchange',
+      name: 'Exchange API',
+      icon: <ArrowLeftRight className="w-6 h-6" />,
+      desc: 'Import trades and balances from Coinbase, Kraken, and others',
+    },
+    {
+      type: 'bank',
+      name: 'Bank Feed',
+      icon: <Landmark className="w-6 h-6" />,
+      desc: 'Connect bank accounts for automatic transaction import',
+    },
+  ];
 
 function ConnectorsTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText } = useVault();
-  // Capability gate — UI presence only; RLS still authoritative on writes.
+  // Capability gate, UI presence only; RLS still authoritative on writes.
   const canWriteConnectors = useCapability('connectors.write', orgId);
   const [connectors, setConnectors] = useState<ConnectorConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2965,22 +4007,32 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
   const fetchConnectors = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
-    const { data } = await supabase.from('connectors').select('*').eq('org_id', orgId).order('created_at');
+    const { data } = await supabase
+      .from('connectors')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at');
     if (data) {
-      const decrypted: ConnectorConfig[] = await Promise.all(data.map(async (c: any) => {
-        let label = c.label;
-        if (c.key_version && c.encrypted_label) {
-          try { label = await decryptText(c.encrypted_label); } catch { /* use plaintext fallback */ }
-        }
-        return {
-          id: c.id,
-          connector_type: c.connector_type,
-          label,
-          status: c.status | 'disconnected',
-          last_sync: c.last_sync,
-          config_encrypted: c.config_encrypted,
-        };
-      }));
+      const decrypted: ConnectorConfig[] = await Promise.all(
+        data.map(async (c: any) => {
+          let label = c.label;
+          if (c.key_version && c.encrypted_label) {
+            try {
+              label = await decryptText(c.encrypted_label);
+            } catch {
+              /* use plaintext fallback */
+            }
+          }
+          return {
+            id: c.id,
+            connector_type: c.connector_type,
+            label,
+            status: c.status || 'disconnected',
+            last_sync: c.last_sync,
+            config_encrypted: c.config_encrypted,
+          };
+        }),
+      );
       setConnectors(decrypted);
     } else {
       setConnectors([]);
@@ -2988,22 +4040,26 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
     setLoading(false);
   }, [orgId, decryptText]);
 
-  useEffect(() => { fetchConnectors(); }, [fetchConnectors]);
+  useEffect(() => {
+    fetchConnectors();
+  }, [fetchConnectors]);
 
-  const connectedTypes = new Set(connectors.map(c => c.connector_type));
+  const connectedTypes = new Set(connectors.map((c) => c.connector_type));
 
   const handleConnect = async () => {
-    if (!orgId | !selectedType) return;
+    if (!orgId || !selectedType) return;
     setSaving(true);
 
     // Build config payload to encrypt
     const configPayload = JSON.stringify({
-      api_key: formApiKey | undefined,
-      api_secret: formApiSecret | undefined,
-      endpoint: formEndpoint | undefined,
+      api_key: formApiKey || undefined,
+      api_secret: formApiSecret || undefined,
+      endpoint: formEndpoint || undefined,
     });
     const encryptedConfig = await encryptText(configPayload);
-    const encryptedLabel = await encryptText(formLabel | CONNECTOR_DEFS.find(d => d.type === selectedType)!.name);
+    const encryptedLabel = await encryptText(
+      formLabel || CONNECTOR_DEFS.find((d) => d.type === selectedType)!.name,
+    );
 
     const { error } = await supabase.from('connectors').insert({
       org_id: orgId,
@@ -3039,7 +4095,7 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
 
   const handleSync = async (id: string) => {
     setSyncing(id);
-    // Simulate sync — actual sync logic comes later via edge function
+    // Simulate sync, actual sync logic comes later via edge function
     await supabase.from('connectors').update({ last_sync: new Date().toISOString() }).eq('id', id);
     setTimeout(() => {
       setSyncing(null);
@@ -3065,13 +4121,15 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
     setConnectOpen(true);
   };
 
-  const selectedDef = CONNECTOR_DEFS.find(d => d.type === selectedType);
+  const selectedDef = CONNECTOR_DEFS.find((d) => d.type === selectedType);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Connect external services to automatically import transactions and balances.</p>
+          <p className="text-sm text-muted-foreground">
+            Connect external services to automatically import transactions and balances.
+          </p>
         </div>
       </div>
 
@@ -3079,41 +4137,91 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
       {connectors.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Active Connections</h3>
-          {connectors.map(c => {
-            const def = CONNECTOR_DEFS.find(d => d.type === c.connector_type);
+          {connectors.map((c) => {
+            const def = CONNECTOR_DEFS.find((d) => d.type === c.connector_type);
             return (
-              <div key={c.id} className="flex items-center justify-between border border-border rounded-lg p-4 bg-card">
+              <div
+                key={c.id}
+                className="flex items-center justify-between border border-border rounded-lg p-4 bg-card"
+              >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                    {def?.icon | <Plug className="w-5 h-5" />}
+                    {def?.icon || <Plug className="w-5 h-5" />}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{c.label}</span>
-                      <Badge variant={c.status === 'connected' ? 'default' : 'destructive'} className={c.status === 'connected' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}>
-                        {c.status === 'connected' ? <><CheckCircle2 className="w-3 h-3 mr-1" />Connected</> : <><XCircle className="w-3 h-3 mr-1" />Error</>}
+                      <Badge
+                        variant={c.status === 'connected' ? 'default' : 'destructive'}
+                        className={
+                          c.status === 'connected'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                            : ''
+                        }
+                      >
+                        {c.status === 'connected' ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Connected
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Error
+                          </>
+                        )}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {c.last_sync ? `Last synced ${new Date(c.last_sync).toLocaleString()}` : 'Never synced'}
+                      {c.last_sync
+                        ? `Last synced ${new Date(c.last_sync).toLocaleString()}`
+                        : 'Never synced'}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={syncing === c.id} onClick={() => handleSync(c.id)}>
-                    {syncing === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={syncing === c.id}
+                    onClick={() => handleSync(c.id)}
+                  >
+                    {syncing === c.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
                     <span className="ml-1">Sync</span>
                   </Button>
-                  {canWriteConnectors && (deleteConfirmId === c.id ? (
-                    <div className="flex items-center gap-1">
-                      <Button variant="destructive" size="sm" onClick={() => handleDisconnect(c.id)}>Confirm</Button>
-                      <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                    </div>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(c.id)} className="text-red-600 hover:text-red-700 hover:border-red-300" data-testid="connector-delete">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  ))}
+                  {canWriteConnectors &&
+                    (deleteConfirmId === c.id ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDisconnect(c.id)}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteConfirmId(c.id)}
+                        className="text-red-600 hover:text-red-700 hover:border-red-300"
+                        data-testid="connector-delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    ))}
                 </div>
               </div>
             );
@@ -3127,19 +4235,29 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
           {connectors.length > 0 ? 'Add Another Connection' : 'Available Connectors'}
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {CONNECTOR_DEFS.map(def => {
+          {CONNECTOR_DEFS.map((def) => {
             const isConnected = connectedTypes.has(def.type);
             return (
-              <div key={def.type} className={`border border-border rounded-lg p-5 flex flex-col items-center text-center ${isConnected ? 'opacity-50' : ''}`}>
+              <div
+                key={def.type}
+                className={`border border-border rounded-lg p-5 flex flex-col items-center text-center ${isConnected ? 'opacity-50' : ''}`}
+              >
                 <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground mb-3">
                   {def.icon}
                 </div>
                 <h3 className="font-semibold text-sm mb-1">{def.name}</h3>
                 <p className="text-xs text-muted-foreground mb-4">{def.desc}</p>
                 {isConnected ? (
-                  <span className="text-[10px] font-bold uppercase text-green-700 bg-green-50 px-2 py-1 rounded">Connected</span>
+                  <span className="text-[10px] font-bold uppercase text-green-700 bg-green-50 px-2 py-1 rounded">
+                    Connected
+                  </span>
                 ) : canWriteConnectors ? (
-                  <Button size="sm" onClick={() => openConnectDialog(def.type)} className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white" data-testid="connector-connect">
+                  <Button
+                    size="sm"
+                    onClick={() => openConnectDialog(def.type)}
+                    className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
+                    data-testid="connector-connect"
+                  >
                     <Plus className="w-3.5 h-3.5 mr-1" /> Connect
                   </Button>
                 ) : null}
@@ -3156,7 +4274,15 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
       )}
 
       {/* Connect Dialog */}
-      <Dialog open={connectOpen} onOpenChange={v => { if (!v) { setConnectOpen(false); resetForm(); } }}>
+      <Dialog
+        open={connectOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setConnectOpen(false);
+            resetForm();
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -3167,50 +4293,92 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
           <div className="space-y-4">
             <div>
               <Label>Connection Label</Label>
-              <Input value={formLabel} onChange={e => setFormLabel(e.target.value)} placeholder={selectedDef?.name | 'My connection'} />
-              <p className="text-xs text-muted-foreground mt-1">A friendly name for this connection.</p>
+              <Input
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder={selectedDef?.name || 'My connection'}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                A friendly name for this connection.
+              </p>
             </div>
 
             <div>
               <Label>API Key *</Label>
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input type="password" value={formApiKey} onChange={e => setFormApiKey(e.target.value)} placeholder="Enter your API key" className="pl-9" />
+                <Input
+                  type="password"
+                  value={formApiKey}
+                  onChange={(e) => setFormApiKey(e.target.value)}
+                  placeholder="Enter your API key"
+                  className="pl-9"
+                />
               </div>
             </div>
 
             {selectedType === 'exchange' && (
               <div>
                 <Label>API Secret</Label>
-                <Input type="password" value={formApiSecret} onChange={e => setFormApiSecret(e.target.value)} placeholder="Enter API secret (if required)" />
+                <Input
+                  type="password"
+                  value={formApiSecret}
+                  onChange={(e) => setFormApiSecret(e.target.value)}
+                  placeholder="Enter API secret (if required)"
+                />
               </div>
             )}
 
             {selectedType === 'blink' && (
               <div>
                 <Label>GraphQL Endpoint</Label>
-                <Input value={formEndpoint} onChange={e => setFormEndpoint(e.target.value)} placeholder="https://api.blink.sv/graphql" />
+                <Input
+                  value={formEndpoint}
+                  onChange={(e) => setFormEndpoint(e.target.value)}
+                  placeholder="https://api.blink.sv/graphql"
+                />
               </div>
             )}
 
             {selectedType === 'bank' && (
               <div className="bg-muted/50 border border-border rounded-md p-3">
-                <p className="text-xs text-muted-foreground">Bank feed integration uses a read-only connection. Your credentials are encrypted end-to-end and never stored in plaintext.</p>
+                <p className="text-xs text-muted-foreground">
+                  Bank feed integration uses a read-only connection. Your credentials are encrypted
+                  end-to-end and never stored in plaintext.
+                </p>
               </div>
             )}
 
             <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-              <p className="text-xs text-amber-800">Your credentials are encrypted with your vault key before being stored. Orange Way Books cannot read them.</p>
+              <p className="text-xs text-amber-800">
+                Your credentials are encrypted with your vault key before being stored. Orange Way
+                Books cannot read them.
+              </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConnectOpen(false); resetForm(); }}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConnectOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
-              disabled={!formApiKey | saving}
+              disabled={!formApiKey || saving}
               onClick={handleConnect}
             >
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Connecting...</> : 'Connect'}
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3220,16 +4388,20 @@ function ConnectorsTab({ orgId }: { orgId: string | null }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Data tab — takeout export / import (MVP: plaintext JSON, seed-style)
+// Data tab, takeout export / import (MVP: plaintext JSON, seed-style)
 // ──────────────────────────────────────────────────────────────────────
 function DataTab({ orgId }: { orgId: string | null }) {
   const { encryptText, decryptText, encryptBlob, decryptBlob } = useVault();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importPhase, setImportPhase] = useState<string | null>(null);
-  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [exportPhase, setExportPhase] = useState<string | null>(null);
-  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [pendingFile, setPendingFile] = useState<TakeoutFile | null>(null);
   const [force, setForce] = useState(false);
   const [qbImportOpen, setQbImportOpen] = useState(false);
@@ -3261,7 +4433,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
     try {
       const text = await f.text();
       const parsed = JSON.parse(text) as TakeoutFile;
-      if (!parsed?._meta | !parsed?.data) throw new Error('Not a takeout file');
+      if (!parsed?._meta || !parsed?.data) throw new Error('Not a takeout file');
       setPendingFile(parsed);
     } catch (err: any) {
       toast.error(`Invalid file: ${err?.message ?? String(err)}`);
@@ -3292,8 +4464,8 @@ function DataTab({ orgId }: { orgId: string | null }) {
       });
       toast.success(
         `Loaded Sierra Bitcoin Mining Co.: ${result.wallets} wallets, ` +
-        `${result.legacyAccounts} accounts, ${result.transactions} transactions, ` +
-        `${result.journalEntries} JEs.`,
+          `${result.legacyAccounts} accounts, ${result.transactions} transactions, ` +
+          `${result.journalEntries} JEs.`,
       );
     } catch (err: any) {
       toast.error(`Seed failed: ${err?.message ?? String(err)}`);
@@ -3321,8 +4493,8 @@ function DataTab({ orgId }: { orgId: string | null }) {
       });
       toast.success(
         `Loaded Common Grounds Coffee Co.: ${result.wallets} wallets, ` +
-        `${result.legacyAccounts} accounts, ${result.transactions} transactions, ` +
-        `${result.journalEntries} JEs.`,
+          `${result.legacyAccounts} accounts, ${result.transactions} transactions, ` +
+          `${result.journalEntries} JEs.`,
       );
     } catch (err: any) {
       toast.error(`Seed failed: ${err?.message ?? String(err)}`);
@@ -3348,7 +4520,7 @@ function DataTab({ orgId }: { orgId: string | null }) {
   };
 
   const handleImport = async () => {
-    if (!orgId | !pendingFile) return;
+    if (!orgId || !pendingFile) return;
     setImporting(true);
     setImportPhase('Starting');
     setImportProgress({ done: 0, total: 0 });
@@ -3361,13 +4533,14 @@ function DataTab({ orgId }: { orgId: string | null }) {
           setImportProgress({ done, total });
         },
       });
-      const attNote = result.attachmentsFailed > 0
-        ? ` · receipts: ${result.attachments} ok / ${result.attachmentsFailed} failed`
-        : ` · ${result.attachments} receipts`;
+      const attNote =
+        result.attachmentsFailed > 0
+          ? ` · receipts: ${result.attachments} ok / ${result.attachmentsFailed} failed`
+          : ` · ${result.attachments} receipts`;
       toast.success(
         `Imported: ${result.wallets} wallets, ${result.legacyAccounts} accounts, ` +
-        `${result.transactions} transactions, ${result.journalEntries} JEs ` +
-        `(${result.journalEntryLines} lines)${attNote}.`,
+          `${result.transactions} transactions, ${result.journalEntries} JEs ` +
+          `(${result.journalEntryLines} lines)${attNote}.`,
       );
       setPendingFile(null);
       setForce(false);
@@ -3385,29 +4558,45 @@ function DataTab({ orgId }: { orgId: string | null }) {
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-1">Data export</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Download a full plaintext copy of this organization. Drop the file on another
-          vault (or back onto this one) and you keep working — no manual re-setup.
+          Download a full plaintext copy of this organization. Drop the file on another vault (or
+          back onto this one) and you keep working, no manual re-setup.
         </p>
         <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 mb-4 space-y-1">
-          <p><strong>Included in the export:</strong></p>
+          <p>
+            <strong>Included in the export:</strong>
+          </p>
           <ul className="list-disc pl-5 text-xs">
             <li>Organization · org settings (currencies, bitcoin display)</li>
             <li>Accounts · chart of accounts · contacts</li>
             <li>Transactions · journal entries · journal entry lines</li>
             <li>Payment requests</li>
-            <li><strong>Receipts</strong> (attachment file bytes, decrypted client-side and base64-encoded)</li>
+            <li>
+              <strong>Receipts</strong> (attachment file bytes, decrypted client-side and
+              base64-encoded)
+            </li>
           </ul>
-          <p className="mt-2"><strong>Created fresh on import:</strong> legacy ledger backend blind journal, legacy ledger accounts (with remapped ids), 10 ZKA_* posting templates — so new transactions post correctly after restore.</p>
+          <p className="mt-2">
+            <strong>On import:</strong> the rows above land directly in this org&apos;s encrypted
+            Postgres tables, with account IDs remapped to fresh UUIDs. Nothing else is provisioned
+            server-side, and new transactions post correctly after restore.
+          </p>
         </div>
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
-          <strong>Heads up:</strong> the exported file is <em>plaintext</em>. Decryption
-          happens in your browser before the download, so the server never sees plaintext —
-          but the file itself does. Treat it like a password: don&apos;t email it, don&apos;t
-          upload it to shared drives.
+          <strong>Heads up:</strong> the exported file is <em>plaintext</em>. Decryption happens in
+          your browser before the download, so the server never sees plaintext — but the file itself
+          does. Treat it like a password: don&apos;t email it, don&apos;t upload it to shared
+          drives.
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleExport} disabled={!orgId | exporting}>
-            {exporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting…</> : 'Download export'}
+          <Button onClick={handleExport} disabled={!orgId || exporting}>
+            {exporting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Exporting…
+              </>
+            ) : (
+              'Download export'
+            )}
           </Button>
           {exporting && exportPhase && (
             <span className="text-xs text-muted-foreground">
@@ -3423,11 +4612,13 @@ function DataTab({ orgId }: { orgId: string | null }) {
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-1">Sample data</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          One-click seed for the current organization. Useful for testing the Insights
-          dashboard and reports without clicking through CSV imports.
+          One-click seed for the current organization. Useful for testing the Insights dashboard and
+          reports without clicking through CSV imports.
         </p>
         <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 mb-4 space-y-1">
-          <p><strong>Sierra Bitcoin Mining Co.</strong> — ~18 months of realistic activity:</p>
+          <p>
+            <strong>Sierra Bitcoin Mining Co.</strong>, ~18 months of realistic activity:
+          </p>
           <ul className="list-disc pl-5 text-xs">
             <li>4 wallets (BTC mining payout, cold storage, USD operating, Lightning)</li>
             <li>10 contacts (mining pool, electricity provider, colo host, customers, CPA…)</li>
@@ -3442,8 +4633,15 @@ function DataTab({ orgId }: { orgId: string | null }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleSeedMiner} disabled={!orgId | seeding | importing | wiping}>
-            {seedingKind === 'miner' ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Seeding…</> : 'Load miner company'}
+          <Button onClick={handleSeedMiner} disabled={!orgId || seeding || importing || wiping}>
+            {seedingKind === 'miner' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Seeding…
+              </>
+            ) : (
+              'Load miner company'
+            )}
           </Button>
           {seedingKind === 'miner' && importPhase && (
             <span className="text-xs text-muted-foreground">
@@ -3455,24 +4653,37 @@ function DataTab({ orgId }: { orgId: string | null }) {
           )}
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 mb-4 mt-6 space-y-1">
-          <p><strong>Common Grounds Coffee Co.</strong> — year-to-date retail + circular-economy activity:</p>
+          <p>
+            <strong>Common Grounds Coffee Co.</strong>, year-to-date retail + circular-economy
+            activity:
+          </p>
           <ul className="list-disc pl-5 text-xs">
             <li>4 wallets (USD operating, register cash drawer, Lightning, USD reserves)</li>
             <li>9 contacts (bean supplier, dairy, landlord, compost partner, artisan market…)</li>
             <li>Daily aggregate sales with weekend lift + occasional Lightning-BTC tail</li>
             <li>Weekly bean + dairy purchases</li>
             <li>Monthly rent, utilities, internet, payroll</li>
-            <li>Quarterly insurance + <em>circular-economy income</em>: spent grounds sold to composter, burlap sacks to artisan market</li>
+            <li>
+              Quarterly insurance + <em>circular-economy income</em>: spent grounds sold to
+              composter, burlap sacks to artisan market
+            </li>
             <li>Payment lifecycle: pending / approved / paid / rejected</li>
           </ul>
           <p className="mt-2 text-xs">
-            Smaller than the miner seed — good for fast QA iterations.
-            Running this <strong>wipes the current org first</strong>, then imports fresh.
+            Smaller than the miner seed, good for fast QA iterations. Running this{' '}
+            <strong>wipes the current org first</strong>, then imports fresh.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={handleSeedCoffee} disabled={!orgId | seeding | importing | wiping}>
-            {seedingKind === 'coffee' ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Seeding…</> : 'Load coffee shop'}
+          <Button onClick={handleSeedCoffee} disabled={!orgId || seeding || importing || wiping}>
+            {seedingKind === 'coffee' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Seeding…
+              </>
+            ) : (
+              'Load coffee shop'
+            )}
           </Button>
           {seedingKind === 'coffee' && importPhase && (
             <span className="text-xs text-muted-foreground">
@@ -3488,26 +4699,38 @@ function DataTab({ orgId }: { orgId: string | null }) {
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-1">Import from QuickBooks</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Bring an existing QuickBooks Online file set into this organization. Upload the
-          .xlsx exports (Trial Balance, Journal, Customers, Vendors, Employees, Balance
-          Sheet, P&amp;L, General Ledger) or a single .zip bundle &mdash; everything is parsed
-          in your browser and re-encrypted with this vault before being written.
+          Bring an existing QuickBooks Online file set into this organization. Upload the .xlsx
+          exports (Trial Balance, Journal, Customers, Vendors, Employees, Balance Sheet, P&amp;L,
+          General Ledger) or a single .zip bundle &mdash; everything is parsed in your browser and
+          re-encrypted with this vault before being written.
         </p>
         <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 mb-4 space-y-1">
-          <p><strong>What gets imported:</strong></p>
+          <p>
+            <strong>What gets imported:</strong>
+          </p>
           <ul className="list-disc pl-5 text-xs">
-            <li>Chart of accounts from the Trial Balance, with auto-classified Type / SubType (you can override anything ambiguous before committing)</li>
+            <li>
+              Chart of accounts from the Trial Balance, with auto-classified Type / SubType (you can
+              override anything ambiguous before committing)
+            </li>
             <li>Customers, Vendors, and Employees as contacts</li>
-            <li>Journal entries (preferred) or General Ledger entries when no Journal is provided</li>
-            <li>Balance Sheet and P&amp;L are read for validation only &mdash; they don&apos;t create rows</li>
+            <li>
+              Journal entries (preferred) or General Ledger entries when no Journal is provided
+            </li>
+            <li>
+              Balance Sheet and P&amp;L are read for validation only &mdash; they don&apos;t create
+              rows
+            </li>
           </ul>
           <p className="mt-2 text-xs">
-            Re-running the same import is safe: rows are de-duplicated by their QuickBooks reference number.
+            Re-running the same import is safe: rows are de-duplicated by their QuickBooks reference
+            number.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={() => setQbImportOpen(true)} disabled={!orgId}>
-            <Upload className="w-4 h-4 mr-2" />Import from QuickBooks
+            <Upload className="w-4 h-4 mr-2" />
+            Import from QuickBooks
           </Button>
         </div>
       </section>
@@ -3515,16 +4738,28 @@ function DataTab({ orgId }: { orgId: string | null }) {
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-1">Data import</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Load a previously exported file into the current organization. Every row is
-          re-encrypted with this vault before being written, so plaintext never leaves
-          the browser for the database.
+          Load a previously exported file into the current organization. Every row is re-encrypted
+          with this vault before being written, so plaintext never leaves the browser for the
+          database.
         </p>
         <div className="rounded-md border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700 mb-4 space-y-1">
-          <p><strong>Import notes:</strong></p>
+          <p>
+            <strong>Import notes:</strong>
+          </p>
           <ul className="list-disc pl-5 text-xs">
-            <li>By default the import refuses if the target org already has data. Tick force to wipe and replace.</li>
-            <li>New legacy ledger backend journal, accounts, and templates are created as part of the import — new transactions will post correctly afterwards.</li>
-            <li>Historical transactions are not replayed as legacy ledger backend postings. Reports read from the Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance Sheet look right immediately.</li>
+            <li>
+              By default the import refuses if the target org already has data. Tick force to wipe
+              and replace.
+            </li>
+            <li>
+              Imported rows insert directly into the target org&apos;s Postgres tables with remapped
+              IDs. New transactions will post correctly afterwards.
+            </li>
+            <li>
+              Historical transactions are not replayed as ledger postings. Reports read from the
+              Supabase journal lines (which are imported in full), so Insights / P&amp;L / Balance
+              Sheet look right immediately.
+            </li>
           </ul>
         </div>
 
@@ -3537,7 +4772,11 @@ function DataTab({ orgId }: { orgId: string | null }) {
               onChange={handleFilePicked}
               className="hidden"
             />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!orgId}>
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!orgId}
+            >
               Choose file…
             </Button>
           </div>
@@ -3548,28 +4787,22 @@ function DataTab({ orgId }: { orgId: string | null }) {
             <div>
               <p className="text-sm font-medium">Ready to import</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Source org: <strong>{pendingFile._meta.sourceOrgName}</strong> ·
-                Exported: <strong>{new Date(pendingFile._meta.exportedAt).toLocaleString()}</strong>
+                Source org: <strong>{pendingFile._meta.sourceOrgName}</strong> · Exported:{' '}
+                <strong>{new Date(pendingFile._meta.exportedAt).toLocaleString()}</strong>
               </p>
               <p className="text-xs text-muted-foreground">
-                Contains:{' '}
-                {pendingFile.data.wallets.length} wallets ·{' '}
+                Contains: {pendingFile.data.wallets.length} wallets ·{' '}
                 {pendingFile.data.chart_of_accounts.length} accounts ·{' '}
-                {pendingFile.data.contacts.length} contacts ·{' '}
-                {pendingFile.data.transactions.length} transactions ·{' '}
-                {pendingFile.data.journal_entries.length} JEs ·{' '}
+                {pendingFile.data.contacts.length} contacts · {pendingFile.data.transactions.length}{' '}
+                transactions · {pendingFile.data.journal_entries.length} JEs ·{' '}
                 {pendingFile.data.journal_entry_lines.length} JE lines ·{' '}
                 {pendingFile.data.payment_requests.length} payment requests ·{' '}
-                {(pendingFile.data.attachments?.length ?? 0)} receipts
+                {pendingFile.data.attachments?.length ?? 0} receipts
               </p>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={force}
-                onChange={(e) => setForce(e.target.checked)}
-              />
-              Force mode — wipe existing data in the target org before importing
+              <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
+              Force mode, wipe existing data in the target org before importing
             </label>
             {importPhase && (
               <p className="text-xs text-muted-foreground">
@@ -3581,9 +4814,23 @@ function DataTab({ orgId }: { orgId: string | null }) {
             )}
             <div className="flex gap-2">
               <Button onClick={handleImport} disabled={importing}>
-                {importing ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Importing…</> : 'Import now'}
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Importing…
+                  </>
+                ) : (
+                  'Import now'
+                )}
               </Button>
-              <Button variant="outline" onClick={() => { setPendingFile(null); setForce(false); }} disabled={importing}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPendingFile(null);
+                  setForce(false);
+                }}
+                disabled={importing}
+              >
                 Cancel
               </Button>
             </div>
@@ -3594,18 +4841,35 @@ function DataTab({ orgId }: { orgId: string | null }) {
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-1">Coming soon</h2>
         <p className="text-sm text-muted-foreground mb-3">
-          These parts of the organization aren&apos;t in the takeout yet. Files remain
-          functional on the source vault — the gap only matters when you restore into a
-          fresh org.
+          These parts of the organization aren&apos;t in the takeout yet. Files remain functional on
+          the source vault; the gap only matters when you restore into a fresh org.
         </p>
         <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-          <li><strong>Team members &amp; roles</strong> — org_members, invites, permissions</li>
-          <li><strong>Audit log</strong> — who-did-what history</li>
-          <li><strong>Exchange rates</strong> — org-scoped rate overrides (global rates re-fetch on demand, so this is minor)</li>
-          <li><strong>Connector credentials</strong> — re-connect after import</li>
-          <li><strong>Transaction links</strong> — wallet-to-wallet transfer pairs</li>
-          <li><strong>Encrypted-mode export</strong> — ciphertext-only bundle for same-vault backups (complements the current plaintext mode)</li>
-          <li><strong>Historical legacy ledger backend replay</strong> — today we recreate journal + accounts + templates; old transaction postings remain Supabase-only (reports still read correctly from JE lines)</li>
+          <li>
+            <strong>Team members &amp; roles</strong>, org_members, invites, permissions
+          </li>
+          <li>
+            <strong>Audit log</strong>, who-did-what history
+          </li>
+          <li>
+            <strong>Exchange rates</strong>, org-scoped rate overrides (global rates re-fetch on
+            demand, so this is minor)
+          </li>
+          <li>
+            <strong>Connector credentials</strong>, re-connect after import
+          </li>
+          <li>
+            <strong>Transaction links</strong>, wallet-to-wallet transfer pairs
+          </li>
+          <li>
+            <strong>Encrypted-mode export</strong>, ciphertext-only bundle for same-vault backups
+            (complements the current plaintext mode)
+          </li>
+          <li>
+            <strong>Historical posting backfill</strong>: the takeout carries journal lines (reports
+            read from these) but does not include any separate server-side postings that older
+            versions used to maintain.
+          </li>
         </ul>
       </section>
 
@@ -3613,22 +4877,33 @@ function DataTab({ orgId }: { orgId: string | null }) {
         <h2 className="text-lg font-semibold text-red-700 mb-1">Danger zone</h2>
         <p className="text-sm text-muted-foreground mb-3">
           Wipe every row in the current organization (wallets, chart of accounts, contacts,
-          transactions, journal entries, payment requests, receipt files) without replacing
-          them. The organization itself stays so you can re-seed or re-import into it.
+          transactions, journal entries, payment requests, receipt files) without replacing them.
+          The organization itself stays so you can re-seed or re-import into it.
         </p>
         {!confirmWipe ? (
-          <Button variant="destructive" onClick={() => setConfirmWipe(true)} disabled={!orgId | wiping}>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmWipe(true)}
+            disabled={!orgId || wiping}
+          >
             Wipe all data…
           </Button>
         ) : (
           <div className="rounded-md border border-red-300 bg-red-50 p-3 space-y-2">
             <p className="text-sm text-red-900">
-              This will permanently delete everything in the current organization.
-              Type-confirm is not required, but this is irreversible.
+              This will permanently delete everything in the current organization. Type-confirm is
+              not required, but this is irreversible.
             </p>
             <div className="flex gap-2">
               <Button variant="destructive" onClick={handleWipe} disabled={wiping}>
-                {wiping ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Wiping…</> : 'Yes, wipe everything'}
+                {wiping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Wiping…
+                  </>
+                ) : (
+                  'Yes, wipe everything'
+                )}
               </Button>
               <Button variant="outline" onClick={() => setConfirmWipe(false)} disabled={wiping}>
                 Cancel
@@ -3657,16 +4932,18 @@ function DataTab({ orgId }: { orgId: string | null }) {
 function AuditLogTab({ orgId }: { orgId: string | null }) {
   const { decryptText } = useVault();
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<Array<{
-    id: string;
-    created_at: string;
-    user_id: string | null;
-    action: string;
-    entity_type: string;
-    entity_id: string;
-    summary: string | null;
-    ip_address: string | null;
-  }>>([]);
+  const [rows, setRows] = useState<
+    Array<{
+      id: string;
+      created_at: string;
+      user_id: string | null;
+      action: string;
+      entity_type: string;
+      entity_id: string;
+      summary: string | null;
+      ip_address: string | null;
+    }>
+  >([]);
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [entityFilter, setEntityFilter] = useState<string>('all');
 
@@ -3677,7 +4954,9 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
       try {
         const { data } = await supabase
           .from('audit_logs')
-          .select('id, created_at, user_id, action, entity_type, entity_id, summary, ip_address, key_version')
+          .select(
+            'id, created_at, user_id, action, entity_type, entity_id, summary, ip_address, key_version',
+          )
           .eq('org_id', orgId)
           .order('created_at', { ascending: false })
           .limit(500);
@@ -3686,8 +4965,11 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
         for (const r of data as any[]) {
           let summary: string | null = r.summary;
           if (r.summary && r.key_version) {
-            try { summary = await decryptText(r.summary); }
-            catch { summary = '(decrypt failed)'; }
+            try {
+              summary = await decryptText(r.summary);
+            } catch {
+              summary = '(decrypt failed)';
+            }
           }
           decrypted.push({
             id: r.id,
@@ -3708,15 +4990,37 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
   }, [orgId, decryptText]);
 
   const filtered = useMemo(() => {
-    return rows.filter(r => {
+    return rows.filter((r) => {
       if (actionFilter !== 'all' && r.action !== actionFilter) return false;
       if (entityFilter !== 'all' && r.entity_type !== entityFilter) return false;
       return true;
     });
   }, [rows, actionFilter, entityFilter]);
 
-  const ACTION_OPTS = ['all', 'CREATE', 'UPDATE', 'DELETE', 'POST', 'VOID', 'RECONCILE', 'ARCHIVE', 'UNARCHIVE'];
-  const ENTITY_OPTS = ['all', 'organization', 'wallet', 'transaction', 'journal_entry', 'contact', 'payment_request', 'chart_of_account', 'connector', 'org_settings', 'member'];
+  const ACTION_OPTS = [
+    'all',
+    'CREATE',
+    'UPDATE',
+    'DELETE',
+    'POST',
+    'VOID',
+    'RECONCILE',
+    'ARCHIVE',
+    'UNARCHIVE',
+  ];
+  const ENTITY_OPTS = [
+    'all',
+    'organization',
+    'wallet',
+    'transaction',
+    'journal_entry',
+    'contact',
+    'payment_request',
+    'chart_of_account',
+    'connector',
+    'org_settings',
+    'member',
+  ];
 
   return (
     <div className="space-y-4">
@@ -3724,7 +5028,8 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
         <div>
           <h2 className="text-lg font-semibold">Audit Log</h2>
           <p className="text-sm text-muted-foreground">
-            Last 500 actions across the org. Encrypted summaries decrypted in your browser. Read-only.
+            Last 500 actions across the org. Encrypted summaries decrypted in your browser.
+            Read-only.
           </p>
         </div>
       </div>
@@ -3732,24 +5037,38 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
         <div>
           <Label className="text-xs">Action</Label>
           <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {ACTION_OPTS.map(a => <SelectItem key={a} value={a}>{a === 'all' ? 'All actions' : a}</SelectItem>)}
+              {ACTION_OPTS.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a === 'all' ? 'All actions' : a}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div>
           <Label className="text-xs">Entity</Label>
           <Select value={entityFilter} onValueChange={setEntityFilter}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {ENTITY_OPTS.map(e => <SelectItem key={e} value={e}>{e === 'all' ? 'All entities' : e}</SelectItem>)}
+              {ENTITY_OPTS.map((e) => (
+                <SelectItem key={e} value={e}>
+                  {e === 'all' ? 'All entities' : e}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
       {loading ? (
-        <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin" /></div>
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
       ) : (
         <div className="rounded-lg border overflow-x-auto">
           <Table>
@@ -3765,18 +5084,31 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center py-10 text-sm text-muted-foreground"
+                  >
                     No audit events match the filters.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map(r => (
+                filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-xs font-mono">{format(new Date(r.created_at), 'yyyy-MM-dd HH:mm:ss')}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-[10px]">{r.action}</Badge></TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {format(new Date(r.created_at), 'yyyy-MM-dd HH:mm:ss')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px]">
+                        {r.action}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-xs">{r.entity_type}</TableCell>
-                    <TableCell className="text-sm">{r.summary | <span className="text-muted-foreground">—</span>}</TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">{r.ip_address | ''}</TableCell>
+                    <TableCell className="text-sm">
+                      {r.summary || <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">
+                      {r.ip_address || ''}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -3795,7 +5127,7 @@ function AuditLogTab({ orgId }: { orgId: string | null }) {
  * Two-step close UX (locked 2026-05-12):
  *   1. Pick a "lock through" date.
  *   2. Preview "how many entries get locked" before confirming.
- *   3. Confirm — writes an org_period_closes row. DB constraint auto-
+ *   3. Confirm, writes an org_period_closes row. DB constraint auto-
  *      blocks future writes into that range unless an unlock session
  *      exists for the writer.
  *
@@ -3809,14 +5141,16 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
   const [note, setNote] = useState('');
   const [preview, setPreview] = useState<{ je: number; tx: number } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [closes, setCloses] = useState<Array<{
-    id: string;
-    locked_through_date: string;
-    closed_by: string;
-    closed_at: string;
-    note: string | null;
-    reopened_from_id: string | null;
-  }>>([]);
+  const [closes, setCloses] = useState<
+    Array<{
+      id: string;
+      locked_through_date: string;
+      closed_by: string;
+      closed_at: string;
+      note: string | null;
+      reopened_from_id: string | null;
+    }>
+  >([]);
   const [hasUnlockCap, setHasUnlockCap] = useState(false);
 
   useEffect(() => {
@@ -3825,49 +5159,74 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
       // Past closes (most recent first).
       const { data } = await supabase
         .from('org_period_closes')
-        .select('id, locked_through_date, closed_by, closed_at, encrypted_note, key_version, reopened_from_id')
+        .select(
+          'id, locked_through_date, closed_by, closed_at, encrypted_note, key_version, reopened_from_id',
+        )
         .eq('org_id', orgId)
         .order('closed_at', { ascending: false })
         .limit(50);
       if (data) {
-        const dec = await Promise.all((data as any[]).map(async (r) => ({
-          id: r.id,
-          locked_through_date: r.locked_through_date,
-          closed_by: r.closed_by,
-          closed_at: r.closed_at,
-          note: r.encrypted_note && r.key_version ? await decryptText(r.encrypted_note).catch(() => null) : null,
-          reopened_from_id: r.reopened_from_id,
-        })));
+        const dec = await Promise.all(
+          (data as any[]).map(async (r) => ({
+            id: r.id,
+            locked_through_date: r.locked_through_date,
+            closed_by: r.closed_by,
+            closed_at: r.closed_at,
+            note:
+              r.encrypted_note && r.key_version
+                ? await decryptText(r.encrypted_note).catch(() => null)
+                : null,
+            reopened_from_id: r.reopened_from_id,
+          })),
+        );
         setCloses(dec);
       }
       // Check unlock capability via user_has_capability RPC.
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const { data: capData } = await supabase.rpc('user_has_capability' as never, {
-          p_user_id: user.id,
-          p_capability: 'periods.unlock',
-          p_org_id: orgId,
-        } as never);
+        const { data: capData } = await supabase.rpc(
+          'user_has_capability' as never,
+          {
+            p_user_id: user.id,
+            p_capability: 'periods.unlock',
+            p_org_id: orgId,
+          } as never,
+        );
         setHasUnlockCap(!!capData);
       }
     })();
   }, [orgId, decryptText]);
 
   async function loadPreview() {
-    if (!lockDate | !orgId) return;
+    if (!lockDate || !orgId) return;
     const [{ count: jeCount }, { count: txCount }] = await Promise.all([
-      supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lte('date', lockDate),
-      supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('org_id', orgId).lte('date', lockDate),
+      supabase
+        .from('journal_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', orgId)
+        .lte('date', lockDate),
+      supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', orgId)
+        .lte('date', lockDate),
     ]);
     setPreview({ je: jeCount ?? 0, tx: txCount ?? 0 });
   }
 
   async function handleClose() {
-    if (!lockDate | !orgId) return;
+    if (!lockDate || !orgId) return;
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error('Not authenticated'); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Not authenticated');
+        return;
+      }
       const encNote = note.trim() ? await encryptText(note.trim()) : null;
       const { error } = await supabase.from('org_period_closes').insert({
         org_id: orgId,
@@ -3876,41 +5235,65 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
         encrypted_note: encNote,
         key_version: 2,
       });
-      if (error) { toast.error(`Close failed: ${error.message}`); return; }
+      if (error) {
+        toast.error(`Close failed: ${error.message}`);
+        return;
+      }
       toast.success(`Period closed through ${lockDate}.`);
       writeAuditLog({
-        orgId, action: 'POST', entityType: 'org_settings', entityId: orgId,
+        orgId,
+        action: 'POST',
+        entityType: 'org_settings',
+        entityId: orgId,
         summary: `Closed period through ${lockDate}${note.trim() ? `: ${note.trim()}` : ''}`,
         encrypt: encryptText,
       });
-      setLockDate(''); setNote(''); setPreview(null);
+      setLockDate('');
+      setNote('');
+      setPreview(null);
       // Reload list
       const { data } = await supabase
         .from('org_period_closes')
-        .select('id, locked_through_date, closed_by, closed_at, encrypted_note, key_version, reopened_from_id')
+        .select(
+          'id, locked_through_date, closed_by, closed_at, encrypted_note, key_version, reopened_from_id',
+        )
         .eq('org_id', orgId)
         .order('closed_at', { ascending: false })
         .limit(50);
       if (data) {
-        const dec = await Promise.all((data as any[]).map(async (r) => ({
-          id: r.id,
-          locked_through_date: r.locked_through_date,
-          closed_by: r.closed_by,
-          closed_at: r.closed_at,
-          note: r.encrypted_note && r.key_version ? await decryptText(r.encrypted_note).catch(() => null) : null,
-          reopened_from_id: r.reopened_from_id,
-        })));
+        const dec = await Promise.all(
+          (data as any[]).map(async (r) => ({
+            id: r.id,
+            locked_through_date: r.locked_through_date,
+            closed_by: r.closed_by,
+            closed_at: r.closed_at,
+            note:
+              r.encrypted_note && r.key_version
+                ? await decryptText(r.encrypted_note).catch(() => null)
+                : null,
+            reopened_from_id: r.reopened_from_id,
+          })),
+        );
         setCloses(dec);
       }
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   }
 
-  async function handleReopen(close: typeof closes[number]) {
-    if (!orgId | !hasUnlockCap) return;
+  async function handleReopen(close: (typeof closes)[number]) {
+    if (!orgId || !hasUnlockCap) return;
     const reason = prompt('Reason for reopening this period? (required, audit-logged)');
-    if (!reason | !reason.trim()) return;
-    if (!confirm(`Open a 24-hour unlock session for the period through ${close.locked_through_date}? After 24h, the lock returns automatically.`)) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    if (!reason || !reason.trim()) return;
+    if (
+      !confirm(
+        `Open a 24-hour unlock session for the period through ${close.locked_through_date}? After 24h, the lock returns automatically.`,
+      )
+    )
+      return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
     const encReason = await encryptText(reason.trim());
     const { error } = await supabase.from('period_unlock_sessions').insert({
@@ -3921,10 +5304,16 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
       encrypted_reason: encReason,
       key_version: 2,
     });
-    if (error) { toast.error(`Unlock failed: ${error.message}`); return; }
+    if (error) {
+      toast.error(`Unlock failed: ${error.message}`);
+      return;
+    }
     toast.success('24-hour unlock session opened. Make your edit + re-close when done.');
     writeAuditLog({
-      orgId, action: 'UPDATE', entityType: 'org_settings', entityId: close.id,
+      orgId,
+      action: 'UPDATE',
+      entityType: 'org_settings',
+      entityId: close.id,
       summary: `Opened 24h unlock for period through ${close.locked_through_date}: ${reason.trim()}`,
       encrypt: encryptText,
     });
@@ -3935,28 +5324,51 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
       <div>
         <h2 className="text-lg font-semibold">Close a Period</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Lock the books on or before a date. After close, journal entries and transactions on or before this date become read-only — corrections go in the current open period as adjustment entries. Owner can reopen for 24 hours via the list below.
+          Lock the books on or before a date. After close, journal entries and transactions on or
+          before this date become read-only; corrections go in the current open period as adjustment
+          entries. Owner can reopen for 24 hours via the list below.
         </p>
       </div>
       <div className="space-y-3 max-w-md">
         <div>
           <Label>Lock through date</Label>
-          <Input type="date" value={lockDate} onChange={e => { setLockDate(e.target.value); setPreview(null); }} />
+          <Input
+            type="date"
+            value={lockDate}
+            onChange={(e) => {
+              setLockDate(e.target.value);
+              setPreview(null);
+            }}
+          />
         </div>
         <div>
           <Label>Note (optional, encrypted)</Label>
-          <Textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Q4 2025 close — accountant review complete" />
+          <Textarea
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Q4 2025 close, accountant review complete"
+          />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!lockDate} onClick={loadPreview}>Preview</Button>
-          <Button disabled={!preview | saving} onClick={handleClose}>
-            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Lock className="w-4 h-4 mr-1" />}
+          <Button variant="outline" disabled={!lockDate} onClick={loadPreview}>
+            Preview
+          </Button>
+          <Button disabled={!preview || saving} onClick={handleClose}>
+            {saving ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <Lock className="w-4 h-4 mr-1" />
+            )}
             Confirm Close
           </Button>
         </div>
         {preview && (
           <div className="text-sm p-3 bg-amber-50 border border-amber-200 rounded">
-            Closing will lock <strong>{preview.je}</strong> journal entr{preview.je === 1 ? 'y' : 'ies'} and <strong>{preview.tx}</strong> transaction{preview.tx === 1 ? '' : 's'} dated on or before <strong>{lockDate}</strong>. Corrections after this point must be posted as adjustments in the current open period.
+            Closing will lock <strong>{preview.je}</strong> journal entr
+            {preview.je === 1 ? 'y' : 'ies'} and <strong>{preview.tx}</strong> transaction
+            {preview.tx === 1 ? '' : 's'} dated on or before <strong>{lockDate}</strong>.
+            Corrections after this point must be posted as adjustments in the current open period.
           </div>
         )}
       </div>
@@ -3977,11 +5389,13 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {closes.map(c => (
+                {closes.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-sm">{c.locked_through_date}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{format(new Date(c.closed_at), 'yyyy-MM-dd HH:mm')}</TableCell>
-                    <TableCell className="text-sm">{c.note | '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {format(new Date(c.closed_at), 'yyyy-MM-dd HH:mm')}
+                    </TableCell>
+                    <TableCell className="text-sm">{c.note || '—'}</TableCell>
                     <TableCell>
                       {hasUnlockCap && (
                         <Button variant="outline" size="sm" onClick={() => handleReopen(c)}>
@@ -4007,14 +5421,16 @@ function PeriodCloseTab({ orgId }: { orgId: string | null }) {
  * sign-up link.
  */
 function BetaAllowlistTab() {
-  const [rows, setRows] = useState<Array<{
-    id: string;
-    email: string;
-    invited_at: string;
-    invitation_sent_at: string | null;
-    signed_up_at: string | null;
-    note: string | null;
-  }>>([]);
+  const [rows, setRows] = useState<
+    Array<{
+      id: string;
+      email: string;
+      invited_at: string;
+      invitation_sent_at: string | null;
+      signed_up_at: string | null;
+      note: string | null;
+    }>
+  >([]);
   const [newEmail, setNewEmail] = useState('');
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
@@ -4030,7 +5446,9 @@ function BetaAllowlistTab() {
           .select('id, email, invited_at, invitation_sent_at, signed_up_at, note')
           .order('invited_at', { ascending: false });
         if (data) setRows(data as any);
-      } finally { setLoading(false); }
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -4038,17 +5456,29 @@ function BetaAllowlistTab() {
     if (!newEmail.trim()) return;
     setAdding(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from('beta_allowlist').insert({
-        email: newEmail.trim().toLowerCase(),
-        invited_by: user?.id ?? null,
-        note: newNote.trim() | null,
-      }).select().single();
-      if (error) { toast.error(`Add failed: ${error.message}`); return; }
-      setRows(prev => [data as any, ...prev]);
-      setNewEmail(''); setNewNote('');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from('beta_allowlist')
+        .insert({
+          email: newEmail.trim().toLowerCase(),
+          invited_by: user?.id ?? null,
+          note: newNote.trim() || null,
+        })
+        .select()
+        .single();
+      if (error) {
+        toast.error(`Add failed: ${error.message}`);
+        return;
+      }
+      setRows((prev) => [data as any, ...prev]);
+      setNewEmail('');
+      setNewNote('');
       toast.success('Email added to beta allowlist.');
-    } finally { setAdding(false); }
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function handleInvite(id: string, email: string) {
@@ -4059,21 +5489,31 @@ function BetaAllowlistTab() {
       // we have a direct Resend client edge function later we swap to that.
       const { error } = await supabase.from('pending_admin_emails').insert({
         to_email: email,
-        subject: 'You\'re invited to Orange Way Books (Private Beta)',
+        subject: "You're invited to Orange Way Books (Private Beta)",
         body_text: `You've been invited to the Orange Way Books private beta.\n\nSign up at: https://books.orangeway.app/signup\n\nUse the email this invitation was sent to (${email}).`,
         body_html: `<p>You've been invited to the Orange Way Books private beta.</p><p><a href="https://books.orangeway.app/signup">Click here to sign up</a> with the email this invitation was sent to (<code>${email}</code>).</p>`,
       } as any);
-      if (error) { toast.error(`Queue failed: ${error.message}`); return; }
-      await supabase.from('beta_allowlist').update({ invitation_sent_at: new Date().toISOString() }).eq('id', id);
-      setRows(prev => prev.map(r => r.id === id ? { ...r, invitation_sent_at: new Date().toISOString() } : r));
+      if (error) {
+        toast.error(`Queue failed: ${error.message}`);
+        return;
+      }
+      await supabase
+        .from('beta_allowlist')
+        .update({ invitation_sent_at: new Date().toISOString() })
+        .eq('id', id);
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, invitation_sent_at: new Date().toISOString() } : r)),
+      );
       toast.success(`Invitation queued to ${email}.`);
-    } finally { setInvitingId(null); }
+    } finally {
+      setInvitingId(null);
+    }
   }
 
   async function handleRemove(id: string) {
     if (!confirm('Remove from beta allowlist? They will no longer be able to sign up.')) return;
     await supabase.from('beta_allowlist').delete().eq('id', id);
-    setRows(prev => prev.filter(r => r.id !== id));
+    setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
   return (
@@ -4081,27 +5521,43 @@ function BetaAllowlistTab() {
       <div>
         <h2 className="text-lg font-semibold">Beta Allowlist</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Per-email allowlist controlling signup during the controlled beta. Adding an email both authorizes signup AND lets you send an invitation email via Resend.
+          Per-email allowlist controlling signup during the controlled beta. Adding an email both
+          authorizes signup AND lets you send an invitation email via Resend.
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-2 max-w-xl">
         <div className="flex-1 min-w-[200px]">
           <Label>Email</Label>
-          <Input type="email" placeholder="vendor@example.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+          <Input
+            type="email"
+            placeholder="vendor@example.com"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
         </div>
         <div className="flex-1 min-w-[200px]">
           <Label>Note (optional)</Label>
-          <Input placeholder="Why are they invited?" value={newNote} onChange={e => setNewNote(e.target.value)} />
+          <Input
+            placeholder="Why are they invited?"
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+          />
         </div>
-        <Button disabled={adding | !newEmail.trim()} onClick={handleAdd}>
-          {adding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+        <Button disabled={adding || !newEmail.trim()} onClick={handleAdd}>
+          {adding ? (
+            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4 mr-1" />
+          )}
           Add
         </Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin" /></div>
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
       ) : (
         <div className="rounded-lg border overflow-x-auto">
           <Table>
@@ -4118,29 +5574,60 @@ function BetaAllowlistTab() {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center py-10 text-sm text-muted-foreground"
+                  >
                     No emails in the beta allowlist yet.
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map(r => (
+                rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-sm font-mono">{r.email}</TableCell>
-                    <TableCell className="text-xs">{format(new Date(r.invited_at), 'yyyy-MM-dd')}</TableCell>
                     <TableCell className="text-xs">
-                      {r.invitation_sent_at ? <span className="text-green-700">{format(new Date(r.invitation_sent_at), 'yyyy-MM-dd')}</span> : <span className="text-muted-foreground">—</span>}
+                      {format(new Date(r.invited_at), 'yyyy-MM-dd')}
                     </TableCell>
                     <TableCell className="text-xs">
-                      {r.signed_up_at ? <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Signed up</Badge> : <span className="text-muted-foreground">—</span>}
+                      {r.invitation_sent_at ? (
+                        <span className="text-green-700">
+                          {format(new Date(r.invitation_sent_at), 'yyyy-MM-dd')}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {r.signed_up_at ? (
+                        <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">
+                          Signed up
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{r.note ?? ''}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="outline" size="sm" disabled={invitingId === r.id | !!r.signed_up_at} onClick={() => handleInvite(r.id, r.email)}>
-                          {invitingId === r.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={invitingId === r.id || !!r.signed_up_at}
+                          onClick={() => handleInvite(r.id, r.email)}
+                        >
+                          {invitingId === r.id ? (
+                            <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5 mr-1" />
+                          )}
                           {r.invitation_sent_at ? 'Re-invite' : 'Invite'}
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleRemove(r.id)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => handleRemove(r.id)}
+                        >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>

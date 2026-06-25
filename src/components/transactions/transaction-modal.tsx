@@ -1,5 +1,5 @@
 /**
- * Transaction Modal — OWB smart-transaction-modal UX.
+ * Transaction Modal, OWB smart-transaction-modal UX.
  *
  * Three modes:
  *   - STANDARD  : wallet ↔ account/contact, single amount
@@ -8,7 +8,7 @@
  *
  * Preserves existing plumbing:
  *   - ZKA encrypt on save via encryptTransaction
- *   - legacy ledger backend blind-proxy post via postTransaction (Standard only, new tx only)
+ *   - ledger blind-proxy post via postTransaction (Standard only, new tx only)
  *   - Audit logging via writeAuditLog
  *   - Exchange rate via useExchangeRate
  *   - Attachment encryption via encryptAttachment
@@ -19,9 +19,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { ArrowLeft, ArrowRight, CalendarIcon, Clock, Loader2, Minus, Plus, Trash2, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarIcon,
+  Clock,
+  Loader2,
+  Minus,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { AttachmentList } from "@/components/attachments/AttachmentList";
+import { AttachmentList } from '@/components/attachments/AttachmentList';
 import { useVault } from '@/context/VaultContext';
 import {
   encryptTransaction,
@@ -33,7 +43,7 @@ import {
   decryptContact,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
-// Phase 2 removal: legacy-ledger dual-write deleted. Transactions land in Postgres only.
+// Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
   TRANSFER_CLEARING_NAME,
@@ -54,15 +64,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
-  SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -86,7 +103,7 @@ export interface AccountOption {
 export interface ContactOption {
   id: string;
   name: string;
-  /** CUSTOMER | VENDOR | EMPLOYEE | OTHER — surfaced as a dropdown group label. */
+  /** CUSTOMER | VENDOR | EMPLOYEE | OTHER, surfaced as a dropdown group label. */
   kind: string | null;
 }
 
@@ -108,10 +125,10 @@ export interface TxEditInput {
    *  show "Select account" in the dropdown until the user picks one + saves. */
   account_id?: string | null;
   /** contacts.id of the customer / vendor / employee. Independent of
-   *  account_id — a single tx has BOTH a chart bucket and a contact. */
+   *  account_id, a single tx has BOTH a chart bucket and a contact. */
   contact_id?: string | null;
   /** journal_entries.id wrapper for split + transfer modes. NULL for standard
-   *  transactions that post directly to legacy ledger backend without a JE wrapper. */
+   *  transactions that post directly to the ledger without a JE wrapper. */
   journal_entry_id?: string | null;
 }
 
@@ -156,15 +173,22 @@ const nextSplitId = () => `split-${++splitCounter}`;
 
 function getCurrencySymbol(currency: string): string {
   switch (currency.toUpperCase()) {
-    case 'EUR': return '€';
-    case 'GBP': return '£';
-    case 'CAD': return 'C$';
-    case 'AUD': return 'A$';
-    case 'BTC': return '₿';
-    case 'ETH': return 'Ξ';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'CAD':
+      return 'C$';
+    case 'AUD':
+      return 'A$';
+    case 'BTC':
+      return '₿';
+    case 'ETH':
+      return 'Ξ';
     case 'USDC':
     case 'USD':
-    default:    return '$';
+    default:
+      return '$';
   }
 }
 
@@ -175,12 +199,12 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// String(0.00000006) returns "6e-8" — JS switches to scientific notation for
+// String(0.00000006) returns "6e-8", JS switches to scientific notation for
 // values < 1e-6, which is normal for sat-sized BTC amounts and unreadable in
 // an editable input. Round-trip through toFixed(8) and strip trailing zeros.
 function formatAmountForInput(n: number): string {
-  if (!Number.isFinite(n) | n === 0) return '0';
-  return n.toFixed(8).replace(/\.?0+$/, '') | '0';
+  if (!Number.isFinite(n) || n === 0) return '0';
+  return n.toFixed(8).replace(/\.?0+$/, '') || '0';
 }
 
 function createBlankSplitLines(): SplitLine[] {
@@ -247,10 +271,10 @@ export default function TransactionModal({
       // a journal_entry_id pointing at a multi-leg JE or a linked_transfer_id
       // pointing at a sibling row.
       setMode('standard');
-      setWalletId(editingTx.account_id | '');
+      setWalletId(editingTx.account_id || '');
       setDirection(Number(editingTx.amount) >= 0 ? 'IN' : 'OUT');
       // Restore the account picked when this row was created. Falls back to
-      // empty string for legacy rows (account_id null) — those still show
+      // empty string for legacy rows (account_id null), those still show
       // "Select account" until the user picks one + saves.
       setAccountId(editingTx.account_id ?? '');
       setContactId(editingTx.contact_id ?? '');
@@ -266,7 +290,7 @@ export default function TransactionModal({
       setDate(editingTx.date ? new Date(`${editingTx.date}T12:00:00`) : new Date());
       setTime('');
       setShowTime(false);
-      setMemo(editingTx.memo | '');
+      setMemo(editingTx.memo || '');
       setReceipts([]);
       setErrors({});
 
@@ -286,10 +310,11 @@ export default function TransactionModal({
               .select('id, account_id, amount, asset')
               .eq('id', editingTx.linked_transfer_id!)
               .maybeSingle();
-            if (linkedErr | !linkedRow | cancelled) {
-              if (!cancelled) toast.warning(
-                "Couldn't load the other side of this transfer; saving will create a fresh entry.",
-              );
+            if (linkedErr || !linkedRow || cancelled) {
+              if (!cancelled)
+                toast.warning(
+                  "Couldn't load the other side of this transfer; saving will create a fresh entry.",
+                );
               return;
             }
             // Direction is from this side's perspective. If editingTx.amount is
@@ -320,10 +345,9 @@ export default function TransactionModal({
             .from('journal_entry_lines')
             .select('*')
             .eq('journal_entry_id', editingTx.journal_entry_id!);
-          if (linesErr | !linesRaw | cancelled) {
-            if (!cancelled) toast.warning(
-              "Couldn't load split lines; saving will create a fresh entry.",
-            );
+          if (linesErr || !linesRaw || cancelled) {
+            if (!cancelled)
+              toast.warning("Couldn't load split lines; saving will create a fresh entry.");
             return;
           }
           const decryptedLines = await Promise.all(
@@ -332,17 +356,16 @@ export default function TransactionModal({
           if (cancelled) return;
 
           // Resolve wallet name (plaintext on WalletOption.encrypted_name field).
-          const walletName = wallets.find((w) => w.id === editingTx.account_id)
-            ?.encrypted_name;
+          const walletName = wallets.find((w) => w.id === editingTx.account_id)?.encrypted_name;
           const accountLegs = decryptedLines.filter(
-            (l) => !walletName | (l.account_name | '').trim() !== walletName.trim(),
+            (l) => !walletName || (l.account_name || '').trim() !== walletName.trim(),
           );
           if (accountLegs.length >= 2) {
             // Map account_name back to AccountOption.id via the prop list.
             const namedAccounts = accountLegs
               .map((leg) => {
                 const acct = accounts.find(
-                  (a) => a.name.trim() === (leg.account_name | '').trim(),
+                  (a) => a.name.trim() === (leg.account_name || '').trim(),
                 );
                 if (!acct) return null;
                 const lineAmt = Math.max(leg.debit ?? 0, leg.credit ?? 0);
@@ -369,9 +392,10 @@ export default function TransactionModal({
           }
         } catch (err) {
           console.warn('[tx-modal] mode detection failed:', err);
-          if (!cancelled) toast.warning(
-            "Couldn't detect existing transaction shape; saving will create a fresh entry.",
-          );
+          if (!cancelled)
+            toast.warning(
+              "Couldn't detect existing transaction shape; saving will create a fresh entry.",
+            );
         }
       };
       void detectMode();
@@ -380,7 +404,7 @@ export default function TransactionModal({
       };
     } else {
       setMode('standard');
-      setWalletId(wallets[0]?.id | '');
+      setWalletId(wallets[0]?.id || '');
       setDirection('OUT');
       setAccountId('');
       setContactId('');
@@ -408,33 +432,36 @@ export default function TransactionModal({
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const selectedWallet = useMemo(
-    () => wallets.find((w) => w.id === walletId) | null,
+    () => wallets.find((w) => w.id === walletId) || null,
     [walletId, wallets],
   );
   const counterpartyWallet = useMemo(
-    () => wallets.find((w) => w.id === counterpartyWalletId) | null,
+    () => wallets.find((w) => w.id === counterpartyWalletId) || null,
     [counterpartyWalletId, wallets],
   );
 
-  const primaryCurrency = selectedWallet?.asset | 'USD';
+  const primaryCurrency = selectedWallet?.asset || 'USD';
   const amountPrefix = getCurrencySymbol(primaryCurrency);
 
-  const transferSentWallet = mode === 'transfer'
-    ? direction === 'OUT' ? selectedWallet : counterpartyWallet
-    : null;
-  const transferReceivedWallet = mode === 'transfer'
-    ? direction === 'OUT' ? counterpartyWallet : selectedWallet
-    : null;
+  const transferSentWallet =
+    mode === 'transfer' ? (direction === 'OUT' ? selectedWallet : counterpartyWallet) : null;
+  const transferReceivedWallet =
+    mode === 'transfer' ? (direction === 'OUT' ? counterpartyWallet : selectedWallet) : null;
 
   const rightLabel = direction === 'OUT' ? 'TO' : 'FROM';
 
   // Dropdown "right-side" (TO/FROM) value: combined contact/wallet picker.
-  // Standard mode → contact (customer / vendor / employee) — independent of
+  // Standard mode → contact (customer / vendor / employee), independent of
   // the chart-of-accounts assignment, which has its own separate dropdown
   // below. Transfer mode → counterparty wallet.
-  const rightValue = mode === 'transfer'
-    ? (counterpartyWalletId ? `wallet:${counterpartyWalletId}` : '')
-    : (contactId ? `contact:${contactId}` : '');
+  const rightValue =
+    mode === 'transfer'
+      ? counterpartyWalletId
+        ? `wallet:${counterpartyWalletId}`
+        : ''
+      : contactId
+        ? `contact:${contactId}`
+        : '';
 
   const handleRightChange = (value: string): void => {
     if (value === '__new_contact__') {
@@ -483,17 +510,18 @@ export default function TransactionModal({
   const splitRemaining = splitTotal - splitSumAssigned;
 
   // Exchange rate for Transfer mode when currencies differ.
-  const needsTransferRate = mode === 'transfer'
-    && transferSentWallet
-    && transferReceivedWallet
-    && transferSentWallet.asset !== transferReceivedWallet.asset;
+  const needsTransferRate =
+    mode === 'transfer' &&
+    transferSentWallet &&
+    transferReceivedWallet &&
+    transferSentWallet.asset !== transferReceivedWallet.asset;
   const rateBase = needsTransferRate ? transferSentWallet!.asset : null;
   const rateQuote = needsTransferRate ? transferReceivedWallet!.asset : null;
   const rateDate = date ? format(date, 'yyyy-MM-dd') : undefined;
   const { rate: autoRate, loading: rateLoading } = useExchangeRate(rateBase, rateQuote, rateDate);
   const [rateOverride, setRateOverride] = useState(false);
   useEffect(() => {
-    if (!needsTransferRate | rateOverride) return;
+    if (!needsTransferRate || rateOverride) return;
     if (autoRate && sentAmount) {
       const sent = parseAmount(sentAmount);
       if (sent != null) setReceivedAmount((sent * autoRate).toFixed(8));
@@ -506,7 +534,10 @@ export default function TransactionModal({
     for (const f of Array.from(files)) {
       const nameErr = validateAttachmentName(f.name);
       const sizeErr = validateAttachmentSize(f.size);
-      if (nameErr | sizeErr) { toast.error(nameErr | sizeErr | 'Invalid file'); continue; }
+      if (nameErr || sizeErr) {
+        toast.error(nameErr || sizeErr || 'Invalid file');
+        continue;
+      }
       valid.push({ file: f, name: f.name, size: f.size });
     }
     setReceipts((prev) => [...prev, ...valid].slice(0, MAX_FILES_PER_ENTITY));
@@ -520,17 +551,17 @@ export default function TransactionModal({
 
     if (mode === 'standard') {
       const amt = parseAmount(amount);
-      if (!amt | amt <= 0) e.amount = 'Enter an amount greater than 0.';
+      if (!amt || amt <= 0) e.amount = 'Enter an amount greater than 0.';
       if (!accountId) e.account = 'Account is required.';
     } else if (mode === 'split') {
       const amt = parseAmount(amount);
-      if (!amt | amt <= 0) e.amount = 'Enter a total amount greater than 0.';
+      if (!amt || amt <= 0) e.amount = 'Enter a total amount greater than 0.';
       const valid = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
       if (valid.length < 2) e.split = 'Add at least two complete split lines.';
       for (const line of splitLines) {
-        if (line.accountId | line.amount.trim()) {
+        if (line.accountId || line.amount.trim()) {
           const lineAmt = parseAmount(line.amount);
-          if (!line.accountId | !lineAmt | lineAmt <= 0) {
+          if (!line.accountId || !lineAmt || lineAmt <= 0) {
             e.split = 'Each split line needs an account and a positive amount.';
             break;
           }
@@ -541,11 +572,12 @@ export default function TransactionModal({
       }
     } else if (mode === 'transfer') {
       if (!counterpartyWalletId) e.counterparty = 'Select a destination wallet.';
-      else if (counterpartyWalletId === walletId) e.counterparty = 'Destination must differ from source.';
+      else if (counterpartyWalletId === walletId)
+        e.counterparty = 'Destination must differ from source.';
       const sa = parseAmount(sentAmount);
       const ra = parseAmount(receivedAmount);
-      if (!sa | sa <= 0) e.sent = 'Enter the amount sent.';
-      if (!ra | ra <= 0) e.received = 'Enter the amount received.';
+      if (!sa || sa <= 0) e.sent = 'Enter the amount sent.';
+      if (!ra || ra <= 0) e.received = 'Enter the amount received.';
       // Fee validation: if the section is open AND a positive fee was entered,
       // require both fee side and fee expense account.
       const fa = parseAmount(feeAmount);
@@ -577,9 +609,15 @@ export default function TransactionModal({
 
       if (action === 'save-new') {
         // Keep modal open, reset amount/memo/receipts for the next entry
-        setAmount(''); setSentAmount(''); setReceivedAmount(''); setFeeAmount('');
-        setShowFeeSection(false); setFeeSide(''); setFeeAccountId('');
-        setMemo(''); setReceipts([]);
+        setAmount('');
+        setSentAmount('');
+        setReceivedAmount('');
+        setFeeAmount('');
+        setShowFeeSection(false);
+        setFeeSide('');
+        setFeeAccountId('');
+        setMemo('');
+        setReceipts([]);
         setSplitLines(createBlankSplitLines());
         onSaved();
       } else {
@@ -600,7 +638,7 @@ export default function TransactionModal({
   // existing "tolerate missing signing key and write unsigned" behavior for back-compat
   // with Bookkeeper/legacy callers; the split + transfer + void write paths
   // call this helper and THROW when no signing-key wrap exists, because Phase 4.2 RLS
-  // already blocks unsigned writes for Auditor + Viewer — anyone reaching
+  // already blocks unsigned writes for Auditor + Viewer, anyone reaching
   // these code paths is supposed to have a wrap.
   async function buildSignature(
     payload: string,
@@ -626,21 +664,24 @@ export default function TransactionModal({
     const signedAmt = direction === 'OUT' ? -amt : amt;
     const type = direction === 'OUT' ? 'Send' : 'Receive';
 
-    const encFields = await encryptTransaction({
-      memo: memo | null,
-      amount: signedAmt,
-      usd_value: null,
-      exchange_rate: null,
-      asset: primaryCurrency,
-      type,
-      // T4.a Option A: new transactions land as DRAFT; existing edits preserve
-      // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
-      status: editingTx?.status ?? 'DRAFT',
-      cleared_status: editingTx?.cleared_status ?? null,
-    }, encryptText);
+    const encFields = await encryptTransaction(
+      {
+        memo: memo || null,
+        amount: signedAmt,
+        usd_value: null,
+        exchange_rate: null,
+        asset: primaryCurrency,
+        type,
+        // T4.a Option A: new transactions land as DRAFT; existing edits preserve
+        // whatever the user (or bulk-post) had set. cleared_status remains null
+        // on create, the reconciliation flow on the wallet statement sets it.
+        status: editingTx?.status ?? 'DRAFT',
+        cleared_status: editingTx?.cleared_status ?? null,
+      },
+      encryptText,
+    );
 
-    // Phase 4.4 mutation signing — scope-limited to this standard-save call
+    // Phase 4.4 mutation signing, scope-limited to this standard-save call
     // site as a proof of wiring. Split/Transfer paths and other
     // business tables (journal_entries, contacts, accounts, payments)
     // remain TODO for a future phase; the server-side trigger accepts
@@ -649,12 +690,14 @@ export default function TransactionModal({
     //
     // We derive the payload bytes from the encrypted memo + org id so
     // the server can reconstruct the same bytes for verification. The
-    // OWB-MULTIUSER-DESIGN §3 rule is simply "every mutation signed"
-    // — exact payload composition is a free choice. We pick something
+    // OWB-MULTIUSER-DESIGN §3 rule is simply "every mutation signed";
+    // exact payload composition is a free choice. We pick something
     // deterministic that includes the org scope so a stolen signature
     // can't be replayed against a different org.
-    let signatureCols: { signature_b64: string | null; signature_key_version: number | null } =
-      { signature_b64: null, signature_key_version: null };
+    let signatureCols: { signature_b64: string | null; signature_key_version: number | null } = {
+      signature_b64: null,
+      signature_key_version: null,
+    };
     try {
       await loadOrgSigningKey(orgId);
       const payloadBytes = new TextEncoder().encode(
@@ -669,9 +712,11 @@ export default function TransactionModal({
       }
     } catch (signErr) {
       // Plain-English failure: the user's signing-key wrap is stale or missing.
-      // Phase 4.4 D14 copy standard — no crypto jargon.
+      // Phase 4.4 D14 copy standard, no crypto jargon.
       console.warn('[tx] sig skipped:', signErr);
-      toast.error("Couldn't save. Please refresh and try again. If this keeps happening, contact support.");
+      toast.error(
+        "Couldn't save. Please refresh and try again. If this keeps happening, contact support.",
+      );
       return;
     }
 
@@ -681,10 +726,10 @@ export default function TransactionModal({
       // Persist the chart-of-accounts pick so Edit Transaction can restore
       // the dropdown next time the row is opened. Empty string → null
       // (rows without an account assignment, e.g. transfers).
-      account_id: accountId | null,
-      // Customer / vendor / employee — independent of account_id. Optional
+      account_id: accountId || null,
+      // Customer / vendor / employee, independent of account_id. Optional
       // even on standard transactions; OR imports leave it null.
-      contact_id: contactId | null,
+      contact_id: contactId || null,
       date: dateStr,
       linked_transfer_id: null,
       ...encFields,
@@ -697,14 +742,20 @@ export default function TransactionModal({
       if (error) throw error;
       txId = editingTx.id;
     } else {
-      const { data, error } = await supabase.from('transactions').insert(payload).select('id').single();
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(payload)
+        .select('id')
+        .single();
       if (error) throw error;
       txId = data.id;
     }
 
     writeAuditLog({
-      orgId, action: editingTx ? 'UPDATE' : 'CREATE',
-      entityType: 'transaction', entityId: txId,
+      orgId,
+      action: editingTx ? 'UPDATE' : 'CREATE',
+      entityType: 'transaction',
+      entityId: txId,
       summary: `${editingTx ? 'Updated' : 'Created'} transaction: ${type} ${amt} ${primaryCurrency}`,
       after: { type, amount: amt, asset: primaryCurrency, date: dateStr },
       encrypt: encryptText,
@@ -712,11 +763,11 @@ export default function TransactionModal({
 
     await uploadReceipts(txId);
 
-    // Phase 2 (legacy-ledger removal): the standard-mode legacy-ledger dual-write block lived
+    // Phase 2 (external-ledger removal): the standard-mode external-ledger dual-write block lived
     // here. Removed entirely. Postgres `transactions` row above is now the
     // single source of truth. Journal entry write-through to
     // journal_entries + journal_entry_lines for standard mode is still
-    // deferred — same TODO as before, just no longer paired with a legacy ledger backend leg.
+    // deferred, same TODO as before, just no longer paired with a ledger leg.
   }
 
   // ── Split save ─────────────────────────────────────────────────────────────
@@ -729,11 +780,11 @@ export default function TransactionModal({
   //   - 1 journal_entries row, source_type='TRANSACTION_SPLIT', encrypted.
   //   - N+1 journal_entry_lines: 1 wallet leg + N account legs. All encrypted
   //     with dual-currency amounts via buildJournalEntryLineInsert.
-  //   - N legacy ledger backend 2-entry transactions, each posting one (wallet ↔ account) pair
-  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each legacy ledger backend tx's
+  //   - N the ledger 2-entry transactions, each posting one (wallet ↔ account) pair
+  //     using the existing ZKA_SALE / ZKA_EXPENSE templates. Each the ledger tx's
   //     UUID threads back to its source jel row via journal_entry_lines.legacy_transaction_id.
   //
-  // Why N legacy ledger backend transactions and not one: legacy ledger backend tx_templates have a fixed entry
+  // Why N the ledger transactions and not one: the ledger tx_templates have a fixed entry
   // count at creation time. The 10 templates seeded at onboarding all have 2
   // entries. Posting N 2-entry transactions sharing the parent OWB transactions.id
   // gives us the equivalent of "one user event with N entries" without spinning
@@ -752,15 +803,18 @@ export default function TransactionModal({
     const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry({
-      memo: memo | null,
-      ref_number: null,
-      currency: walletCurrency,
-      exchange_rate: null,
-      status: 'DRAFT',
-      source_type: 'TRANSACTION_SPLIT',
-      period_locked: false,
-    }, encryptText);
+    const encEntry = await encryptJournalEntry(
+      {
+        memo: memo || null,
+        ref_number: null,
+        currency: walletCurrency,
+        exchange_rate: null,
+        status: 'DRAFT',
+        source_type: 'TRANSACTION_SPLIT',
+        period_locked: false,
+      },
+      encryptText,
+    );
 
     let journalEntryId: string;
     if (editingTx && editingTx.journal_entry_id) {
@@ -771,10 +825,7 @@ export default function TransactionModal({
       if (error) throw error;
       journalEntryId = editingTx.journal_entry_id;
       // Wipe the old lines so we can re-insert the new ones cleanly.
-      await supabase
-        .from('journal_entry_lines')
-        .delete()
-        .eq('journal_entry_id', journalEntryId);
+      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -803,7 +854,7 @@ export default function TransactionModal({
       credit: walletCredit,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
-      description: memo | `Split across ${validLines.length} accounts`,
+      description: memo || `Split across ${validLines.length} accounts`,
       encrypt: encryptText,
     });
 
@@ -828,7 +879,7 @@ export default function TransactionModal({
 
     // Insert all lines in deterministic order (wallet first, then account legs
     // in the same order as validLines). We need the returned IDs in the same
-    // order to thread legacy ledger backend transaction UUIDs back per leg in Phase 4.
+    // order to thread the ledger transaction UUIDs back per leg in Phase 4.
     const lineInserts = [
       { journal_entry_id: journalEntryId, ...walletLineRes.insert },
       ...accountLineResults.map((alr) => ({
@@ -845,22 +896,25 @@ export default function TransactionModal({
     const accountLegIds = (insertedLines ?? []).slice(1).map((r: any) => r.id);
 
     // ── Phase 3: transactions row, linked to the wrapper JE ───────────────
-    const encFields = await encryptTransaction({
-      memo: memo | null,
-      amount: signedAmt,
-      usd_value: null,
-      exchange_rate: null,
-      asset: walletCurrency,
-      type,
-      // T4.a Option A: new transactions land as DRAFT; existing edits preserve
-      // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
-      status: editingTx?.status ?? 'DRAFT',
-      cleared_status: editingTx?.cleared_status ?? null,
-    }, encryptText);
+    const encFields = await encryptTransaction(
+      {
+        memo: memo || null,
+        amount: signedAmt,
+        usd_value: null,
+        exchange_rate: null,
+        asset: walletCurrency,
+        type,
+        // T4.a Option A: new transactions land as DRAFT; existing edits preserve
+        // whatever the user (or bulk-post) had set. cleared_status remains null
+        // on create, the reconciliation flow on the wallet statement sets it.
+        status: editingTx?.status ?? 'DRAFT',
+        cleared_status: editingTx?.cleared_status ?? null,
+      },
+      encryptText,
+    );
 
     // Phase 4.4 mutation signing for split path. Throws if the caller has no signing key
-    // wrap — Phase 4.2 RLS already blocks unsigned writes for non-writers,
+    // wrap, Phase 4.2 RLS already blocks unsigned writes for non-writers,
     // so anyone reaching here is supposed to have one.
     const splitSig = await buildSignature(
       `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
@@ -895,27 +949,36 @@ export default function TransactionModal({
     }
 
     writeAuditLog({
-      orgId, action: editingTx ? 'UPDATE' : 'CREATE',
-      entityType: 'transaction', entityId: txId,
+      orgId,
+      action: editingTx ? 'UPDATE' : 'CREATE',
+      entityType: 'transaction',
+      entityId: txId,
       summary: `${editingTx ? 'Updated' : 'Created'} split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
-      after: { type, amount: amt, asset: walletCurrency, date: dateStr, split: true, lines: validLines.length },
+      after: {
+        type,
+        amount: amt,
+        asset: walletCurrency,
+        date: dateStr,
+        split: true,
+        lines: validLines.length,
+      },
       encrypt: encryptText,
     });
 
     await uploadReceipts(txId);
 
-    // ── Phase 4: N legacy ledger backend 2-entry postings (one per split row) ───────────────
-    // Each wallet ↔ account pair is its own legacy ledger backend transaction. We reuse the
+    // ── Phase 4: N the ledger 2-entry postings (one per split row) ───────────────
+    // Each wallet ↔ account pair is its own the ledger transaction. We reuse the
     // existing ZKA_SALE (inflow) / ZKA_EXPENSE (outflow) templates rather than
     // creating a new "split" template per N.
     //
-    // Failures are non-blocking — OWB's ledger-engine reads journal_entry_lines
-    // (which are already written above) as the source of truth, and the legacy ledger backend
+    // Failures are non-blocking, OWB's ledger-engine reads journal_entry_lines
+    // (which are already written above) as the source of truth, and the ledger
     // mirror is recoverable on a later sync. We log to console so an operator
     // can replay if needed.
-    // Phase 2 (legacy-ledger removal): the split-leg legacy-ledger dual-write block lived here.
+    // Phase 2 (external-ledger removal): the split-leg external-ledger dual-write block lived here.
     // Each Postgres journal_entry_line above is now the single source of truth;
-    // no legacy ledger backend leg, no legacy_transaction_id threading.
+    // no the ledger leg, no legacy_transaction_id threading.
   }
 
   // ── Transfer save ──────────────────────────────────────────────────────────
@@ -932,20 +995,21 @@ export default function TransactionModal({
   //   - 2 transactions rows linked via linked_transfer_id (pattern preserved
   //     so each wallet's statement shows its side independently), both pointing
   //     at the same journal_entry_id and the same legacy_transaction_id.
-  //   - 1 legacy ledger backend 2-entry transaction posted with ZKA_TRANSFER template: debit dest
+  //   - 1 the ledger 2-entry transaction posted with ZKA_TRANSFER template: debit dest
   //     wallet's external_account_id, credit source wallet's external_account_id.
   //
   // Edit semantics (T2.b lock): edit-in-place if no leg is RECONCILED;
-  // void+recreate if posted (per T3 — closed-period rules apply per leg).
+  // void+recreate if posted (per T3, closed-period rules apply per leg).
   // For v1 we re-write under the same JE id when editing (wipe lines, re-insert).
   //
-  // Fee handling: pending — when fee > 0 and feeAccountId is set, an extra JE
-  // line + extra legacy ledger backend posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
+  // Fee handling: pending, when fee > 0 and feeAccountId is set, an extra JE
+  // line + extra ledger posting (wallet ↔ fee_account, ZKA_EXPENSE) is required.
   // Validation already blocks submit until feeSide + feeAccountId are picked,
   // so no data is lost; the fee posting is a follow-up.
   //
   async function handleSaveTransfer(dateStr: string) {
-    if (!selectedWallet | !counterpartyWallet) throw new Error('Both wallets required for transfer.');
+    if (!selectedWallet || !counterpartyWallet)
+      throw new Error('Both wallets required for transfer.');
     const sa = parseAmount(sentAmount)!;
     const ra = parseAmount(receivedAmount)!;
     const fee = showFeeSection ? (parseAmount(feeAmount) ?? 0) : 0;
@@ -959,10 +1023,9 @@ export default function TransactionModal({
 
     // Which side of the transfer the fee is drawn from. feeSide is relative to the
     // user's picked wallets (source/dest in the UI); map it to sent vs received.
-    const feeOnSource = fee > 0 && (
-      (feeSide === 'source' && direction === 'OUT') ||
-      (feeSide === 'dest' && direction === 'IN')
-    );
+    const feeOnSource =
+      fee > 0 &&
+      ((feeSide === 'source' && direction === 'OUT') || (feeSide === 'dest' && direction === 'IN'));
     const feeOnReceived = fee > 0 && !feeOnSource;
 
     // Send & receive values (from the source's & dest's perspective).
@@ -970,15 +1033,18 @@ export default function TransactionModal({
     const receivedValue = ra - (feeOnReceived ? fee : 0);
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry({
-      memo: memo | null,
-      ref_number: null,
-      currency: sourceAsset, // primary currency for the JE; dest line carries its own native currency
-      exchange_rate: null,
-      status: 'DRAFT',
-      source_type: 'TRANSACTION_TRANSFER',
-      period_locked: false,
-    }, encryptText);
+    const encEntry = await encryptJournalEntry(
+      {
+        memo: memo || null,
+        ref_number: null,
+        currency: sourceAsset, // primary currency for the JE; dest line carries its own native currency
+        exchange_rate: null,
+        status: 'DRAFT',
+        source_type: 'TRANSACTION_TRANSFER',
+        period_locked: false,
+      },
+      encryptText,
+    );
 
     let journalEntryId: string;
     if (editingTx && editingTx.journal_entry_id) {
@@ -990,10 +1056,7 @@ export default function TransactionModal({
       journalEntryId = editingTx.journal_entry_id;
       // Wipe old lines + clear legacy_transaction_id from old transactions rows so
       // void semantics stay clean (T3: void = direction-flip; here we re-create).
-      await supabase
-        .from('journal_entry_lines')
-        .delete()
-        .eq('journal_entry_id', journalEntryId);
+      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -1014,7 +1077,7 @@ export default function TransactionModal({
     // around line 246): every transfer routes through the system
     // "Transfer Clearing" chart-of-accounts row. For same-currency transfers
     // this is cosmetic. For CROSS-currency transfers it is mathematically
-    // required — different units cannot balance in a single JE without a
+    // required, different units cannot balance in a single JE without a
     // clearing bucket that holds each side in its native currency.
     //
     // Shape (matches the audit doc Fix 1 spec):
@@ -1025,11 +1088,7 @@ export default function TransactionModal({
     //
     // Each currency balances independently (debits = credits per currency),
     // which is what the downstream report compute relies on.
-    const transferClearing = await ensureTransferClearingAccount(
-      orgId,
-      encryptText,
-      decryptText,
-    );
+    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     const destWalletDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
@@ -1039,7 +1098,7 @@ export default function TransactionModal({
       credit: 0,
       account_name: destWallet.encrypted_name,
       account_code: null,
-      description: memo | `Transfer from ${sourceWallet.encrypted_name}`,
+      description: memo || `Transfer from ${sourceWallet.encrypted_name}`,
       encrypt: encryptText,
     });
     const clearingDestCreditLine = await buildJournalEntryLineInsert({
@@ -1050,7 +1109,7 @@ export default function TransactionModal({
       credit: Math.abs(receivedValue),
       account_name: transferClearing.account_name,
       account_code: null,
-      description: memo | `Transfer clearing (in ${destAsset})`,
+      description: memo || `Transfer clearing (in ${destAsset})`,
       encrypt: encryptText,
     });
     const clearingSrcDebitLine = await buildJournalEntryLineInsert({
@@ -1061,7 +1120,7 @@ export default function TransactionModal({
       credit: 0,
       account_name: transferClearing.account_name,
       account_code: null,
-      description: memo | `Transfer clearing (out ${sourceAsset})`,
+      description: memo || `Transfer clearing (out ${sourceAsset})`,
       encrypt: encryptText,
     });
     const srcWalletCreditLine = await buildJournalEntryLineInsert({
@@ -1072,7 +1131,7 @@ export default function TransactionModal({
       credit: Math.abs(sentValue),
       account_name: sourceWallet.encrypted_name,
       account_code: null,
-      description: memo | `Transfer to ${destWallet.encrypted_name}`,
+      description: memo || `Transfer to ${destWallet.encrypted_name}`,
       encrypt: encryptText,
     });
 
@@ -1088,35 +1147,41 @@ export default function TransactionModal({
     if (linesErr) throw linesErr;
 
     // ── Phase 3: 2 transactions rows linked via linked_transfer_id ────────
-    const srcEnc = await encryptTransaction({
-      memo: memo | null,
-      amount: -Math.abs(sentValue),
-      usd_value: null,
-      exchange_rate: null,
-      asset: sourceAsset,
-      type: 'Transfer',
-      // T4.a Option A: new transactions land as DRAFT; existing edits preserve
-      // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
-      status: editingTx?.status ?? 'DRAFT',
-      cleared_status: editingTx?.cleared_status ?? null,
-    }, encryptText);
-    const destEnc = await encryptTransaction({
-      memo: memo | null,
-      amount: Math.abs(receivedValue),
-      usd_value: null,
-      exchange_rate: null,
-      asset: destAsset,
-      type: 'Transfer',
-      // T4.a Option A: new transactions land as DRAFT; existing edits preserve
-      // whatever the user (or bulk-post) had set. cleared_status remains null
-      // on create — the reconciliation flow on the wallet statement sets it.
-      status: editingTx?.status ?? 'DRAFT',
-      cleared_status: editingTx?.cleared_status ?? null,
-    }, encryptText);
+    const srcEnc = await encryptTransaction(
+      {
+        memo: memo || null,
+        amount: -Math.abs(sentValue),
+        usd_value: null,
+        exchange_rate: null,
+        asset: sourceAsset,
+        type: 'Transfer',
+        // T4.a Option A: new transactions land as DRAFT; existing edits preserve
+        // whatever the user (or bulk-post) had set. cleared_status remains null
+        // on create, the reconciliation flow on the wallet statement sets it.
+        status: editingTx?.status ?? 'DRAFT',
+        cleared_status: editingTx?.cleared_status ?? null,
+      },
+      encryptText,
+    );
+    const destEnc = await encryptTransaction(
+      {
+        memo: memo || null,
+        amount: Math.abs(receivedValue),
+        usd_value: null,
+        exchange_rate: null,
+        asset: destAsset,
+        type: 'Transfer',
+        // T4.a Option A: new transactions land as DRAFT; existing edits preserve
+        // whatever the user (or bulk-post) had set. cleared_status remains null
+        // on create, the reconciliation flow on the wallet statement sets it.
+        status: editingTx?.status ?? 'DRAFT',
+        cleared_status: editingTx?.cleared_status ?? null,
+      },
+      encryptText,
+    );
 
     // Phase 4.4 mutation signing for transfer path. One signature per leg so each
-    // transactions row carries its own — verifier reads the row, not the pair.
+    // transactions row carries its own, verifier reads the row, not the pair.
     const srcSig = await buildSignature(
       `transfer-src|${journalEntryId}|${dateStr}|${sourceAsset}|${sentValue}`,
     );
@@ -1127,11 +1192,10 @@ export default function TransactionModal({
     let srcId: string;
     let destId: string;
 
-
     if (editingTx) {
       // Edit-in-place: update source side using the editingTx.id; find the
       // dest side via linked_transfer_id and update it too. Both share the
-      // same JE wrapper id and (after legacy ledger backend post below) the same legacy_transaction_id.
+      // same JE wrapper id and (after the ledger post below) the same legacy_transaction_id.
       srcId = editingTx.id;
       const { error: srcUpdErr } = await supabase
         .from('transactions')
@@ -1224,20 +1288,29 @@ export default function TransactionModal({
     }
 
     writeAuditLog({
-      orgId, action: editingTx ? 'UPDATE' : 'CREATE',
-      entityType: 'transaction', entityId: srcId,
+      orgId,
+      action: editingTx ? 'UPDATE' : 'CREATE',
+      entityType: 'transaction',
+      entityId: srcId,
       summary: `${editingTx ? 'Updated' : 'Created'} transfer: ${sentValue} ${sourceAsset} → ${receivedValue} ${destAsset}${fee > 0 ? ` (fee ${fee})` : ''}`,
-      after: { sent: sentValue, sourceAsset, received: receivedValue, destAsset, date: dateStr, fee },
+      after: {
+        sent: sentValue,
+        sourceAsset,
+        received: receivedValue,
+        destAsset,
+        date: dateStr,
+        fee,
+      },
       encrypt: encryptText,
     });
 
     await uploadReceipts(srcId);
 
-    // ── Phase 4: 1 legacy ledger backend 2-entry transaction (source credit ↔ dest debit) ──
-    // Reuses the ZKA_TRANSFER template seeded at onboarding. legacy ledger backend stores one
+    // ── Phase 4: 1 the ledger 2-entry transaction (source credit ↔ dest debit) ──
+    // Reuses the ZKA_TRANSFER template seeded at onboarding. the ledger stores one
     // transaction per OWB transfer event; both OWB transactions rows reference
     // the same legacy_transaction_id so void/audit can act on the pair.
-    // Phase 2 (legacy-ledger removal): transfer's legacy-ledger dual-write block deleted.
+    // Phase 2 (external-ledger removal): transfer's external-ledger dual-write block deleted.
     // Postgres journal_entries + journal_entry_lines pair above is now the
     // single source of truth. linked_transfer_id still pairs source/dest
     // transactions; legacy_transaction_id is no longer set (column will be
@@ -1258,9 +1331,12 @@ export default function TransactionModal({
         const { error: uploadErr } = await supabase.storage
           .from('attachments')
           .upload(storagePath, encryptedBlob, { contentType: 'application/octet-stream' });
-        if (uploadErr) { console.warn('Upload failed:', uploadErr); continue; }
+        if (uploadErr) {
+          console.warn('Upload failed:', uploadErr);
+          continue;
+        }
         const encFields = await encryptAttachment(
-          { file_name: r.name, mime_type: r.file.type | null },
+          { file_name: r.name, mime_type: r.file.type || null },
           encryptText,
         );
         await supabase.from('attachments').insert({
@@ -1292,8 +1368,13 @@ export default function TransactionModal({
       const enc = await encryptContact(
         {
           name: trimmed,
-          street: null, city: null, state: null, zip: null, country: null,
-          email: null, phone: null,
+          street: null,
+          city: null,
+          state: null,
+          zip: null,
+          country: null,
+          email: null,
+          phone: null,
           type: newContactKind,
         },
         encryptText,
@@ -1322,650 +1403,748 @@ export default function TransactionModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !saving) onClose(); }}>
-      <DialogContent className="sm:max-w-[720px] max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingTx ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
-        </DialogHeader>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v && !saving) onClose();
+        }}
+      >
+        <DialogContent className="sm:max-w-[720px] max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTx ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {/* Row 1 — Date + Upload Receipt (two-column) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-mono h-10">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    {format(date, 'MM-dd-yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => d && setDate(d)}
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
-                onClick={() => setShowTime((p) => !p)}
-              >
-                <Clock className="w-3 h-3" />
-                {showTime ? 'Hide time' : 'Add time'}
-              </button>
-              {showTime && (
-                <Input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="h-8 mt-1 w-[140px]"
-                />
-              )}
-              {errors.date && <div className="text-xs text-destructive">{errors.date}</div>}
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Upload Receipt</Label>
-              <div
-                className={cn(
-                  'border-2 border-dashed rounded-lg p-3 text-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/30 transition-colors',
-                  draggingReceipt && 'bg-orange-50 border-orange-400',
-                )}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDraggingReceipt(true); }}
-                onDragLeave={() => setDraggingReceipt(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDraggingReceipt(false);
-                  if (e.dataTransfer.files?.length) addReceipts(e.dataTransfer.files);
-                }}
-              >
-                {receipts.length === 0 ? (
-                  <>
-                    Drop receipt or click to upload
-                    <div className="text-[10px] opacity-70 mt-1">
-                      {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}… — max 20MB
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-1 text-left">
-                    {receipts.map((r, i) => (
-                      <div key={i} className="flex items-center justify-between gap-2 bg-muted/30 rounded px-2 py-1">
-                        <span className="truncate">{r.name} ({formatFileSize(r.size)})</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReceipts((prev) => prev.filter((_, j) => j !== i));
-                          }}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                hidden
-                accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(',')}
-                onChange={(e) => {
-                  if (e.target.files?.length) addReceipts(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Row 2 — Wallet ← arrow → TO/FROM picker */}
-          <div className="space-y-1">
-            <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Wallet</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <Select value={walletId} onValueChange={setWalletId}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select wallet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {wallets.map((w) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        {w.encrypted_name | '[Encrypted]'} ({w.asset})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 shrink-0"
-                onClick={() => setDirection((d) => (d === 'OUT' ? 'IN' : 'OUT'))}
-                title={`Direction: ${direction === 'OUT' ? 'Outgoing (click for incoming)' : 'Incoming (click for outgoing)'}`}
-                aria-label={`Toggle direction; currently ${direction}`}
-              >
-                {direction === 'OUT' ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
-              </Button>
-
-              <div className="flex-1 min-w-0">
-                <Select value={rightValue} onValueChange={handleRightChange}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder={rightLabel} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Contacts grouped by kind. The chart-of-accounts pick
-                        is the SEPARATE "Account" dropdown below — TO/FROM
-                        is purely the customer / vendor / employee. */}
-                    <SelectItem value="__new_contact__">
-                      + New contact
-                    </SelectItem>
-                    {(['CUSTOMER', 'VENDOR', 'EMPLOYEE', 'OTHER'] as const).map((kind) => {
-                      const inGroup = contacts.filter(
-                        (c) => (c.kind ?? 'OTHER').toUpperCase() === kind,
-                      );
-                      if (inGroup.length === 0) return null;
-                      const label =
-                        kind === 'CUSTOMER' ? 'Customers'
-                        : kind === 'VENDOR' ? 'Vendors'
-                        : kind === 'EMPLOYEE' ? 'Employees'
-                        : 'Other';
-                      return (
-                        <SelectGroup key={kind}>
-                          <SelectLabel>{label}</SelectLabel>
-                          {inGroup.map((c) => (
-                            <SelectItem key={c.id} value={`contact:${c.id}`}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      );
-                    })}
-                    {wallets.length > 1 && (
-                      <SelectGroup>
-                        <SelectLabel>Accounts (Transfer)</SelectLabel>
-                        {wallets.filter((w) => w.id !== walletId).map((w) => (
-                          <SelectItem key={w.id} value={`wallet:${w.id}`}>
-                            {w.encrypted_name | '[Encrypted]'} ({w.asset})
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {(errors.wallet | errors.counterparty) && (
-              <div className="text-xs text-destructive">{errors.wallet | errors.counterparty}</div>
-            )}
-          </div>
-
-          {/* Row 3 — Amount + Account (Standard) / Amount (Split) / Sent + Received (Transfer) */}
-          {mode === 'standard' && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Transaction Amount
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {amountPrefix}
-                    </span>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="pl-7 pr-14 h-10 font-mono"
+          <div className="space-y-5 py-2">
+            {/* Row 1, Date + Upload Receipt (two-column) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Date
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-mono h-10"
+                    >
+                      <CalendarIcon className="w-4 h-4 mr-2" />
+                      {format(date, 'MM-dd-yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(d) => d && setDate(d)}
+                      className="p-3 pointer-events-auto"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      {primaryCurrency}
-                    </span>
-                  </div>
-                  {errors.amount && <div className="text-xs text-destructive">{errors.amount}</div>}
+                  </PopoverContent>
+                </Popover>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
+                  onClick={() => setShowTime((p) => !p)}
+                >
+                  <Clock className="w-3 h-3" />
+                  {showTime ? 'Hide time' : 'Add time'}
+                </button>
+                {showTime && (
+                  <Input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="h-8 mt-1 w-[140px]"
+                  />
+                )}
+                {errors.date && <div className="text-xs text-destructive">{errors.date}</div>}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Upload Receipt
+                </Label>
+                <div
+                  className={cn(
+                    'border-2 border-dashed rounded-lg p-3 text-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/30 transition-colors',
+                    draggingReceipt && 'bg-orange-50 border-orange-400',
+                  )}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDraggingReceipt(true);
+                  }}
+                  onDragLeave={() => setDraggingReceipt(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDraggingReceipt(false);
+                    if (e.dataTransfer.files?.length) addReceipts(e.dataTransfer.files);
+                  }}
+                >
+                  {receipts.length === 0 ? (
+                    <>
+                      Drop receipt or click to upload
+                      <div className="text-[10px] opacity-70 mt-1">
+                        {ALLOWED_EXTENSIONS.slice(0, 6).join(', ')}… (max 20MB)
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1 text-left">
+                      {receipts.map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-2 bg-muted/30 rounded px-2 py-1"
+                        >
+                          <span className="truncate">
+                            {r.name} ({formatFileSize(r.size)})
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReceipts((prev) => prev.filter((_, j) => j !== i));
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Account</Label>
-                  <Select value={accountId} onValueChange={setAccountId}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  hidden
+                  accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(',')}
+                  onChange={(e) => {
+                    if (e.target.files?.length) addReceipts(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Row 2, Wallet ← arrow → TO/FROM picker */}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Wallet
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <Select value={walletId} onValueChange={setWalletId}>
                     <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Select account" />
+                      <SelectValue placeholder="Select wallet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
+                      {wallets.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.encrypted_name || '[Encrypted]'} ({w.asset})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.account && <div className="text-xs text-destructive">{errors.account}</div>}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  onClick={() => setDirection((d) => (d === 'OUT' ? 'IN' : 'OUT'))}
+                  title={`Direction: ${direction === 'OUT' ? 'Outgoing (click for incoming)' : 'Incoming (click for outgoing)'}`}
+                  aria-label={`Toggle direction; currently ${direction}`}
+                >
+                  {direction === 'OUT' ? (
+                    <ArrowRight className="w-4 h-4" />
+                  ) : (
+                    <ArrowLeft className="w-4 h-4" />
+                  )}
+                </Button>
+
+                <div className="flex-1 min-w-0">
+                  <Select value={rightValue} onValueChange={handleRightChange}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder={rightLabel} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Contacts grouped by kind. The chart-of-accounts pick
+                        is the SEPARATE "Account" dropdown below, TO/FROM
+                        is purely the customer / vendor / employee. */}
+                      <SelectItem value="__new_contact__">+ New contact</SelectItem>
+                      {(['CUSTOMER', 'VENDOR', 'EMPLOYEE', 'OTHER'] as const).map((kind) => {
+                        const inGroup = contacts.filter(
+                          (c) => (c.kind ?? 'OTHER').toUpperCase() === kind,
+                        );
+                        if (inGroup.length === 0) return null;
+                        const label =
+                          kind === 'CUSTOMER'
+                            ? 'Customers'
+                            : kind === 'VENDOR'
+                              ? 'Vendors'
+                              : kind === 'EMPLOYEE'
+                                ? 'Employees'
+                                : 'Other';
+                        return (
+                          <SelectGroup key={kind}>
+                            <SelectLabel>{label}</SelectLabel>
+                            {inGroup.map((c) => (
+                              <SelectItem key={c.id} value={`contact:${c.id}`}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        );
+                      })}
+                      {wallets.length > 1 && (
+                        <SelectGroup>
+                          <SelectLabel>Accounts (Transfer)</SelectLabel>
+                          {wallets
+                            .filter((w) => w.id !== walletId)
+                            .map((w) => (
+                              <SelectItem key={w.id} value={`wallet:${w.id}`}>
+                                {w.encrypted_name || '[Encrypted]'} ({w.asset})
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="text-sm text-[var(--color-brand-orange,theme(colors.orange.500))] hover:underline flex items-center gap-1"
-                onClick={() => {
-                  setMode('split');
-                  setSplitLines(createBlankSplitLines());
-                }}
-              >
-                <Plus className="w-4 h-4" /> Split Transaction
-              </button>
-            </>
-          )}
-
-          {mode === 'split' && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Transaction Amount
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {amountPrefix}
-                    </span>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="pl-7 pr-14 h-10 font-mono"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      {primaryCurrency}
-                    </span>
+              {errors.wallet ||
+                (errors.counterparty && (
+                  <div className="text-xs text-destructive">
+                    {errors.wallet || errors.counterparty}
                   </div>
-                  {errors.amount && <div className="text-xs text-destructive">{errors.amount}</div>}
-                </div>
-                <div />
-              </div>
+                ))}
+            </div>
 
-              <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
-                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Account</span>
-                  <span>Amount</span>
-                </div>
-                {splitLines.map((line, idx) => (
-                  <div key={line.clientId} className="flex gap-2 items-start">
-                    <div className="flex-1 min-w-0">
-                      <Select
-                        value={line.accountId}
-                        onValueChange={(v) => setSplitLines((prev) =>
-                          prev.map((l) => l.clientId === line.clientId ? { ...l, accountId: v } : l),
-                        )}
-                      >
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select account" /></SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-[140px] relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            {/* Row 3, Amount + Account (Standard) / Amount (Split) / Sent + Received (Transfer) */}
+            {mode === 'standard' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Transaction Amount
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                         {amountPrefix}
                       </span>
                       <Input
                         type="text"
                         inputMode="decimal"
                         placeholder="0.00"
-                        value={line.amount}
-                        onChange={(e) => setSplitLines((prev) =>
-                          prev.map((l) => l.clientId === line.clientId ? { ...l, amount: e.target.value } : l),
-                        )}
-                        className="pl-6 h-9 font-mono text-right"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="pl-7 pr-14 h-10 font-mono"
                       />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {primaryCurrency}
+                      </span>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => setSplitLines((prev) =>
-                        prev.length > 2 ? prev.filter((l) => l.clientId !== line.clientId) : prev,
-                      )}
-                      disabled={splitLines.length <= 2}
-                      aria-label={`Remove line ${idx + 1}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {errors.amount && (
+                      <div className="text-xs text-destructive">{errors.amount}</div>
+                    )}
                   </div>
-                ))}
-
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => setSplitLines((prev) => [
-                      ...prev,
-                      { clientId: nextSplitId(), accountId: '', amount: '' },
-                    ])}
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add line
-                  </Button>
-                  <span className={cn(
-                    'text-xs font-mono',
-                    Math.abs(splitRemaining) < 0.0000001
-                      ? 'text-green-600'
-                      : 'text-destructive',
-                  )}>
-                    Remaining: {amountPrefix}{splitRemaining.toFixed(2)}
-                  </span>
-                </div>
-                {errors.split && <div className="text-xs text-destructive">{errors.split}</div>}
-              </div>
-
-              <button
-                type="button"
-                className="text-sm text-muted-foreground hover:underline"
-                onClick={() => setMode('standard')}
-              >
-                Close Split
-              </button>
-            </>
-          )}
-
-          {mode === 'transfer' && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {direction === 'OUT' ? 'Amount Sent' : 'Amount Received'}
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {getCurrencySymbol(transferSentWallet?.asset | 'USD')}
-                    </span>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={sentAmount}
-                      onChange={(e) => { setSentAmount(e.target.value); setRateOverride(true); }}
-                      className="pl-7 pr-14 h-10 font-mono"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      {transferSentWallet?.asset | ''}
-                    </span>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Account
+                    </Label>
+                    <Select value={accountId} onValueChange={setAccountId}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.account && (
+                      <div className="text-xs text-destructive">{errors.account}</div>
+                    )}
                   </div>
-                  {errors.sent && <div className="text-xs text-destructive">{errors.sent}</div>}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {direction === 'OUT' ? 'Amount Received' : 'Amount Sent'}
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {getCurrencySymbol(transferReceivedWallet?.asset | 'USD')}
-                    </span>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={receivedAmount}
-                      onChange={(e) => { setReceivedAmount(e.target.value); setRateOverride(true); }}
-                      className="pl-7 pr-14 h-10 font-mono"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      {transferReceivedWallet?.asset | ''}
-                    </span>
-                  </div>
-                  {errors.received && <div className="text-xs text-destructive">{errors.received}</div>}
-                </div>
-              </div>
 
-              {needsTransferRate && (
-                <div className="text-xs text-muted-foreground">
-                  {rateLoading ? 'Fetching exchange rate…' : (
-                    autoRate ? (
-                      <>
-                        Auto rate: 1 {transferSentWallet?.asset} = {autoRate.toFixed(6)} {transferReceivedWallet?.asset}
-                        {rateOverride && <span className="ml-2 text-orange-600">(manual override — click a field to reset)</span>}
-                      </>
-                    ) : 'No rate available; enter received amount manually.'
-                  )}
-                </div>
-              )}
-
-              {/* Transaction Fee — collapsed by default */}
-              <div>
                 <button
                   type="button"
                   className="text-sm text-[var(--color-brand-orange,theme(colors.orange.500))] hover:underline flex items-center gap-1"
                   onClick={() => {
-                    setShowFeeSection((p) => {
-                      const next = !p;
-                      if (!next) {
-                        // Collapsing clears the fee inputs so a hidden fee never submits.
-                        setFeeAmount('');
-                        setFeeSide('');
-                        setFeeAccountId('');
-                      }
-                      return next;
-                    });
+                    setMode('split');
+                    setSplitLines(createBlankSplitLines());
                   }}
                 >
-                  {showFeeSection ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                  {showFeeSection ? 'Hide Fee' : 'Add Transaction Fee'}
+                  <Plus className="w-4 h-4" /> Split Transaction
                 </button>
+              </>
+            )}
 
-                {showFeeSection && (() => {
-                  // Resolve which wallet the fee comes from, for the amount-prefix currency.
-                  const feeWallet = feeSide === 'source'
-                    ? selectedWallet
-                    : feeSide === 'dest'
-                      ? counterpartyWallet
-                      : null;
-                  const feeCurrency = feeWallet?.asset | primaryCurrency;
-                  const sourceName = selectedWallet?.encrypted_name | '[Source wallet]';
-                  const destName = counterpartyWallet?.encrypted_name | '[Destination wallet]';
-
-                  return (
-                    <div className="mt-2 space-y-1">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Fee Side
-                          </Label>
-                          <Select value={feeSide} onValueChange={(v) => setFeeSide(v as 'source' | 'dest')}>
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Fee side" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {selectedWallet && (
-                                <SelectItem value="source">{sourceName}</SelectItem>
-                              )}
-                              {counterpartyWallet && (
-                                <SelectItem value="dest">{destName}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Fee Amount
-                          </Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              {getCurrencySymbol(feeCurrency)}
-                            </span>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="0.00"
-                              value={feeAmount}
-                              onChange={(e) => setFeeAmount(e.target.value)}
-                              className="pl-7 pr-14 h-10 font-mono"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                              {feeCurrency}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Fee Expense Account
-                          </Label>
-                          <Select value={feeAccountId} onValueChange={setFeeAccountId}>
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Select expense account" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {accounts.map((a) => (
-                                <SelectItem key={a.id} value={a.id}>
-                                  {a.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      {(errors.feeSide | errors.feeAccount) && (
-                        <div className="text-xs text-destructive">
-                          {errors.feeSide | errors.feeAccount}
-                        </div>
-                      )}
+            {mode === 'split' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Transaction Amount
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        {amountPrefix}
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="pl-7 pr-14 h-10 font-mono"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {primaryCurrency}
+                      </span>
                     </div>
-                  );
-                })()}
-              </div>
-            </>
-          )}
+                    {errors.amount && (
+                      <div className="text-xs text-destructive">{errors.amount}</div>
+                    )}
+                  </div>
+                  <div />
+                </div>
 
-          {/* Row 4 — Memo */}
-          <div className="space-y-1">
-            <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Memo</Label>
-            <Textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="Enter transaction purpose"
-              rows={2}
-            />
-          </div>
+                <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
+                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span>Account</span>
+                    <span>Amount</span>
+                  </div>
+                  {splitLines.map((line, idx) => (
+                    <div key={line.clientId} className="flex gap-2 items-start">
+                      <div className="flex-1 min-w-0">
+                        <Select
+                          value={line.accountId}
+                          onValueChange={(v) =>
+                            setSplitLines((prev) =>
+                              prev.map((l) =>
+                                l.clientId === line.clientId ? { ...l, accountId: v } : l,
+                              ),
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select account" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accounts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-[140px] relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          {amountPrefix}
+                        </span>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={line.amount}
+                          onChange={(e) =>
+                            setSplitLines((prev) =>
+                              prev.map((l) =>
+                                l.clientId === line.clientId ? { ...l, amount: e.target.value } : l,
+                              ),
+                            )
+                          }
+                          className="pl-6 h-9 font-mono text-right"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() =>
+                          setSplitLines((prev) =>
+                            prev.length > 2
+                              ? prev.filter((l) => l.clientId !== line.clientId)
+                              : prev,
+                          )
+                        }
+                        disabled={splitLines.length <= 2}
+                        aria-label={`Remove line ${idx + 1}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
 
-          {/* Row 5 — Match to invoice (inflow only, existing tx only) */}
-          {(() => {
-            if (!editingTx | direction !== 'IN') return null;
-            const parsed = parseAmount(amount);
-            if (!parsed | parsed <= 0) return null;
-            const walletAsset = wallets.find((w) => w.id === walletId)?.asset | editingTx ? wallets.find((w) => w.id === (editingTx?.account_id ?? walletId))?.asset : '';
-            const currency = walletAsset | 'USD';
-            const counterparty = contactId
-              ? (contacts.find((c) => c.id === contactId)?.name ?? null)
-              : null;
-            return (
-              <InvoiceMatchPanel
-                orgId={orgId}
-                txId={editingTx.id}
-                txAmount={parsed}
-                txCurrency={currency}
-                txDate={format(date, 'yyyy-MM-dd')}
-                counterparty={counterparty}
-                onApplied={onSaved}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() =>
+                        setSplitLines((prev) => [
+                          ...prev,
+                          { clientId: nextSplitId(), accountId: '', amount: '' },
+                        ])
+                      }
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Add line
+                    </Button>
+                    <span
+                      className={cn(
+                        'text-xs font-mono',
+                        Math.abs(splitRemaining) < 0.0000001
+                          ? 'text-green-600'
+                          : 'text-destructive',
+                      )}
+                    >
+                      Remaining: {amountPrefix}
+                      {splitRemaining.toFixed(2)}
+                    </span>
+                  </div>
+                  {errors.split && <div className="text-xs text-destructive">{errors.split}</div>}
+                </div>
+
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:underline"
+                  onClick={() => setMode('standard')}
+                >
+                  Close Split
+                </button>
+              </>
+            )}
+
+            {mode === 'transfer' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {direction === 'OUT' ? 'Amount Sent' : 'Amount Received'}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        {getCurrencySymbol(transferSentWallet?.asset || 'USD')}
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={sentAmount}
+                        onChange={(e) => {
+                          setSentAmount(e.target.value);
+                          setRateOverride(true);
+                        }}
+                        className="pl-7 pr-14 h-10 font-mono"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {transferSentWallet?.asset || ''}
+                      </span>
+                    </div>
+                    {errors.sent && <div className="text-xs text-destructive">{errors.sent}</div>}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {direction === 'OUT' ? 'Amount Received' : 'Amount Sent'}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        {getCurrencySymbol(transferReceivedWallet?.asset || 'USD')}
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={receivedAmount}
+                        onChange={(e) => {
+                          setReceivedAmount(e.target.value);
+                          setRateOverride(true);
+                        }}
+                        className="pl-7 pr-14 h-10 font-mono"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {transferReceivedWallet?.asset || ''}
+                      </span>
+                    </div>
+                    {errors.received && (
+                      <div className="text-xs text-destructive">{errors.received}</div>
+                    )}
+                  </div>
+                </div>
+
+                {needsTransferRate && (
+                  <div className="text-xs text-muted-foreground">
+                    {rateLoading ? (
+                      'Fetching exchange rate…'
+                    ) : autoRate ? (
+                      <>
+                        Auto rate: 1 {transferSentWallet?.asset} = {autoRate.toFixed(6)}{' '}
+                        {transferReceivedWallet?.asset}
+                        {rateOverride && (
+                          <span className="ml-2 text-orange-600">
+                            (manual override, click a field to reset)
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      'No rate available; enter received amount manually.'
+                    )}
+                  </div>
+                )}
+
+                {/* Transaction Fee, collapsed by default */}
+                <div>
+                  <button
+                    type="button"
+                    className="text-sm text-[var(--color-brand-orange,theme(colors.orange.500))] hover:underline flex items-center gap-1"
+                    onClick={() => {
+                      setShowFeeSection((p) => {
+                        const next = !p;
+                        if (!next) {
+                          // Collapsing clears the fee inputs so a hidden fee never submits.
+                          setFeeAmount('');
+                          setFeeSide('');
+                          setFeeAccountId('');
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    {showFeeSection ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showFeeSection ? 'Hide Fee' : 'Add Transaction Fee'}
+                  </button>
+
+                  {showFeeSection &&
+                    (() => {
+                      // Resolve which wallet the fee comes from, for the amount-prefix currency.
+                      const feeWallet =
+                        feeSide === 'source'
+                          ? selectedWallet
+                          : feeSide === 'dest'
+                            ? counterpartyWallet
+                            : null;
+                      const feeCurrency = feeWallet?.asset || primaryCurrency;
+                      const sourceName = selectedWallet?.encrypted_name || '[Source wallet]';
+                      const destName = counterpartyWallet?.encrypted_name || '[Destination wallet]';
+
+                      return (
+                        <div className="mt-2 space-y-1">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Fee Side
+                              </Label>
+                              <Select
+                                value={feeSide}
+                                onValueChange={(v) => setFeeSide(v as 'source' | 'dest')}
+                              >
+                                <SelectTrigger className="h-10">
+                                  <SelectValue placeholder="Fee side" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {selectedWallet && (
+                                    <SelectItem value="source">{sourceName}</SelectItem>
+                                  )}
+                                  {counterpartyWallet && (
+                                    <SelectItem value="dest">{destName}</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Fee Amount
+                              </Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  {getCurrencySymbol(feeCurrency)}
+                                </span>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0.00"
+                                  value={feeAmount}
+                                  onChange={(e) => setFeeAmount(e.target.value)}
+                                  className="pl-7 pr-14 h-10 font-mono"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                  {feeCurrency}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Fee Expense Account
+                              </Label>
+                              <Select value={feeAccountId} onValueChange={setFeeAccountId}>
+                                <SelectTrigger className="h-10">
+                                  <SelectValue placeholder="Select expense account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {accounts.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      {a.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          {errors.feeSide ||
+                            (errors.feeAccount && (
+                              <div className="text-xs text-destructive">
+                                {errors.feeSide || errors.feeAccount}
+                              </div>
+                            ))}
+                        </div>
+                      );
+                    })()}
+                </div>
+              </>
+            )}
+
+            {/* Row 4, Memo */}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Memo
+              </Label>
+              <Textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="Enter transaction purpose"
+                rows={2}
               />
-            );
-          })()}
-        </div>
+            </div>
 
-        {editingTx && orgId && (
-          <div className="border-t pt-4 mt-2">
-            <AttachmentList
-              orgId={orgId}
-              entityType="transaction"
-              entityId={editingTx.id}
-              canDelete
-            />
+            {/* Row 5, Match to invoice (inflow only, existing tx only) */}
+            {(() => {
+              if (!editingTx || direction !== 'IN') return null;
+              const parsed = parseAmount(amount);
+              if (!parsed || parsed <= 0) return null;
+              const walletAsset =
+                wallets.find((w) => w.id === walletId)?.asset || editingTx
+                  ? wallets.find((w) => w.id === (editingTx?.account_id ?? walletId))?.asset
+                  : '';
+              const currency = walletAsset || 'USD';
+              const counterparty = contactId
+                ? (contacts.find((c) => c.id === contactId)?.name ?? null)
+                : null;
+              return (
+                <InvoiceMatchPanel
+                  orgId={orgId}
+                  txId={editingTx.id}
+                  txAmount={parsed}
+                  txCurrency={currency}
+                  txDate={format(date, 'yyyy-MM-dd')}
+                  counterparty={counterparty}
+                  onApplied={onSaved}
+                />
+              );
+            })()}
           </div>
-        )}
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={() => handleSave('save-close')} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            Save & Close
-          </Button>
-          {!editingTx && (
-            <Button variant="secondary" onClick={() => handleSave('save-new')} disabled={saving}>
-              {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              Save & New
-            </Button>
+          {editingTx && orgId && (
+            <div className="border-t pt-4 mt-2">
+              <AttachmentList
+                orgId={orgId}
+                entityType="transaction"
+                entityId={editingTx.id}
+                canDelete
+              />
+            </div>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
 
-    {/* Inline new-contact dialog — opened from the right-side TO/FROM picker
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleSave('save-close')} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Save & Close
+            </Button>
+            {!editingTx && (
+              <Button variant="secondary" onClick={() => handleSave('save-new')} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                Save & New
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline new-contact dialog, opened from the right-side TO/FROM picker
         when the user selects "+ New contact". Saves directly to the contacts
         table; on success, the new id is selected in the picker and the
         parent's onContactsChanged callback refetches the list. */}
-    <Dialog open={newContactDialogOpen} onOpenChange={(v) => !newContactSaving && setNewContactDialogOpen(v)}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New contact</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="new-contact-name">Name</Label>
-            <Input
-              id="new-contact-name"
-              autoFocus
-              value={newContactName}
-              onChange={(e) => setNewContactName(e.target.value)}
-              placeholder="Acme Corp"
+      <Dialog
+        open={newContactDialogOpen}
+        onOpenChange={(v) => !newContactSaving && setNewContactDialogOpen(v)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New contact</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-contact-name">Name</Label>
+              <Input
+                id="new-contact-name"
+                autoFocus
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="Acme Corp"
+                disabled={newContactSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-contact-kind">Type</Label>
+              <Select
+                value={newContactKind}
+                onValueChange={setNewContactKind}
+                disabled={newContactSaving}
+              >
+                <SelectTrigger id="new-contact-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CUSTOMER">Customer</SelectItem>
+                  <SelectItem value="VENDOR">Vendor</SelectItem>
+                  <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Edit address, email, and phone later from Admin → To/From List.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewContactDialogOpen(false)}
               disabled={newContactSaving}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="new-contact-kind">Type</Label>
-            <Select value={newContactKind} onValueChange={setNewContactKind} disabled={newContactSaving}>
-              <SelectTrigger id="new-contact-kind">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CUSTOMER">Customer</SelectItem>
-                <SelectItem value="VENDOR">Vendor</SelectItem>
-                <SelectItem value="EMPLOYEE">Employee</SelectItem>
-                <SelectItem value="OTHER">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Edit address, email, and phone later from Admin → To/From List.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setNewContactDialogOpen(false)} disabled={newContactSaving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSaveNewContact} disabled={newContactSaving}>
-            {newContactSaving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNewContact} disabled={newContactSaving}>
+              {newContactSaving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1979,15 +2158,15 @@ export async function fetchAccountsForModal(
   decryptText: (v: string) => Promise<string>,
 ): Promise<AccountOption[]> {
   const { data } = await supabase.from('chart_of_accounts').select('*').eq('org_id', orgId);
-  const rows = (data as any[]) | [];
+  const rows = (data as any[]) || [];
   const decrypted = await Promise.all(
     rows.map(async (row) => {
       const fields = await decryptChartOfAccount(row, decryptText);
       return {
         id: row.id as string,
         external_account_id: row.external_account_id as string,
-        name: fields.account_name | '[Account]',
-        code: fields.account_code | null,
+        name: fields.account_name || '[Account]',
+        code: fields.account_code || null,
       } satisfies AccountOption;
     }),
   );
@@ -2003,18 +2182,18 @@ export async function fetchContactsForModal(
   decryptText: (v: string) => Promise<string>,
 ): Promise<ContactOption[]> {
   const { data } = await supabase.from('contacts').select('*').eq('org_id', orgId);
-  const rows = (data as any[]) | [];
+  const rows = (data as any[]) || [];
   const decrypted = await Promise.all(
     rows.map(async (row) => {
       try {
         const fields = await decryptContact(row, decryptText);
         return {
           id: row.id as string,
-          name: fields.name | '[Contact]',
-          kind: fields.type | 'OTHER',
+          name: fields.name || '[Contact]',
+          kind: fields.type || 'OTHER',
         } satisfies ContactOption;
       } catch {
-        // Undecryptable rows (key version mismatch) — exclude rather than
+        // Undecryptable rows (key version mismatch), exclude rather than
         // surface garbage in the picker.
         return null;
       }

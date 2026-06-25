@@ -1,0 +1,32 @@
+# Build artifacts
+dist/
+build/
+.next/
+coverage/
+playwright-report/
+test-results/
+
+# Dependencies
+node_modules/
+bun.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Auto-generated
+src/integrations/supabase/types.ts
+
+# SQL is not in prettier's defaults; keep it that way so migrations stay
+# byte-identical to what was applied to the DB.
+supabase/migrations/
+
+# Test fixtures: reformatting could mask test intent or change expected output.
+tests/parity/fixtures/
+
+# Binary / static
+public/
+*.min.js
+*.min.css
+
+# Tool config that ships with its own format
+.changeset/

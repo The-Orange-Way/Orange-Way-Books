@@ -31,11 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -129,13 +125,15 @@ export interface QuickBooksImportWizardProps {
 async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(reader.error | new Error('Could not read file'));
+    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.readAsArrayBuffer(file);
   });
 }
 
-async function expandQuickBooksZip(file: File): Promise<Array<{ name: string; buffer: ArrayBuffer }>> {
+async function expandQuickBooksZip(
+  file: File,
+): Promise<Array<{ name: string; buffer: ArrayBuffer }>> {
   const buf = await readFileAsArrayBuffer(file);
   const zip = await JSZip.loadAsync(buf);
   const out: Array<{ name: string; buffer: ArrayBuffer }> = [];
@@ -144,7 +142,7 @@ async function expandQuickBooksZip(file: File): Promise<Array<{ name: string; bu
     if (!/\.xlsx$/i.test(entry.name)) continue;
     const innerBuf = await entry.async('arraybuffer');
     // Strip directory prefix QB sometimes adds (e.g. "Quickbooks-Export/Trial_balance.xlsx").
-    const name = entry.name.split('/').pop() | entry.name;
+    const name = entry.name.split('/').pop() || entry.name;
     out.push({ name, buffer: innerBuf });
   }
   return out;
@@ -162,7 +160,9 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<QuickBooksParsedData | null>(null);
-  const [classifications, setClassifications] = useState<QuickBooksClassificationResult | null>(null);
+  const [classifications, setClassifications] = useState<QuickBooksClassificationResult | null>(
+    null,
+  );
   const [overrides, setOverrides] = useState<Record<string, AccountOverride>>({});
   const [autoOpen, setAutoOpen] = useState(false);
   const [progress, setProgress] = useState<CommitProgress | null>(null);
@@ -250,7 +250,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
             const r = await parseTrialBalance(f.buffer, f.name);
             out.trialBalanceAccounts.push(...r.accounts);
             out.errors.push(...r.errors);
-          } else if (f.type === 'JOURNAL' | (f.type === 'GENERAL_LEDGER' && !hasJournal)) {
+          } else if (f.type === 'JOURNAL' || (f.type === 'GENERAL_LEDGER' && !hasJournal)) {
             const r = await parseJournal(f.buffer, f.name);
             out.journalEntries.push(...r.journalEntries);
             out.errors.push(...r.errors);
@@ -289,7 +289,11 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
       // value (user must still confirm it). Default to ASSET / OTHER_CURRENT_ASSETS.
       const seed: Record<string, AccountOverride> = {};
       for (const name of cls.ambiguous) {
-        seed[name] = { accountType: 'ASSET', accountSubType: 'OTHER_CURRENT_ASSETS', edited: false };
+        seed[name] = {
+          accountType: 'ASSET',
+          accountSubType: 'OTHER_CURRENT_ASSETS',
+          edited: false,
+        };
       }
       setOverrides(seed);
       setParsed(out);
@@ -305,7 +309,11 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
   // ── Review step ──
   const setOverride = useCallback((name: string, patch: Partial<AccountOverride>) => {
     setOverrides((prev) => {
-      const cur = prev[name] ?? { accountType: 'ASSET', accountSubType: 'OTHER_CURRENT_ASSETS', edited: false };
+      const cur = prev[name] ?? {
+        accountType: 'ASSET',
+        accountSubType: 'OTHER_CURRENT_ASSETS',
+        edited: false,
+      };
       const next: AccountOverride = { ...cur, ...patch, edited: true };
       // If type changed, reset subtype to a valid option for the new type.
       if (patch.accountType && patch.accountType !== cur.accountType) {
@@ -339,7 +347,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
 
   // ── Commit ──
   const handleCommit = useCallback(async () => {
-    if (!orgId | !parsed | !classifications) return;
+    if (!orgId || !parsed || !classifications) return;
     setStep('committing');
     setProgress({ stage: 'preparing', done: 0, total: 1 });
     setCommitError(null);
@@ -375,28 +383,45 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
       // import success path. Body stays generic enough that nothing
       // sensitive lands on the server (counts are not PII).
       const totalCreated = res.accountsCreated + res.contactsCreated + res.journalEntriesCreated;
-      const body = totalCreated > 0
-        ? `QuickBooks import complete: ${res.journalEntriesCreated} journal entries, ${res.contactsCreated} contacts, ${res.accountsCreated} accounts.`
-        : 'QuickBooks import complete — nothing new to add (everything already imported).';
-      void (supabase as any).rpc('emit_self_notification', {
-        p_org_id: orgId,
-        p_kind: 'import.completed',
-        p_body: body,
-        p_action_href: '/app/journal',
-      }).then(({ error }: { error: { message: string } | null }) => {
-        if (error) console.warn('[QbImport] notification emit failed:', error.message);
-      });
+      const body =
+        totalCreated > 0
+          ? `QuickBooks import complete: ${res.journalEntriesCreated} journal entries, ${res.contactsCreated} contacts, ${res.accountsCreated} accounts.`
+          : 'QuickBooks import complete — nothing new to add (everything already imported).';
+      void (supabase as any)
+        .rpc('emit_self_notification', {
+          p_org_id: orgId,
+          p_kind: 'import.completed',
+          p_body: body,
+          p_action_href: '/app/journal',
+        })
+        .then(({ error }: { error: { message: string } | null }) => {
+          if (error) console.warn('[QbImport] notification emit failed:', error.message);
+        });
       onImported?.(res);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
       setStep('review');
     }
-  }, [orgId, parsed, classifications, overrides, settings.primaryCurrency, encryptText, decryptText, onImported]);
+  }, [
+    orgId,
+    parsed,
+    classifications,
+    overrides,
+    settings.primaryCurrency,
+    encryptText,
+    decryptText,
+    onImported,
+  ]);
 
   // ── Render ──
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[840px] max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Import from QuickBooks</DialogTitle>
@@ -409,19 +434,29 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
                 <p className="font-medium mb-1">How to export from QuickBooks Online</p>
                 <ol className="list-decimal pl-5 space-y-0.5">
-                  <li>Reports → run Trial Balance, Journal, Customer / Vendor / Employee Lists, Balance Sheet, Profit & Loss</li>
+                  <li>
+                    Reports → run Trial Balance, Journal, Customer / Vendor / Employee Lists,
+                    Balance Sheet, Profit & Loss
+                  </li>
                   <li>Export each as Excel (.xlsx)</li>
                   <li>Drop the 8 files (or a .zip) below</li>
                 </ol>
-                <p className="mt-2 text-blue-700/90">Everything is encrypted in your browser before it reaches our servers.</p>
+                <p className="mt-2 text-blue-700/90">
+                  Everything is encrypted in your browser before it reaches our servers.
+                </p>
               </div>
 
               <div
                 className={cn(
                   'border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors',
-                  dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+                  dragOver
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50',
                 )}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -431,29 +466,44 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
                 onClick={() => fileRef.current?.click()}
               >
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Drag & drop your QuickBooks .xlsx files (or a .zip), or click to browse</p>
+                <p className="text-sm text-muted-foreground">
+                  Drag & drop your QuickBooks .xlsx files (or a .zip), or click to browse
+                </p>
                 <input
                   ref={fileRef}
                   type="file"
                   multiple
                   accept=".xlsx,.zip"
                   className="hidden"
-                  onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
+                  onChange={(e) => {
+                    if (e.target.files?.length) handleFiles(e.target.files);
+                  }}
                 />
               </div>
 
               {files.length > 0 && (
                 <div className="border border-border rounded-lg divide-y divide-border">
                   {files.map((f) => (
-                    <div key={f.name} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <div
+                      key={f.name}
+                      className="flex items-center justify-between px-3 py-2 text-sm"
+                    >
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
                         <span className="truncate">{f.name}</span>
-                        <Badge variant={f.type === 'UNKNOWN' ? 'destructive' : 'secondary'} className="text-[10px]">
+                        <Badge
+                          variant={f.type === 'UNKNOWN' ? 'destructive' : 'secondary'}
+                          className="text-[10px]"
+                        >
                           {TYPE_LABEL[f.type]}
                         </Badge>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => removeFile(f.name)} aria-label="Remove file">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(f.name)}
+                        aria-label="Remove file"
+                      >
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
@@ -462,18 +512,29 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               )}
 
               {parseError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{parseError}</div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                  {parseError}
+                </div>
               )}
             </div>
 
             <div className="flex justify-end gap-2 pt-4 mt-2 border-t border-border">
-              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
               <Button
                 onClick={continueToReview}
-                disabled={parsing | files.length === 0}
+                disabled={parsing || files.length === 0}
                 className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               >
-                {parsing ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Reading…</> : 'Continue to review'}
+                {parsing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Reading…
+                  </>
+                ) : (
+                  'Continue to review'
+                )}
               </Button>
             </div>
           </div>
@@ -486,8 +547,8 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
               <p className="font-medium">Re-imports are safe.</p>
               <p className="mt-0.5 text-emerald-800">
                 If you've already imported some of these rows before, the importer skips the
-                duplicates and only writes what's genuinely new. You can re-run this as many
-                times as you need without doubling up.
+                duplicates and only writes what's genuinely new. You can re-run this as many times
+                as you need without doubling up.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
@@ -510,7 +571,8 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
                   <div className="px-3 py-2 border-b border-amber-200 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600" />
                     <span className="text-sm font-medium text-amber-900">
-                      {ambiguousNames.length} account{ambiguousNames.length === 1 ? '' : 's'} need classification
+                      {ambiguousNames.length} account{ambiguousNames.length === 1 ? '' : 's'} need
+                      classification
                     </span>
                   </div>
                   <AccountTable
@@ -553,7 +615,10 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 space-y-1 max-h-[120px] overflow-auto">
                   <p className="font-medium uppercase">Parse warnings</p>
                   {parsed.errors.slice(0, 12).map((e, i) => (
-                    <p key={i}>{e.file ? `${e.file}: ` : ''}{e.message}</p>
+                    <p key={i}>
+                      {e.file ? `${e.file}: ` : ''}
+                      {e.message}
+                    </p>
                   ))}
                   {parsed.errors.length > 12 && <p>… and {parsed.errors.length - 12} more</p>}
                 </div>
@@ -561,10 +626,18 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep('upload')}>← Back</Button>
+              <Button variant="outline" onClick={() => setStep('upload')}>
+                ← Back
+              </Button>
               <Button
                 onClick={handleCommit}
-                disabled={!allAmbiguousResolved | (parsed.trialBalanceAccounts.length + parsed.contacts.length + parsed.journalEntries.length === 0)}
+                disabled={
+                  !allAmbiguousResolved ||
+                  parsed.trialBalanceAccounts.length +
+                    parsed.contacts.length +
+                    parsed.journalEntries.length ===
+                    0
+                }
                 className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
               >
                 {importLabel}
@@ -576,9 +649,7 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
         {/* COMMITTING */}
         {step === 'committing' && (
           <div className="py-8 space-y-3">
-            <p className="text-sm text-center text-muted-foreground">
-              {progressMessage(progress)}
-            </p>
+            <p className="text-sm text-center text-muted-foreground">{progressMessage(progress)}</p>
             <Progress
               value={progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 5}
               className="h-2"
@@ -603,9 +674,18 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
                   {result.errors.length === 0 ? 'Import complete' : 'Import completed with issues'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {result.accountsCreated} accounts · {result.contactsCreated} contacts · {result.journalEntriesCreated} journal entries
-                  {(result.accountsSkipped + result.contactsSkipped + result.journalEntriesSkipped) > 0 && (
-                    <> · {result.accountsSkipped + result.contactsSkipped + result.journalEntriesSkipped} skipped (already imported)</>
+                  {result.accountsCreated} accounts · {result.contactsCreated} contacts ·{' '}
+                  {result.journalEntriesCreated} journal entries
+                  {result.accountsSkipped + result.contactsSkipped + result.journalEntriesSkipped >
+                    0 && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      {result.accountsSkipped +
+                        result.contactsSkipped +
+                        result.journalEntriesSkipped}{' '}
+                      skipped (already imported)
+                    </>
                   )}
                 </p>
               </div>
@@ -613,18 +693,32 @@ export function QuickBooksImportWizard({ open, onClose, onImported }: QuickBooks
 
             {result.accountsFallback > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                <p className="font-medium mb-1">{result.accountsFallback} {result.accountsFallback === 1 ? 'account' : 'accounts'} couldn&apos;t be classified — landed in Uncategorized</p>
+                <p className="font-medium mb-1">
+                  {result.accountsFallback} {result.accountsFallback === 1 ? 'account' : 'accounts'}{' '}
+                  couldn&apos;t be classified — landed in Uncategorized
+                </p>
                 <p className="text-xs">
-                  Their journal-entry lines were routed to <strong>Uncategorized Expense</strong> or <strong>Uncategorized Revenue</strong> based on whether the account was debit- or credit-balanced. The original QuickBooks account name is preserved in each line&apos;s description as a <code className="bg-amber-100 px-1 rounded">[QB: name]</code> prefix. Open Admin → Chart of Accounts and look under the <strong>Uncategorized Expenses</strong> / <strong>Uncategorized Income</strong> groups to re-classify when ready.
+                  Their journal-entry lines were routed to <strong>Uncategorized Expense</strong> or{' '}
+                  <strong>Uncategorized Revenue</strong> based on whether the account was debit- or
+                  credit-balanced. The original QuickBooks account name is preserved in each
+                  line&apos;s description as a{' '}
+                  <code className="bg-amber-100 px-1 rounded">[QB: name]</code> prefix. Open Admin →
+                  Chart of Accounts and look under the <strong>Uncategorized Expenses</strong> /{' '}
+                  <strong>Uncategorized Income</strong> groups to re-classify when ready.
                 </p>
               </div>
             )}
 
             {result.linesPending > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
-                <p className="font-medium mb-1">{result.linesPending} {result.linesPending === 1 ? 'line needs' : 'lines need'} a manual exchange rate</p>
+                <p className="font-medium mb-1">
+                  {result.linesPending} {result.linesPending === 1 ? 'line needs' : 'lines need'} a
+                  manual exchange rate
+                </p>
                 <p className="text-xs">
-                  Some imported lines were in a currency we don&apos;t have a rate for at their date. They&apos;re saved with the original amounts but excluded from reports until you enter a rate. Open <strong>Admin → Rates</strong> to fill them in.
+                  Some imported lines were in a currency we don&apos;t have a rate for at their
+                  date. They&apos;re saved with the original amounts but excluded from reports until
+                  you enter a rate. Open <strong>Admin → Rates</strong> to fill them in.
                 </p>
               </div>
             )}
@@ -669,7 +763,13 @@ interface AccountTableProps {
   requireExplicit?: boolean;
 }
 
-function AccountTable({ accountNames, overrides, confident, onChange, requireExplicit }: AccountTableProps) {
+function AccountTable({
+  accountNames,
+  overrides,
+  confident,
+  onChange,
+  requireExplicit,
+}: AccountTableProps) {
   if (accountNames.length === 0) return null;
 
   return (
@@ -688,22 +788,30 @@ function AccountTable({ accountNames, overrides, confident, onChange, requireExp
             const baseline = confident?.[name];
             const ovr = overrides[name];
             const accountType: AccountType = ovr?.accountType ?? baseline?.accountType ?? 'ASSET';
-            const accountSubType: AccountSubType = ovr?.accountSubType ?? baseline?.accountSubType ?? 'OTHER_CURRENT_ASSETS';
+            const accountSubType: AccountSubType =
+              ovr?.accountSubType ?? baseline?.accountSubType ?? 'OTHER_CURRENT_ASSETS';
             const edited = !!ovr?.edited;
             const needsAttention = requireExplicit && !edited;
 
             return (
-              <tr key={name} className={cn('border-t border-border', needsAttention && 'bg-amber-100/40')}>
+              <tr
+                key={name}
+                className={cn('border-t border-border', needsAttention && 'bg-amber-100/40')}
+              >
                 <td className="px-3 py-1.5 font-medium">{name}</td>
                 <td className="px-3 py-1.5">
                   <Select
                     value={accountType}
                     onValueChange={(v) => onChange(name, { accountType: v as AccountType })}
                   >
-                    <SelectTrigger className="h-7 text-xs w-[130px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-7 text-xs w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {ACCOUNT_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -713,20 +821,28 @@ function AccountTable({ accountNames, overrides, confident, onChange, requireExp
                     value={accountSubType}
                     onValueChange={(v) => onChange(name, { accountSubType: v as AccountSubType })}
                   >
-                    <SelectTrigger className="h-7 text-xs w-[200px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-7 text-xs w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {SUBTYPES_BY_TYPE[accountType].map((s) => (
-                        <SelectItem key={s} value={s}>{prettySubType(s)}</SelectItem>
+                        <SelectItem key={s} value={s}>
+                          {prettySubType(s)}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </td>
                 <td className="px-3 py-1.5">
                   {edited && (
-                    <Badge variant="secondary" className="text-[10px]">edited</Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                      edited
+                    </Badge>
                   )}
                   {needsAttention && (
-                    <Badge variant="destructive" className="text-[10px]">required</Badge>
+                    <Badge variant="destructive" className="text-[10px]">
+                      required
+                    </Badge>
                   )}
                 </td>
               </tr>
@@ -743,10 +859,15 @@ function AccountTable({ accountNames, overrides, confident, onChange, requireExp
 function progressMessage(p: CommitProgress | null): string {
   if (!p) return 'Preparing…';
   switch (p.stage) {
-    case 'preparing':       return 'Preparing…';
-    case 'accounts':        return `Saving accounts (${p.done}/${p.total})…`;
-    case 'contacts':        return `Saving contacts (${p.done}/${p.total})…`;
-    case 'journal-entries': return `Saving journal entries (${p.done}/${p.total})…`;
-    case 'finalizing':      return 'Finishing up…';
+    case 'preparing':
+      return 'Preparing…';
+    case 'accounts':
+      return `Saving accounts (${p.done}/${p.total})…`;
+    case 'contacts':
+      return `Saving contacts (${p.done}/${p.total})…`;
+    case 'journal-entries':
+      return `Saving journal entries (${p.done}/${p.total})…`;
+    case 'finalizing':
+      return 'Finishing up…';
   }
 }

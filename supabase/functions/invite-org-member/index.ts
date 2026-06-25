@@ -62,8 +62,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 });
 
 const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
 // Allowed wrap algorithm identifiers — keep in sync with
@@ -79,7 +78,7 @@ interface WrappedDekPayload {
 }
 
 function isValidWrapPayload(v: unknown): v is WrappedDekPayload {
-  if (!v | typeof v !== 'object') return false;
+  if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.wrapped_dek === 'string' &&
@@ -107,14 +106,17 @@ serve(async (req) => {
   try {
     // 1) Caller auth.
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -143,16 +145,15 @@ serve(async (req) => {
       wrapped_dek?: unknown;
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
     const email = typeof body.email === 'string' ? body.email.trim() : '';
     const orgId = typeof body.org_id === 'string' ? body.org_id.trim() : '';
-    const roleDefId = typeof body.role_definition_id === 'string'
-      ? body.role_definition_id.trim()
-      : '';
-    if (!email | !orgId | !roleDefId) {
+    const roleDefId =
+      typeof body.role_definition_id === 'string' ? body.role_definition_id.trim() : '';
+    if (!email || !orgId || !roleDefId) {
       return jsonResponse(
         { error: 'email, org_id, and role_definition_id are required' },
         400,
@@ -162,7 +163,7 @@ serve(async (req) => {
     if (!EMAIL_RE.test(email)) {
       return jsonResponse({ error: 'Invalid email' }, 400, cors);
     }
-    if (!UUID_RE.test(orgId) | !UUID_RE.test(roleDefId)) {
+    if (!UUID_RE.test(orgId) || !UUID_RE.test(roleDefId)) {
       return jsonResponse({ error: 'org_id and role_definition_id must be UUIDs' }, 400, cors);
     }
 
@@ -205,14 +206,10 @@ serve(async (req) => {
     // admin-update-user grant_support_session action and is rejected here.
     let source: 'direct' | 'auditor_invite' = 'direct';
     if (body.source !== undefined && body.source !== null) {
-      if (body.source === 'direct' | body.source === 'auditor_invite') {
+      if (body.source === 'direct' || body.source === 'auditor_invite') {
         source = body.source;
       } else {
-        return jsonResponse(
-          { error: 'source must be "direct" or "auditor_invite"' },
-          400,
-          cors,
-        );
+        return jsonResponse({ error: 'source must be "direct" or "auditor_invite"' }, 400, cors);
       }
     }
 
@@ -230,11 +227,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unknown role_definition_id' }, 400, cors);
     }
     if (!roleDef.is_system && roleDef.org_id !== orgId) {
-      return jsonResponse(
-        { error: 'Role is not available in this organization' },
-        400,
-        cors,
-      );
+      return jsonResponse({ error: 'Role is not available in this organization' }, 400, cors);
     }
 
     // Auditor role requires an expiry date within 1 year.
@@ -246,11 +239,7 @@ serve(async (req) => {
     const isAuditor = roleDef.name === 'Auditor';
     if (isAuditor) {
       if (!expiresAtIso) {
-        return jsonResponse(
-          { error: 'Auditor access requires an expiry date.' },
-          400,
-          cors,
-        );
+        return jsonResponse({ error: 'Auditor access requires an expiry date.' }, 400, cors);
       }
       source = 'auditor_invite';
     } else {
@@ -267,10 +256,11 @@ serve(async (req) => {
     }
 
     // 4) Capability check.
-    const { data: canInvite, error: capErr } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: orgId },
-    );
+    const { data: canInvite, error: capErr } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: orgId,
+    });
     if (capErr) {
       console.error('invite-org-member capability check failed:', capErr);
       return jsonResponse({ error: 'Failed to authorize caller' }, 500, cors);
@@ -288,7 +278,10 @@ serve(async (req) => {
     let existingUser: { id: string; email?: string | null } | null = null;
     let page = 1;
     while (page <= 50) {
-      const { data: listPage, error: listErr } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+      const { data: listPage, error: listErr } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
       if (listErr) break;
       const hit = listPage.users.find(
         (u: { id: string; email?: string | null }) => u.email?.toLowerCase() === normalizedEmail,
@@ -386,8 +379,7 @@ serve(async (req) => {
       });
       if (keyInsertErr) {
         console.error('invite-org-member insert org_keys failed:', keyInsertErr);
-        await adminClient.from('org_members').delete()
-          .eq('org_id', orgId).eq('user_id', userId);
+        await adminClient.from('org_members').delete().eq('org_id', orgId).eq('user_id', userId);
         return jsonResponse({ error: 'Failed to record wrapped key' }, 500, cors);
       }
 
@@ -404,10 +396,8 @@ serve(async (req) => {
       });
       if (grantErr) {
         console.error('invite-org-member insert org_member_roles failed:', grantErr);
-        await adminClient.from('org_keys').delete()
-          .eq('org_id', orgId).eq('user_id', userId);
-        await adminClient.from('org_members').delete()
-          .eq('org_id', orgId).eq('user_id', userId);
+        await adminClient.from('org_keys').delete().eq('org_id', orgId).eq('user_id', userId);
+        await adminClient.from('org_members').delete().eq('org_id', orgId).eq('user_id', userId);
         return jsonResponse({ error: 'Failed to grant role to new member' }, 500, cors);
       }
 
@@ -429,15 +419,19 @@ serve(async (req) => {
         console.warn('invite-org-member notification email failed:', mailErr);
       }
 
-      return jsonResponse({
-        success: true,
-        user_id: userId,
-        email: normalizedEmail,
-        invited: invitedNew,
-        role_name: roleDef.name,
-        wrap_status: 'wrapped',
-        message: `${normalizedEmail} added to organization`,
-      }, 200, cors);
+      return jsonResponse(
+        {
+          success: true,
+          user_id: userId,
+          email: normalizedEmail,
+          invited: invitedNew,
+          role_name: roleDef.name,
+          wrap_status: 'wrapped',
+          message: `${normalizedEmail} added to organization`,
+        },
+        200,
+        cors,
+      );
     }
 
     // Wrap NOT provided — pending invite path.
@@ -458,7 +452,7 @@ serve(async (req) => {
         normalizedEmail,
         { redirectTo },
       );
-      if (inviteErr | !invited?.user) {
+      if (inviteErr || !invited?.user) {
         console.error('invite-org-member inviteUserByEmail failed:', inviteErr);
         return jsonResponse({ error: 'Failed to send invitation' }, 500, cors);
       }
@@ -496,15 +490,18 @@ serve(async (req) => {
     // Upsert the pending invite. Composite UNIQUE (org_id, email) lets
     // us "onConflict" safely: re-inviting the same email for the same
     // org bumps the role + inviter + expiry instead of erroring.
-    const { error: pendingErr } = await adminClient.from('pending_invites').upsert({
-      org_id: orgId,
-      email: normalizedEmail,
-      role_definition_id: roleDef.id,
-      inviter_id: caller.id,
-      recipient_user_id: userId,
-      status: initialStatus,
-      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    }, { onConflict: 'org_id,email' });
+    const { error: pendingErr } = await adminClient.from('pending_invites').upsert(
+      {
+        org_id: orgId,
+        email: normalizedEmail,
+        role_definition_id: roleDef.id,
+        inviter_id: caller.id,
+        recipient_user_id: userId,
+        status: initialStatus,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      { onConflict: 'org_id,email' },
+    );
     if (pendingErr) {
       console.error('invite-org-member insert pending_invites failed:', pendingErr);
       return jsonResponse({ error: 'Failed to record pending invite' }, 500, cors);
@@ -512,17 +509,21 @@ serve(async (req) => {
 
     await writeAudit(caller.id, userId, orgId, roleDef.id, 'pending');
 
-    return jsonResponse({
-      success: true,
-      user_id: userId,
-      email: normalizedEmail,
-      invited: invitedNew,
-      role_name: roleDef.name,
-      wrap_status: 'pending',
-      message: invitedNew
-        ? `Invitation sent to ${normalizedEmail}`
-        : `Invite recorded for ${normalizedEmail}; they'll get access once their vault is set up.`,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        success: true,
+        user_id: userId,
+        email: normalizedEmail,
+        invited: invitedNew,
+        role_name: roleDef.name,
+        wrap_status: 'pending',
+        message: invitedNew
+          ? `Invitation sent to ${normalizedEmail}`
+          : `Invite recorded for ${normalizedEmail}; they'll get access once their vault is set up.`,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('invite-org-member error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);
@@ -566,11 +567,11 @@ async function writeAudit(
       user_id: scopedUserId,
       event: 'user.invited',
       metadata: {
-        actor_user_id:      callerId,
-        target_user_id:     targetUserId,
-        org_id:             orgId,
+        actor_user_id: callerId,
+        target_user_id: targetUserId,
+        org_id: orgId,
         role_definition_id: roleDefinitionId,
-        wrap_status:        wrapStatus,
+        wrap_status: wrapStatus,
       },
     });
     if (error) {

@@ -76,7 +76,9 @@ async function gotoAuthed(page: Page, url: string): Promise<void> {
   expect(stillLocked, `still on Unlock Vault screen after gotoAuthed(${url})`).toBe(false);
   await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 10_000 });
   // Wait for any centered content spinner to disappear.
-  await page.locator('svg.animate-spin.w-6.h-6').first()
+  await page
+    .locator('svg.animate-spin.w-6.h-6')
+    .first()
     .waitFor({ state: 'hidden', timeout: 10_000 })
     .catch(() => undefined);
   await page.waitForTimeout(500);
@@ -110,7 +112,10 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
   });
 
   test.afterAll(async () => {
-    await sharedPage?.context().close().catch(() => undefined);
+    await sharedPage
+      ?.context()
+      .close()
+      .catch(() => undefined);
   });
 
   test('01 — authenticated user lands on dashboard', async () => {
@@ -118,8 +123,12 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
     expect(sharedPage.url()).toContain('/app');
     // Dashboard-specific element: the "Insights" page heading (h1/h2)
     // distinct from the sidebar nav item.
-    await expect(sharedPage.locator('h1, h2').filter({ hasText: /Insights/i }).first())
-      .toBeVisible({ timeout: 10_000 });
+    await expect(
+      sharedPage
+        .locator('h1, h2')
+        .filter({ hasText: /Insights/i })
+        .first(),
+    ).toBeVisible({ timeout: 10_000 });
     await shot(
       sharedPage,
       '01-signup',
@@ -143,8 +152,9 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
   test('03 — admin Flash page before connection', async () => {
     await gotoAuthed(sharedPage, '/app/admin/flash');
     expect(sharedPage.url()).toContain('/app/admin/flash');
-    await expect(sharedPage.locator('text=/Pay with Flash|Flash Connect/i').first())
-      .toBeVisible({ timeout: 10_000 });
+    await expect(sharedPage.locator('text=/Pay with Flash|Flash Connect/i').first()).toBeVisible({
+      timeout: 10_000,
+    });
     await shot(
       sharedPage,
       '03-admin-flash-empty',
@@ -193,11 +203,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
   test('07 — Flash-hosted checkout (mock)', async () => {
     const reachable = await isMockReachable();
     test.skip(!reachable, `mock-flash server at ${MOCK_FLASH_URL} not reachable.`);
-    logSkip(
-      '07-flash-checkout-page',
-      'Flash-hosted payment link',
-      'needs reachable mock server',
-    );
+    logSkip('07-flash-checkout-page', 'Flash-hosted payment link', 'needs reachable mock server');
   });
 
   test('08 — mock marks payment paid → webhook fires', async () => {
@@ -215,11 +221,7 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
       true,
       'requires a completed payment, which requires the mock chain in 07-08. Skipped together.',
     );
-    logSkip(
-      '09-billing-active',
-      'Billing flips to active after webhook',
-      'depends on 07-08',
-    );
+    logSkip('09-billing-active', 'Billing flips to active after webhook', 'depends on 07-08');
   });
 
   test('10 — payment history with fee breakdown', async () => {
@@ -227,10 +229,6 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
       true,
       'requires a completed payment row in flash_payments. Skipped together with 07-08-09.',
     );
-    logSkip(
-      '10-payment-history',
-      'Payment history with fee breakdown',
-      'depends on 07-08',
-    );
+    logSkip('10-payment-history', 'Payment history with fee breakdown', 'depends on 07-08');
   });
 });

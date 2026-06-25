@@ -38,8 +38,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 // (M2 — 2026-05-19 audit.)
 const MAX_USER_IDS_PER_CALL = 50;
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -50,14 +49,17 @@ Deno.serve(async (req) => {
 
   // 1) Caller auth.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+  if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
   }
   const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-  if (authErr | !caller) {
+  const {
+    data: { user: caller },
+    error: authErr,
+  } = await callerClient.auth.getUser();
+  if (authErr || !caller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);
   }
 
@@ -78,14 +80,18 @@ Deno.serve(async (req) => {
   const raw = await readBoundedText(req);
   if (raw === null) return jsonResponse({ error: 'Request body too large' }, 413, cors);
   let body: { userIds?: unknown };
-  try { body = JSON.parse(raw | '{}'); }
-  catch { return jsonResponse({ error: 'Invalid JSON' }, 400, cors); }
+  try {
+    body = JSON.parse(raw || '{}');
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
+  }
 
   if (!Array.isArray(body.userIds)) {
     return jsonResponse({ error: 'userIds must be an array of UUIDs' }, 400, cors);
   }
-  const requested = (body.userIds as unknown[])
-    .filter((v): v is string => typeof v === 'string' && UUID_RE.test(v));
+  const requested = (body.userIds as unknown[]).filter(
+    (v): v is string => typeof v === 'string' && UUID_RE.test(v),
+  );
   if (requested.length === 0) {
     return jsonResponse([], 200, cors);
   }
@@ -134,14 +140,15 @@ Deno.serve(async (req) => {
   for (const id of visibleIds) {
     try {
       const { data, error } = await adminClient.auth.admin.getUserById(id);
-      if (error | !data.user) continue;
+      if (error || !data.user) continue;
       const u = data.user;
       const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
-      const name = typeof meta.full_name === 'string'
-        ? meta.full_name
-        : typeof meta.name === 'string'
-          ? meta.name
-          : '';
+      const name =
+        typeof meta.full_name === 'string'
+          ? meta.full_name
+          : typeof meta.name === 'string'
+            ? meta.name
+            : '';
       out.push({ id: u.id, email: u.email ?? '', name });
     } catch (err) {
       console.error('lookup-user-profiles getUserById failed for', id, err);

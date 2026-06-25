@@ -42,11 +42,22 @@ function cacheKey(base: string, quote: string, bucketTs: string, gran: BucketGra
   return `${base}:${quote}:${bucketTs}:${gran}`;
 }
 
-function putCache(base: string, quote: string, bucketTs: string, gran: BucketGranularity, result: PinnedRateResult): void {
+function putCache(
+  base: string,
+  quote: string,
+  bucketTs: string,
+  gran: BucketGranularity,
+  result: PinnedRateResult,
+): void {
   sessionCache.set(cacheKey(base, quote, bucketTs, gran), { result, ts: Date.now() });
 }
 
-function getCache(base: string, quote: string, bucketTs: string, gran: BucketGranularity): PinnedRateResult | null {
+function getCache(
+  base: string,
+  quote: string,
+  bucketTs: string,
+  gran: BucketGranularity,
+): PinnedRateResult | null {
   const entry = sessionCache.get(cacheKey(base, quote, bucketTs, gran));
   if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return entry.result;
   return null;
@@ -62,7 +73,7 @@ export function deriveSourceKind(base: string, quote: string): SourceKind {
   const b = base.toUpperCase();
   const q = quote.toUpperCase();
   if (b === q) return 'IDENTITY';
-  if ((b === 'SATS' && q === 'BTC') | (b === 'BTC' && q === 'SATS')) return 'FIXED';
+  if ((b === 'SATS' && q === 'BTC') || (b === 'BTC' && q === 'SATS')) return 'FIXED';
   const bCrypto = isCrypto(b);
   const qCrypto = isCrypto(q);
   if (bCrypto && qCrypto) return 'CRYPTO_CRYPTO';
@@ -145,20 +156,39 @@ export async function resolvePinnedRate(params: {
 }): Promise<PinnedRateResult> {
   const base = params.source.toUpperCase();
   const quote = params.target.toUpperCase();
-  const atDate = params.at instanceof Date ? params.at : (params.at ? new Date(params.at) : new Date());
+  const atDate =
+    params.at instanceof Date ? params.at : params.at ? new Date(params.at) : new Date();
   const sourceKind = deriveSourceKind(base, quote);
 
   // Identity — rate is exactly 1
   if (sourceKind === 'IDENTITY') {
     const ts = bucketTsToIso(bucketFor(atDate, 'DAY'));
-    return { rate: 1, rateId: null, bucketTs: ts, bucketGranularity: 'DAY', provider: 'identity', sourceKind, pending: false, stale: false };
+    return {
+      rate: 1,
+      rateId: null,
+      bucketTs: ts,
+      bucketGranularity: 'DAY',
+      provider: 'identity',
+      sourceKind,
+      pending: false,
+      stale: false,
+    };
   }
 
   // Fixed SATS↔BTC
   if (sourceKind === 'FIXED') {
     const rate = base === 'SATS' ? 0.00000001 : 100_000_000;
     const ts = bucketTsToIso(bucketFor(atDate, 'DAY'));
-    return { rate, rateId: null, bucketTs: ts, bucketGranularity: 'DAY', provider: 'fixed', sourceKind, pending: false, stale: false };
+    return {
+      rate,
+      rateId: null,
+      bucketTs: ts,
+      bucketGranularity: 'DAY',
+      provider: 'fixed',
+      sourceKind,
+      pending: false,
+      stale: false,
+    };
   }
 
   const gran = granularityForPair(base, quote);
@@ -235,7 +265,7 @@ export async function getSecondaryDisplayRate(params: {
   at?: string;
 }): Promise<PinnedRateResult | null> {
   const { primary, secondary, at } = params;
-  if (!secondary | primary.toUpperCase() === secondary.toUpperCase()) return null;
+  if (!secondary || primary.toUpperCase() === secondary.toUpperCase()) return null;
   return resolvePinnedRate({ source: primary, target: secondary, at });
 }
 
@@ -252,11 +282,7 @@ export function convertAmount(amount: number, rate: number): number {
 
 // ── Back-compat wrapper (keeps all existing call sites working) ───────────────
 
-export async function fetchRate(
-  base: string,
-  quote: string,
-  date?: string,
-): Promise<RateResult> {
+export async function fetchRate(base: string, quote: string, date?: string): Promise<RateResult> {
   const result = await resolvePinnedRate({ source: base, target: quote, at: date });
   return {
     rate: result.rate,

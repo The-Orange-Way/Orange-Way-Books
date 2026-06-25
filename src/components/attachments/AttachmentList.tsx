@@ -25,11 +25,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { decryptAttachment } from '@/lib/crypto-fields';
-import {
-  uploadAttachment,
-  downloadAttachment,
-  type AttachmentEntityType,
-} from '@/lib/attachments';
+import { uploadAttachment, downloadAttachment, type AttachmentEntityType } from '@/lib/attachments';
 
 import { Button } from '@/components/ui/button';
 
@@ -73,7 +69,7 @@ export function AttachmentList({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const reload = async () => {
-    if (!orgId | !entityId) return;
+    if (!orgId || !entityId) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -126,7 +122,7 @@ export function AttachmentList({
       await uploadAttachment(supabase, encryptText, orgId, {
         file,
         fileName: file.name,
-        mimeType: file.type | null,
+        mimeType: file.type || null,
         entityType,
         entityId,
       });
@@ -146,7 +142,9 @@ export function AttachmentList({
     setDownloading(item.id);
     try {
       const bytes = await downloadAttachment(supabase, decryptText, item.storage_path);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: item.mime_type | 'application/octet-stream' });
+      const blob = new Blob([bytes.buffer as ArrayBuffer], {
+        type: item.mime_type || 'application/octet-stream',
+      });
       const url = URL.createObjectURL(blob);
       // Open in a new tab. Browser uses the mime type to decide preview vs download.
       const a = document.createElement('a');
@@ -209,7 +207,11 @@ export function AttachmentList({
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+              {uploading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
               Upload
             </Button>
           </>

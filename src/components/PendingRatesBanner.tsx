@@ -44,7 +44,9 @@ export function PendingRatesBanner({ orgId }: PendingRatesBannerProps) {
       await supabase.functions.invoke('exchange-rate-fetch', {
         body: { base: 'BTC', quote: 'USD', date: new Date().toISOString().slice(0, 10) },
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     await fetchCount();
     setRetrying(false);
   };
@@ -71,8 +73,8 @@ export function PendingRatesBanner({ orgId }: PendingRatesBannerProps) {
       >
         <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#F59E0B' }} />
         <span className="flex-1">
-          <strong>{pendingCount}</strong> journal entr{pendingCount === 1 ? 'y' : 'ies'} missing exchange rate
-          — amounts shown in primary currency may be incomplete.
+          <strong>{pendingCount}</strong> journal entr{pendingCount === 1 ? 'y' : 'ies'} missing
+          exchange rate — amounts shown in primary currency may be incomplete.
         </span>
         <button
           onClick={handleRetry}

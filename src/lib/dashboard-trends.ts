@@ -114,8 +114,7 @@ export function computeTrend(
   higherIsBetter: boolean | null,
 ): Trend {
   const delta = current - prior;
-  const direction: Direction =
-    Math.abs(delta) < 1e-9 ? 'flat' : delta > 0 ? 'up' : 'down';
+  const direction: Direction = Math.abs(delta) < 1e-9 ? 'flat' : delta > 0 ? 'up' : 'down';
 
   let pct: number | null = null;
   if (Math.abs(prior) > 1e-9) {
@@ -125,7 +124,7 @@ export function computeTrend(
   }
 
   let sentiment: Sentiment = 'neutral';
-  if (higherIsBetter === null | direction === 'flat') {
+  if (higherIsBetter === null || direction === 'flat') {
     sentiment = 'neutral';
   } else if (direction === 'up') {
     sentiment = higherIsBetter ? 'positive' : 'negative';

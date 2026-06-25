@@ -83,19 +83,21 @@ export default function ImportFromOr() {
   };
 
   const handleCommit = async () => {
-    if (!orgId | !parsedPayload) return;
+    if (!orgId || !parsedPayload) return;
     setCommitting(true);
     setResult(null);
     try {
       const r = await commitStagedImportPayload(
-        supabase, encryptText, blindIndex, orgId, parsedPayload,
+        supabase,
+        encryptText,
+        blindIndex,
+        orgId,
+        parsedPayload,
         { fileHash },
       );
       setResult(r);
       if (r.status === 'committed') {
-        toast.success(
-          `Imported ${r.journalEntriesCreated} JEs (${r.journalLinesCreated} lines)`,
-        );
+        toast.success(`Imported ${r.journalEntriesCreated} JEs (${r.journalLinesCreated} lines)`);
       } else {
         toast.error(`Import failed with ${r.errors.length} error(s). See details below.`);
       }
@@ -110,7 +112,10 @@ export default function ImportFromOr() {
 
   return (
     <div className="container max-w-4xl py-8">
-      <Link to="/app/admin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link
+        to="/app/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Admin
       </Link>
 
@@ -120,13 +125,13 @@ export default function ImportFromOr() {
           Import from Orange Rails
         </h1>
         <p className="text-sm text-muted-foreground">
-          Upload a <code className="text-xs">staged-import.json</code> emitted by an
-          Orange Rails connector (Wave, QuickBooks, future Plaid). OWB validates the
-          contract, writes one import job, and commits its journal entries.
+          Upload a <code className="text-xs">staged-import.json</code> emitted by an Orange Rails
+          connector (Wave, QuickBooks, future Plaid). OWB validates the contract, writes one import
+          job, and commits its journal entries.
         </p>
         <p className="text-xs text-muted-foreground mt-2">
-          v1 commits journalEntries only. Accounts + contacts are still uploaded
-          through the existing inline CSV widgets on Admin and Contacts pages.
+          v1 commits journalEntries only. Accounts + contacts are still uploaded through the
+          existing inline CSV widgets on Admin and Contacts pages.
         </p>
       </header>
 
@@ -144,17 +149,11 @@ export default function ImportFromOr() {
             if (f) void handleFilePick(f);
           }}
         />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-        >
+        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
           <Upload className="w-4 h-4 mr-2" />
           Select staged-import.json
         </Button>
-        {fileName && (
-          <span className="ml-3 text-sm text-muted-foreground">{fileName}</span>
-        )}
+        {fileName && <span className="ml-3 text-sm text-muted-foreground">{fileName}</span>}
       </section>
 
       {validationError && (
@@ -173,21 +172,27 @@ export default function ImportFromOr() {
           </h2>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Source</dt>
-            <dd className="font-mono">{parsedPayload.source.name} v{parsedPayload.source.version}</dd>
+            <dd className="font-mono">
+              {parsedPayload.source.name} v{parsedPayload.source.version}
+            </dd>
             <dt className="text-muted-foreground">Exported at</dt>
             <dd className="font-mono">{parsedPayload.source.exportedAt}</dd>
             <dt className="text-muted-foreground">Accounts</dt>
             <dd>
               {parsedPayload.summary.accounts}
               {parsedPayload.summary.accounts > 0 && (
-                <span className="text-xs text-muted-foreground ml-2">(skipped in v1 — use Admin CSV import)</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  (skipped in v1 — use Admin CSV import)
+                </span>
               )}
             </dd>
             <dt className="text-muted-foreground">Contacts</dt>
             <dd>
               {parsedPayload.summary.contacts}
               {parsedPayload.summary.contacts > 0 && (
-                <span className="text-xs text-muted-foreground ml-2">(skipped in v1 — use Contacts CSV import)</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  (skipped in v1 — use Contacts CSV import)
+                </span>
               )}
             </dd>
             <dt className="text-muted-foreground">Journal entries</dt>
@@ -197,16 +202,25 @@ export default function ImportFromOr() {
             <dt className="text-muted-foreground">Manifest files</dt>
             <dd className="text-xs">
               {parsedPayload.manifest.files.map((f, i) => (
-                <div key={i}>{f.name} <span className="text-muted-foreground">({f.sizeBytes.toLocaleString()} bytes)</span></div>
+                <div key={i}>
+                  {f.name}{' '}
+                  <span className="text-muted-foreground">
+                    ({f.sizeBytes.toLocaleString()} bytes)
+                  </span>
+                </div>
               ))}
             </dd>
           </dl>
 
           {parsedPayload.summary.warnings.length > 0 && (
             <div className="mt-4 text-xs">
-              <div className="text-amber-600 font-medium mb-1">{parsedPayload.summary.warnings.length} warning(s):</div>
+              <div className="text-amber-600 font-medium mb-1">
+                {parsedPayload.summary.warnings.length} warning(s):
+              </div>
               <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                {parsedPayload.summary.warnings.slice(0, 10).map((w, i) => <li key={i}>{w}</li>)}
+                {parsedPayload.summary.warnings.slice(0, 10).map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
                 {parsedPayload.summary.warnings.length > 10 && (
                   <li>… +{parsedPayload.summary.warnings.length - 10} more</li>
                 )}
@@ -216,9 +230,13 @@ export default function ImportFromOr() {
 
           {parsedPayload.summary.errors.length > 0 && (
             <div className="mt-4 text-xs">
-              <div className="text-destructive font-medium mb-1">{parsedPayload.summary.errors.length} error(s) in source:</div>
+              <div className="text-destructive font-medium mb-1">
+                {parsedPayload.summary.errors.length} error(s) in source:
+              </div>
               <ul className="list-disc list-inside text-destructive space-y-0.5">
-                {parsedPayload.summary.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                {parsedPayload.summary.errors.slice(0, 10).map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
               </ul>
             </div>
           )}
@@ -227,7 +245,7 @@ export default function ImportFromOr() {
             <Button
               type="button"
               onClick={handleCommit}
-              disabled={committing | parsedPayload.summary.journalEntries === 0}
+              disabled={committing || parsedPayload.summary.journalEntries === 0}
             >
               {committing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Commit {parsedPayload.summary.journalEntries} journal entries
@@ -239,23 +257,33 @@ export default function ImportFromOr() {
       {result && (
         <section
           className={`rounded-md border p-5 mb-6 ${
-            result.status === 'committed' ? 'border-green-500/40 bg-green-500/5' : 'border-destructive/40 bg-destructive/10'
+            result.status === 'committed'
+              ? 'border-green-500/40 bg-green-500/5'
+              : 'border-destructive/40 bg-destructive/10'
           }`}
         >
           <h2 className="text-sm uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
             {result.status === 'committed' ? (
-              <><CheckCircle2 className="w-4 h-4 text-green-600" /> Committed</>
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-600" /> Committed
+              </>
             ) : (
-              <><AlertTriangle className="w-4 h-4 text-destructive" /> Failed</>
+              <>
+                <AlertTriangle className="w-4 h-4 text-destructive" /> Failed
+              </>
             )}
           </h2>
           <div className="text-sm space-y-1">
             <div>
-              <Badge variant="default" className="mr-2">{result.journalEntriesCreated}</Badge>
+              <Badge variant="default" className="mr-2">
+                {result.journalEntriesCreated}
+              </Badge>
               journal entries created
             </div>
             <div>
-              <Badge variant="secondary" className="mr-2">{result.journalLinesCreated}</Badge>
+              <Badge variant="secondary" className="mr-2">
+                {result.journalLinesCreated}
+              </Badge>
               journal lines created
             </div>
             <div className="text-xs text-muted-foreground mt-2 font-mono">
@@ -264,13 +292,18 @@ export default function ImportFromOr() {
           </div>
           {result.errors.length > 0 && (
             <div className="mt-4 text-xs">
-              <div className="font-medium text-destructive mb-1">{result.errors.length} error(s):</div>
+              <div className="font-medium text-destructive mb-1">
+                {result.errors.length} error(s):
+              </div>
               <ul className="list-disc list-inside text-destructive space-y-0.5 max-h-40 overflow-y-auto">
-                {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                {result.errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
               </ul>
               <p className="text-muted-foreground mt-2">
-                To retry after a mapping fix: call <code>purge_import_job_artifacts({result.importJobId})</code>
-                {' '}then re-upload the payload.
+                To retry after a mapping fix: call{' '}
+                <code>purge_import_job_artifacts({result.importJobId})</code> then re-upload the
+                payload.
               </p>
             </div>
           )}

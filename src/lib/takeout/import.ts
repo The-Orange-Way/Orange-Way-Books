@@ -11,10 +11,10 @@ import {
   encryptOrganization,
   encryptAttachment,
 } from '@/lib/crypto-fields';
-// Phase 2 removal: takeout/import no longer provisions legacy ledger backend. Data restore
-// writes Postgres-only. The replayLegacyTemplates and legacy ledger backend-account creation
-// blocks below are stubbed; chart_of_accounts insert path needs follow-up
-// rewiring for the new schema (tracked as Phase 2.5 cleanup).
+// Phase 2 removal: takeout/import no longer provisions any separate ledger
+// or posting templates. Data restore is Postgres-only. The chart_of_accounts
+// insert path still needs follow-up rewiring for the new encrypted schema
+// (tracked as Phase 2.5 cleanup).
 import { TAKEOUT_VERSION, type TakeoutFile, type TakeoutLegacyAccount } from './schema';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
@@ -28,9 +28,10 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
 }
 
 function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
-  if (acct.normal_balance === 'DEBIT' | acct.normal_balance === 'CREDIT') return acct.normal_balance;
+  if (acct.normal_balance === 'DEBIT' || acct.normal_balance === 'CREDIT')
+    return acct.normal_balance;
   const t = acct.account_type.toUpperCase();
-  if (t === 'ASSET' | t === 'EXPENSE') return 'DEBIT';
+  if (t === 'ASSET' || t === 'EXPENSE') return 'DEBIT';
   return 'CREDIT';
 }
 
@@ -40,9 +41,7 @@ function inferNormalBalance(acct: TakeoutLegacyAccount): 'DEBIT' | 'CREDIT' {
  * "Wipe all data" button in Admin.
  *
  * Does NOT delete the organization row itself (you keep the target org
- * to import into). legacy ledger backend ledger state on the server is not touched —
- * the legacy ledger accounts / journal become unreferenced and a subsequent
- * import will create fresh ones.
+ * to import into). Nothing outside Postgres is touched.
  */
 export async function wipeOrgData(orgId: string): Promise<void> {
   // Storage blobs first (so we don't orphan them when we delete metadata).
@@ -60,7 +59,10 @@ export async function wipeOrgData(orgId: string): Promise<void> {
   };
 
   check('attachments', (await supabase.from('attachments').delete().eq('org_id', orgId)).error);
-  check('payment_requests', (await supabase.from('payment_requests').delete().eq('org_id', orgId)).error);
+  check(
+    'payment_requests',
+    (await supabase.from('payment_requests').delete().eq('org_id', orgId)).error,
+  );
   const { data: jes, error: jesQueryErr } = await supabase
     .from('journal_entries')
     .select('id')
@@ -78,36 +80,34 @@ export async function wipeOrgData(orgId: string): Promise<void> {
       (await supabase.from('journal_entry_lines').delete().in('journal_entry_id', batch)).error,
     );
   }
-  check('journal_entries', (await supabase.from('journal_entries').delete().eq('org_id', orgId)).error);
+  check(
+    'journal_entries',
+    (await supabase.from('journal_entries').delete().eq('org_id', orgId)).error,
+  );
   check('transactions', (await supabase.from('transactions').delete().eq('org_id', orgId)).error);
   check('wallets', (await supabase.from('accounts').delete().eq('org_id', orgId)).error);
   check('contacts', (await supabase.from('contacts').delete().eq('org_id', orgId)).error);
-  check('chart_of_accounts', (await supabase.from('chart_of_accounts' as any).delete().eq('org_id', orgId)).error);
-  // Clear the journal link on the org (it'll be re-set on next import).
+  check(
+    'chart_of_accounts',
+    (
+      await supabase
+        .from('chart_of_accounts' as any)
+        .delete()
+        .eq('org_id', orgId)
+    ).error,
+  );
+  // Clear the journal link on the org. Post-Phase-2 nothing re-sets it on
+  // import, so the column stays null; the field is kept for backward
+  // compatibility with older rows.
   check(
     'organization journal link',
-    (await supabase.from('organizations').update({ external_journal_id: null } as any).eq('id', orgId)).error,
+    (
+      await supabase
+        .from('organizations')
+        .update({ external_journal_id: null } as any)
+        .eq('id', orgId)
+    ).error,
   );
-}
-
-const ZKA_TEMPLATE_CODES = [
-  'ZKA_SALE',
-  'ZKA_EXPENSE',
-  'ZKA_PAYMENT_RECEIVED',
-  'ZKA_PAYMENT_SENT',
-  'ZKA_BTC_PURCHASE',
-  'ZKA_BTC_SALE',
-  'ZKA_MANUAL_JE',
-  'ZKA_TRANSFER',
-  'ZKA_LIGHTNING_IN',
-  'ZKA_LIGHTNING_OUT',
-];
-
-// Phase 2 (legacy-ledger removal): replayLegacyTemplates is a no-op. No server-side
-// legacy ledger backend templates exist anymore. The ZKA_TEMPLATE_CODES list is kept for
-// reference but unused.
-async function replayLegacyTemplates(): Promise<void> {
-  // intentionally empty
 }
 
 export interface ImportOptions {
@@ -134,15 +134,11 @@ export interface ImportResult {
  * ZKA note: every row is re-encrypted with the current vault before insert.
  * The plaintext file is held in memory only; no plaintext hits the database.
  *
- * legacy ledger backend: the blind legacy ledger backend ledger is re-created during import so that new
- * transactions work immediately after restore. We create:
- *   1. A fresh blind journal, stored on organizations.external_journal_id
- *   2. One legacy ledger account per chart_of_accounts row (with new UUID ids,
- *      remapped via legacyAccountIdMap)
- *   3. The 10 ZKA_* templates (idempotent — global in legacy ledger backend)
- * Historical transactions are NOT replayed as legacy ledger backend postings; the journal
- * lines in Supabase are the source of truth for reports. New transactions
- * made after the import get posted to legacy ledger backend as normal.
+ * Post-Phase-2 behaviour: the import inserts the takeout's rows directly
+ * into the target org's encrypted Postgres tables, with `account_id` and
+ * related foreign keys remapped to fresh UUIDs. Nothing else is provisioned
+ * server-side; reports read straight from the imported `journal_entry_lines`
+ * (the source of truth) and new transactions post correctly afterwards.
  */
 export async function importTakeoutFile(
   file: TakeoutFile,
@@ -162,9 +158,18 @@ export async function importTakeoutFile(
   // Pre-flight: refuse if org already has data, unless force = true.
   if (!opts.force) {
     const [w, t, j] = await Promise.all([
-      supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
-      supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
-      supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('org_id', targetOrgId),
+      supabase
+        .from('accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
+      supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
+      supabase
+        .from('journal_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', targetOrgId),
     ]);
     const total = (w.count ?? 0) + (t.count ?? 0) + (j.count ?? 0);
     if (total > 0) {
@@ -204,7 +209,7 @@ export async function importTakeoutFile(
   const paymentIdMap = new Map<string, string>();
   data.payment_requests.forEach((p) => paymentIdMap.set(p.id, crypto.randomUUID()));
 
-  // Phase 2 (legacy-ledger removal): legacy ledger backend journal provisioning + template replay
+  // Phase 2 (external-ledger removal): the ledger journal provisioning + template replay
   // both deleted. Data restore is Postgres-only.
 
   // ── Organization name ───────────────────────────────────────────────
@@ -253,7 +258,9 @@ export async function importTakeoutFile(
       },
       encryptText,
     );
-    const newLegacyAccountId = w.legacy_account_id ? legacyAccountIdMap.get(w.legacy_account_id) ?? null : null;
+    const newLegacyAccountId = w.legacy_account_id
+      ? (legacyAccountIdMap.get(w.legacy_account_id) ?? null)
+      : null;
     const { error } = await supabase.from('accounts').insert({
       id: walletIdMap.get(w.id),
       org_id: targetOrgId,
@@ -265,15 +272,14 @@ export async function importTakeoutFile(
     progress('Wallets', walletsInserted, data.wallets.length);
   }
 
-  // ── legacy ledger account map (legacy ledger backend createAccount + Supabase row) ────────────
+  // ── Chart of accounts insert (Postgres-only after Phase 2) ─────────────
   let accountsInserted = 0;
   for (let i = 0; i < data.chart_of_accounts.length; i++) {
     const a = data.chart_of_accounts[i];
     const newLegacyId = legacyAccountIdMap.get(a.legacy_account_id)!;
     const normalBalance = inferNormalBalance(a);
-    // Phase 2 (legacy-ledger removal): legacy ledger backend createAccount deleted. Account row inserted
-    // directly into chart_of_accounts below (TODO follow-up: rewire this
-    // block to use the new encryptChartOfAccount shape).
+    // Post-Phase-2: the row is encrypted with the current vault and inserted
+    // straight into chart_of_accounts. No separate external-ledger call.
     const enc = await encryptChartOfAccount(
       {
         account_name: a.account_name,
@@ -285,7 +291,7 @@ export async function importTakeoutFile(
         // Takeout schema still uses legacy parent_legacy_account_id field name
         // on the JSON file format. Read it then map to new parent_id.
         parent_id: (a as any).parent_legacy_account_id
-          ? legacyAccountIdMap.get((a as any).parent_legacy_account_id) ?? null
+          ? (legacyAccountIdMap.get((a as any).parent_legacy_account_id) ?? null)
           : null,
       },
       encryptText,
@@ -307,8 +313,14 @@ export async function importTakeoutFile(
     const enc = await encryptContact(
       {
         name: c.name,
-        email: c.email, phone: c.phone, type: c.type,
-        street: c.street, city: c.city, state: c.state, zip: c.zip, country: c.country,
+        email: c.email,
+        phone: c.phone,
+        type: c.type,
+        street: c.street,
+        city: c.city,
+        state: c.state,
+        zip: c.zip,
+        country: c.country,
       },
       encryptText,
     );
@@ -342,7 +354,7 @@ export async function importTakeoutFile(
     const { error } = await supabase.from('transactions').insert({
       id: txIdMap.get(t.id),
       org_id: targetOrgId,
-      account_id: t.account_id ? walletIdMap.get(t.account_id) ?? null : null,
+      account_id: t.account_id ? (walletIdMap.get(t.account_id) ?? null) : null,
       date: t.date,
       ...enc,
     } as any);
@@ -406,7 +418,7 @@ export async function importTakeoutFile(
         );
         const newJeId = jeIdMap.get(l.journal_entry_id);
         if (!newJeId) throw new Error(`JE line references missing parent ${l.journal_entry_id}`);
-        const newAccountId = l.account_id ? legacyAccountIdMap.get(l.account_id) ?? null : null;
+        const newAccountId = l.account_id ? (legacyAccountIdMap.get(l.account_id) ?? null) : null;
         return {
           journal_entry_id: newJeId,
           account_id: newAccountId,
@@ -458,8 +470,8 @@ export async function importTakeoutFile(
   for (let i = 0; i < attachments.length; i++) {
     const att = attachments[i];
     progress('Receipts', i, attachments.length);
-    if (!att.content_base64 | !opts.encryptBlob) {
-      // No bytes captured, or no blob-encrypt available — skip without failing the whole import.
+    if (!att.content_base64 || !opts.encryptBlob) {
+      // No bytes captured, or no blob-encrypt available, skip without failing the whole import.
       attachmentsFailed++;
       continue;
     }

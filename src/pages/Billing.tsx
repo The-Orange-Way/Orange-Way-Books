@@ -4,16 +4,25 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from '@/components/ui/card';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import type { FlashPaymentRow } from '@/lib/flash';
 
 type SubscriptionStatus =
-  | 'trialing' | 'active' | 'past_due' | 'read_only' | 'locked' | 'cancelled' | 'deleted';
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'read_only'
+  | 'locked'
+  | 'cancelled'
+  | 'deleted';
 
 interface Subscription {
   id: string;
@@ -89,7 +98,9 @@ export default function Billing() {
     try {
       const { data: subRows, error: subErr } = await supabase
         .from('subscriptions')
-        .select('id, billing_account_id, plan, price_cents, currency, status, trial_ends_at, current_period_end')
+        .select(
+          'id, billing_account_id, plan, price_cents, currency, status, trial_ends_at, current_period_end',
+        )
         .order('created_at', { ascending: false });
       if (subErr) throw new Error(subErr.message);
       setSubs((subRows ?? []) as Subscription[]);
@@ -98,7 +109,9 @@ export default function Billing() {
       if (subIds.length > 0) {
         const { data: payRows } = await supabase
           .from('flash_payments')
-          .select('id, amount_cents, currency, status, flash_payment_link_url, paid_at, created_at, net_cents')
+          .select(
+            'id, amount_cents, currency, status, flash_payment_link_url, paid_at, created_at, net_cents',
+          )
           .in('subscription_id', subIds)
           .order('created_at', { ascending: false })
           .limit(50);
@@ -112,15 +125,18 @@ export default function Billing() {
       // it's safe to call directly. Best-effort; we don't fail the page
       // load if the audit insert can't be written.
       const billingAccountIds = Array.from(
-        new Set((subRows ?? []).map((r: any) => r.billing_account_id).filter(Boolean) as string[])
+        new Set((subRows ?? []).map((r: any) => r.billing_account_id).filter(Boolean) as string[]),
       );
       await Promise.all(
         billingAccountIds.map((id) =>
           (supabase as any)
-            .rpc('log_billing_access', { p_billing_account_id: id, p_access_context: 'billing_page_view' })
+            .rpc('log_billing_access', {
+              p_billing_account_id: id,
+              p_access_context: 'billing_page_view',
+            })
             .then(() => undefined)
-            .catch((err: unknown) => console.warn('billing access log failed', err))
-        )
+            .catch((err: unknown) => console.warn('billing access log failed', err)),
+        ),
       );
     } catch (err) {
       console.error('Billing load failed:', err);
@@ -130,7 +146,9 @@ export default function Billing() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const primarySub = useMemo(() => subs[0] ?? null, [subs]);
 
@@ -166,7 +184,9 @@ export default function Billing() {
     return (
       <div>
         <h1 className="text-2xl font-bold text-foreground mb-1">Billing</h1>
-        <p className="text-sm text-muted-foreground mb-6">No subscription found for your account.</p>
+        <p className="text-sm text-muted-foreground mb-6">
+          No subscription found for your account.
+        </p>
       </div>
     );
   }
@@ -191,7 +211,8 @@ export default function Billing() {
                   Subscription
                 </CardTitle>
                 <CardDescription>
-                  Plan: <strong>{primarySub.plan}</strong> · {formatMoney(primarySub.price_cents, primarySub.currency)} / month
+                  Plan: <strong>{primarySub.plan}</strong> ·{' '}
+                  {formatMoney(primarySub.price_cents, primarySub.currency)} / month
                 </CardDescription>
               </div>
               {statusBadge(primarySub.status)}
@@ -207,7 +228,11 @@ export default function Billing() {
             {primarySub.status === 'past_due' && (
               <div className="flex items-center gap-2 text-sm text-amber-700">
                 <AlertTriangle className="w-4 h-4" />
-                Payment due. Please pay {formatMoney(primarySub.price_cents, primarySub.currency)} to continue.
+                Payment due. Please pay {formatMoney(
+                  primarySub.price_cents,
+                  primarySub.currency,
+                )}{' '}
+                to continue.
               </div>
             )}
             {primarySub.status === 'active' && primarySub.current_period_end && (
@@ -220,7 +245,10 @@ export default function Billing() {
             {showPay && (
               <Button onClick={onPay} disabled={paying}>
                 {paying ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Starting payment…</>
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Starting payment…
+                  </>
                 ) : (
                   <>Pay {formatMoney(primarySub.price_cents, primarySub.currency)} to continue</>
                 )}
@@ -253,7 +281,9 @@ export default function Billing() {
                       <TableCell className="text-sm">
                         {new Date(p.paid_at ?? p.created_at).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-sm">{formatMoney(p.amount_cents, p.currency)}</TableCell>
+                      <TableCell className="text-sm">
+                        {formatMoney(p.amount_cents, p.currency)}
+                      </TableCell>
                       <TableCell>{paymentStatusBadge(p.status)}</TableCell>
                       <TableCell className="text-sm">
                         {p.net_cents != null ? formatMoney(p.net_cents, p.currency) : '—'}

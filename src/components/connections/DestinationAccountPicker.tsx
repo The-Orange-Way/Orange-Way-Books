@@ -45,19 +45,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
-import {
-  decryptWallet,
-  encryptWallet,
-  encryptTransaction,
-} from '@/lib/crypto-fields';
+import { decryptWallet, encryptWallet, encryptTransaction } from '@/lib/crypto-fields';
 import { resolvePinnedRate } from '@/lib/exchange/rate-resolver';
 
 /** Account types matching the existing Accounts.tsx UI. */
@@ -65,12 +57,40 @@ const WALLET_TYPES = ['Exchange', 'Hardware', 'Software', 'Bank', 'Custodial'] a
 
 /** Currencies offered for inline-create. Mirrors Accounts.tsx CURRENCIES. */
 const CURRENCIES = [
-  'BTC', 'SATS',
-  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF',
-  'MXN', 'BRL', 'CLP', 'COP', 'PEN', 'ARS',
-  'SGD', 'HKD', 'INR', 'KRW', 'THB', 'IDR', 'MYR', 'PHP',
-  'NOK', 'SEK', 'DKK', 'CZK', 'PLN', 'HUF', 'TRY',
-  'ILS', 'AED', 'ZAR', 'NZD',
+  'BTC',
+  'SATS',
+  'USD',
+  'EUR',
+  'GBP',
+  'CAD',
+  'AUD',
+  'JPY',
+  'CHF',
+  'MXN',
+  'BRL',
+  'CLP',
+  'COP',
+  'PEN',
+  'ARS',
+  'SGD',
+  'HKD',
+  'INR',
+  'KRW',
+  'THB',
+  'IDR',
+  'MYR',
+  'PHP',
+  'NOK',
+  'SEK',
+  'DKK',
+  'CZK',
+  'PLN',
+  'HUF',
+  'TRY',
+  'ILS',
+  'AED',
+  'ZAR',
+  'NZD',
 ];
 
 export interface SourceWalletPick {
@@ -114,7 +134,7 @@ async function resolveAssetToBtcRate(assetCode: string): Promise<number | null> 
   try {
     const result = await resolvePinnedRate({ source: assetCode, target: 'BTC' });
     if (result.pending) return null;
-    if (!Number.isFinite(result.rate) | result.rate <= 0) return null;
+    if (!Number.isFinite(result.rate) || result.rate <= 0) return null;
     return result.rate;
   } catch (err) {
     console.warn(`[DestinationAccountPicker] rate resolve failed for ${assetCode}→BTC`, err);
@@ -148,42 +168,45 @@ export function DestinationAccountPicker({
 
   const [createOpenForWallet, setCreateOpenForWallet] = useState<string | null>(null);
 
-  const refreshWallets = useMemo(() => async () => {
-    setLoadingWallets(true);
-    setWalletsError(null);
-    try {
-      const { data, error: dbErr } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('created_at', { ascending: false });
-      if (dbErr) throw dbErr;
-      const decrypted = await Promise.all(
-        ((data as any[]) ?? []).map(async (row): Promise<WalletOption | null> => {
-          try {
-            const fields = await decryptWallet(row, decryptText);
-            // No archived column in OWB wallets schema yet; archived state lives
-            // only in local UI state in Accounts.tsx, so we treat all rows as
-            // selectable here.
-            return {
-              id: row.id as string,
-              name: fields.encrypted_name | '[Encrypted]',
-              asset: fields.asset,
-              account_type: fields.account_type,
-              archived: false,
-            };
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setWallets(decrypted.filter((w): w is WalletOption => w !== null));
-    } catch (err) {
-      setWalletsError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoadingWallets(false);
-    }
-  }, [orgId, decryptText]);
+  const refreshWallets = useMemo(
+    () => async () => {
+      setLoadingWallets(true);
+      setWalletsError(null);
+      try {
+        const { data, error: dbErr } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('org_id', orgId)
+          .order('created_at', { ascending: false });
+        if (dbErr) throw dbErr;
+        const decrypted = await Promise.all(
+          ((data as any[]) ?? []).map(async (row): Promise<WalletOption | null> => {
+            try {
+              const fields = await decryptWallet(row, decryptText);
+              // No archived column in OWB wallets schema yet; archived state lives
+              // only in local UI state in Accounts.tsx, so we treat all rows as
+              // selectable here.
+              return {
+                id: row.id as string,
+                name: fields.encrypted_name || '[Encrypted]',
+                asset: fields.asset,
+                account_type: fields.account_type,
+                archived: false,
+              };
+            } catch {
+              return null;
+            }
+          }),
+        );
+        setWallets(decrypted.filter((w): w is WalletOption => w !== null));
+      } catch (err) {
+        setWalletsError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoadingWallets(false);
+      }
+    },
+    [orgId, decryptText],
+  );
 
   useEffect(() => {
     if (open) void refreshWallets();
@@ -229,7 +252,7 @@ export function DestinationAccountPicker({
   // The source wallet being created-for, if any. Used to seed the inline
   // create form's currency from the source wallet's currency.
   const creatingForWallet = createOpenForWallet
-    ? sourceWallets.find((w) => w.external_wallet_id === createOpenForWallet) ?? null
+    ? (sourceWallets.find((w) => w.external_wallet_id === createOpenForWallet) ?? null)
     : null;
 
   return (
@@ -255,8 +278,8 @@ export function DestinationAccountPicker({
           <DialogHeader>
             <DialogTitle>Where should these wallets land?</DialogTitle>
             <DialogDescription>
-              Pick a destination wallet for each source wallet. You can change this
-              later from the connection card.
+              Pick a destination wallet for each source wallet. You can change this later from the
+              connection card.
             </DialogDescription>
           </DialogHeader>
 
@@ -273,14 +296,11 @@ export function DestinationAccountPicker({
               </p>
             ) : (
               sourceWallets.map((w) => (
-                <div
-                  key={w.external_wallet_id}
-                  className="rounded-md border p-3 space-y-2"
-                >
+                <div key={w.external_wallet_id} className="rounded-md border p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">
-                        {w.label | w.currency} wallet
+                        {w.label || w.currency} wallet
                       </div>
                       <div className="text-xs text-muted-foreground font-mono truncate">
                         {w.currency}
@@ -294,14 +314,12 @@ export function DestinationAccountPicker({
                         onValueChange={(v) =>
                           setPicked((prev) => ({ ...prev, [w.external_wallet_id]: v }))
                         }
-                        disabled={loadingWallets | submitting}
+                        disabled={loadingWallets || submitting}
                       >
                         <SelectTrigger>
                           <SelectValue
                             placeholder={
-                              loadingWallets
-                                ? 'Loading wallets…'
-                                : 'Pick a destination wallet'
+                              loadingWallets ? 'Loading wallets…' : 'Pick a destination wallet'
                             }
                           />
                         </SelectTrigger>
@@ -349,8 +367,8 @@ export function DestinationAccountPicker({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Mapping is encrypted in your browser before being saved. OrangeRails and the
-            Orange Way Books server cannot tell which OR wallet maps to which Orange Way Books wallet.
+            Mapping is encrypted in your browser before being saved. OrangeRails and the Orange Way
+            Books server cannot tell which OR wallet maps to which Orange Way Books wallet.
           </p>
 
           {error && (
@@ -360,12 +378,7 @@ export function DestinationAccountPicker({
           )}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onCancel}
-              disabled={submitting}
-            >
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
               Skip for now
             </Button>
             <Button type="button" onClick={handleConfirm} disabled={submitting}>
@@ -385,8 +398,8 @@ export function DestinationAccountPicker({
       {createOpenForWallet && creatingForWallet && (
         <CreateWalletInlineDialog
           orgId={orgId}
-          defaultName={`${creatingForWallet.label | creatingForWallet.currency} wallet`}
-          defaultAsset={creatingForWallet.currency | 'BTC'}
+          defaultName={`${creatingForWallet.label || creatingForWallet.currency} wallet`}
+          defaultAsset={creatingForWallet.currency || 'BTC'}
           onCancel={() => setCreateOpenForWallet(null)}
           onCreated={(newId) => handleCreated(createOpenForWallet, newId)}
         />
@@ -431,7 +444,7 @@ function CreateWalletInlineDialog({
     setError(null);
     setSubmitting(true);
     try {
-      const balance = parseFloat(openingBalanceStr) | 0;
+      const balance = parseFloat(openingBalanceStr) || 0;
 
       // Encrypted insert — same path Accounts.tsx uses for user-created wallets,
       // tagged with connection_type='orangerails' so we can later distinguish
@@ -464,10 +477,16 @@ function CreateWalletInlineDialog({
       try {
         const rate = await resolveAssetToBtcRate(asset);
         if (rate !== null) {
-          await supabase.from('accounts').update({ exchange_rate: rate } as any).eq('id', newId);
+          await supabase
+            .from('accounts')
+            .update({ exchange_rate: rate } as any)
+            .eq('id', newId);
         }
       } catch (rateErr) {
-        console.warn('[DestinationAccountPicker] rate update on create failed (non-fatal):', rateErr);
+        console.warn(
+          '[DestinationAccountPicker] rate update on create failed (non-fatal):',
+          rateErr,
+        );
       }
 
       // Opening balance transaction (only when balance > 0). Mirrors the
@@ -513,7 +532,12 @@ function CreateWalletInlineDialog({
   }
 
   return (
-    <Dialog open onOpenChange={() => { /* close only via explicit Cancel — protect partial input */ }}>
+    <Dialog
+      open
+      onOpenChange={() => {
+        /* close only via explicit Cancel — protect partial input */
+      }}
+    >
       <DialogContent
         className="max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -523,8 +547,8 @@ function CreateWalletInlineDialog({
         <DialogHeader>
           <DialogTitle>Create new wallet</DialogTitle>
           <DialogDescription>
-            This wallet is encrypted in your browser before it leaves. It will appear in
-            your Accounts list alongside the rest.
+            This wallet is encrypted in your browser before it leaves. It will appear in your
+            Accounts list alongside the rest.
           </DialogDescription>
         </DialogHeader>
 
@@ -548,7 +572,9 @@ function CreateWalletInlineDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -561,7 +587,9 @@ function CreateWalletInlineDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {WALLET_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -582,7 +610,8 @@ function CreateWalletInlineDialog({
                   onChange={(e) => setOpeningBalanceStr(e.target.value)}
                   onBlur={() => {
                     const n = parseFloat(openingBalanceStr);
-                    if (!isNaN(n)) setOpeningBalanceStr(asset === 'BTC' ? n.toFixed(8) : n.toFixed(2));
+                    if (!isNaN(n))
+                      setOpeningBalanceStr(asset === 'BTC' ? n.toFixed(8) : n.toFixed(2));
                   }}
                   className="pl-7 text-right font-mono"
                   disabled={submitting}
@@ -628,7 +657,7 @@ function CreateWalletInlineDialog({
           <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={submitting | !name.trim()}>
+          <Button type="button" onClick={handleSave} disabled={submitting || !name.trim()}>
             {submitting ? (
               <>
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />

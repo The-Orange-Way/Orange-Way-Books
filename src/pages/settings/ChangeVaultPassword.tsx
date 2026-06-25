@@ -44,14 +44,16 @@ export default function ChangeVaultPassword() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate('/app');
         return;
       }
       setUserId(user.id);
 
-      const storedOrg = localStorage.getItem('owb_active_org');
+      const storedOrg = localStorage.getItem('orangewaybooks.active_org');
       if (!storedOrg) {
         setError('No active organization selected.');
         setLoading(false);
@@ -65,8 +67,8 @@ export default function ChangeVaultPassword() {
         .eq('org_id', storedOrg)
         .maybeSingle();
 
-      if (!settings | (settings as any).vault_key_version < 4 | !(settings as any).enc_mek_ciphertext) {
-        setError('Password change is only supported for v4 vaults.');
+      if (!settings || !(settings as any).vault_salt || !(settings as any).enc_mek_ciphertext) {
+        setError('Vault is not set up; password change unavailable.');
         setLoading(false);
         return;
       }
@@ -79,7 +81,7 @@ export default function ChangeVaultPassword() {
 
   const matches = newPassword.length > 0 && newPassword === confirm;
   const longEnough = newPassword.length >= MIN_VAULT_PASSWORD_LENGTH;
-  const differentFromCurrent = newPassword !== currentPassword | newPassword.length === 0;
+  const differentFromCurrent = newPassword !== currentPassword || newPassword.length === 0;
   const canSubmit =
     !submitting &&
     !!currentPassword &&
@@ -93,7 +95,7 @@ export default function ChangeVaultPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!orgSalt | !encMekCiphertext | !userId | !orgId) {
+    if (!orgSalt || !encMekCiphertext || !userId || !orgId) {
       setError('Vault metadata missing. Refresh the page.');
       return;
     }
@@ -112,14 +114,18 @@ export default function ChangeVaultPassword() {
 
     setSubmitting(true);
     try {
-      const { newEncMekCiphertext, newRecoveryCode: fresh, newRecoveryCiphertext, newVerifier } =
-        await changeVaultPassword({
-          currentPassword,
-          newPassword,
-          orgSaltB64: orgSalt,
-          encMekCiphertext,
-          userId,
-        });
+      const {
+        newEncMekCiphertext,
+        newRecoveryCode: fresh,
+        newRecoveryCiphertext,
+        newVerifier,
+      } = await changeVaultPassword({
+        currentPassword,
+        newPassword,
+        orgSaltB64: orgSalt,
+        encMekCiphertext,
+        userId,
+      });
 
       const { error: updateErr } = await (supabase as any)
         .from('org_settings')
@@ -178,7 +184,9 @@ export default function ChangeVaultPassword() {
           <div className="grid grid-cols-3 gap-2">
             {words.map((word, i) => (
               <div key={i} className="flex items-center gap-1.5 text-sm">
-                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">{i + 1}.</span>
+                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">
+                  {i + 1}.
+                </span>
                 <span className="font-mono font-medium">{word}</span>
               </div>
             ))}
@@ -195,7 +203,15 @@ export default function ChangeVaultPassword() {
               });
             }}
           >
-            {copied ? <><Check className="w-3 h-3 mr-1" /> Copied</> : <><Copy className="w-3 h-3 mr-1" /> Copy all 12 words</>}
+            {copied ? (
+              <>
+                <Check className="w-3 h-3 mr-1" /> Copied
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3 mr-1" /> Copy all 12 words
+              </>
+            )}
           </Button>
         </div>
 
@@ -238,8 +254,8 @@ export default function ChangeVaultPassword() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Changing your vault password does not re-encrypt your data. Only the key
-        wrapping is rotated, and a fresh recovery code is generated.
+        Changing your vault password does not re-encrypt your data. Only the key wrapping is
+        rotated, and a fresh recovery code is generated.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -284,8 +300,8 @@ export default function ChangeVaultPassword() {
         <div className="flex items-start gap-2 p-3 rounded-md bg-muted">
           <AlertTriangle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            A new 12-word recovery code will be generated after the change. Your old
-            recovery code will stop working.
+            A new 12-word recovery code will be generated after the change. Your old recovery code
+            will stop working.
           </p>
         </div>
 

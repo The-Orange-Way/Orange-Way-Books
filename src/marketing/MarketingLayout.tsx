@@ -60,7 +60,10 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
               </Link>
             ) : (
               <>
-                <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link
+                  to="/login"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Sign in
                 </Link>
                 <Link
@@ -119,7 +122,12 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
               { to: '/docs', label: 'Documentation' },
               { to: '/about', label: 'About' },
               { to: '/contact', label: 'Contact' },
-              { to: 'https://github.com/The-Orange-Way/Orange-Way-Books', label: 'GitHub', external: true },
+              { to: '/privacy', label: 'Privacy' },
+              {
+                to: 'https://github.com/The-Orange-Way/Orange-Way-Books',
+                label: 'GitHub',
+                external: true,
+              },
             ]}
           />
         </div>
@@ -148,7 +156,11 @@ function FooterCol({
         {links.map((l) => (
           <li key={l.to}>
             {l.external ? (
-              <a href={l.to} className="hover:text-foreground transition-colors" rel="noopener noreferrer">
+              <a
+                href={l.to}
+                className="hover:text-foreground transition-colors"
+                rel="noopener noreferrer"
+              >
                 {l.label}
               </a>
             ) : (

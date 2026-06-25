@@ -66,7 +66,7 @@ export class StagedImportValidationError extends Error {
  * Returns the value cast to the contract type on success.
  */
 export function assertStagedImportPayload(value: unknown): StagedImportPayload {
-  if (!value | typeof value !== 'object') {
+  if (!value || typeof value !== 'object') {
     throw new StagedImportValidationError('Payload is not an object');
   }
   const v = value as Record<string, unknown>;
@@ -79,30 +79,32 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
 
   // source
   const source = v.source as Record<string, unknown> | undefined;
-  if (!source | typeof source !== 'object') {
+  if (!source || typeof source !== 'object') {
     throw new StagedImportValidationError('source is required');
   }
   for (const k of ['name', 'version', 'exportedAt'] as const) {
-    if (typeof source[k] !== 'string' | (source[k] as string).length === 0) {
+    if (typeof source[k] !== 'string' || (source[k] as string).length === 0) {
       throw new StagedImportValidationError(`source.${k} must be a non-empty string`);
     }
   }
 
   // manifest
   const manifest = v.manifest as Record<string, unknown> | undefined;
-  if (!manifest | !Array.isArray(manifest.files)) {
+  if (!manifest || !Array.isArray(manifest.files)) {
     throw new StagedImportValidationError('manifest.files must be an array');
   }
   for (let i = 0; i < manifest.files.length; i++) {
     const f = manifest.files[i] as Record<string, unknown>;
-    if (!f | typeof f.name !== 'string' | typeof f.sizeBytes !== 'number') {
-      throw new StagedImportValidationError(`manifest.files[${i}] must have name (string) + sizeBytes (number)`);
+    if (!f || typeof f.name !== 'string' || typeof f.sizeBytes !== 'number') {
+      throw new StagedImportValidationError(
+        `manifest.files[${i}] must have name (string) + sizeBytes (number)`,
+      );
     }
   }
 
   // summary
   const summary = v.summary as Record<string, unknown> | undefined;
-  if (!summary | typeof summary !== 'object') {
+  if (!summary || typeof summary !== 'object') {
     throw new StagedImportValidationError('summary is required');
   }
   for (const k of ['accounts', 'contacts', 'journalEntries', 'journalLines'] as const) {
@@ -110,13 +112,13 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
       throw new StagedImportValidationError(`summary.${k} must be a number`);
     }
   }
-  if (!Array.isArray(summary.warnings) | !Array.isArray(summary.errors)) {
+  if (!Array.isArray(summary.warnings) || !Array.isArray(summary.errors)) {
     throw new StagedImportValidationError('summary.warnings and summary.errors must be arrays');
   }
 
   // staged (all sub-arrays optional, but if present must be arrays of objects)
   const staged = v.staged as Record<string, unknown> | undefined;
-  if (!staged | typeof staged !== 'object') {
+  if (!staged || typeof staged !== 'object') {
     throw new StagedImportValidationError('staged is required');
   }
   for (const k of ['accounts', 'contacts', 'journalEntries'] as const) {
@@ -126,7 +128,7 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
     }
     for (let i = 0; i < (staged[k] as unknown[]).length; i++) {
       const row = (staged[k] as unknown[])[i];
-      if (!row | typeof row !== 'object' | Array.isArray(row)) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
         throw new StagedImportValidationError(`staged.${k}[${i}] must be an object`);
       }
     }
@@ -139,7 +141,7 @@ export function assertStagedImportPayload(value: unknown): StagedImportPayload {
 export function mapSourceToType(name: string): 'wave' | 'quickbooks' | 'orange_rails' | null {
   const lower = name.toLowerCase();
   if (lower === 'wave') return 'wave';
-  if (lower === 'quickbooks' | lower === 'qb' | lower === 'qbo') return 'quickbooks';
-  if (lower === 'orange_rails' | lower === 'or') return 'orange_rails';
+  if (lower === 'quickbooks' || lower === 'qb' || lower === 'qbo') return 'quickbooks';
+  if (lower === 'orange_rails' || lower === 'or') return 'orange_rails';
   return null;
 }

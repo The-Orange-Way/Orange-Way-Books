@@ -48,8 +48,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -62,20 +61,25 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
     const rl = await rateLimit(adminClient, {
-      scope: 'abort-rekey', subject: caller.id,
-      maxPerWindow: 10, windowSeconds: 300,
+      scope: 'abort-rekey',
+      subject: caller.id,
+      maxPerWindow: 10,
+      windowSeconds: 300,
     });
     if (!rl.allowed) {
       return jsonResponse({ error: 'Rate limit exceeded; try again shortly' }, 429, cors);
@@ -84,47 +88,66 @@ serve(async (req) => {
     const raw = await readBoundedText(req);
     if (raw === null) return jsonResponse({ error: 'Request body too large' }, 413, cors);
     let body: { job_id?: unknown; mode?: unknown; reason?: unknown };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw || '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
     const jobId = typeof body.job_id === 'string' ? body.job_id.trim() : '';
     const mode = typeof body.mode === 'string' ? body.mode : '';
     const reason = typeof body.reason === 'string' ? body.reason.slice(0, 512) : null;
-    if (!jobId | !UUID_RE.test(jobId)) {
+    if (!jobId || !UUID_RE.test(jobId)) {
       return jsonResponse({ error: 'job_id is required' }, 400, cors);
     }
     if (mode !== 'abort_in_flight' && mode !== 'rollback_after_complete') {
-      return jsonResponse({ error: 'mode must be abort_in_flight or rollback_after_complete' }, 400, cors);
+      return jsonResponse(
+        { error: 'mode must be abort_in_flight or rollback_after_complete' },
+        400,
+        cors,
+      );
     }
 
     const { data: jobRow, error: jobErr } = await adminClient
       .from('key_rotation_jobs')
-      .select('id, org_id, status, new_dek_key_version, new_osk_key_version, previous_dek_key_version, previous_osk_key_version, rollback_expires_at, started_by')
+      .select(
+        'id, org_id, status, new_dek_key_version, new_osk_key_version, previous_dek_key_version, previous_osk_key_version, rollback_expires_at, started_by',
+      )
       .eq('id', jobId)
       .maybeSingle();
-    if (jobErr | !jobRow) {
+    if (jobErr || !jobRow) {
       return jsonResponse({ error: 'Rotation job not found' }, 404, cors);
     }
     const job = jobRow as {
-      id: string; org_id: string; status: string;
-      new_dek_key_version: number; new_osk_key_version: number;
-      previous_dek_key_version: number | null; previous_osk_key_version: number | null;
-      rollback_expires_at: string | null; started_by: string;
+      id: string;
+      org_id: string;
+      status: string;
+      new_dek_key_version: number;
+      new_osk_key_version: number;
+      previous_dek_key_version: number | null;
+      previous_osk_key_version: number | null;
+      rollback_expires_at: string | null;
+      started_by: string;
     };
 
-    const { data: hasCap } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: job.org_id },
-    );
+    const { data: hasCap } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: job.org_id,
+    });
     if (!hasCap) {
-      return jsonResponse({ error: "You don't have permission to abort this key update." }, 403, cors);
+      return jsonResponse(
+        { error: "You don't have permission to abort this key update." },
+        403,
+        cors,
+      );
     }
 
     if (mode === 'abort_in_flight') {
-      if (job.status === 'complete' | job.status === 'aborted' | job.status === 'rolled_back') {
+      if (job.status === 'complete' || job.status === 'aborted' || job.status === 'rolled_back') {
         return jsonResponse(
           { error: `Job is already in status '${job.status}' — cannot abort.` },
-          409, cors,
+          409,
+          cors,
         );
       }
 
@@ -157,14 +180,16 @@ serve(async (req) => {
 
       // Mark aborted.
       const { error: advErr } = await adminClient.rpc('advance_rotation_job', {
-        p_job_id: job.id, p_new_status: 'aborted',
+        p_job_id: job.id,
+        p_new_status: 'aborted',
       });
       if (advErr) {
         console.error('abort-rekey advance_rotation_job failed:', advErr);
         return jsonResponse({ error: 'Could not record abort state.' }, 500, cors);
       }
       if (reason) {
-        await adminClient.from('key_rotation_jobs')
+        await adminClient
+          .from('key_rotation_jobs')
           .update({ abort_reason: reason })
           .eq('id', job.id);
       }
@@ -175,7 +200,9 @@ serve(async (req) => {
           event: 'rekey.aborted',
           metadata: { job_id: job.id, org_id: job.org_id, reason },
         });
-      } catch { /* non-fatal */ }
+      } catch {
+        /* non-fatal */
+      }
 
       return jsonResponse({ ok: true, status: 'aborted' }, 200, cors);
     }
@@ -184,19 +211,22 @@ serve(async (req) => {
     if (job.status !== 'complete') {
       return jsonResponse(
         { error: `Emergency rollback requires status='complete'; got '${job.status}'.` },
-        409, cors,
+        409,
+        cors,
       );
     }
-    if (!job.rollback_expires_at | new Date(job.rollback_expires_at) < new Date()) {
+    if (!job.rollback_expires_at || new Date(job.rollback_expires_at) < new Date()) {
       return jsonResponse(
         { error: 'The rollback window has expired. The previous keys were purged after 30 days.' },
-        410, cors,
+        410,
+        cors,
       );
     }
-    if (job.previous_dek_key_version === null | job.previous_osk_key_version === null) {
+    if (job.previous_dek_key_version === null || job.previous_osk_key_version === null) {
       return jsonResponse(
         { error: 'This key update has no previous version to roll back to (first-time setup).' },
-        409, cors,
+        409,
+        cors,
       );
     }
 
@@ -206,7 +236,7 @@ serve(async (req) => {
       .update({
         active_dek_key_version: job.previous_dek_key_version,
         active_osk_key_version: job.previous_osk_key_version,
-        last_rotated_at:        new Date().toISOString(),
+        last_rotated_at: new Date().toISOString(),
       })
       .eq('org_id', job.org_id);
     if (activeErr) {
@@ -215,16 +245,15 @@ serve(async (req) => {
     }
 
     const { error: advErr } = await adminClient.rpc('advance_rotation_job', {
-      p_job_id: job.id, p_new_status: 'rolled_back',
+      p_job_id: job.id,
+      p_new_status: 'rolled_back',
     });
     if (advErr) {
       console.error('abort-rekey advance_rotation_job rolled_back failed:', advErr);
       return jsonResponse({ error: 'Could not record rollback state.' }, 500, cors);
     }
     if (reason) {
-      await adminClient.from('key_rotation_jobs')
-        .update({ abort_reason: reason })
-        .eq('id', job.id);
+      await adminClient.from('key_rotation_jobs').update({ abort_reason: reason }).eq('id', job.id);
     }
 
     try {
@@ -232,18 +261,27 @@ serve(async (req) => {
         user_id: caller.id,
         event: 'rekey.rolled_back',
         metadata: {
-          job_id: job.id, org_id: job.org_id, reason,
+          job_id: job.id,
+          org_id: job.org_id,
+          reason,
           restored_dek_key_version: job.previous_dek_key_version,
           restored_osk_key_version: job.previous_osk_key_version,
         },
       });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
 
-    return jsonResponse({
-      ok: true, status: 'rolled_back',
-      active_dek_key_version: job.previous_dek_key_version,
-      active_osk_key_version: job.previous_osk_key_version,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        ok: true,
+        status: 'rolled_back',
+        active_dek_key_version: job.previous_dek_key_version,
+        active_osk_key_version: job.previous_osk_key_version,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('abort-rekey error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

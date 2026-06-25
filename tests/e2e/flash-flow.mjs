@@ -18,20 +18,20 @@ import { mkdir, writeFile, readFileSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 
-const SUPABASE_URL  = process.env.V3_DEV_SUPABASE_URL | process.env.SUPABASE_URL;
-const SERVICE_KEY   = process.env.V3_DEV_SUPABASE_SERVICE_KEY | process.env.SUPABASE_SERVICE_KEY;
-const ANON_KEY      = process.env.V3_DEV_SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
+const SERVICE_KEY = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const ANON_KEY = process.env.V3_DEV_SUPABASE_ANON_KEY;
 const WEBHOOK_SECRET = process.env.FLASH_WEBHOOK_SECRET;
 const OUTLINE_TOKEN = process.env.OUTLINE_API_TOKEN;
-const OUTLINE_BASE  = process.env.OUTLINE_BASE_URL | 'https://wiki.example.com';
-const APP_URL       = 'https://dev.books.orangeway.app';
-const RUN_ID        = new Date().toISOString().replace(/[:.]/g, '-');
-const OUT_DIR       = `/tmp/v3-flash-e2e-${RUN_ID}`;
-const TEST_EMAIL    = `e2e+flash+${RUN_ID}@owb.test`;
+const OUTLINE_BASE = process.env.OUTLINE_BASE_URL || 'https://wiki.example.com';
+const APP_URL = 'https://books.orangeway.dev';
+const RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');
+const OUT_DIR = `/tmp/v3-flash-e2e-${RUN_ID}`;
+const TEST_EMAIL = `e2e+flash+${RUN_ID}@owb.test`;
 const TEST_PASSWORD = `Test-${RUN_ID}!Strong#1`;
 const VAULT_PASSWORD = `Vault-${RUN_ID}!Phrase#2`;
 
-if (!SUPABASE_URL | !SERVICE_KEY | !ANON_KEY | !WEBHOOK_SECRET | !OUTLINE_TOKEN) {
+if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY || !WEBHOOK_SECRET || !OUTLINE_TOKEN) {
   console.error('Missing required env vars.');
   console.error(' Have SUPABASE_URL?', !!SUPABASE_URL);
   console.error(' Have SERVICE_KEY?', !!SERVICE_KEY);
@@ -44,7 +44,7 @@ if (!SUPABASE_URL | !SERVICE_KEY | !ANON_KEY | !WEBHOOK_SECRET | !OUTLINE_TOKEN)
 await fs.mkdir(OUT_DIR, { recursive: true });
 const shots = [];
 async function shot(page, label, caption) {
-  const filename = `${String(shots.length + 1).padStart(2,'0')}-${label}.png`;
+  const filename = `${String(shots.length + 1).padStart(2, '0')}-${label}.png`;
   const path = join(OUT_DIR, filename);
   await page.screenshot({ path, fullPage: true });
   shots.push({ label, filename, path, caption });
@@ -55,7 +55,11 @@ async function shot(page, label, caption) {
 console.log('🧹 clearing flash_platform_tokens singleton');
 const wipeResp = await fetch(`${SUPABASE_URL}/rest/v1/flash_platform_tokens?id=eq.singleton`, {
   method: 'DELETE',
-  headers: { 'Authorization': `Bearer ${SERVICE_KEY}`, 'apikey': SERVICE_KEY, 'Prefer': 'return=minimal' },
+  headers: {
+    Authorization: `Bearer ${SERVICE_KEY}`,
+    apikey: SERVICE_KEY,
+    Prefer: 'return=minimal',
+  },
 });
 console.log(`   wipe status: ${wipeResp.status}`);
 
@@ -64,14 +68,17 @@ console.log(`\n🧑 admin-creating user: ${TEST_EMAIL}`);
 const adminResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${SERVICE_KEY}`,
-    'apikey': SERVICE_KEY,
+    Authorization: `Bearer ${SERVICE_KEY}`,
+    apikey: SERVICE_KEY,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, email_confirm: true }),
 });
 const created = await adminResp.json();
-if (!adminResp.ok) { console.error('admin createUser failed', created); process.exit(3); }
+if (!adminResp.ok) {
+  console.error('admin createUser failed', created);
+  process.exit(3);
+}
 console.log(`   user id: ${created.id}`);
 
 // ─── 2. Browser ─────────────────────────────────────────────────────────────
@@ -157,8 +164,8 @@ await ctx.route('**/mark-as-paid', async (route) => {
   // Just redirect back to the billing page.
   await route.fulfill({
     status: 303,
-    headers: { 'Location': `${APP_URL}/app/billing` },
-    body: ''
+    headers: { Location: `${APP_URL}/app/billing` },
+    body: '',
   });
 });
 
@@ -168,10 +175,13 @@ try {
   // ─── Step 1: Auth page + sign in ──────────────────────────────────────────
   await page.goto(`${APP_URL}/app/auth`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2000);
-  await shot(page, 'auth-page', 'Sign-in page on dev.books.orangeway.app (Orange Way Books).');
+  await shot(page, 'auth-page', 'Sign-in page on books.orangeway.dev (Orange Way Books).');
   await page.fill('input[type="email"]', TEST_EMAIL);
   await page.fill('input[type="password"]', TEST_PASSWORD);
-  await page.locator('button:has-text("Sign in"), button:has-text("Log in"), button[type="submit"]').first().click();
+  await page
+    .locator('button:has-text("Sign in"), button:has-text("Log in"), button[type="submit"]')
+    .first()
+    .click();
   await page.waitForURL(/\/app(\/.*)?$/, { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
@@ -179,11 +189,17 @@ try {
   await page.locator('input[type="password"]').first().fill(VAULT_PASSWORD);
   const passInputs = await page.locator('input[type="password"]').all();
   if (passInputs.length > 1) await passInputs[1].fill(VAULT_PASSWORD);
-  await page.locator('button:has-text("Continue"), button:has-text("Next"), button[type="submit"]').first().click();
+  await page
+    .locator('button:has-text("Continue"), button:has-text("Next"), button[type="submit"]')
+    .first()
+    .click();
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
 
   await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30000 }).catch(() => {});
-  await page.locator('label:has-text("I have saved my recovery code")').click().catch(() => {});
+  await page
+    .locator('label:has-text("I have saved my recovery code")')
+    .click()
+    .catch(() => {});
   await page.waitForTimeout(500);
   await page.locator('button:has-text("Continue")').first().click();
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
@@ -198,32 +214,59 @@ try {
   await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
   // ─── Step 5: Create org ───────────────────────────────────────────────────
-  await page.locator('button:has-text("Create Organization"), button:has-text("Create"), button:has-text("Finish")').first().click();
+  await page
+    .locator(
+      'button:has-text("Create Organization"), button:has-text("Create"), button:has-text("Finish")',
+    )
+    .first()
+    .click();
   // Wait for the wizard to disappear (no more "Set Up Orange Way Books" heading).
   // The wizard renders at /app so URL doesn't change — must detect by content.
-  await page.locator('text=Set Up Orange Way Books').waitFor({ state: 'detached', timeout: 60000 }).catch(() => {});
+  await page
+    .locator('text=Set Up Orange Way Books')
+    .waitFor({ state: 'detached', timeout: 60000 })
+    .catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(3000);
-  await shot(page, 'dashboard', 'Dashboard after signup completes. Behind the scenes, the signup hook auto-created a billing_account and a trialing subscription with trial_ends_at = now + 45 days.');
+  await shot(
+    page,
+    'dashboard',
+    'Dashboard after signup completes. Behind the scenes, the signup hook auto-created a billing_account and a trialing subscription with trial_ends_at = now + 45 days.',
+  );
 
   // ─── Step 6: /app/billing — trialing state ────────────────────────────────
   await page.goto(`${APP_URL}/app/billing`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   await unlockVaultIfNeeded(page);
   await unlockVaultIfNeeded(page);
-  await shot(page, 'billing-trial', 'Billing page during the 45-day free trial. No payment required yet — trial countdown is visible.');
+  await shot(
+    page,
+    'billing-trial',
+    'Billing page during the 45-day free trial. No payment required yet — trial countdown is visible.',
+  );
 
   // ─── Step 7: Admin Flash page — Not connected ─────────────────────────────
   await page.goto(`${APP_URL}/app/admin/flash`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
   await unlockVaultIfNeeded(page);
-  await shot(page, 'admin-flash-empty', 'Admin "Pay with Flash" page before connecting. The OWNER sees the "Connect Flash" button. Connection status pulled from the flash-status edge function.');
+  await shot(
+    page,
+    'admin-flash-empty',
+    'Admin "Pay with Flash" page before connecting. The OWNER sees the "Connect Flash" button. Connection status pulled from the flash-status edge function.',
+  );
 
   // ─── Step 8: Click Connect Flash → mock Flash authorize page ──────────────
-  await page.locator('button:has-text("Connect Flash"), button:has-text("Reconnect")').first().click();
+  await page
+    .locator('button:has-text("Connect Flash"), button:has-text("Reconnect")')
+    .first()
+    .click();
   await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(1500);
-  await shot(page, 'flash-authorize-mock', 'Mocked Flash OAuth authorize page (Playwright intercept). In production this is Flash\'s real authorize URL. Note the state, redirect URI, and scope — these match the spec Bram published.');
+  await shot(
+    page,
+    'flash-authorize-mock',
+    "Mocked Flash OAuth authorize page (Playwright intercept). In production this is Flash's real authorize URL. Note the state, redirect URI, and scope — these match the spec Bram published.",
+  );
 
   // ─── Step 9: Approve → return to Orange Way Books → callback → connected ──────────
   await page.locator('button:has-text("Approve")').first().click();
@@ -232,7 +275,11 @@ try {
   await page.waitForTimeout(3000);
   await unlockVaultIfNeeded(page);
   await page.waitForTimeout(2000);
-  await shot(page, 'admin-flash-connected', 'After OAuth approve, Orange Way Books exchanges the code for tokens via the flash-oauth-callback edge function (MOCK_FLASH=true returns fake tokens for now) and stores them server-side. Admin page now shows "Connected ✓".');
+  await shot(
+    page,
+    'admin-flash-connected',
+    'After OAuth approve, Orange Way Books exchanges the code for tokens via the flash-oauth-callback edge function (MOCK_FLASH=true returns fake tokens for now) and stores them server-side. Admin page now shows "Connected ✓".',
+  );
 
   // ─── Step 10: Back to /app/billing — Pay $30 button ───────────────────────
   // Trial is still active so the Pay button may not be primary yet. For
@@ -241,10 +288,16 @@ try {
   await page.waitForTimeout(2000);
   await unlockVaultIfNeeded(page);
   await unlockVaultIfNeeded(page);
-  await shot(page, 'billing-after-connect', 'Billing page after Flash is connected. Customers see the "Pay $30" button to extend their subscription. (During trial the button may be secondary; trial-expiry test path requires backdating the subscription.)');
+  await shot(
+    page,
+    'billing-after-connect',
+    'Billing page after Flash is connected. Customers see the "Pay $30" button to extend their subscription. (During trial the button may be secondary; trial-expiry test path requires backdating the subscription.)',
+  );
 
   // ─── Step 11: Try to click Pay $30 if visible ─────────────────────────────
-  const payBtn = page.locator('button:has-text("Pay $30"), button:has-text("Pay"):has-text("$30")').first();
+  const payBtn = page
+    .locator('button:has-text("Pay $30"), button:has-text("Pay"):has-text("$30")')
+    .first();
   const payVisible = await payBtn.isVisible().catch(() => false);
   if (payVisible) {
     // Capture the request to the create-flash-payment function so we can
@@ -253,7 +306,7 @@ try {
       if (resp.url().includes('/functions/v1/create-flash-payment')) {
         try {
           const body = await resp.json();
-          if (body?.externalReference | body?.external_reference) {
+          if (body?.externalReference || body?.external_reference) {
             lastPaymentExternalRef = body.externalReference | body.external_reference;
           }
         } catch {}
@@ -262,7 +315,11 @@ try {
 
     await payBtn.click();
     await page.waitForTimeout(3000);
-    await shot(page, 'flash-checkout-mock', 'Mocked Flash payment-link page (Playwright intercept). In production, this would be Flash\'s real checkout page where the customer pays via Lightning or another rail.');
+    await shot(
+      page,
+      'flash-checkout-mock',
+      "Mocked Flash payment-link page (Playwright intercept). In production, this would be Flash's real checkout page where the customer pays via Lightning or another rail.",
+    );
 
     // Click the mock "Mark as paid" button — triggers our route handler.
     const markBtn = page.locator('button:has-text("Mark as paid")').first();
@@ -288,7 +345,7 @@ try {
           headers: {
             'Content-Type': 'application/json',
             'X-Flash-Signature': sig,
-            'Authorization': `Bearer ${ANON_KEY}`,
+            Authorization: `Bearer ${ANON_KEY}`,
           },
           body: payload,
         });
@@ -296,7 +353,11 @@ try {
 
         await page.goto(`${APP_URL}/app/billing`, { waitUntil: 'networkidle' });
         await page.waitForTimeout(2000);
-        await shot(page, 'billing-active', 'Billing page after the HMAC-signed webhook arrived from "Flash". The subscription flipped to active with the renewal date set 30 days out.');
+        await shot(
+          page,
+          'billing-active',
+          'Billing page after the HMAC-signed webhook arrived from "Flash". The subscription flipped to active with the renewal date set 30 days out.',
+        );
       }
     }
   } else {
@@ -305,10 +366,10 @@ try {
       label: 'pay-flow-skipped',
       filename: 'pay-flow-skipped.txt',
       path: null,
-      caption: 'Pay $30 flow skipped: trial is still active and the button only shows post-expiry. To demo it for Bram, backdate the trialing subscription via service-role SQL and re-run.'
+      caption:
+        'Pay $30 flow skipped: trial is still active and the button only shows post-expiry. To demo it for Bram, backdate the trialing subscription via service-role SQL and re-run.',
     });
   }
-
 } catch (e) {
   console.error('FLOW FAILED:', e.message);
   await shot(page, 'FAIL-final-state', `Failure: ${e.message}`).catch(() => {});
@@ -318,18 +379,30 @@ try {
 
 // ─── Save summary + upload to Outline ───────────────────────────────────────
 const totalMs = Date.now() - start;
-console.log(`\n📝 ${shots.length} screenshots in ${(totalMs/1000).toFixed(1)}s — uploading to Outline…`);
+console.log(
+  `\n📝 ${shots.length} screenshots in ${(totalMs / 1000).toFixed(1)}s — uploading to Outline…`,
+);
 
 const uploaded = [];
 for (const s of shots) {
-  if (!s.path) { uploaded.push({ ...s, url: null }); continue; }
+  if (!s.path) {
+    uploaded.push({ ...s, url: null });
+    continue;
+  }
   const body = readFileSync(s.path);
   const create = await fetch(`${OUTLINE_BASE}/api/attachments.create`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${OUTLINE_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: s.filename, contentType: 'image/png', size: body.length, preset: 'documentAttachment' }),
-  }).then(r => r.json()).catch(e => ({ error: e.message }));
-  if (create.error | !create.data) {
+    body: JSON.stringify({
+      name: s.filename,
+      contentType: 'image/png',
+      size: body.length,
+      preset: 'documentAttachment',
+    }),
+  })
+    .then((r) => r.json())
+    .catch((e) => ({ error: e.message }));
+  if (create.error || !create.data) {
     console.error(`   ❌ ${s.filename}: ${JSON.stringify(create).slice(0, 200)}`);
     uploaded.push({ ...s, url: null });
     continue;
@@ -340,7 +413,11 @@ for (const s of shots) {
   const uploadUrl = create.data.uploadUrl.startsWith('http')
     ? create.data.uploadUrl
     : `${OUTLINE_BASE}${create.data.uploadUrl}`;
-  const up = await fetch(uploadUrl, { method: 'POST', body: form, headers: { Authorization: `Bearer ${OUTLINE_TOKEN}` } }).catch(e => ({ ok: false }));
+  const up = await fetch(uploadUrl, {
+    method: 'POST',
+    body: form,
+    headers: { Authorization: `Bearer ${OUTLINE_TOKEN}` },
+  }).catch((e) => ({ ok: false }));
   uploaded.push({ ...s, url: up.ok ? create.data.attachment.url : null });
   console.log(`   ${up.ok ? '✅' : '❌'} ${s.filename}`);
 }
@@ -350,7 +427,7 @@ const doc = `# Pay with Flash — E2E walkthrough — ${RUN_ID}
 > Automated Playwright run against ${APP_URL} (orangewaybooks-dev, project ref pfoywzsziessalioerlg). MOCK_FLASH=true on the lab dev edge functions, so the OAuth + payment-link round trips return deterministic mock values while we wait for Bram's real Flash credentials.
 
 **Test user:** \`${TEST_EMAIL}\`
-**Run time:** ${(totalMs/1000).toFixed(1)}s
+**Run time:** ${(totalMs / 1000).toFixed(1)}s
 **Captured ${shots.length} steps.**
 
 ## What this proves
@@ -375,10 +452,12 @@ Everything Flash hasn't shared yet is a single constant or env var:
 
 ## Walkthrough
 
-${uploaded.map(u => `### ${u.label}\n\n${u.url ? `![${u.label}](${u.url})` : `\`${u.filename}\``}\n\n${u.caption | ''}\n`).join('\n')}
+${uploaded.map((u) => `### ${u.label}\n\n${u.url ? `![${u.label}](${u.url})` : `\`${u.filename}\``}\n\n${u.caption || ''}\n`).join('\n')}
 `;
 
 const docPath = join(OUT_DIR, 'outline-doc.md');
 await fs.writeFile(docPath, doc);
 console.log(`\n📄 outline doc written to ${docPath}`);
-console.log(`Next: outline upsert "Product Development/💎 V3 Orange Way Books/E2E runs/Pay with Flash ${RUN_ID}" ${docPath}`);
+console.log(
+  `Next: outline upsert "Product Development/💎 V3 Orange Way Books/E2E runs/Pay with Flash ${RUN_ID}" ${docPath}`,
+);

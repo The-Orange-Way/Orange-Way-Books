@@ -4,7 +4,7 @@ import { formatNumericForCsvCell } from '@/lib/exports/format-numeric-csv';
  * Generic CSV download (UTF-8 BOM + Excel-friendly number cells), aligned with the Orange Way Books reporting layer.
  *
  * **ZKA:** Runs entirely in the browser. The CSV string is never uploaded to Supabase
- * or legacy ledger backend; the user gets a local file after data was decrypted in-tab (vault unlock).
+ * or the ledger; the user gets a local file after data was decrypted in-tab (vault unlock).
  */
 export function exportToCsv(
   filename: string,
@@ -16,7 +16,7 @@ export function exportToCsv(
       return '';
     }
     const str = typeof val === 'number' ? formatNumericForCsvCell(val) : String(val);
-    if (str.includes(',') | str.includes('"') | str.includes('\n')) {
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;

@@ -49,8 +49,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
 // Cap wraps per mint so a pathological client can't submit 10,000 rows
@@ -66,7 +65,7 @@ interface OskWrapInput {
 }
 
 function isValidWrap(v: unknown): v is OskWrapInput {
-  if (!v | typeof v !== 'object') return false;
+  if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.user_id === 'string' &&
@@ -98,14 +97,17 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -131,29 +133,34 @@ serve(async (req) => {
       wraps?: unknown;
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
     const orgId = typeof body.org_id === 'string' ? body.org_id.trim() : '';
-    if (!orgId | !UUID_RE.test(orgId)) {
+    if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
 
     const publicKeyB64 = typeof body.public_key_b64 === 'string' ? body.public_key_b64 : '';
-    if (!publicKeyB64 | !BASE64_RE.test(publicKeyB64) | publicKeyB64.length < 100) {
-      return jsonResponse({ error: 'public_key_b64 must be a base64 ML-DSA-65 public key' }, 400, cors);
+    if (!publicKeyB64 || !BASE64_RE.test(publicKeyB64) || publicKeyB64.length < 100) {
+      return jsonResponse(
+        { error: 'public_key_b64 must be a base64 ML-DSA-65 public key' },
+        400,
+        cors,
+      );
     }
 
     const keyVersion = typeof body.key_version === 'number' ? body.key_version : 1;
-    if (!Number.isInteger(keyVersion) | keyVersion < 1) {
+    if (!Number.isInteger(keyVersion) || keyVersion < 1) {
       return jsonResponse({ error: 'key_version must be a positive integer' }, 400, cors);
     }
 
-    const algorithm = typeof body.algorithm === 'string' && body.algorithm.length > 0
-      ? body.algorithm
-      : 'ml-dsa-65';
+    const algorithm =
+      typeof body.algorithm === 'string' && body.algorithm.length > 0
+        ? body.algorithm
+        : 'ml-dsa-65';
 
     if (!Array.isArray(body.wraps)) {
       return jsonResponse({ error: 'wraps must be an array' }, 400, cors);
@@ -173,17 +180,19 @@ serve(async (req) => {
       if (w.key_version !== keyVersion) {
         return jsonResponse(
           { error: `wraps[${i}].key_version must match the top-level key_version (${keyVersion})` },
-          400, cors,
+          400,
+          cors,
         );
       }
       wraps.push(w);
     }
 
     // Caller must hold users.invite in this org.
-    const { data: hasCap, error: capErr } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: orgId },
-    );
+    const { data: hasCap, error: capErr } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: orgId,
+    });
     if (capErr) {
       console.error('mint-org-signing-key capability check failed:', capErr);
       return jsonResponse({ error: 'Failed to authorize caller' }, 500, cors);
@@ -191,7 +200,8 @@ serve(async (req) => {
     if (!hasCap) {
       return jsonResponse(
         { error: "You don't have permission to mint the Org Signing Key." },
-        403, cors,
+        403,
+        cors,
       );
     }
 
@@ -205,17 +215,20 @@ serve(async (req) => {
       .maybeSingle();
     if (existingKey) {
       return jsonResponse(
-        { error: `An Org Signing Key already exists at key_version ${keyVersion}. Use a new version to rotate.` },
-        409, cors,
+        {
+          error: `An Org Signing Key already exists at key_version ${keyVersion}. Use a new version to rotate.`,
+        },
+        409,
+        cors,
       );
     }
 
     const { error: keyInsertErr } = await adminClient.from('org_signing_keys').insert({
-      org_id:         orgId,
-      key_version:    keyVersion,
+      org_id: orgId,
+      key_version: keyVersion,
       public_key_b64: publicKeyB64,
       algorithm,
-      created_by:     caller.id,
+      created_by: caller.id,
     });
     if (keyInsertErr) {
       console.error('mint-org-signing-key insert public key failed:', keyInsertErr);
@@ -225,12 +238,12 @@ serve(async (req) => {
     // Insert per-recipient wraps. Idempotent (upsert) so a partial
     // previous mint can be resumed without manual cleanup.
     const wrapRows = wraps.map((w) => ({
-      user_id:             w.user_id,
-      org_id:              orgId,
-      key_version:         w.key_version,
+      user_id: w.user_id,
+      org_id: orgId,
+      key_version: w.key_version,
       wrapped_private_key: w.wrapped_private_key,
-      wrap_algo:           w.wrap_algo,
-      iv:                  w.iv,
+      wrap_algo: w.wrap_algo,
+      iv: w.iv,
     }));
 
     const { error: wrapInsertErr } = await adminClient
@@ -239,7 +252,8 @@ serve(async (req) => {
     if (wrapInsertErr) {
       console.error('mint-org-signing-key insert wraps failed:', wrapInsertErr);
       // Roll back the public key row so a retry can start clean.
-      await adminClient.from('org_signing_keys')
+      await adminClient
+        .from('org_signing_keys')
         .delete()
         .eq('org_id', orgId)
         .eq('key_version', keyVersion);
@@ -252,22 +266,26 @@ serve(async (req) => {
         user_id: caller.id,
         event: 'org.signing_key_minted',
         metadata: {
-          org_id:      orgId,
+          org_id: orgId,
           key_version: keyVersion,
           algorithm,
-          wrap_count:  wraps.length,
+          wrap_count: wraps.length,
         },
       });
     } catch (err) {
       console.warn('mint-org-signing-key audit insert threw:', err);
     }
 
-    return jsonResponse({
-      ok: true,
-      org_id: orgId,
-      key_version: keyVersion,
-      wrap_count: wraps.length,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        ok: true,
+        org_id: orgId,
+        key_version: keyVersion,
+        wrap_count: wraps.length,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('mint-org-signing-key error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

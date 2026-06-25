@@ -11,12 +11,12 @@
  * to the `Event` union.
  */
 
-export type EventType = "sync.completed";
+export type EventType = 'sync.completed';
 
 export interface SyncCompletedEvent {
   /** UUID per delivery. Use for consumer-side dedupe. */
   id: string;
-  type: "sync.completed";
+  type: 'sync.completed';
   data: {
     subaccount_id: string;
     connection_id: string;

@@ -26,7 +26,7 @@ import {
   HYBRID_KEM_SECRET_KEY_BYTES,
   hybridEncapsulate,
   hybridDecapsulate,
-} from "./pqc";
+} from './pqc';
 
 // ------------------------------------------------------------------
 // Strategy contract — consumers depend on this, not on hybrid.
@@ -52,11 +52,11 @@ const DATA_KEY_CIPHERTEXT_BYTES = DATA_KEY_BYTES + AES_GCM_TAG_BYTES; // 48
 
 async function importAesKey(rawBytes: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey(
-    "raw",
+    'raw',
     rawBytes as BufferSource,
-    { name: "AES-GCM" },
+    { name: 'AES-GCM' },
     /* extractable */ false,
-    ["encrypt", "decrypt"],
+    ['encrypt', 'decrypt'],
   );
 }
 
@@ -66,7 +66,7 @@ async function aesGcmEncrypt(
   plaintext: Uint8Array,
 ): Promise<Uint8Array> {
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
     plaintext as BufferSource,
   );
@@ -79,7 +79,7 @@ async function aesGcmDecrypt(
   ciphertext: Uint8Array,
 ): Promise<Uint8Array> {
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
     ciphertext as BufferSource,
   );
@@ -103,7 +103,7 @@ function concat(...parts: Uint8Array[]): Uint8Array {
 // ------------------------------------------------------------------
 
 const hybridX25519MlKem768Strategy: KeyWrapStrategy = Object.freeze({
-  algorithm: "hybrid-x25519-mlkem768",
+  algorithm: 'hybrid-x25519-mlkem768',
 
   async wrapForRecipient(dataKey: Uint8Array, recipientPublicKey: Uint8Array): Promise<Uint8Array> {
     if (dataKey.length !== DATA_KEY_BYTES) {
@@ -154,10 +154,10 @@ const hybridX25519MlKem768Strategy: KeyWrapStrategy = Object.freeze({
 // ------------------------------------------------------------------
 
 export const KEY_WRAP_STRATEGIES: Readonly<Record<string, KeyWrapStrategy>> = Object.freeze({
-  "hybrid-x25519-mlkem768": hybridX25519MlKem768Strategy,
+  'hybrid-x25519-mlkem768': hybridX25519MlKem768Strategy,
 });
 
-export const DEFAULT_WRAP_ALGORITHM = "hybrid-x25519-mlkem768";
+export const DEFAULT_WRAP_ALGORITHM = 'hybrid-x25519-mlkem768';
 
 // ------------------------------------------------------------------
 // Orchestrator — fan out a data key to recipients, returning rows
@@ -176,7 +176,7 @@ export interface WrapRecipient {
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
+  let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary);
 }
