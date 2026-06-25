@@ -21,17 +21,20 @@ const FRAMEWORK_OPTIONS: { value: AuditFramework; label: string; description: st
   {
     value: 'IFRS',
     label: 'IFRS',
-    description: 'IAS 21 — The Effects of Changes in Foreign Exchange Rates. Default for companies outside the United States.',
+    description:
+      'IAS 21 — The Effects of Changes in Foreign Exchange Rates. Default for companies outside the United States.',
   },
   {
     value: 'US_GAAP',
     label: 'US GAAP',
-    description: 'ASC 830 — Foreign Currency Matters. Required for US-registered entities filing under GAAP.',
+    description:
+      'ASC 830 — Foreign Currency Matters. Required for US-registered entities filing under GAAP.',
   },
   {
     value: 'IFRS_AND_GAAP',
     label: 'IFRS + US GAAP (Dual)',
-    description: 'Report under both standards simultaneously. Suitable for multinationals or entities with dual audit requirements.',
+    description:
+      'Report under both standards simultaneously. Suitable for multinationals or entities with dual audit requirements.',
   },
 ];
 
@@ -39,23 +42,28 @@ const TRANSLATION_OPTIONS: { value: FxTranslationMethod; label: string; descript
   {
     value: 'historical-per-transaction',
     label: 'Historical rate per transaction',
-    description: 'Each line uses the rate pinned at posting date. Most precise; required for formal IFRS/GAAP statements. Default.',
+    description:
+      'Each line uses the rate pinned at posting date. Most precise; required for formal IFRS/GAAP statements. Default.',
   },
   {
     value: 'closing-rate',
     label: 'Closing rate',
-    description: 'All amounts translated at the balance-sheet date rate. Simplified view. Suitable for dashboards.',
+    description:
+      'All amounts translated at the balance-sheet date rate. Simplified view. Suitable for dashboards.',
   },
   {
     value: 'period-average',
     label: 'Period-average rate',
-    description: 'Income statement lines use average rate over the reporting period. Common in GAAP consolidated reporting.',
+    description:
+      'Income statement lines use average rate over the reporting period. Common in GAAP consolidated reporting.',
   },
 ];
 
 export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
   const [framework, setFramework] = useState<AuditFramework>('IFRS');
-  const [translationMethod, setTranslationMethod] = useState<FxTranslationMethod>('historical-per-transaction');
+  const [translationMethod, setTranslationMethod] = useState<FxTranslationMethod>(
+    'historical-per-transaction',
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -69,8 +77,11 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
-          setFramework(((data as any).accounting_framework as AuditFramework) | 'IFRS');
-          setTranslationMethod(((data as any).fx_translation_method as FxTranslationMethod) | 'historical-per-transaction');
+          setFramework(((data as any).accounting_framework as AuditFramework) || 'IFRS');
+          setTranslationMethod(
+            ((data as any).fx_translation_method as FxTranslationMethod) ||
+              'historical-per-transaction',
+          );
         }
         setLoading(false);
       });
@@ -80,9 +91,14 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
     if (!orgId) return;
     setSaving(true);
     setSaved(false);
-    const { error } = await supabase
-      .from('org_settings')
-      .upsert({ org_id: orgId, accounting_framework: framework, fx_translation_method: translationMethod } as any, { onConflict: 'org_id' });
+    const { error } = await supabase.from('org_settings').upsert(
+      {
+        org_id: orgId,
+        accounting_framework: framework,
+        fx_translation_method: translationMethod,
+      } as any,
+      { onConflict: 'org_id' },
+    );
     setSaving(false);
     if (error) {
       toast.error('Failed to save: ' + error.message);
@@ -94,7 +110,11 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
   };
 
   if (loading) {
-    return <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>;
+    return (
+      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+      </div>
+    );
   }
 
   return (
@@ -102,7 +122,8 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
       <div>
         <h3 className="text-base font-semibold">Accounting Framework</h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Determines which standard governs FX remeasurement, revaluation disclosures, and audit-compliance footnotes on exported reports.
+          Determines which standard governs FX remeasurement, revaluation disclosures, and
+          audit-compliance footnotes on exported reports.
         </p>
       </div>
 
@@ -110,7 +131,7 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
       <div className="space-y-3">
         <Label className="font-semibold">Framework</Label>
         <div className="space-y-2">
-          {FRAMEWORK_OPTIONS.map(opt => (
+          {FRAMEWORK_OPTIONS.map((opt) => (
             <label
               key={opt.value}
               className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
@@ -143,7 +164,7 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
           Dashboards always use closing rate for live display.
         </p>
         <div className="space-y-2">
-          {TRANSLATION_OPTIONS.map(opt => (
+          {TRANSLATION_OPTIONS.map((opt) => (
             <label
               key={opt.value}
               className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
@@ -175,9 +196,15 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
         style={{ background: 'var(--color-brand-orange)', color: 'white' }}
       >
         {saving ? (
-          <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Saving…
+          </>
         ) : saved ? (
-          <><CheckCircle2 className="w-4 h-4" />Saved</>
+          <>
+            <CheckCircle2 className="w-4 h-4" />
+            Saved
+          </>
         ) : (
           'Save Framework Settings'
         )}
@@ -191,8 +218,8 @@ export function AccountingFramework({ orgId }: AccountingFrameworkProps) {
           <li>Secondary currency translation in the Reports page</li>
         </ul>
         <p className="mt-1">
-          Framework setting does <em>not</em> affect the underlying journal entries — those are always
-          immutably pinned at posting-date rates regardless of which standard you choose.
+          Framework setting does <em>not</em> affect the underlying journal entries — those are
+          always immutably pinned at posting-date rates regardless of which standard you choose.
         </p>
       </div>
     </div>

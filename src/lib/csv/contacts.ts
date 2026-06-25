@@ -1,7 +1,17 @@
 import { parseCsvText } from './parse-csv-row';
 import type { ImportPreviewRow } from '@/components/ui/import-popup';
 
-export const CONTACT_COLUMNS = ['Name', 'Type', 'Email', 'Phone', 'Street', 'City', 'State', 'Country', 'Zip'];
+export const CONTACT_COLUMNS = [
+  'Name',
+  'Type',
+  'Email',
+  'Phone',
+  'Street',
+  'City',
+  'State',
+  'Country',
+  'Zip',
+];
 
 export const CONTACT_SAMPLE_CSV = `Name,Type,Email,Phone,Street,City,State,Country,Zip
 Acme Corp,Vendor,billing@acme.com,555-0100,123 Main St,Austin,TX,US,78701
@@ -21,22 +31,24 @@ export function parseCsvContacts(csvText: string): { rows: ImportPreviewRow[]; e
   const rows: ImportPreviewRow[] = parsed.map((data, i) => {
     const rowErrors: string[] = [];
     if (!data.name?.trim()) rowErrors.push('Name is required');
-    const rawType = data.type?.trim() | '';
-    const type = VALID_TYPES.find(t => t.toLowerCase() === rawType.toLowerCase()) | (rawType ? null : 'Other');
+    const rawType = data.type?.trim() || '';
+    const type =
+      VALID_TYPES.find((t) => t.toLowerCase() === rawType.toLowerCase()) ||
+      (rawType ? null : 'Other');
     if (type === null) rowErrors.push(`Invalid type: ${rawType}`);
 
     return {
       rowIndex: i + 1,
       data: {
-        name: data.name | '',
-        type: type | 'Other',
-        email: data.email | '',
-        phone: data.phone | '',
-        street: data.street | '',
-        city: data.city | '',
-        state: data.state | '',
-        country: data.country | '',
-        zip: data.zip | '',
+        name: data.name || '',
+        type: type || 'Other',
+        email: data.email || '',
+        phone: data.phone || '',
+        street: data.street || '',
+        city: data.city || '',
+        state: data.state || '',
+        country: data.country || '',
+        zip: data.zip || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

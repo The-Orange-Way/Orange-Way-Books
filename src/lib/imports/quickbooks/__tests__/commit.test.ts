@@ -50,9 +50,10 @@ function makeSupabase() {
           }
           return true;
         });
-        const data = selectColumns === 'encrypted_metadata'
-          ? rows.map((r) => ({ encrypted_metadata: r.encrypted_metadata }))
-          : rows;
+        const data =
+          selectColumns === 'encrypted_metadata'
+            ? rows.map((r) => ({ encrypted_metadata: r.encrypted_metadata }))
+            : rows;
         return Promise.resolve({ data, error: null }).then(onFulfilled);
       },
     };
@@ -163,8 +164,15 @@ function mkAccount(name: string, debit = '100', credit = '0'): ParsedTrialBalanc
 
 function mkContact(name: string, kind: ParsedContact['kind']): ParsedContact {
   return {
-    name, kind, email: null, phone: null,
-    street: null, city: null, state: null, country: null, zip: null,
+    name,
+    kind,
+    email: null,
+    phone: null,
+    street: null,
+    city: null,
+    state: null,
+    country: null,
+    zip: null,
   };
 }
 
@@ -175,8 +183,24 @@ function mkJE(refNum: string, amount: number): ParsedJournalEntry {
     type: 'Journal',
     memo: null,
     lines: [
-      { accountName: 'Checking', accountCode: null, debit: String(amount), credit: '0', nativeCurrency: 'USD', contactName: null, memo: null },
-      { accountName: 'Sales', accountCode: null, debit: '0', credit: String(amount), nativeCurrency: 'USD', contactName: null, memo: null },
+      {
+        accountName: 'Checking',
+        accountCode: null,
+        debit: String(amount),
+        credit: '0',
+        nativeCurrency: 'USD',
+        contactName: null,
+        memo: null,
+      },
+      {
+        accountName: 'Sales',
+        accountCode: null,
+        debit: '0',
+        credit: String(amount),
+        nativeCurrency: 'USD',
+        contactName: null,
+        memo: null,
+      },
     ],
   };
 }
@@ -198,12 +222,30 @@ function mkParsed(opts: {
 
 function mkClassification(name: string): QuickBooksClassification {
   if (/checking|cash|bank/i.test(name)) {
-    return { accountType: 'ASSET', accountSubType: 'WALLETS', normalBalance: 'DEBIT', isWallet: true, isSystem: false };
+    return {
+      accountType: 'ASSET',
+      accountSubType: 'WALLETS',
+      normalBalance: 'DEBIT',
+      isWallet: true,
+      isSystem: false,
+    };
   }
   if (/sales|revenue/i.test(name)) {
-    return { accountType: 'INCOME', accountSubType: 'SALES', normalBalance: 'CREDIT', isWallet: false, isSystem: false };
+    return {
+      accountType: 'INCOME',
+      accountSubType: 'SALES',
+      normalBalance: 'CREDIT',
+      isWallet: false,
+      isSystem: false,
+    };
   }
-  return { accountType: 'EXPENSE', accountSubType: 'GENERAL_AND_ADMINISTRATIVE', normalBalance: 'DEBIT', isWallet: false, isSystem: false };
+  return {
+    accountType: 'EXPENSE',
+    accountSubType: 'GENERAL_AND_ADMINISTRATIVE',
+    normalBalance: 'DEBIT',
+    isWallet: false,
+    isSystem: false,
+  };
 }
 
 function classifyAll(accounts: ParsedTrialBalanceAccount[]): QuickBooksClassificationResult {
@@ -263,11 +305,21 @@ describe('commitQuickBooksImport', () => {
 
     // First run: writes 2.
     await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
     // Second run: skips both.
     const result2 = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
 
     expect(result2.accountsCreated).toBe(0);
@@ -289,8 +341,24 @@ describe('commitQuickBooksImport', () => {
       type: 'Journal',
       memo: null,
       lines: [
-        { accountName: 'Mystery Account', accountCode: null, debit: '500', credit: '0', nativeCurrency: 'USD', contactName: null, memo: 'Original memo' },
-        { accountName: 'Cash', accountCode: null, debit: '0', credit: '500', nativeCurrency: 'USD', contactName: null, memo: null },
+        {
+          accountName: 'Mystery Account',
+          accountCode: null,
+          debit: '500',
+          credit: '0',
+          nativeCurrency: 'USD',
+          contactName: null,
+          memo: 'Original memo',
+        },
+        {
+          accountName: 'Cash',
+          accountCode: null,
+          debit: '0',
+          credit: '500',
+          nativeCurrency: 'USD',
+          contactName: null,
+          memo: null,
+        },
       ],
     };
     const parsed = mkParsed({ accounts, journalEntries: [journalEntry] });
@@ -300,7 +368,12 @@ describe('commitQuickBooksImport', () => {
     };
 
     const result = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
 
     // Mystery Account / Other Mystery are NOT created — their lines route to
@@ -342,8 +415,13 @@ describe('commitQuickBooksImport', () => {
     };
 
     await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications,
-      accountOverrides: overrides, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      accountOverrides: overrides,
+      encryptText,
+      decryptText,
     });
 
     // Post-Phase-1: encrypted_account_type carries the encrypted EXPENSE override.
@@ -357,16 +435,16 @@ describe('commitQuickBooksImport', () => {
 
   it('accepts a contacts-only bundle (no trial balance, no journal entries)', async () => {
     const parsed = mkParsed({
-      contacts: [
-        mkContact('Acme Corp', 'CUSTOMER'),
-        mkContact('Beta Co', 'VENDOR'),
-      ],
+      contacts: [mkContact('Acme Corp', 'CUSTOMER'), mkContact('Beta Co', 'VENDOR')],
     });
 
     const result = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
       classifications: { confident: {}, ambiguous: [] },
-      encryptText, decryptText,
+      encryptText,
+      decryptText,
     });
 
     expect(result.contactsCreated).toBe(2);
@@ -382,7 +460,12 @@ describe('commitQuickBooksImport', () => {
     const classifications = classifyAll(accounts);
 
     const result = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
 
     expect(result.accountsCreated).toBe(2);
@@ -399,7 +482,12 @@ describe('commitQuickBooksImport', () => {
 
     await expect(
       commitQuickBooksImport({
-        orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+        orgId: ORG,
+        primaryCurrency: 'USD',
+        parsed,
+        classifications,
+        encryptText,
+        decryptText,
       }),
     ).rejects.toThrow(/100,000/);
   });
@@ -409,14 +497,17 @@ describe('commitQuickBooksImport', () => {
       contacts: [
         mkContact('Acme Corp', 'CUSTOMER'),
         mkContact('Acme Corp', 'CUSTOMER'), // same → dedup within batch
-        mkContact('Acme Corp', 'VENDOR'),   // same name diff kind → keep
+        mkContact('Acme Corp', 'VENDOR'), // same name diff kind → keep
       ],
     });
 
     const result = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
       classifications: { confident: {}, ambiguous: [] },
-      encryptText, decryptText,
+      encryptText,
+      decryptText,
     });
 
     expect(result.contactsCreated).toBe(2);
@@ -432,7 +523,12 @@ describe('commitQuickBooksImport', () => {
     const classifications = classifyAll(accounts);
 
     const result = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
 
     expect(result.journalEntriesCreated).toBe(1);
@@ -460,10 +556,20 @@ describe('commitQuickBooksImport', () => {
     const classifications = classifyAll(accounts);
 
     await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
     const second = await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
     });
 
     expect(second.journalEntriesCreated).toBe(0);
@@ -482,7 +588,12 @@ describe('commitQuickBooksImport', () => {
     const seen: CommitProgress[] = [];
 
     await commitQuickBooksImport({
-      orgId: ORG, primaryCurrency: 'USD', parsed, classifications, encryptText, decryptText,
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications,
+      encryptText,
+      decryptText,
       onProgress: (p) => seen.push(p),
     });
 

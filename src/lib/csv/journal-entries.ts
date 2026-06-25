@@ -22,7 +22,7 @@ export function parseJournalCurrencyLabel(label: string): string {
   const s = label.trim();
   const u = s.toUpperCase();
   if (u.startsWith('SAT')) return 'SATS';
-  if (u.includes('BTC') | u === 'BTC') return 'BTC';
+  if (u.includes('BTC') || u === 'BTC') return 'BTC';
   const first = s.split(/\s+/)[0]?.toUpperCase() ?? '';
   if (/^[A-Z]{3,4}$/.test(first)) return first === 'SAT' ? 'SATS' : first;
   return 'USD';
@@ -40,11 +40,11 @@ function recordToRowData(record: Record<string, string>): Record<string, string>
 
 export function journalGroupKey(data: Record<string, string>): string {
   return [
-    (data.je_date | '').trim(),
+    (data.je_date || '').trim(),
     (data['je_ref_#'] ?? '').trim(),
-    (data.je_memo | '').trim(),
-    (data.je_status | 'DRAFT').trim().toUpperCase(),
-    parseJournalCurrencyLabel(data.wallet_currency | ''),
+    (data.je_memo || '').trim(),
+    (data.je_status || 'DRAFT').trim().toUpperCase(),
+    parseJournalCurrencyLabel(data.wallet_currency || ''),
   ].join('\x1f');
 }
 
@@ -103,8 +103,10 @@ export function parseCsvJournalEntries(
   }
 
   const headerLower = new Set(headers.map((h) => h.toLowerCase()));
-  if (!headerLower.has('je date') | !headerLower.has('wallet currency')) {
-    errors.push('CSV must include "JE date" and "Wallet Currency" columns. Download the sample file to match the format.');
+  if (!headerLower.has('je date') || !headerLower.has('wallet currency')) {
+    errors.push(
+      'CSV must include "JE date" and "Wallet Currency" columns. Download the sample file to match the format.',
+    );
     return { rows: [], errors };
   }
 
@@ -127,12 +129,14 @@ export function parseCsvJournalEntries(
     if (hasDebit && hasCredit) {
       rowErrors.push('Put amount in either Debit or Credit, not both on the same line');
     }
-    if ((hasDebit | hasCredit) && !data.account_name?.trim()) {
+    if ((hasDebit || hasCredit) && !data.account_name?.trim()) {
       rowErrors.push('Account name is required when there is a Debit or Credit amount');
     }
-    if (data.account_name?.trim() && (hasDebit | hasCredit)) {
+    if ((data.account_name?.trim() && hasDebit) || hasCredit) {
       if (!accountNames.has(data.account_name.trim().toLowerCase())) {
-        rowErrors.push(`Account "${data.account_name.trim()}" not found. Use Admin > Chart of Accounts names.`);
+        rowErrors.push(
+          `Account "${data.account_name.trim()}" not found. Use Admin > Chart of Accounts names.`,
+        );
       }
     }
 
@@ -153,7 +157,7 @@ export function parseCsvJournalEntries(
     for (const r of g) {
       const d = parseAmountCell(r.data.debit).value;
       const c = parseAmountCell(r.data.credit).value;
-      if (d > 0 | c > 0) linesWithAmount++;
+      if (d > 0 || c > 0) linesWithAmount++;
       sumD += d;
       sumC += c;
     }

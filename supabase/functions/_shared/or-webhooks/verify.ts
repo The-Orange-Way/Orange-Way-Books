@@ -20,7 +20,7 @@ async function getSubtle(): Promise<SubtleCrypto> {
   }
   // Node 18 path: webcrypto lives in node:crypto. Dynamic import so
   // non-Node runtimes (Deno/Workers/browsers) never touch it.
-  const mod = (await import("node:crypto")) as {
+  const mod = (await import('node:crypto')) as {
     webcrypto: { subtle: SubtleCrypto };
   };
   cachedSubtle = mod.webcrypto.subtle;
@@ -36,13 +36,13 @@ export async function computeHmacSha256Hex(secret: string, body: string): Promis
   const enc = new TextEncoder();
   const subtle = await getSubtle();
   const key = await subtle.importKey(
-    "raw",
+    'raw',
     enc.encode(secret) as BufferSource,
-    { name: "HMAC", hash: "SHA-256" },
+    { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ["sign"],
+    ['sign'],
   );
-  const sig = await subtle.sign("HMAC", key, enc.encode(body) as BufferSource);
+  const sig = await subtle.sign('HMAC', key, enc.encode(body) as BufferSource);
   return bytesToHex(new Uint8Array(sig));
 }
 
@@ -52,7 +52,7 @@ export async function computeHmacSha256Hex(secret: string, body: string): Promis
  * pair, so total time is a function of length only, not contents.
  */
 export function timingSafeEqualHex(a: string, b: string): boolean {
-  if (typeof a !== "string" | typeof b !== "string") return false;
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) {
@@ -62,9 +62,9 @@ export function timingSafeEqualHex(a: string, b: string): boolean {
 }
 
 function bytesToHex(bytes: Uint8Array): string {
-  let out = "";
+  let out = '';
   for (let i = 0; i < bytes.length; i++) {
-    out += (bytes[i] as number).toString(16).padStart(2, "0");
+    out += (bytes[i] as number).toString(16).padStart(2, '0');
   }
   return out;
 }

@@ -30,14 +30,17 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     selfHostable: 'No — SaaS only (Desktop is being sunset)',
     pricing: 'Paid SaaS, ~$30–$200/mo per company',
     vendorReadsBooks: 'Yes — Intuit can read all data',
-    bestFor: 'Traditional SMBs with no Bitcoin exposure who need deep accountant-network integration.',
-    whenToPickThem: 'You have no Bitcoin activity, your accountant requires QuickBooks-format files, and ecosystem integrations matter more than data privacy.',
+    bestFor:
+      'Traditional SMBs with no Bitcoin exposure who need deep accountant-network integration.',
+    whenToPickThem:
+      'You have no Bitcoin activity, your accountant requires QuickBooks-format files, and ecosystem integrations matter more than data privacy.',
     url: 'https://quickbooks.intuit.com',
   },
   xero: {
     name: 'Xero',
     category: 'General-purpose SMB accounting',
-    bitcoinSupport: 'Limited — multi-currency exists but not Bitcoin-native (no sats display, no per-tx rate snapshots)',
+    bitcoinSupport:
+      'Limited — multi-currency exists but not Bitcoin-native (no sats display, no per-tx rate snapshots)',
     zkEncryption: 'No — plaintext on Xero servers',
     doubleEntry: 'Yes',
     ifrsGaap: 'IFRS-friendly; GAAP via configuration',
@@ -46,7 +49,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Paid SaaS, ~$15–$78/mo per org',
     vendorReadsBooks: 'Yes — Xero can read all data',
     bestFor: 'International SMBs that prioritize ease of use and bank-feed integrations.',
-    whenToPickThem: 'You operate in fiat only and want a polished, well-integrated SaaS with strong bank feeds.',
+    whenToPickThem:
+      'You operate in fiat only and want a polished, well-integrated SaaS with strong bank feeds.',
     url: 'https://xero.com',
   },
   wave: {
@@ -61,7 +65,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Free core; paid for payments/payroll',
     vendorReadsBooks: 'Yes',
     bestFor: 'Freelancers and very small fiat-only businesses on a budget.',
-    whenToPickThem: 'You need basic invoicing and books for a fiat-only freelance business and price is the only constraint.',
+    whenToPickThem:
+      'You need basic invoicing and books for a fiat-only freelance business and price is the only constraint.',
     url: 'https://waveapps.com',
   },
   freshbooks: {
@@ -76,7 +81,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Paid SaaS, ~$19–$60/mo per org',
     vendorReadsBooks: 'Yes',
     bestFor: 'Service businesses whose primary need is invoicing & time tracking.',
-    whenToPickThem: 'Your business is service-based, invoicing is the priority, and you have no Bitcoin exposure.',
+    whenToPickThem:
+      'Your business is service-based, invoicing is the priority, and you have no Bitcoin exposure.',
     url: 'https://freshbooks.com',
   },
   bitwave: {
@@ -91,7 +97,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Enterprise SaaS — contact sales',
     vendorReadsBooks: 'Yes',
     bestFor: 'Crypto-active enterprises already committed to QuickBooks or NetSuite as their GL.',
-    whenToPickThem: 'You need a managed crypto sub-ledger that integrates with QuickBooks/NetSuite, you have budget for enterprise SaaS, and zero-knowledge is not a requirement.',
+    whenToPickThem:
+      'You need a managed crypto sub-ledger that integrates with QuickBooks/NetSuite, you have budget for enterprise SaaS, and zero-knowledge is not a requirement.',
     url: 'https://bitwave.io',
   },
   cryptio: {
@@ -106,7 +113,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Enterprise SaaS — contact sales',
     vendorReadsBooks: 'Yes',
     bestFor: 'Crypto enterprises wanting a managed back-office tool with vendor support.',
-    whenToPickThem: 'You want a managed crypto back-office with a vendor SLA and you do not need self-hosting or zero-knowledge.',
+    whenToPickThem:
+      'You want a managed crypto back-office with a vendor SLA and you do not need self-hosting or zero-knowledge.',
     url: 'https://cryptio.co',
   },
   spreadsheets: {
@@ -121,7 +129,8 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     pricing: 'Free or low-cost',
     vendorReadsBooks: 'Depends on storage (Google reads Sheets; offline Excel does not)',
     bestFor: 'Very early-stage Bitcoin holders tracking a handful of transactions.',
-    whenToPickThem: 'You have <50 transactions, no audit need, no team, and no plans to grow past a single spreadsheet.',
+    whenToPickThem:
+      'You have <50 transactions, no audit need, no team, and no plans to grow past a single spreadsheet.',
   },
 };
 
@@ -149,8 +158,7 @@ export default function CompareStub() {
         '@context': 'https://schema.org',
         '@type': 'Product',
         name: 'Orange Way Books',
-        description:
-          'Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses.',
+        description: 'Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses.',
         brand: { '@type': 'Brand', name: 'Orange Way Books' },
         url: SITE_URL,
         review: {
@@ -187,9 +195,9 @@ export default function CompareStub() {
       <article className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-4">{title}</h1>
         <p className="text-lg text-muted-foreground mb-8">
-          Orange Way Books is the zero-knowledge, Bitcoin-native, open-source
-          alternative to {name} for businesses that need real double-entry
-          accounting without handing plaintext financials to a vendor.
+          Orange Way Books is the zero-knowledge, Bitcoin-native, open-source alternative to {name}{' '}
+          for businesses that need real double-entry accounting without handing plaintext financials
+          to a vendor.
         </p>
 
         {profile && (
@@ -209,25 +217,48 @@ export default function CompareStub() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              <Row cap="Category" us="Zero-knowledge Bitcoin-native ledger" them={profile?.category ?? '—'} />
-              <Row cap="Zero-knowledge encryption" us="Yes — AES-GCM + Argon2id" them={profile?.zkEncryption ?? 'No'} />
-              <Row cap="Native Bitcoin / sats" us="Yes — first-class currency" them={profile?.bitcoinSupport ?? '—'} />
+              <Row
+                cap="Category"
+                us="Zero-knowledge Bitcoin-native ledger"
+                them={profile?.category ?? '—'}
+              />
+              <Row
+                cap="Zero-knowledge encryption"
+                us="Yes — AES-GCM + Argon2id"
+                them={profile?.zkEncryption ?? 'No'}
+              />
+              <Row
+                cap="Native Bitcoin / sats"
+                us="Yes — first-class currency"
+                them={profile?.bitcoinSupport ?? '—'}
+              />
               <Row cap="Double-entry ledger" us="Yes" them={profile?.doubleEntry ?? '—'} />
-              <Row cap="IFRS & US GAAP" us="Yes — both, per-org switchable" them={profile?.ifrsGaap ?? '—'} />
+              <Row
+                cap="IFRS & US GAAP"
+                us="Yes — both, per-org switchable"
+                them={profile?.ifrsGaap ?? '—'}
+              />
               <Row cap="Open source" us="Yes — Apache-2.0" them={profile?.openSource ?? 'No'} />
               <Row cap="Self-hostable" us="Yes" them={profile?.selfHostable ?? 'No'} />
-              <Row cap="Pricing" us="Free for individuals; team tier on roadmap" them={profile?.pricing ?? '—'} />
-              <Row cap="Vendor can read your books" us="No — cryptographically impossible" them={profile?.vendorReadsBooks ?? 'Yes'} />
+              <Row
+                cap="Pricing"
+                us="Free for individuals; team tier on roadmap"
+                them={profile?.pricing ?? '—'}
+              />
+              <Row
+                cap="Vendor can read your books"
+                us="No — cryptographically impossible"
+                them={profile?.vendorReadsBooks ?? 'Yes'}
+              />
             </tbody>
           </table>
         </div>
 
         <h2 className="text-2xl font-bold mt-10 mb-3">When to choose Orange Way Books</h2>
         <p className="text-muted-foreground mb-4">
-          You operate a Bitcoin treasury, miner, custodian, fund, or any
-          business that materially holds or moves Bitcoin, and you cannot
-          accept a vendor reading your financials in the clear. You want one
-          system that handles books end-to-end — not a crypto sub-ledger that
+          You operate a Bitcoin treasury, miner, custodian, fund, or any business that materially
+          holds or moves Bitcoin, and you cannot accept a vendor reading your financials in the
+          clear. You want one system that handles books end-to-end — not a crypto sub-ledger that
           syncs into a separate accounting tool.
         </p>
 
@@ -246,8 +277,8 @@ export default function CompareStub() {
         <div className="border border-border rounded-lg p-6 bg-card">
           <p className="font-semibold mb-2">Ready to switch?</p>
           <p className="text-sm text-muted-foreground mb-4">
-            Orange Way Books is free for individuals and includes a CSV import
-            wizard so you can move existing data over in minutes.
+            Orange Way Books is free for individuals and includes a CSV import wizard so you can
+            move existing data over in minutes.
           </p>
           <Link
             to="/signup"

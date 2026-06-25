@@ -26,7 +26,7 @@ export type DefaultMappingSelections = {
 };
 
 function isBlank(value: string | undefined): boolean {
-  return !value | value.trim() === '';
+  return !value || value.trim() === '';
 }
 
 function rowHasEmptyAccount(row: V3StagedRow): boolean {
@@ -55,7 +55,7 @@ export function applyDefaultMappings(
   if (!defaultAccount && !defaultContact) return payload;
 
   const journalEntries = payload.staged.journalEntries;
-  if (!journalEntries | journalEntries.length === 0) return payload;
+  if (!journalEntries || journalEntries.length === 0) return payload;
 
   const patched: V3StagedRow[] = journalEntries.map((row) => {
     let next: V3StagedRow | null = null;

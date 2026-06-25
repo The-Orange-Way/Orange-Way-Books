@@ -6,7 +6,6 @@ import { useUserOrg } from '@/hooks/useUserOrg';
 import { PendingRatesBanner } from '@/components/PendingRatesBanner';
 import { MaintenanceBanner } from '@/components/rekey/MaintenanceBanner';
 import { LedgerStatusPill } from '@/components/LedgerStatusPill';
-import { LegacyVaultBanner } from '@/components/LegacyVaultBanner';
 import { supabase } from '@/lib/supabase';
 
 export default function AppShell() {
@@ -21,13 +20,14 @@ export default function AppShell() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (active) setUserId(user?.id ?? null);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
       <MaintenanceBanner orgId={orgId} currentUserId={userId} />
-      <LegacyVaultBanner orgId={orgId} />
       <PendingRatesBanner orgId={orgId} />
       <div className="flex flex-1">
         {/* Desktop sidebar — hidden on small viewports. */}
@@ -42,10 +42,7 @@ export default function AppShell() {
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           >
-            <div
-              className="absolute left-0 top-0 h-full"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute left-0 top-0 h-full" onClick={(e) => e.stopPropagation()}>
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>

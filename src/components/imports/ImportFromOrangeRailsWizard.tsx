@@ -85,7 +85,9 @@ function readJsonFile(file: File): Promise<unknown> {
       try {
         resolve(JSON.parse(String(reader.result ?? '')));
       } catch (err) {
-        reject(new Error(`Could not parse as JSON: ${err instanceof Error ? err.message : String(err)}`));
+        reject(
+          new Error(`Could not parse as JSON: ${err instanceof Error ? err.message : String(err)}`),
+        );
       }
     };
     reader.onerror = () => reject(new Error('Could not read file.'));
@@ -131,28 +133,35 @@ export function ImportFromOrangeRailsWizard({
     onClose();
   }, [reset, onClose]);
 
-  const handleFile = useCallback(async (file: File) => {
-    setFileName(file.name);
-    setParseError(null);
-    try {
-      const json = await readJsonFile(file);
-      assertStagedImportPayload(json);
-      setPayload(json);
-      setStep('review');
-      // Lazy-load picker options after the payload parses; failure is
-      // non-fatal — the panel just degrades to "no options available".
-      const needAccounts = payloadHasEmptyAccountRows(json);
-      const needContacts = payloadHasEmptyContactRows(json);
-      if (needAccounts && loadAccountOptions) {
-        loadAccountOptions().then(setAccountOptions).catch(() => setAccountOptions([]));
+  const handleFile = useCallback(
+    async (file: File) => {
+      setFileName(file.name);
+      setParseError(null);
+      try {
+        const json = await readJsonFile(file);
+        assertStagedImportPayload(json);
+        setPayload(json);
+        setStep('review');
+        // Lazy-load picker options after the payload parses; failure is
+        // non-fatal — the panel just degrades to "no options available".
+        const needAccounts = payloadHasEmptyAccountRows(json);
+        const needContacts = payloadHasEmptyContactRows(json);
+        if (needAccounts && loadAccountOptions) {
+          loadAccountOptions()
+            .then(setAccountOptions)
+            .catch(() => setAccountOptions([]));
+        }
+        if (needContacts && loadContactOptions) {
+          loadContactOptions()
+            .then(setContactOptions)
+            .catch(() => setContactOptions([]));
+        }
+      } catch (err) {
+        setParseError(err instanceof Error ? err.message : String(err));
       }
-      if (needContacts && loadContactOptions) {
-        loadContactOptions().then(setContactOptions).catch(() => setContactOptions([]));
-      }
-    } catch (err) {
-      setParseError(err instanceof Error ? err.message : String(err));
-    }
-  }, [loadAccountOptions, loadContactOptions]);
+    },
+    [loadAccountOptions, loadContactOptions],
+  );
 
   const applySection = useCallback(
     async (
@@ -161,7 +170,8 @@ export function ImportFromOrangeRailsWizard({
       handler: (rows: ImportPreviewRow[]) => Promise<ImportResult>,
     ): Promise<SectionResult> => {
       const rows = activePayload.staged[section] ?? [];
-      if (rows.length === 0) return { section, result: { created: 0, skipped: 0, failed: 0, errors: [] } };
+      if (rows.length === 0)
+        return { section, result: { created: 0, skipped: 0, failed: 0, errors: [] } };
       try {
         const result = await handler(stagedRowsToPreview(rows));
         return { section, result };
@@ -231,9 +241,12 @@ export function ImportFromOrangeRailsWizard({
             onClick={() => fileRef.current?.click()}
           >
             <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium mb-1">Drop your <code>.or-import.json</code> here</p>
+            <p className="text-sm font-medium mb-1">
+              Drop your <code>.or-import.json</code> here
+            </p>
             <p className="text-xs text-muted-foreground">
-              or click to choose a file. Produced by an Orange Rails connector (Wave, QuickBooks, ...).
+              or click to choose a file. Produced by an Orange Rails connector (Wave, QuickBooks,
+              ...).
             </p>
             <input
               ref={fileRef}
@@ -265,8 +278,8 @@ export function ImportFromOrangeRailsWizard({
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900">
               <p className="font-medium">Re-imports are safe.</p>
               <p className="mt-0.5 text-emerald-800">
-                Rows already imported are skipped automatically — only what's new gets written.
-                You can run this again with the same file without doubling up.
+                Rows already imported are skipped automatically — only what's new gets written. You
+                can run this again with the same file without doubling up.
               </p>
             </div>
             <div className="rounded border bg-muted/40 p-4 text-sm space-y-1">
@@ -299,7 +312,9 @@ export function ImportFromOrangeRailsWizard({
               <div className="rounded border p-3">
                 <div className="text-2xl font-bold">{payload.summary.journalEntries}</div>
                 <div className="text-xs text-muted-foreground">journal entries</div>
-                <div className="text-xs text-muted-foreground">({payload.summary.journalLines} lines)</div>
+                <div className="text-xs text-muted-foreground">
+                  ({payload.summary.journalLines} lines)
+                </div>
               </div>
             </div>
 
@@ -307,11 +322,14 @@ export function ImportFromOrangeRailsWizard({
               <div className="rounded border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
                 <div className="flex items-center gap-2 font-medium mb-1">
                   <AlertTriangle className="h-4 w-4" />
-                  {payload.summary.warnings.length} warning{payload.summary.warnings.length === 1 ? '' : 's'}
+                  {payload.summary.warnings.length} warning
+                  {payload.summary.warnings.length === 1 ? '' : 's'}
                 </div>
                 <ul className="text-xs space-y-0.5 max-h-32 overflow-y-auto">
                   {payload.summary.warnings.slice(0, 20).map((w, i) => (
-                    <li key={i} className="font-mono">{w}</li>
+                    <li key={i} className="font-mono">
+                      {w}
+                    </li>
                   ))}
                   {payload.summary.warnings.length > 20 && (
                     <li className="italic text-muted-foreground">
@@ -326,11 +344,14 @@ export function ImportFromOrangeRailsWizard({
               <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm">
                 <div className="flex items-center gap-2 font-medium mb-1 text-destructive">
                   <X className="h-4 w-4" />
-                  {payload.summary.errors.length} error{payload.summary.errors.length === 1 ? '' : 's'}
+                  {payload.summary.errors.length} error
+                  {payload.summary.errors.length === 1 ? '' : 's'}
                 </div>
                 <ul className="text-xs space-y-0.5 max-h-32 overflow-y-auto">
                   {payload.summary.errors.slice(0, 20).map((e, i) => (
-                    <li key={i} className="font-mono">{e}</li>
+                    <li key={i} className="font-mono">
+                      {e}
+                    </li>
                   ))}
                   {payload.summary.errors.length > 20 && (
                     <li className="italic text-muted-foreground">
@@ -351,16 +372,17 @@ export function ImportFromOrangeRailsWizard({
               ))}
             </div>
 
-            {(payloadHasEmptyAccountRows(payload) | payloadHasEmptyContactRows(payload)) && (
-              <DefaultMappingPanel
-                accountOptions={accountOptions}
-                contactOptions={contactOptions}
-                selections={defaults}
-                onChange={setDefaults}
-                hasEmptyAccounts={payloadHasEmptyAccountRows(payload)}
-                hasEmptyContacts={payloadHasEmptyContactRows(payload)}
-              />
-            )}
+            {payloadHasEmptyAccountRows(payload) ||
+              (payloadHasEmptyContactRows(payload) && (
+                <DefaultMappingPanel
+                  accountOptions={accountOptions}
+                  contactOptions={contactOptions}
+                  selections={defaults}
+                  onChange={setDefaults}
+                  hasEmptyAccounts={payloadHasEmptyAccountRows(payload)}
+                  hasEmptyContacts={payloadHasEmptyContactRows(payload)}
+                />
+              ))}
 
             <div className="flex justify-between gap-2 pt-2">
               <Button variant="outline" onClick={reset}>
@@ -388,7 +410,7 @@ export function ImportFromOrangeRailsWizard({
             {results.map((r) => (
               <div key={r.section} className="rounded border p-3 text-sm">
                 <div className="flex items-center gap-2 font-medium mb-1">
-                  {r.error | (r.result && r.result.failed > 0) ? (
+                  {r.error || (r.result && r.result.failed > 0) ? (
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                   ) : (
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -399,13 +421,16 @@ export function ImportFromOrangeRailsWizard({
                   <div className="text-xs text-destructive">{r.error}</div>
                 ) : r.result ? (
                   <div className="text-xs text-muted-foreground">
-                    {r.result.created} created · {r.result.skipped} skipped · {r.result.failed} failed
+                    {r.result.created} created · {r.result.skipped} skipped · {r.result.failed}{' '}
+                    failed
                   </div>
                 ) : null}
                 {r.result?.errors?.length ? (
                   <ul className="text-xs text-destructive mt-1 max-h-20 overflow-y-auto">
                     {r.result.errors.slice(0, 5).map((e, i) => (
-                      <li key={i} className="font-mono">{e}</li>
+                      <li key={i} className="font-mono">
+                        {e}
+                      </li>
                     ))}
                   </ul>
                 ) : null}

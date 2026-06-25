@@ -1,11 +1,11 @@
 /**
- * Account Register — account statement view (T5B).
+ * Account Register, account statement view (T5B).
  *
  * Shows every encrypted movement that touched a single chart-of-accounts row,
  * sorted oldest-to-newest, with a running balance. Pulls from two sources:
  *
  *   1. transactions where account_id = :accountId AND status != VOID
- *      (standard-mode transactions — direct legacy ledger backend posting, no JE wrapper today)
+ *      (standard-mode transactions, direct ledger posting, no JE wrapper today)
  *   2. journal_entry_lines where account_id = :accountId AND parent JE.status != VOID
  *      (split / transfer / manual JE rows)
  *
@@ -29,7 +29,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { format } from 'date-fns';
@@ -60,7 +65,7 @@ export default function AccountRegister() {
   const [rows, setRows] = useState<RegisterRow[]>([]);
 
   useEffect(() => {
-    if (!accountId | !orgId) return;
+    if (!accountId || !orgId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -75,9 +80,9 @@ export default function AccountRegister() {
           try {
             const dec = await decryptChartOfAccount(acc as any, decryptText);
             if (!cancelled) {
-              setAccountName(dec.account_name | '(unnamed)');
-              setAccountCode(dec.account_code | '');
-              setAccountType(dec.account_type | null);
+              setAccountName(dec.account_name || '(unnamed)');
+              setAccountCode(dec.account_code || '');
+              setAccountType(dec.account_type || null);
             }
           } catch {
             if (!cancelled) setAccountName('(decrypt failed)');
@@ -119,7 +124,9 @@ export default function AccountRegister() {
         // Source 2: journal_entry_lines (join through parent JE)
         const { data: jelRows } = await supabase
           .from('journal_entry_lines')
-          .select('*, journal_entries!inner(id, date, status, key_version, source_type, org_id, encrypted_memo, memo)')
+          .select(
+            '*, journal_entries!inner(id, date, status, key_version, source_type, org_id, encrypted_memo, memo)',
+          )
           .eq('account_id', accountId)
           .eq('journal_entries.org_id', orgId);
 
@@ -135,7 +142,9 @@ export default function AccountRegister() {
                 const jeDec = await decryptJournalEntry(je, decryptText);
                 jeStatus = jeDec.status ?? null;
               }
-            } catch { /* keep raw status */ }
+            } catch {
+              /* keep raw status */
+            }
             if (jeStatus === 'VOID') continue;
             jelDecrypted.push({
               id: `jel-${row.id}`,
@@ -161,8 +170,8 @@ export default function AccountRegister() {
         });
         let running = 0;
         const isDebitNormal = ((acc as any)?.normal_balance ?? 'DEBIT') !== 'CREDIT';
-        const final: RegisterRow[] = merged.map(r => {
-          const delta = isDebitNormal ? (r.debit - r.credit) : (r.credit - r.debit);
+        const final: RegisterRow[] = merged.map((r) => {
+          const delta = isDebitNormal ? r.debit - r.credit : r.credit - r.debit;
           running += delta;
           return { ...r, running };
         });
@@ -171,7 +180,9 @@ export default function AccountRegister() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [accountId, orgId, decryptText]);
 
   const endingBalance = useMemo(() => {
@@ -187,17 +198,23 @@ export default function AccountRegister() {
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
         <Button asChild variant="outline" size="sm">
-          <Link to="/app/admin?tab=chart"><ArrowLeft className="w-4 h-4 mr-1" /> Back to Chart of Accounts</Link>
+          <Link to="/app/admin?tab=chart">
+            <ArrowLeft className="w-4 h-4 mr-1" /> Back to Chart of Accounts
+          </Link>
         </Button>
       </div>
       <div>
         <h1 className="text-2xl font-bold">
-          {accountCode && <span className="font-mono text-muted-foreground mr-2">{accountCode}</span>}
-          {accountName | '—'}
+          {accountCode && (
+            <span className="font-mono text-muted-foreground mr-2">{accountCode}</span>
+          )}
+          {accountName || '—'}
         </h1>
         <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
           {accountType && <Badge variant="outline">{accountType}</Badge>}
-          <span>Normal balance: <span className="font-medium">{normalBalance}</span></span>
+          <span>
+            Normal balance: <span className="font-medium">{normalBalance}</span>
+          </span>
         </div>
       </div>
 
@@ -223,7 +240,10 @@ export default function AccountRegister() {
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10 text-sm">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-muted-foreground py-10 text-sm"
+                    >
                       No movements on this account yet.
                     </TableCell>
                   </TableRow>
@@ -243,10 +263,14 @@ export default function AccountRegister() {
                       <TableCell className="text-right font-mono text-sm text-red-700">
                         {r.credit > 0 ? formatAmount(r.credit) : ''}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm">{formatAmount(r.running)}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatAmount(r.running)}
+                      </TableCell>
                       <TableCell>
                         {r.status && r.status !== 'POSTED' && (
-                          <Badge variant="outline" className="text-[10px]">{r.status}</Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {r.status}
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>

@@ -1,16 +1,16 @@
 // @vitest-environment node
 //
-// Unit tests for voidTransaction — Fixes 3, 4, 5 in the split-write-path
+// Unit tests for voidTransaction, Fixes 3, 4, 5 in the split-write-path
 // audit. Locks in:
 //
 //   - Status flip uses FIELD_KEY_VERSION (sourced from crypto-fields)
-//     instead of a local literal — guards Fix 5.
-//   - Status flip carries a signing-key signature stamped onto the row — Fix 3.
+//     instead of a local literal, guards Fix 5.
+//   - Status flip carries a signing-key signature stamped onto the row, Fix 3.
 //   - Linked transfer pair: voiding one side flips both rows.
-//   - Reversal legacy ledger backend posts use real wallet / chart external_account_ids, with
-//     dr / cr swapped — Fix 4 (no more dr=cr=legacy_transaction_id placeholder).
+//   - Reversal the ledger posts use real wallet / chart external_account_ids, with
+//     dr / cr swapped, Fix 4 (no more dr=cr=legacy_transaction_id placeholder).
 //   - When a JE line references an account_name we can't resolve, we throw
-//     rather than write a known-broken legacy ledger backend post.
+//     rather than write a known-broken the ledger post.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,11 +26,6 @@ interface FakeStore {
 }
 
 let store: FakeStore;
-let legacyPosts: Array<{
-  legacyTxId: string;
-  templateCode: string;
-  params: Record<string, unknown>;
-}>;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -132,19 +127,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-// Stub the legacy ledger backend client so we can introspect what would have been posted.
-vi.mock('@/lib/legacy-ledger', () => ({
-  async postTransaction(
-    legacyTxId: string,
-    templateCode: string,
-    params: Record<string, unknown>,
-  ) {
-    legacyPosts.push({ legacyTxId, templateCode, params });
-    return { transactionId: legacyTxId };
-  },
-}));
-
-// Stub the audit logger — write is async and we don't care about its shape.
+// Stub the audit logger, write is async and we don't care about its shape.
 vi.mock('@/lib/audit-logger', () => ({
   writeAuditLog: () => undefined,
 }));
@@ -163,7 +146,6 @@ import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
 const ORG = 'org-1';
-const CALA_JOURNAL = 'legacy-journal-1';
 
 function seedWalletAndAccount() {
   const walletLegacyId = 'legacy-wallet-source';
@@ -198,7 +180,7 @@ function seedWalletAndAccount() {
   return { walletLegacyId, accountLegacyId };
 }
 
-function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
+function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   const { walletLegacyId, accountLegacyId } = seedWalletAndAccount();
   store.transactions.push({
     id: 'tx-1',
@@ -283,15 +265,16 @@ function seedSplitTransaction(opts: { withlegacy ledger backend: boolean }) {
     dual_amounts_backfilled: false,
     manual_rate_reason: null,
     manual_rate_source: null,
-    legacy_transaction_id: opts.withlegacy ledger backend ? 'legacy-original-1' : null,
+    legacy_transaction_id: opts.withExternalLedger ? 'legacy-original-1' : null,
   });
   return { walletLegacyId, accountLegacyId };
 }
 
 const loadOrgSigningKey = vi.fn(async (_orgId: string) => ({}));
-const signMutation = vi.fn(
-  (_payload: Uint8Array, _orgId: string) => ({ signature_b64: 'sig-xyz', key_version: 1 }),
-);
+const signMutation = vi.fn((_payload: Uint8Array, _orgId: string) => ({
+  signature_b64: 'sig-xyz',
+  key_version: 1,
+}));
 
 beforeEach(() => {
   store = {
@@ -302,19 +285,18 @@ beforeEach(() => {
     chart_of_accounts: [],
     audit_log: [],
   };
-  legacyPosts = [];
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
 });
 
 describe('voidTransaction', () => {
   it('writes a reversing JE, flips status, stamps signature + field key version', async () => {
-    seedSplitTransaction({ withlegacy ledger backend: false });
+    seedSplitTransaction({ withExternalLedger: false });
 
     const result = await voidTransaction({
       txId: 'tx-1',
       orgId: ORG,
-      legacyJournalId: null, // skip legacy ledger backend path here; covered in dedicated test
+      legacyJournalId: null, // skip the ledger path here; covered in dedicated test
       date: '2026-05-21',
       encryptText,
       decryptText,
@@ -324,9 +306,7 @@ describe('voidTransaction', () => {
 
     // Reversing JE was created.
     expect(result.reversalJournalEntryId).toBeTruthy();
-    const reversalJe = store.journal_entries.find(
-      (j) => j.id === result.reversalJournalEntryId,
-    );
+    const reversalJe = store.journal_entries.find((j) => j.id === result.reversalJournalEntryId);
     expect(reversalJe).toBeDefined();
     // Post-Phase-1: source_type is plaintext (server reads it to gate
     // the immutability trigger). Not encrypted.
@@ -340,7 +320,7 @@ describe('voidTransaction', () => {
     expect(reversedLines).toHaveLength(2);
 
     // Original transaction was flipped to VOID with the canonical field key
-    // version (Fix 5) — not a local literal.
+    // version (Fix 5), not a local literal.
     const origAfter = store.transactions.find((t) => t.id === 'tx-1');
     expect(origAfter!.status).toBe('enc(VOID)');
     expect(origAfter!.key_version).toBe(FIELD_KEY_VERSION);
@@ -356,7 +336,7 @@ describe('voidTransaction', () => {
   });
 
   it('uses FIELD_KEY_VERSION (=2 today) and not the deprecated literal', () => {
-    // Pure smoke — guards against a future drift where someone re-introduces
+    // Pure smoke, guards against a future drift where someone re-introduces
     // a local KEY_VERSION constant out of sync with crypto-fields.
     expect(FIELD_KEY_VERSION).toBe(2);
   });
@@ -410,7 +390,7 @@ describe('voidTransaction', () => {
       dek_key_version: 2,
     });
     // One wallet leg is enough to drive the reversal; we only care about
-    // status flip semantics here, not legacy ledger backend.
+    // status flip semantics here, not the ledger.
     store.journal_entry_lines.push({
       id: 'jel-src',
       journal_entry_id: 'je-pair',
@@ -456,12 +436,13 @@ describe('voidTransaction', () => {
     expect(dest!.status).toBe('enc(VOID)');
   });
 
-  // legacy ledger backend-specific reversal tests removed 2026-06-13 — the legacy-ledger removal physically
-  // deleted the vendored ledger fork. Void no longer posts a legacy ledger backend reversal; the reversing
-  // JE in the previous test ("writes a reversing JE …") IS the void path now.
+  // Server-side ledger reversal tests were removed when the in-tree ledger
+  // posting layer was retired (Phase 2). Void no longer posts a separate
+  // reversal; the reversing JE asserted in the previous test ("writes a
+  // reversing JE …") IS the void path now.
 
   it('throws clearly when the caller has no signing-key wrap', async () => {
-    seedSplitTransaction({ withlegacy ledger backend: false });
+    seedSplitTransaction({ withExternalLedger: false });
     const noSign = vi.fn(() => null);
 
     await expect(

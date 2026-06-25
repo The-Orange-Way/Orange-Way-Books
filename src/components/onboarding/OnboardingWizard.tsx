@@ -68,7 +68,9 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
   const progress = ((currentStep + 1) / steps.length) * 100;
 
   const waitForAuthenticatedUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (session?.user?.id === userId) {
       return session.user;
@@ -80,7 +82,9 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         reject(new Error('Authentication is still loading. Please wait a moment and try again.'));
       }, 5000);
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, nextSession) => {
         if (nextSession?.user?.id === userId) {
           window.clearTimeout(timeoutId);
           subscription.unsubscribe();
@@ -89,7 +93,6 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       });
     });
   };
-
 
   const handleFinish = async () => {
     setSaving(true);
@@ -123,34 +126,37 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
 
       // 3. Insert org_settings
       setProgressMessage('🛡️ Sealing your books under zero-knowledge encryption…');
-      const secondaryCurrency = reportingData.secondaryCurrency === 'none' ? null : reportingData.secondaryCurrency;
-      const bitcoinDisplay = orgData.primaryCurrency === 'BTC'
-        ? orgData.bitcoinDisplay
-        : (secondaryCurrency === 'BTC' ? reportingData.secondaryBitcoinDisplay : 'sats');
+      const secondaryCurrency =
+        reportingData.secondaryCurrency === 'none' ? null : reportingData.secondaryCurrency;
+      const bitcoinDisplay =
+        orgData.primaryCurrency === 'BTC'
+          ? orgData.bitcoinDisplay
+          : secondaryCurrency === 'BTC'
+            ? reportingData.secondaryBitcoinDisplay
+            : 'sats';
 
-      const encSettings = await encryptOrgSettings({
-        primary_currency: orgData.primaryCurrency,
-        secondary_currency: secondaryCurrency,
-        bitcoin_display: bitcoinDisplay,
-        fiscal_year_type: null,
-        fiscal_start_month: null,
-        date_format: reportingData.dateFormat | calendarData.dateFormat,
-        time_format: reportingData.timeFormat | null,
-        number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',
-        timezone: reportingData.timezone | null,
-      }, encryptText);
-      const { error: settingsError } = await supabase
-        .from('org_settings')
-        .insert({
-          org_id: orgId,
-          ...encSettings,
-        } as any);
+      const encSettings = await encryptOrgSettings(
+        {
+          primary_currency: orgData.primaryCurrency,
+          secondary_currency: secondaryCurrency,
+          bitcoin_display: bitcoinDisplay,
+          fiscal_year_type: null,
+          fiscal_start_month: null,
+          date_format: reportingData.dateFormat || calendarData.dateFormat,
+          time_format: reportingData.timeFormat || null,
+          number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',
+          timezone: reportingData.timezone || null,
+        },
+        encryptText,
+      );
+      const { error: settingsError } = await supabase.from('org_settings').insert({
+        org_id: orgId,
+        ...encSettings,
+      } as any);
       if (settingsError) throw settingsError;
 
-      // 4. Save vault verifier + per-org salt. vault_key_version = 2 tells
-      // VaultContext.unlock() to derive the MEK with the per-org salt
-      // scheme (deriveKeyV2). Orgs created before the vault_salt migration
-      // have NULL / 1 here and continue to unlock under the legacy scheme.
+      // 4. Save vault verifier + per-org salt. vault_key_version stamps
+      // the active strategy (currently 1 → deriveVaultV1Kek).
       if (vaultVerifier) {
         const { error: verifierError } = await (supabase as any)
           .from('org_settings')
@@ -166,7 +172,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       }
 
       // 5. Seed chart of accounts in Postgres. Post-Phase 1: pure DB inserts,
-      // no legacy ledger backend roundtrip. Fast enough to run inline (~1-2s for 43 accounts).
+      // no the ledger roundtrip. Fast enough to run inline (~1-2s for 43 accounts).
       // We still maintain the organizations.ledger_status state machine
       // (pending → provisioning → ready/failed) because the dashboard pill
       // reads from it. Without an explicit write to 'ready' the pill stays
@@ -205,10 +211,13 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
           .from('organizations')
           .update({ ledger_status: 'failed', ledger_status_error: errMsg })
           .eq('id', orgId)
-          .then(() => undefined, () => undefined);
+          .then(
+            () => undefined,
+            () => undefined,
+          );
         toast.error('Chart of accounts setup hit an issue', {
           id: coaToast,
-          description: errMsg | 'You can retry from the dashboard.',
+          description: errMsg || 'You can retry from the dashboard.',
           duration: 10000,
         });
         // Re-throw so the user lands back on the wizard for a retry instead
@@ -223,9 +232,8 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
     } catch (err) {
       console.error('Onboarding failed:', err);
 
-      const message = err instanceof Error
-        ? err.message
-        : 'Failed to create organization. Please try again.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to create organization. Please try again.';
 
       toast.error(message);
     } finally {
@@ -255,7 +263,9 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
             <Bitcoin className="w-7 h-7 text-primary" />
           </div>
           <h2 className="text-lg font-bold text-foreground">Set Up Orange Way Books</h2>
-          <p className="text-sm text-muted-foreground mt-1">Step {currentStep + 1} of {steps.length}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Step {currentStep + 1} of {steps.length}
+          </p>
         </div>
 
         <div className="flex items-center gap-2 mb-2">
@@ -270,7 +280,9 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
               >
                 <step.icon className="w-4 h-4" />
               </div>
-              <span className={`text-[10px] font-medium ${i <= currentStep ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span
+                className={`text-[10px] font-medium ${i <= currentStep ? 'text-foreground' : 'text-muted-foreground'}`}
+              >
                 {step.label}
               </span>
             </div>
@@ -279,14 +291,18 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         <Progress value={progress} className="h-1.5 mb-6" />
 
         <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-          {currentStep === 0 && <StepVaultPassword onNext={(result) => {
-            setVaultVerifier(result.verifier);
-            setVaultSalt(result.vaultSalt);
-            setVaultKeyVersion(result.vaultKeyVersion);
-            setEncMekCiphertext(result.encMekCiphertext);
-            setRecoveryCiphertext(result.recoveryCiphertext);
-            handleNext();
-          }} />}
+          {currentStep === 0 && (
+            <StepVaultPassword
+              onNext={(result) => {
+                setVaultVerifier(result.verifier);
+                setVaultSalt(result.vaultSalt);
+                setVaultKeyVersion(result.vaultKeyVersion);
+                setEncMekCiphertext(result.encMekCiphertext);
+                setRecoveryCiphertext(result.recoveryCiphertext);
+                handleNext();
+              }}
+            />
+          )}
           {currentStep === 1 && (
             <StepOrganization
               data={orgData}

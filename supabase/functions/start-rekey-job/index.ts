@@ -33,8 +33,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const VALID_TRIGGERS = new Set(['first_time_setup', 'manual', 'post_revoke']);
 const VALID_REFRESH_MODES = new Set(['quick', 'deep']);
@@ -43,9 +42,16 @@ const VALID_REFRESH_MODES = new Set(['quick', 'deep']);
 // BUSINESS_TABLES — if a table exists in one place but not the other
 // the estimate is off but the job still runs correctly.
 const COUNTABLE_TABLES = [
-  'transactions', 'journal_entries', 'journal_entry_lines', 'contacts',
-  'chart_of_accounts', 'payment_requests', 'wallets', 'organizations',
-  'org_settings', 'attachments',
+  'transactions',
+  'journal_entries',
+  'journal_entry_lines',
+  'contacts',
+  'chart_of_accounts',
+  'payment_requests',
+  'wallets',
+  'organizations',
+  'org_settings',
+  'attachments',
 ] as const;
 
 // Rough estimate — 600 rows/sec for decrypt+encrypt round trip.
@@ -62,14 +68,17 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -90,7 +99,9 @@ serve(async (req) => {
       return jsonResponse({ error: 'Request body too large' }, 413, cors);
     }
     let body: { org_id?: unknown; trigger_type?: unknown; refresh_mode?: unknown };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw || '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
@@ -98,12 +109,17 @@ serve(async (req) => {
     const triggerType = typeof body.trigger_type === 'string' ? body.trigger_type.trim() : '';
     // Quick vs Deep refresh. Default to 'quick' for back-compat
     // callers that don't supply the field.
-    const refreshModeRaw = typeof body.refresh_mode === 'string' ? body.refresh_mode.trim() : 'quick';
-    if (!orgId | !UUID_RE.test(orgId)) {
+    const refreshModeRaw =
+      typeof body.refresh_mode === 'string' ? body.refresh_mode.trim() : 'quick';
+    if (!orgId || !UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
     }
     if (!VALID_TRIGGERS.has(triggerType)) {
-      return jsonResponse({ error: 'trigger_type must be first_time_setup, manual, or post_revoke' }, 400, cors);
+      return jsonResponse(
+        { error: 'trigger_type must be first_time_setup, manual, or post_revoke' },
+        400,
+        cors,
+      );
     }
     if (!VALID_REFRESH_MODES.has(refreshModeRaw)) {
       return jsonResponse({ error: 'refresh_mode must be quick or deep' }, 400, cors);
@@ -111,10 +127,11 @@ serve(async (req) => {
     const refreshMode = refreshModeRaw as 'quick' | 'deep';
 
     // Caller must hold users.invite in this org.
-    const { data: hasCap, error: capErr } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: 'users.invite', p_org_id: orgId },
-    );
+    const { data: hasCap, error: capErr } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: 'users.invite',
+      p_org_id: orgId,
+    });
     if (capErr) {
       console.error('start-rekey-job capability check failed:', capErr);
       return jsonResponse({ error: 'Failed to authorize caller' }, 500, cors);
@@ -122,7 +139,8 @@ serve(async (req) => {
     if (!hasCap) {
       return jsonResponse(
         { error: "You don't have permission to update this team's keys." },
-        403, cors,
+        403,
+        cors,
       );
     }
 
@@ -135,8 +153,12 @@ serve(async (req) => {
       .maybeSingle();
     if (activeJob) {
       return jsonResponse(
-        { error: 'A key update is already running for this team.', existing_job_id: (activeJob as { id: string }).id },
-        409, cors,
+        {
+          error: 'A key update is already running for this team.',
+          existing_job_id: (activeJob as { id: string }).id,
+        },
+        409,
+        cors,
       );
     }
 
@@ -183,25 +205,22 @@ serve(async (req) => {
     const { data: inserted, error: insertErr } = await adminClient
       .from('key_rotation_jobs')
       .insert({
-        org_id:                   orgId,
-        status:                   'pending',
-        trigger_type:             triggerType,
-        refresh_mode:             refreshMode,
-        started_by:               caller.id,
-        new_dek_key_version:      newDekVersion,
-        new_osk_key_version:      newOskVersion,
+        org_id: orgId,
+        status: 'pending',
+        trigger_type: triggerType,
+        refresh_mode: refreshMode,
+        started_by: caller.id,
+        new_dek_key_version: newDekVersion,
+        new_osk_key_version: newOskVersion,
         previous_dek_key_version: prevDekVersion,
         previous_osk_key_version: prevOskVersion,
-        rows_total:               rowsTotal,
+        rows_total: rowsTotal,
       })
       .select('id')
       .single();
-    if (insertErr | !inserted) {
+    if (insertErr || !inserted) {
       console.error('start-rekey-job insert failed:', insertErr);
-      return jsonResponse(
-        { error: 'Could not start the key update.' },
-        500, cors,
-      );
+      return jsonResponse({ error: 'Could not start the key update.' }, 500, cors);
     }
 
     // Audit event — separate from advance_rotation_job's
@@ -211,11 +230,11 @@ serve(async (req) => {
         user_id: caller.id,
         event: 'rekey.started',
         metadata: {
-          job_id:        (inserted as { id: string }).id,
-          org_id:        orgId,
-          trigger_type:  triggerType,
-          refresh_mode:  refreshMode,
-          rows_total:    rowsTotal,
+          job_id: (inserted as { id: string }).id,
+          org_id: orgId,
+          trigger_type: triggerType,
+          refresh_mode: refreshMode,
+          rows_total: rowsTotal,
           new_dek_key_version: newDekVersion,
           new_osk_key_version: newOskVersion,
         },
@@ -228,20 +247,23 @@ serve(async (req) => {
     // Client mirrors this same math for UI consistency.
     const DEEP_TIME_MULTIPLIER = 8;
     const baseEstimate = Math.max(60, Math.ceil(rowsTotal / ROWS_PER_SECOND));
-    const estimatedSeconds = refreshMode === 'deep'
-      ? baseEstimate * DEEP_TIME_MULTIPLIER
-      : baseEstimate;
+    const estimatedSeconds =
+      refreshMode === 'deep' ? baseEstimate * DEEP_TIME_MULTIPLIER : baseEstimate;
 
-    return jsonResponse({
-      job_id:                   (inserted as { id: string }).id,
-      rows_total:               rowsTotal,
-      estimated_seconds:        estimatedSeconds,
-      refresh_mode:             refreshMode,
-      new_dek_key_version:      newDekVersion,
-      new_osk_key_version:      newOskVersion,
-      previous_dek_key_version: prevDekVersion,
-      previous_osk_key_version: prevOskVersion,
-    }, 200, cors);
+    return jsonResponse(
+      {
+        job_id: (inserted as { id: string }).id,
+        rows_total: rowsTotal,
+        estimated_seconds: estimatedSeconds,
+        refresh_mode: refreshMode,
+        new_dek_key_version: newDekVersion,
+        new_osk_key_version: newOskVersion,
+        previous_dek_key_version: prevDekVersion,
+        previous_osk_key_version: prevOskVersion,
+      },
+      200,
+      cors,
+    );
   } catch (err) {
     console.error('start-rekey-job error:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);

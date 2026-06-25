@@ -50,20 +50,24 @@ function baseUrl(): string {
 }
 
 function tokenUrl(): string {
-  return Deno.env.get('FLASH_OAUTH_TOKEN_URL')
-    ?? `${baseUrl()}/flash-connect/oauth/token`;
+  return Deno.env.get('FLASH_OAUTH_TOKEN_URL') ?? `${baseUrl()}/flash-connect/oauth/token`;
 }
 
 function isMock(): boolean {
   return (Deno.env.get('MOCK_FLASH') ?? '').toLowerCase() === 'true';
 }
 
-function parseTokenResponse(json: any): { access_token: string; refresh_token: string; expires_in: number; scope?: string } {
-  if (!json | typeof json.access_token !== 'string' | typeof json.refresh_token !== 'string') {
+function parseTokenResponse(json: any): {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  scope?: string;
+} {
+  if (!json || typeof json.access_token !== 'string' || typeof json.refresh_token !== 'string') {
     throw new Error('Flash token response missing access_token / refresh_token');
   }
   const expiresIn = Number(json.expires_in);
-  if (!Number.isFinite(expiresIn) | expiresIn <= 0) {
+  if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
     throw new Error('Flash token response missing valid expires_in');
   }
   return {
@@ -79,13 +83,16 @@ function parsePaymentLinkResponse(json: any): PaymentLinkResult {
   const id = json?.id ?? json?.paymentLinkId ?? json?.payment_link_id;
   const url = json?.url ?? json?.paymentUrl ?? json?.payment_url;
   const expiresAt = json?.expiresAt ?? json?.expires_at;
-  if (typeof id !== 'string' | typeof url !== 'string') {
+  if (typeof id !== 'string' || typeof url !== 'string') {
     throw new Error('Flash /payment-links response missing id or url');
   }
   return {
     id,
     url,
-    expiresAt: typeof expiresAt === 'string' ? expiresAt : new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    expiresAt:
+      typeof expiresAt === 'string'
+        ? expiresAt
+        : new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
   };
 }
 
@@ -104,7 +111,7 @@ async function refreshTokens(admin: SupabaseClient, current: FlashTokens): Promi
 
   const clientId = Deno.env.get('FLASH_CLIENT_ID');
   const clientSecret = Deno.env.get('FLASH_CLIENT_SECRET');
-  if (!clientId | !clientSecret) {
+  if (!clientId || !clientSecret) {
     throw new Error('FLASH_CLIENT_ID / FLASH_CLIENT_SECRET not configured');
   }
   const body = new URLSearchParams({
@@ -134,16 +141,14 @@ async function refreshTokens(admin: SupabaseClient, current: FlashTokens): Promi
 }
 
 async function persistTokens(admin: SupabaseClient, t: FlashTokens): Promise<void> {
-  const { error } = await admin
-    .from('flash_platform_tokens')
-    .upsert({
-      id: 'singleton',
-      access_token: t.access_token,
-      refresh_token: t.refresh_token,
-      expires_at: t.expires_at,
-      scopes: t.scopes,
-      updated_at: new Date().toISOString(),
-    });
+  const { error } = await admin.from('flash_platform_tokens').upsert({
+    id: 'singleton',
+    access_token: t.access_token,
+    refresh_token: t.refresh_token,
+    expires_at: t.expires_at,
+    scopes: t.scopes,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(`flash_platform_tokens upsert failed: ${error.message}`);
 }
 
@@ -172,8 +177,8 @@ export async function flashFetch(
   const token = await getValidAccessToken(admin);
   const url = `${baseUrl()}${path.startsWith('/') ? '' : '/'}${path}`;
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${token}`,
-    'Accept': 'application/json',
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/json',
     ...(opts.headers ?? {}),
   };
   let body: BodyInit | undefined;

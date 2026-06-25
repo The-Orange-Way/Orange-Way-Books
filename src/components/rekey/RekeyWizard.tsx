@@ -22,7 +22,13 @@
  * + "No data was lost" reassurance + Close.
  */
 import React, { useCallback, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
@@ -32,8 +38,13 @@ import { CheckCircle2, Download, AlertTriangle, Loader2, Shield } from 'lucide-r
 import { toast } from 'sonner';
 import { useVault } from '@/context/VaultContext';
 import {
-  startRekeyJob, runRekeyJob, abortRekey, exportOrgBackup,
-  type RekeyStage, type RekeyTriggerType, type RefreshMode,
+  startRekeyJob,
+  runRekeyJob,
+  abortRekey,
+  exportOrgBackup,
+  type RekeyStage,
+  type RekeyTriggerType,
+  type RefreshMode,
 } from '@/lib/rekey';
 
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -51,8 +62,12 @@ export interface RekeyWizardProps {
 }
 
 export function RekeyWizard({
-  orgId, open, startAtWhatHappens = false, triggerType = 'manual',
-  onClose, onCompleted,
+  orgId,
+  open,
+  startAtWhatHappens = false,
+  triggerType = 'manual',
+  onClose,
+  onCompleted,
 }: RekeyWizardProps) {
   const vault = useVault();
   const [step, setStep] = useState<WizardStep>(startAtWhatHappens ? 2 : 1);
@@ -70,10 +85,14 @@ export function RekeyWizard({
 
   const stageCopy = (stage: RekeyStage): string => {
     switch (stage) {
-      case 'generating_keys':  return 'Creating new security codes for your team';
-      case 'wrapping_members': return 'Sharing the new security codes with your team members';
-      case 'rekeying_rows':    return 'Updating your data with the new security codes';
-      case 'finalizing':       return 'Finishing up';
+      case 'generating_keys':
+        return 'Creating new security codes for your team';
+      case 'wrapping_members':
+        return 'Sharing the new security codes with your team members';
+      case 'rekeying_rows':
+        return 'Updating your data with the new security codes';
+      case 'finalizing':
+        return 'Finishing up';
     }
   };
 
@@ -107,16 +126,28 @@ export function RekeyWizard({
       await runRekeyJob(start.jobId, {
         onStageChange: (s) => setStageLabel(stageCopy(s)),
         onRowProgress: (p) => setRowsProcessed(p),
-        onComplete: () => { setRunState('succeeded'); onCompleted?.(); },
-        onAborted: (reason) => { setRunState('aborted'); setErrorMsg(reason); },
-        onError: (err) => { setErrorMsg(err.message); },
+        onComplete: () => {
+          setRunState('succeeded');
+          onCompleted?.();
+        },
+        onAborted: (reason) => {
+          setRunState('aborted');
+          setErrorMsg(reason);
+        },
+        onError: (err) => {
+          setErrorMsg(err.message);
+        },
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'The security refresh failed.';
       setErrorMsg(msg);
       setRunState('aborted');
       if (jobId) {
-        try { await abortRekey(jobId, msg); } catch { /* swallow */ }
+        try {
+          await abortRekey(jobId, msg);
+        } catch {
+          /* swallow */
+        }
       }
     }
   }, [orgId, triggerType, refreshMode, onCompleted, jobId]);
@@ -130,31 +161,40 @@ export function RekeyWizard({
       setAcknowledged(false);
       setBackupDownloaded(false);
       setRefreshMode('quick');
-      setJobId(null); setRowsTotal(0); setEstimatedSeconds(180);
-      setRunState('idle'); setStageLabel('Preparing');
-      setRowsProcessed(0); setErrorMsg(null);
+      setJobId(null);
+      setRowsTotal(0);
+      setEstimatedSeconds(180);
+      setRunState('idle');
+      setStageLabel('Preparing');
+      setRowsProcessed(0);
+      setErrorMsg(null);
     }, 200);
   }, [runState, onClose, startAtWhatHappens]);
 
   // Deep refresh re-encrypts every row; rough multiplier vs. Quick's
   // version-bump-only path. Used ONLY for the UI time estimate.
   const DEEP_TIME_MULTIPLIER = 8;
-  const effectiveEstimateSeconds = refreshMode === 'deep'
-    ? estimatedSeconds * DEEP_TIME_MULTIPLIER
-    : estimatedSeconds;
+  const effectiveEstimateSeconds =
+    refreshMode === 'deep' ? estimatedSeconds * DEEP_TIME_MULTIPLIER : estimatedSeconds;
   const estimatedMinutes = Math.max(1, Math.ceil(effectiveEstimateSeconds / 60));
-  const rowsPercent = rowsTotal > 0 ? Math.min(100, Math.round((rowsProcessed / rowsTotal) * 100)) : 0;
+  const rowsPercent =
+    rowsTotal > 0 ? Math.min(100, Math.round((rowsProcessed / rowsTotal) * 100)) : 0;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) close();
+      }}
+    >
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-[var(--color-brand-orange)]" />
-            {step < 7 && 'Refresh your team\'s security'}
-            {step === 7 && runState === 'running'   && 'Refreshing your team\'s security'}
+            {step < 7 && "Refresh your team's security"}
+            {step === 7 && runState === 'running' && "Refreshing your team's security"}
             {step === 7 && runState === 'succeeded' && 'Security refreshed successfully'}
-            {step === 7 && runState === 'aborted'   && 'Security refresh could not finish'}
+            {step === 7 && runState === 'aborted' && 'Security refresh could not finish'}
           </DialogTitle>
         </DialogHeader>
 
@@ -187,10 +227,13 @@ export function RekeyWizard({
               >
                 <RadioGroupItem value="quick" id="refresh-quick" className="mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-semibold">Quick refresh <span className="text-muted-foreground font-normal">(recommended)</span></p>
+                  <p className="font-semibold">
+                    Quick refresh{' '}
+                    <span className="text-muted-foreground font-normal">(recommended)</span>
+                  </p>
                   <p className="text-muted-foreground text-xs mt-1">
-                    Takes a few minutes. Updates your team's security codes and makes sure
-                    removed people can't read new data.
+                    Takes a few minutes. Updates your team's security codes and makes sure removed
+                    people can't read new data.
                   </p>
                 </div>
               </label>
@@ -206,9 +249,9 @@ export function RekeyWizard({
                 <div className="flex-1">
                   <p className="font-semibold">Deep refresh</p>
                   <p className="text-muted-foreground text-xs mt-1">
-                    Takes longer — minutes to hours depending on data size. Updates security
-                    AND re-scrambles all your existing data under the new codes. Recommended
-                    if you suspect a security problem or need this for an audit.
+                    Takes longer — minutes to hours depending on data size. Updates security AND
+                    re-scrambles all your existing data under the new codes. Recommended if you
+                    suspect a security problem or need this for an audit.
                   </p>
                 </div>
               </label>
@@ -221,8 +264,8 @@ export function RekeyWizard({
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Recommended: download a backup before refreshing.</p>
             <p className="text-muted-foreground">
-              Your backup is decrypted and stored locally. Keep it somewhere safe.
-              You can skip this step, but we strongly recommend it.
+              Your backup is decrypted and stored locally. Keep it somewhere safe. You can skip this
+              step, but we strongly recommend it.
             </p>
             <Button
               variant={backupDownloaded ? 'outline' : 'default'}
@@ -230,9 +273,15 @@ export function RekeyWizard({
               disabled={backupDownloaded}
             >
               {backupDownloaded ? (
-                <><CheckCircle2 className="w-4 h-4 mr-2" />Backup downloaded</>
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Backup downloaded
+                </>
               ) : (
-                <><Download className="w-4 h-4 mr-2" />Download backup</>
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download backup
+                </>
               )}
             </Button>
           </div>
@@ -243,10 +292,10 @@ export function RekeyWizard({
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Recommended: run this during low-activity hours.</p>
             <p className="text-muted-foreground">
-              Nights or weekends minimize disruption for your team.
-              Estimated time: about {estimatedMinutes} {estimatedMinutes === 1 ? 'minute' : 'minutes'}
-              {refreshMode === 'deep' ? ' for the Deep refresh' : ''}.
-              While this runs, team members can still view data but cannot make changes.
+              Nights or weekends minimize disruption for your team. Estimated time: about{' '}
+              {estimatedMinutes} {estimatedMinutes === 1 ? 'minute' : 'minutes'}
+              {refreshMode === 'deep' ? ' for the Deep refresh' : ''}. While this runs, team members
+              can still view data but cannot make changes.
             </p>
           </div>
         )}
@@ -254,9 +303,12 @@ export function RekeyWizard({
         {/* Step 5 — Team impact */}
         {step === 5 && (
           <div className="space-y-3 text-sm">
-            <p className="font-semibold">Your team will see a short maintenance message while this runs.</p>
+            <p className="font-semibold">
+              Your team will see a short maintenance message while this runs.
+            </p>
             <p className="text-muted-foreground">
-              After the refresh finishes, other team members must reload their browser to continue working.
+              After the refresh finishes, other team members must reload their browser to continue
+              working.
             </p>
           </div>
         )}
@@ -266,7 +318,8 @@ export function RekeyWizard({
           <div className="space-y-3 text-sm">
             <p className="font-semibold">Ready to refresh?</p>
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>{refreshMode === 'deep' ? 'Deep refresh selected — ' : 'Quick refresh selected — '}
+              <li>
+                {refreshMode === 'deep' ? 'Deep refresh selected — ' : 'Quick refresh selected — '}
                 {refreshMode === 'deep'
                   ? 'new security codes will be issued AND your existing data will be re-scrambled under them.'
                   : 'new security codes will be issued and shared with your team.'}
@@ -308,7 +361,8 @@ export function RekeyWizard({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Do not close this tab until this finishes. Progress is saved — you can resume later if needed.
+                  Do not close this tab until this finishes. Progress is saved — you can resume
+                  later if needed.
                 </p>
               </>
             )}
@@ -335,24 +389,32 @@ export function RekeyWizard({
         <DialogFooter>
           {step === 1 && (
             <>
-              <Button variant="outline" onClick={close}>Cancel</Button>
+              <Button variant="outline" onClick={close}>
+                Cancel
+              </Button>
               <Button onClick={() => setStep(2)}>Continue</Button>
             </>
           )}
           {step === 2 && (
             <>
               {!startAtWhatHappens && (
-                <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Back
+                </Button>
               )}
               {startAtWhatHappens && (
-                <Button variant="outline" onClick={close}>Cancel</Button>
+                <Button variant="outline" onClick={close}>
+                  Cancel
+                </Button>
               )}
               <Button onClick={() => setStep(3)}>Continue</Button>
             </>
           )}
           {step === 3 && (
             <>
-              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(2)}>
+                Back
+              </Button>
               <Button onClick={() => setStep(4)}>
                 {backupDownloaded ? 'Continue' : 'Continue without backup'}
               </Button>
@@ -360,30 +422,31 @@ export function RekeyWizard({
           )}
           {step === 4 && (
             <>
-              <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(3)}>
+                Back
+              </Button>
               <Button onClick={() => setStep(5)}>Continue</Button>
             </>
           )}
           {step === 5 && (
             <>
-              <Button variant="outline" onClick={() => setStep(4)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(4)}>
+                Back
+              </Button>
               <Button onClick={() => setStep(6)}>Continue</Button>
             </>
           )}
           {step === 6 && (
             <>
-              <Button variant="outline" onClick={() => setStep(5)}>Back</Button>
-              <Button
-                disabled={!acknowledged}
-                onClick={() => void kickOff()}
-              >
+              <Button variant="outline" onClick={() => setStep(5)}>
+                Back
+              </Button>
+              <Button disabled={!acknowledged} onClick={() => void kickOff()}>
                 Refresh security now
               </Button>
             </>
           )}
-          {step === 7 && runState !== 'running' && (
-            <Button onClick={close}>Close</Button>
-          )}
+          {step === 7 && runState !== 'running' && <Button onClick={close}>Close</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

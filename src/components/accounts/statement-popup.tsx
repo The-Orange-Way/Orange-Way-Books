@@ -13,21 +13,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
-  Dialog, DialogContent,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -61,10 +77,7 @@ interface StatementPopupProps {
 const PER_PAGE_OPTIONS = [20, 50, 100];
 const BALANCED_EPSILON = 0.000000005;
 
-const ALL_PRESETS = [
-  { value: 'all', label: 'All Time' },
-  ...generateDatePresets(),
-];
+const ALL_PRESETS = [{ value: 'all', label: 'All Time' }, ...generateDatePresets()];
 
 export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupProps) {
   const { decryptText, encryptText } = useVault();
@@ -97,9 +110,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   // Undo dialog state
   const [undoDialogOpen, setUndoDialogOpen] = useState(false);
   const [undoMode, setUndoMode] = useState<
-    | null
-    | { kind: 'batch'; auditEntry: any }
-    | { kind: 'all'; txIds: string[] }
+    null | { kind: 'batch'; auditEntry: any } | { kind: 'all'; txIds: string[] }
   >(null);
 
   // Reset all local state when the wallet changes or popup opens
@@ -117,7 +128,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
 
   // Fetch + decrypt transactions whenever popup opens or refresh is requested
   useEffect(() => {
-    if (!open | !wallet) return;
+    if (!open || !wallet) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -137,7 +148,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
           return {
             id: row.id,
             date: row.date,
-            amount: Number(fields.amount) | 0,
+            amount: Number(fields.amount) || 0,
             type: fields.type ?? '',
             memo: fields.memo,
             asset: fields.asset ?? row.asset,
@@ -151,7 +162,9 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
         setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [open, wallet?.id, refreshKey, decryptText]);
 
   // Compute effective date range from preset
@@ -166,7 +179,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   // T5A — DRAFT visibility: when includeDrafts is false, treat DRAFT rows as
   // if they don't exist for both the running balance and the inPeriod list.
   const visibleTxs = useMemo(() => {
-    return includeDrafts ? txs : txs.filter(t => t.status !== 'DRAFT');
+    return includeDrafts ? txs : txs.filter((t) => t.status !== 'DRAFT');
   }, [txs, includeDrafts]);
 
   const { inPeriod, startingBalance } = useMemo(() => {
@@ -174,7 +187,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     const end = dateRange.end;
     const priorSum = visibleTxs
       .filter((t) => (start ? t.date < start : false))
-      .reduce((s, t) => s + (t.amount | 0), 0);
+      .reduce((s, t) => s + (t.amount || 0), 0);
     const within = visibleTxs.filter((t) => {
       if (start && t.date < start) return false;
       if (end && t.date > end) return false;
@@ -190,8 +203,8 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   const withRunning = useMemo(() => {
     let running = startingBalance;
     return inPeriod.map((t) => {
-      running += t.amount | 0;
-      const amt = t.amount | 0;
+      running += t.amount || 0;
+      const amt = t.amount || 0;
       return {
         ...t,
         debit: amt > 0 ? amt : null,
@@ -201,9 +214,8 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     });
   }, [inPeriod, startingBalance]);
 
-  const endingBalance = withRunning.length > 0
-    ? withRunning[withRunning.length - 1].runningBalance
-    : startingBalance;
+  const endingBalance =
+    withRunning.length > 0 ? withRunning[withRunning.length - 1].runningBalance : startingBalance;
 
   const total = withRunning.length;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -213,17 +225,18 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   const showingStart = total === 0 ? 0 : startIdx + 1;
   const showingEnd = Math.min(startIdx + perPage, total);
 
-  const fmtAmt = useCallback((amount: number) => {
-    const currency = wallet?.asset ?? 'USD';
-    return formatAmount(amount, currency);
-  }, [wallet?.asset, formatAmount]);
+  const fmtAmt = useCallback(
+    (amount: number) => {
+      const currency = wallet?.asset ?? 'USD';
+      return formatAmount(amount, currency);
+    },
+    [wallet?.asset, formatAmount],
+  );
 
   // Reconciliation computed values
   const checkedTotal = useMemo(() => {
     if (!reconcileMode) return 0;
-    return withRunning
-      .filter((t) => checkedIds.has(t.id))
-      .reduce((s, t) => s + (t.amount | 0), 0);
+    return withRunning.filter((t) => checkedIds.has(t.id)).reduce((s, t) => s + (t.amount || 0), 0);
   }, [withRunning, checkedIds, reconcileMode]);
 
   const reconcileBalanceNum = useMemo(() => {
@@ -238,7 +251,8 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     return reconcileBalanceNum - startingBalance - checkedTotal;
   }, [reconcileBalanceNum, startingBalance, checkedTotal]);
 
-  const isBalanced = reconcileDifference !== null && Math.abs(reconcileDifference) < BALANCED_EPSILON;
+  const isBalanced =
+    reconcileDifference !== null && Math.abs(reconcileDifference) < BALANCED_EPSILON;
 
   const handleToggleCheck = useCallback((id: string) => {
     setCheckedIds((prev) => {
@@ -265,7 +279,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, []);
 
   const handleCompleteReconciliation = useCallback(async () => {
-    if (!wallet | !isBalanced | reconciling) return;
+    if (!wallet || !isBalanced || reconciling) return;
     setReconciling(true);
     try {
       const ids = Array.from(checkedIds);
@@ -281,14 +295,18 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
           action: 'RECONCILE',
           entityType: 'wallet',
           entityId: wallet.id,
-          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate | 'today'} — statement balance ${reconcileBalanceNum}`,
-          after: { transactionIds: ids, statementBalance: reconcileBalanceNum, statementDate: reconcileDate },
+          summary: `Reconciled ${ids.length} transaction(s) through ${reconcileDate || 'today'} — statement balance ${reconcileBalanceNum}`,
+          after: {
+            transactionIds: ids,
+            statementBalance: reconcileBalanceNum,
+            statementDate: reconcileDate,
+          },
           encrypt: encryptText,
         });
       }
       toast({
         title: 'Reconciled',
-        description: `${ids.length} transaction${ids.length === 1 ? '' : 's'} reconciled through ${reconcileDate | 'today'}.`,
+        description: `${ids.length} transaction${ids.length === 1 ? '' : 's'} reconciled through ${reconcileDate || 'today'}.`,
       });
       handleExitReconcile();
       setRefreshKey((k) => k + 1);
@@ -301,10 +319,21 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     } finally {
       setReconciling(false);
     }
-  }, [wallet, isBalanced, reconciling, checkedIds, encryptText, reconcileDate, reconcileBalanceNum, orgId, toast, handleExitReconcile]);
+  }, [
+    wallet,
+    isBalanced,
+    reconciling,
+    checkedIds,
+    encryptText,
+    reconcileDate,
+    reconcileBalanceNum,
+    orgId,
+    toast,
+    handleExitReconcile,
+  ]);
 
   const handleOpenUndoDialog = useCallback(async () => {
-    if (!wallet | undoing) return;
+    if (!wallet || undoing) return;
     if (!orgId) {
       toast({
         title: 'Cannot undo',
@@ -352,7 +381,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   }, [wallet, undoing, orgId, txs, toast]);
 
   const handleConfirmUndo = useCallback(async () => {
-    if (!wallet | !undoMode | !orgId) return;
+    if (!wallet || !undoMode || !orgId) return;
     setUndoing(true);
     try {
       const encCleared = await encryptText('CLEARED');
@@ -362,7 +391,8 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
         const decrypted = await decryptAuditLog(undoMode.auditEntry, decryptText);
         try {
           const parsed = decrypted.after_snapshot ? JSON.parse(decrypted.after_snapshot) : null;
-          if (parsed && Array.isArray(parsed.transactionIds)) ids = parsed.transactionIds as string[];
+          if (parsed && Array.isArray(parsed.transactionIds))
+            ids = parsed.transactionIds as string[];
         } catch {
           ids = [];
         }
@@ -431,25 +461,32 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     }
   }, [wallet, undoMode, orgId, decryptText, encryptText, toast]);
 
-  const exportRows = useMemo(() => withRunning.map((t) => [
-    t.date,
-    t.id.slice(0, 8),
-    t.memo ?? t.type,
-    t.debit != null ? String(t.debit) : '',
-    t.credit != null ? String(t.credit) : '',
-    String(t.runningBalance),
-  ]), [withRunning]);
+  const exportRows = useMemo(
+    () =>
+      withRunning.map((t) => [
+        t.date,
+        t.id.slice(0, 8),
+        t.memo ?? t.type,
+        t.debit != null ? String(t.debit) : '',
+        t.credit != null ? String(t.credit) : '',
+        String(t.runningBalance),
+      ]),
+    [withRunning],
+  );
 
-  const handleExport = useCallback((format: 'csv' | 'pdf') => {
-    if (!wallet) return;
-    const headers = ['Date', 'Ref#', 'Description', 'Debit', 'Credit', 'Running Balance'];
-    const name = wallet.encrypted_name | 'Wallet';
-    if (format === 'csv') {
-      exportToCsv(`${name}-statement`, headers, exportRows);
-    } else {
-      void printTable(`${name} — Statement`, headers, exportRows);
-    }
-  }, [wallet, exportRows]);
+  const handleExport = useCallback(
+    (format: 'csv' | 'pdf') => {
+      if (!wallet) return;
+      const headers = ['Date', 'Ref#', 'Description', 'Debit', 'Credit', 'Running Balance'];
+      const name = wallet.encrypted_name || 'Wallet';
+      if (format === 'csv') {
+        exportToCsv(`${name}-statement`, headers, exportRows);
+      } else {
+        void printTable(`${name} — Statement`, headers, exportRows);
+      }
+    },
+    [wallet, exportRows],
+  );
 
   const statusBadge = (status: string | null) => {
     if (status === 'RECONCILED') {
@@ -462,7 +499,9 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
     }
     if (status === 'CLEARED') {
       return (
-        <Badge variant="outline" className="border-blue-300 text-blue-700">Cleared</Badge>
+        <Badge variant="outline" className="border-blue-300 text-blue-700">
+          Cleared
+        </Badge>
       );
     }
     return null;
@@ -471,7 +510,12 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
   if (!wallet) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent
         className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden"
         aria-describedby={undefined}
@@ -480,10 +524,10 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
         <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b">
           <div>
             <h2 className="text-xl font-semibold">
-              {wallet.encrypted_name | '[Encrypted]'} — {reconcileMode ? 'Reconcile' : 'Statement'}
+              {wallet.encrypted_name || '[Encrypted]'} — {reconcileMode ? 'Reconcile' : 'Statement'}
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              {wallet.asset} / {wallet.institution | 'N/A'} / {wallet.account_type | 'N/A'}
+              {wallet.asset} / {wallet.institution || 'N/A'} / {wallet.account_type || 'N/A'}
             </p>
           </div>
           <div className="flex items-center gap-2 pr-8">
@@ -506,7 +550,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
             <Button
               variant={reconcileMode ? 'default' : 'outline'}
               size="sm"
-              onClick={() => reconcileMode ? handleExitReconcile() : setReconcileMode(true)}
+              onClick={() => (reconcileMode ? handleExitReconcile() : setReconcileMode(true))}
             >
               {reconcileMode ? 'Exit Reconcile' : 'Reconcile'}
             </Button>
@@ -532,21 +576,33 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               onChange={(e) => setReconcileDate(e.target.value)}
             />
             <div className="flex-1" />
-            <Button variant="ghost" size="sm" onClick={handleSelectAll}>Select All</Button>
-            <Button variant="ghost" size="sm" onClick={handleDeselectAll}>Deselect All</Button>
+            <Button variant="ghost" size="sm" onClick={handleSelectAll}>
+              Select All
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleDeselectAll}>
+              Deselect All
+            </Button>
           </div>
         )}
 
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b">
           <label className="text-xs font-medium text-muted-foreground">PERIOD</label>
-          <Select value={datePreset} onValueChange={(v) => { setDatePreset(v); setPage(1); }}>
+          <Select
+            value={datePreset}
+            onValueChange={(v) => {
+              setDatePreset(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="h-8 w-[160px] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ALL_PRESETS.map((p) => (
-                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -558,14 +614,20 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
                 type="date"
                 className="h-8 w-[150px]"
                 value={customStart}
-                onChange={(e) => { setCustomStart(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setCustomStart(e.target.value);
+                  setPage(1);
+                }}
               />
               <label className="text-xs text-muted-foreground">To</label>
               <Input
                 type="date"
                 className="h-8 w-[150px]"
                 value={customEnd}
-                onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setCustomEnd(e.target.value);
+                  setPage(1);
+                }}
               />
             </>
           )}
@@ -574,7 +636,9 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">Export ▾</Button>
+              <Button variant="outline" size="sm">
+                Export ▾
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('csv')}>Export as CSV</DropdownMenuItem>
@@ -589,7 +653,10 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
             <input
               type="checkbox"
               checked={includeDrafts}
-              onChange={(e) => { setIncludeDrafts(e.target.checked); setPage(1); }}
+              onChange={(e) => {
+                setIncludeDrafts(e.target.checked);
+                setPage(1);
+              }}
               className="h-3.5 w-3.5"
             />
             Include drafts in balance
@@ -607,11 +674,15 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               {/* Balance cards */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="border rounded-lg px-4 py-3 bg-card">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Starting Balance</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Starting Balance
+                  </p>
                   <p className="text-lg font-mono mt-1">{fmtAmt(startingBalance)}</p>
                 </div>
                 <div className="border rounded-lg px-4 py-3 bg-card">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Ending Balance</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Ending Balance
+                  </p>
                   <p className="text-lg font-mono mt-1">{fmtAmt(endingBalance)}</p>
                 </div>
               </div>
@@ -634,43 +705,57 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
                   <TableBody>
                     {pageRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={reconcileMode ? 8 : 7} className="text-center text-muted-foreground py-10 text-sm">
+                        <TableCell
+                          colSpan={reconcileMode ? 8 : 7}
+                          className="text-center text-muted-foreground py-10 text-sm"
+                        >
                           No transactions found for the selected period.
                         </TableCell>
                       </TableRow>
-                    ) : pageRows.map((t) => {
-                      const isChecked = checkedIds.has(t.id);
-                      return (
-                        <TableRow key={t.id} className={cn(reconcileMode && isChecked && 'bg-green-50/50')}>
-                          {reconcileMode && (
-                            <TableCell>
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={() => handleToggleCheck(t.id)}
-                              />
+                    ) : (
+                      pageRows.map((t) => {
+                        const isChecked = checkedIds.has(t.id);
+                        return (
+                          <TableRow
+                            key={t.id}
+                            className={cn(reconcileMode && isChecked && 'bg-green-50/50')}
+                          >
+                            {reconcileMode && (
+                              <TableCell>
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => handleToggleCheck(t.id)}
+                                />
+                              </TableCell>
+                            )}
+                            <TableCell className="font-mono text-xs">{t.date}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {t.id.slice(0, 8)}
                             </TableCell>
-                          )}
-                          <TableCell className="font-mono text-xs">{t.date}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{t.id.slice(0, 8)}</TableCell>
-                          <TableCell className="text-sm">{t.memo | t.type | '—'}</TableCell>
-                          <TableCell className="text-right font-mono text-sm text-green-700">
-                            {t.debit != null ? fmtAmt(t.debit) : ''}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm text-red-700">
-                            {t.credit != null ? fmtAmt(t.credit) : ''}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">{fmtAmt(t.runningBalance)}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              {t.status === 'DRAFT' && (
-                                <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 text-[10px]">Draft</Badge>
-                              )}
-                              {statusBadge(t.cleared_status)}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                            <TableCell className="text-sm">{t.memo || t.type || '—'}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-green-700">
+                              {t.debit != null ? fmtAmt(t.debit) : ''}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm text-red-700">
+                              {t.credit != null ? fmtAmt(t.credit) : ''}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {fmtAmt(t.runningBalance)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                {t.status === 'DRAFT' && (
+                                  <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 text-[10px]">
+                                    Draft
+                                  </Badge>
+                                )}
+                                {statusBadge(t.cleared_status)}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -678,18 +763,48 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               {/* Pagination */}
               {total > 0 && (
                 <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                  <span>Showing {showingStart}–{showingEnd} of {total}</span>
+                  <span>
+                    Showing {showingStart}–{showingEnd} of {total}
+                  </span>
                   <div className="flex items-center gap-2">
                     <span>Per page:</span>
-                    <Select value={String(perPage)} onValueChange={(v) => { setPerPage(Number(v)); setPage(1); }}>
-                      <SelectTrigger className="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+                    <Select
+                      value={String(perPage)}
+                      onValueChange={(v) => {
+                        setPerPage(Number(v));
+                        setPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-[70px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {PER_PAGE_OPTIONS.map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                        {PER_PAGE_OPTIONS.map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="sm" disabled={pageSafe <= 1} onClick={() => setPage(pageSafe - 1)}>‹</Button>
-                    <span className="px-2">{pageSafe} / {totalPages}</span>
-                    <Button variant="outline" size="sm" disabled={pageSafe >= totalPages} onClick={() => setPage(pageSafe + 1)}>›</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageSafe <= 1}
+                      onClick={() => setPage(pageSafe - 1)}
+                    >
+                      ‹
+                    </Button>
+                    <span className="px-2">
+                      {pageSafe} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageSafe >= totalPages}
+                      onClick={() => setPage(pageSafe + 1)}
+                    >
+                      ›
+                    </Button>
                   </div>
                 </div>
               )}
@@ -699,14 +814,18 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
 
         {/* Reconciliation bottom bar */}
         {reconcileMode && reconcileBalance && (
-          <div className={cn(
-            'flex items-center gap-6 px-6 py-3 border-t',
-            isBalanced ? 'bg-green-50' : 'bg-amber-50',
-          )}>
+          <div
+            className={cn(
+              'flex items-center gap-6 px-6 py-3 border-t',
+              isBalanced ? 'bg-green-50' : 'bg-amber-50',
+            )}
+          >
             <div className="flex gap-6 text-xs flex-1">
               <div>
                 <p className="uppercase tracking-wide text-muted-foreground">Statement</p>
-                <p className="font-mono text-sm mt-0.5">{reconcileBalanceNum !== null ? fmtAmt(reconcileBalanceNum) : '—'}</p>
+                <p className="font-mono text-sm mt-0.5">
+                  {reconcileBalanceNum !== null ? fmtAmt(reconcileBalanceNum) : '—'}
+                </p>
               </div>
               <div>
                 <p className="uppercase tracking-wide text-muted-foreground">Starting + Checked</p>
@@ -714,20 +833,23 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
               </div>
               <div>
                 <p className="uppercase tracking-wide text-muted-foreground">Difference</p>
-                <p className={cn(
-                  'font-mono text-sm mt-0.5 flex items-center gap-1',
-                  isBalanced ? 'text-green-700' : 'text-amber-700',
-                )}>
+                <p
+                  className={cn(
+                    'font-mono text-sm mt-0.5 flex items-center gap-1',
+                    isBalanced ? 'text-green-700' : 'text-amber-700',
+                  )}
+                >
                   {isBalanced ? (
-                    <><CheckCircle2 className="w-4 h-4" /> Balanced!</>
-                  ) : fmtAmt(reconcileDifference ?? 0)}
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> Balanced!
+                    </>
+                  ) : (
+                    fmtAmt(reconcileDifference ?? 0)
+                  )}
                 </p>
               </div>
             </div>
-            <Button
-              disabled={!isBalanced | reconciling}
-              onClick={handleCompleteReconciliation}
-            >
+            <Button disabled={!isBalanced || reconciling} onClick={handleCompleteReconciliation}>
               {reconciling && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               {reconciling ? 'Saving...' : isBalanced ? 'Complete Reconciliation' : 'Not Balanced'}
             </Button>

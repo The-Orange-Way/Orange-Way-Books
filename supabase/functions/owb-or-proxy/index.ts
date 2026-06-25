@@ -1,5 +1,5 @@
 /**
- * bb-or-proxy — Orange Way Books ↔ OrangeRails proxy.
+ * owb-or-proxy: Orange Way Books to OrangeRails proxy.
  *
  * Orange Way Books is a Plaid-style platform consumer of OrangeRails. End users
  * of Orange Way Books never see OR; this proxy holds the OR_PLATFORM_API_KEY
@@ -101,14 +101,17 @@ Deno.serve(async (req: Request) => {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr | !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
+    const {
+      data: { user },
+      error: authErr,
+    } = await userClient.auth.getUser();
+    if (authErr || !user) return jsonResponse({ error: 'Unauthorized' }, 401, cors);
 
     // ── Rate limit (M5 — 2026-05-19 audit) ───────────────────────────
     // 30 OR calls per user per minute. Caps cost-amplification against
     // OR's edge functions; Connections page rarely exceeds a handful.
     const rl = await rateLimit(rlClient, {
-      scope: 'or-proxy',
+      scope: 'owb-or-proxy',
       subject: user.id,
       maxPerWindow: 30,
       windowSeconds: 60,
@@ -128,8 +131,12 @@ Deno.serve(async (req: Request) => {
     };
 
     const { endpoint, org_id, payload = {} } = body;
-    if (!endpoint | !ALLOWED_ENDPOINTS.has(endpoint)) {
-      return jsonResponse({ error: `endpoint must be one of: ${[...ALLOWED_ENDPOINTS].join(', ')}` }, 400, cors);
+    if (!endpoint || !ALLOWED_ENDPOINTS.has(endpoint)) {
+      return jsonResponse(
+        { error: `endpoint must be one of: ${[...ALLOWED_ENDPOINTS].join(', ')}` },
+        400,
+        cors,
+      );
     }
     if (!org_id) return jsonResponse({ error: 'org_id required' }, 400, cors);
 
@@ -154,27 +161,29 @@ Deno.serve(async (req: Request) => {
       // or-provision mirror below). The browser caches the value too but
       // a cleared cache used to surface as a 400; now the server resolves
       // it via service role on the verified org_id and injects it.
-      orBody = { ...payload };
-      if (!orBody.subaccount_id) {
-        const resolverClient = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-          { auth: { autoRefreshToken: false, persistSession: false } },
+      // Always resolve subaccount_id server-side from the verified org_id.
+      // Never trust a client-supplied value: an authenticated member of org A
+      // could otherwise pass org B's subaccount_id and operate against B's
+      // Orange Rails state.
+      const resolverClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      );
+      const { data: orgRow } = await resolverClient
+        .from('organizations')
+        .select('or_subaccount_id')
+        .eq('id', org_id)
+        .maybeSingle();
+      const resolved = (orgRow as { or_subaccount_id?: unknown } | null)?.or_subaccount_id;
+      if (typeof resolved !== 'string' || !resolved) {
+        return jsonResponse(
+          { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
+          400,
+          cors,
         );
-        const { data: orgRow } = await resolverClient
-          .from('organizations')
-          .select('or_subaccount_id')
-          .eq('id', org_id)
-          .maybeSingle();
-        const resolved = (orgRow as { or_subaccount_id?: unknown } | null)?.or_subaccount_id;
-        if (typeof resolved !== 'string' | !resolved) {
-          return jsonResponse(
-            { error: 'org is not provisioned on Orange Rails (call or-provision first)' },
-            400, cors,
-          );
-        }
-        orBody.subaccount_id = resolved;
       }
+      orBody = { ...payload, subaccount_id: resolved };
     }
 
     const orRes = await callOr(endpoint, orBody);
@@ -203,15 +212,17 @@ Deno.serve(async (req: Request) => {
           // Don't fail the request — the browser localStorage cache still
           // works and the receiver will return 202 (accepted_no_org) if
           // the mapping isn't found. Surface as a server log for now.
-          console.error('[or-proxy] failed to mirror subaccount_id to organizations:', mapErr.message);
+          console.error(
+            '[owb-or-proxy] failed to mirror subaccount_id to organizations:',
+            mapErr.message,
+          );
         }
       }
     }
 
     return jsonResponse(orJson, orRes.status, cors);
-
   } catch (err) {
-    console.error('[or-proxy] fatal:', err);
+    console.error('[owb-or-proxy] fatal:', err);
     return jsonResponse({ error: 'Internal error' }, 500, cors);
   }
 });

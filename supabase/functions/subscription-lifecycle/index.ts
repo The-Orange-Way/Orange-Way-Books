@@ -66,7 +66,13 @@ async function recipientFor(billingAccountId: string): Promise<string | null> {
   return user?.user?.email ?? null;
 }
 
-async function transition(sub: Sub, toStatus: string, reason: string, patch: Record<string, unknown>, email?: LifecycleTemplateName) {
+async function transition(
+  sub: Sub,
+  toStatus: string,
+  reason: string,
+  patch: Record<string, unknown>,
+  email?: LifecycleTemplateName,
+) {
   await admin
     .from('subscriptions')
     .update({ ...patch, status: toStatus, updated_at: new Date().toISOString() })
@@ -108,7 +114,9 @@ async function runOnce(): Promise<Report> {
 
   const { data: subs, error } = await admin
     .from('subscriptions')
-    .select('id, status, trial_ends_at, current_period_end, past_due_since, locked_at, billing_account_id')
+    .select(
+      'id, status, trial_ends_at, current_period_end, past_due_since, locked_at, billing_account_id',
+    )
     .in('status', ['trialing', 'active', 'past_due', 'read_only', 'locked']);
   if (error) throw error;
 
@@ -117,39 +125,76 @@ async function runOnce(): Promise<Report> {
     const pastDueSince = sub.past_due_since ? new Date(sub.past_due_since).getTime() : null;
     const lockedAt = sub.locked_at ? new Date(sub.locked_at).getTime() : null;
 
-    if (sub.status === 'trialing' && sub.trial_ends_at && new Date(sub.trial_ends_at).getTime() < now) {
-      await transition(sub, 'past_due', 'trial_expired',
-        { past_due_since: new Date().toISOString() }, 'trial-expired');
+    if (
+      sub.status === 'trialing' &&
+      sub.trial_ends_at &&
+      new Date(sub.trial_ends_at).getTime() < now
+    ) {
+      await transition(
+        sub,
+        'past_due',
+        'trial_expired',
+        { past_due_since: new Date().toISOString() },
+        'trial-expired',
+      );
       report.trialing_to_past_due++;
       continue;
     }
 
-    if (sub.status === 'active' && sub.current_period_end && new Date(sub.current_period_end).getTime() < now) {
-      await transition(sub, 'past_due', 'period_expired',
-        { past_due_since: new Date().toISOString() }, 'payment-due-3d');
+    if (
+      sub.status === 'active' &&
+      sub.current_period_end &&
+      new Date(sub.current_period_end).getTime() < now
+    ) {
+      await transition(
+        sub,
+        'past_due',
+        'period_expired',
+        { past_due_since: new Date().toISOString() },
+        'payment-due-3d',
+      );
       report.active_to_past_due++;
       continue;
     }
 
-    if (sub.status === 'past_due' && pastDueSince !== null
-      && now - pastDueSince >= READ_ONLY_AFTER_DAYS * DAY_MS) {
+    if (
+      sub.status === 'past_due' &&
+      pastDueSince !== null &&
+      now - pastDueSince >= READ_ONLY_AFTER_DAYS * DAY_MS
+    ) {
       await transition(sub, 'read_only', 'past_due_45d', {}, 'read-only-notice');
       report.past_due_to_read_only++;
       continue;
     }
 
-    if (sub.status === 'read_only' && pastDueSince !== null
-      && now - pastDueSince >= LOCKED_AFTER_DAYS * DAY_MS) {
-      await transition(sub, 'locked', 'read_only_45d',
-        { locked_at: new Date().toISOString() }, 'locked-notice');
+    if (
+      sub.status === 'read_only' &&
+      pastDueSince !== null &&
+      now - pastDueSince >= LOCKED_AFTER_DAYS * DAY_MS
+    ) {
+      await transition(
+        sub,
+        'locked',
+        'read_only_45d',
+        { locked_at: new Date().toISOString() },
+        'locked-notice',
+      );
       report.read_only_to_locked++;
       continue;
     }
 
-    if (sub.status === 'locked' && lockedAt !== null
-      && now - lockedAt >= DELETED_AFTER_LOCKED_DAYS * DAY_MS) {
-      await transition(sub, 'deleted', 'locked_365d',
-        { scheduled_deletion_at: new Date().toISOString() }, 'deleted-confirmation');
+    if (
+      sub.status === 'locked' &&
+      lockedAt !== null &&
+      now - lockedAt >= DELETED_AFTER_LOCKED_DAYS * DAY_MS
+    ) {
+      await transition(
+        sub,
+        'deleted',
+        'locked_365d',
+        { scheduled_deletion_at: new Date().toISOString() },
+        'deleted-confirmation',
+      );
       report.locked_to_deleted++;
       continue;
     }
@@ -168,8 +213,8 @@ Deno.serve(async (req: Request) => {
   const cronSecret = Deno.env.get('CRON_SECRET');
   const presentedCron = req.headers.get('X-Cron-Secret');
   const authHeader = req.headers.get('Authorization') ?? '';
-  const isServiceCaller = authHeader.toLowerCase().startsWith('bearer ')
-    && authHeader.slice(7) === SUPABASE_SERVICE_KEY;
+  const isServiceCaller =
+    authHeader.toLowerCase().startsWith('bearer ') && authHeader.slice(7) === SUPABASE_SERVICE_KEY;
   const isCronCaller = !!cronSecret && presentedCron === cronSecret;
   if (!isServiceCaller && !isCronCaller) {
     return jsonResponse({ error: 'Unauthorized' }, 401, cors);

@@ -32,13 +32,15 @@ export async function retryPendingRateLines(
     .not('primary_currency_at_posting', 'is', null)
     .limit(100);
 
-  if (error | !rows) return result;
+  if (error || !rows) return result;
 
   // We need the wallet currency per line — it's encrypted. For retry purposes,
   // fetch the journal_entry's wallet currency via the journal_entries join.
   const { data: lineDetails } = await supabase
     .from('journal_entry_lines')
-    .select('id, rate_asof, primary_currency_at_posting, encrypted_wallet_currency, key_version, journal_entries(date)')
+    .select(
+      'id, rate_asof, primary_currency_at_posting, encrypted_wallet_currency, key_version, journal_entries(date)',
+    )
     .eq('rate_pending', true)
     .limit(100);
 
@@ -51,7 +53,7 @@ export async function retryPendingRateLines(
 
       // wallet_currency is encrypted — skip lines where we can't derive it
       // (they'll be resolved via the backfill flow instead)
-      if (!primaryCurrency | !date) {
+      if (!primaryCurrency || !date) {
         result.stillPending++;
         continue;
       }

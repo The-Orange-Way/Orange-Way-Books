@@ -153,16 +153,16 @@ describe('Transfer Clearing helper', () => {
     // sats cross-currency transfer, the 4-line JE balances in BOTH currencies
     // independently, which is the documented contract — see
     // generate-journal-entry.ts inside the transactions module.
-    const sentValue = 100;     // USD out of source
+    const sentValue = 100; // USD out of source
     const receivedValue = 5000; // sats into dest
     const destAsset = 'BTC';
     const sourceAsset = 'USD';
 
     const lines = [
-      { currency: destAsset,   debit: receivedValue,  credit: 0,             account: 'Dest Wallet' },
-      { currency: destAsset,   debit: 0,              credit: receivedValue, account: 'Transfer Clearing' },
-      { currency: sourceAsset, debit: sentValue,      credit: 0,             account: 'Transfer Clearing' },
-      { currency: sourceAsset, debit: 0,              credit: sentValue,     account: 'Source Wallet' },
+      { currency: destAsset, debit: receivedValue, credit: 0, account: 'Dest Wallet' },
+      { currency: destAsset, debit: 0, credit: receivedValue, account: 'Transfer Clearing' },
+      { currency: sourceAsset, debit: sentValue, credit: 0, account: 'Transfer Clearing' },
+      { currency: sourceAsset, debit: 0, credit: sentValue, account: 'Source Wallet' },
     ];
 
     const byCurrency = new Map<string, { dr: number; cr: number }>();
@@ -177,7 +177,9 @@ describe('Transfer Clearing helper', () => {
     }
     // Transfer Clearing must appear on both currency sides.
     const clearingLines = lines.filter((l) => l.account === 'Transfer Clearing');
-    expect(new Set(clearingLines.map((l) => l.currency))).toEqual(new Set([destAsset, sourceAsset]));
+    expect(new Set(clearingLines.map((l) => l.currency))).toEqual(
+      new Set([destAsset, sourceAsset]),
+    );
   });
 
   it('find ignores archived Transfer Clearing rows', async () => {

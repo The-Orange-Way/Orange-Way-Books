@@ -44,7 +44,6 @@ EXCLUDE_DIRS=(
 # Lock files + binary assets: skip wholesale.
 EXCLUDE_FILES=(
   --exclude=bun.lock
-  --exclude=bun.lockb
   --exclude=package-lock.json
   --exclude=yarn.lock
   --exclude="*.png"
@@ -77,27 +76,17 @@ EXEMPT_GENERIC=(
   "scripts/pre-publish-scan.sh"
   ".github/PULL_REQUEST_TEMPLATE.md"
   ".github/workflows/leak-check.yml"
-  "docs/CONTRIBUTING.md"
+  ".github/workflows/post-merge-identity-scan.yml"
+  "CONTRIBUTING.md"
+  # Pre-push gate scripts: the gate's private-host regex enumerates
+  # exactly the strings the scanner is looking for; install-hooks.sh
+  # references the gate by path.
+  "scripts/pre-push-gate.sh"
+  "scripts/install-hooks.sh"
 )
 
-EXEMPT_BITBOOKS_LITERAL=(
-  # Six HKDF / Argon2id context strings in src/lib/vault.ts: blind-index
-  # salt, OR-MEK salt, OR-subkey salt, recovery-KEK salt, master verifier
-  # plaintext, master-recovery KEK context. Renaming corrupts every
-  # existing user vault.
-  "src/lib/vault.ts"
-  # Two localStorage migration keys, kept verbatim behind atob() so a
-  # global text-replace pass cannot accidentally clobber them.
-  "src/lib/active-org.ts"
-  "src/pages/Dashboard.tsx"
-)
-
-# Internal protocol enum left in place for backward-compat with running
-# key_rotation_jobs in dev / prod databases.
-EXEMPT_OSK_ENUM=(
-  "supabase/functions/rekey-batch/index.ts"
-  "src/lib/rekey.ts"
-)
+EXEMPT_BITBOOKS_LITERAL=()
+EXEMPT_OSK_ENUM=()
 
 EXIT_CODE=0
 
@@ -238,7 +227,7 @@ scan "External contact names" \
      ""
 
 scan "Personal-domain emails" \
-     "@(bitbooks\\.com|abascal\\.ca|tryfaster\\.ca)" \
+     "@(bitbooks\\.com|abascal\\.ca|thrivefaster\\.ca|tryfaster\\.ca)" \
      "" \
      ""
 
@@ -343,7 +332,7 @@ if [[ "$EXIT_CODE" -eq 0 ]]; then
   printf "\033[32m▎ Tree is clean. Safe to publish or merge.\033[0m\n\n"
 else
   printf "\033[31m▎ Leaks found. Clean up the items above before publishing.\033[0m\n"
-  printf "  See \033[1mdocs/CONTRIBUTING.md\033[0m for the rules and exemption process.\n\n"
+  printf "  See \033[1mCONTRIBUTING.md\033[0m for the rules and exemption process.\n\n"
 fi
 
 exit "$EXIT_CODE"

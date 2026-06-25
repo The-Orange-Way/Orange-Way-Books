@@ -9,11 +9,7 @@ import { useUserOrg } from '@/hooks/useUserOrg';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { useVault } from '@/context/VaultContext';
 import { decryptJournalEntryLine, decryptChartOfAccount } from '@/lib/crypto-fields';
-import {
-  computeAccountBalances,
-  type JournalLine,
-  type AccountInfo,
-} from '@/lib/ledger-engine';
+import { computeAccountBalances, type JournalLine, type AccountInfo } from '@/lib/ledger-engine';
 import { Button } from '@/components/ui/button';
 
 interface MonthSummary {
@@ -36,7 +32,7 @@ function summarizeMonth(
   let expenses = 0;
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
-    if (t === 'revenue' | t === 'income') revenue += b.balance;
+    if (t === 'revenue' || t === 'income') revenue += b.balance;
     else if (t === 'expense') expenses += b.balance;
   }
   return {
@@ -67,7 +63,10 @@ export default function CashFlowPage() {
           .from('journal_entry_lines')
           .select('*, journal_entries!inner(date, memo, org_id)')
           .eq('journal_entries.org_id', orgId),
-        supabase.from('chart_of_accounts' as any).select('*').eq('org_id', orgId),
+        supabase
+          .from('chart_of_accounts' as any)
+          .select('*')
+          .eq('org_id', orgId),
       ]);
       if (!active) return;
 
@@ -102,8 +101,8 @@ export default function CashFlowPage() {
             name: fields.account_name,
             code: fields.account_code,
             accountType: fields.account_type,
-            accountGroup: fields.account_group | '',
-            accountCategory: fields.account_category | null,
+            accountGroup: fields.account_group || '',
+            accountCategory: fields.account_category || null,
           };
         }),
       );
@@ -113,7 +112,9 @@ export default function CashFlowPage() {
       setAccounts(decryptedAccounts);
       setLoading(false);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [orgId, orgLoading, decryptText]);
 
   const current = useMemo(
@@ -151,7 +152,8 @@ export default function CashFlowPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cash flow</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Did the business make money this month? A quick monthly view of revenue, expenses, and net.
+            Did the business make money this month? A quick monthly view of revenue, expenses, and
+            net.
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -163,7 +165,10 @@ export default function CashFlowPage() {
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <div className="px-3 text-sm font-medium tabular-nums min-w-[8rem] text-center" data-testid="cashflow-month-label">
+          <div
+            className="px-3 text-sm font-medium tabular-nums min-w-[8rem] text-center"
+            data-testid="cashflow-month-label"
+          >
             {format(anchor, 'MMMM yyyy')}
           </div>
           <Button
@@ -189,7 +194,7 @@ export default function CashFlowPage() {
             variant="outline"
             size="sm"
             className="ml-2"
-            disabled={loading | trailing6.length === 0}
+            disabled={loading || trailing6.length === 0}
             onClick={() => {
               const headers = ['Month', 'Revenue', 'Expenses', 'Net'];
               const rows = trailing6.map((m) => [
@@ -261,14 +266,21 @@ export default function CashFlowPage() {
                 const isCurrent = isSameMonth(m.monthStart, anchor);
                 const isPositive = m.net >= 0;
                 return (
-                  <div key={m.monthStart.toISOString()} className="flex flex-col items-center justify-end h-full gap-1">
+                  <div
+                    key={m.monthStart.toISOString()}
+                    className="flex flex-col items-center justify-end h-full gap-1"
+                  >
                     <div
                       className="w-full rounded-t-sm transition-all"
                       style={{
                         height: `${Math.max(4, heightPct * 100)}%`,
                         background: isPositive
-                          ? (isCurrent ? 'var(--color-brand-orange)' : '#86efac')
-                          : (isCurrent ? '#dc2626' : '#fca5a5'),
+                          ? isCurrent
+                            ? 'var(--color-brand-orange)'
+                            : '#86efac'
+                          : isCurrent
+                            ? '#dc2626'
+                            : '#fca5a5',
                       }}
                       title={`${format(m.monthStart, 'MMM yyyy')}: ${fmtMoney(m.net)}`}
                     />
@@ -298,7 +310,9 @@ export default function CashFlowPage() {
             <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
               No journal entries yet — create one or import to see your cash flow take shape.
               <div className="mt-2">
-                <Link to="/app/journal" className="text-primary hover:underline">Go to Journal Entries →</Link>
+                <Link to="/app/journal" className="text-primary hover:underline">
+                  Go to Journal Entries →
+                </Link>
               </div>
             </div>
           )}
@@ -340,16 +354,15 @@ function KpiTile({
       <p
         className="text-xl font-bold font-mono"
         style={{
-          color: tone === 'positive' ? 'var(--color-green-700, #15803d)' : 'var(--color-red-700, #b91c1c)',
+          color:
+            tone === 'positive'
+              ? 'var(--color-green-700, #15803d)'
+              : 'var(--color-red-700, #b91c1c)',
         }}
       >
         {format(value)}
       </p>
-      {link && (
-        <p className="text-[11px] text-muted-foreground mt-1">
-          {link.label}
-        </p>
-      )}
+      {link && <p className="text-[11px] text-muted-foreground mt-1">{link.label}</p>}
     </div>
   );
   if (link) {

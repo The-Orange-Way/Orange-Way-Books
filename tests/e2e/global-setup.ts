@@ -31,8 +31,8 @@ async function probe(url: string, label: string, hint: string): Promise<void> {
   } catch (err) {
     throw new Error(
       `\n\n[playwright global-setup] ${label} is not reachable at ${url}.\n` +
-      `  Fix: ${hint}\n` +
-      `  Underlying error: ${err instanceof Error ? err.message : String(err)}\n`,
+        `  Fix: ${hint}\n` +
+        `  Underlying error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
   }
 }
@@ -41,8 +41,16 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // Probe in parallel so the user sees ALL missing services at once,
   // not one-by-one.
   const results = await Promise.allSettled([
-    probe(`${SUPABASE_URL}/auth/v1/health`, 'Supabase local', 'run `supabase start` in another terminal'),
-    probe(MOCK_FLASH_URL, 'Mock Flash server', 'run `deno run --allow-net --allow-env scripts/mock-flash/server.ts` (see scripts/mock-flash/README.md)'),
+    probe(
+      `${SUPABASE_URL}/auth/v1/health`,
+      'Supabase local',
+      'run `supabase start` in another terminal',
+    ),
+    probe(
+      MOCK_FLASH_URL,
+      'Mock Flash server',
+      'run `deno run --allow-net --allow-env scripts/mock-flash/server.ts` (see scripts/mock-flash/README.md)',
+    ),
     probe(VAULT_URL, 'Vault dev server', 'run `npm run dev` in another terminal'),
   ]);
 
@@ -52,11 +60,9 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   if (failures.length > 0) {
     throw new Error(
-      `\n${failures.join('\n')}\n` +
-      `See tests/e2e/README.md for the full setup checklist.\n`,
+      `\n${failures.join('\n')}\n` + `See tests/e2e/README.md for the full setup checklist.\n`,
     );
   }
 
-  // eslint-disable-next-line no-console
   console.log('[playwright global-setup] all three services are reachable.');
 }

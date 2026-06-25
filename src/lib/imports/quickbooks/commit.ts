@@ -6,10 +6,10 @@
  *
  *   1. Every amount, account name, contact PII is encrypted client-side BEFORE
  *      it leaves the browser. Supabase only sees ciphertext + structural ids.
- *   2. legacy ledger backend blind-replay: each new chart_of_accounts row gets a random UUID as
+ *   2. ledger blind-replay: each new chart_of_accounts row gets a random UUID as
  *      `external_account_id` and a random UUID placeholder as the plaintext
  *      `account_name` (the real name lives encrypted in `encrypted_name`).
- *      legacy ledger backend (when the ledger engine replays it) therefore sees opaque ids,
+ *      the ledger (when the ledger engine replays it) therefore sees opaque ids,
  *      never the user's actual book.
  *   3. Idempotency: every journal entry carries a plaintext
  *      `encrypted_metadata: { source: 'quickbooks', import_id, qb_ref_num }`.
@@ -46,12 +46,7 @@ import type {
 // Plaintext routing tag — never carries business content, only structural ids.
 const SOURCE_TAG = 'quickbooks';
 
-export type CommitStage =
-  | 'preparing'
-  | 'accounts'
-  | 'contacts'
-  | 'journal-entries'
-  | 'finalizing';
+export type CommitStage = 'preparing' | 'accounts' | 'contacts' | 'journal-entries' | 'finalizing';
 
 export interface CommitProgress {
   stage: CommitStage;
@@ -124,19 +119,32 @@ const UNCATEGORIZED_REVENUE_CODE = '4999';
  *  groups. */
 function subTypeToGroupName(subType: import('./types').AccountSubType): string {
   switch (subType) {
-    case 'WALLETS': return 'Cash';
-    case 'OTHER_CURRENT_ASSETS': return 'Other Current Assets';
-    case 'FIXED_ASSETS': return 'Fixed Assets';
-    case 'SUSPENSE': return 'Other Assets';
-    case 'CURRENT_LIABILITIES': return 'Current Liabilities';
-    case 'LONG_TERM_LIABILITIES': return 'Long-Term Liabilities';
-    case 'OWNERS_EQUITY': return "Owner's Equity";
-    case 'RETAINED_EARNINGS': return 'Retained Earnings';
-    case 'SALES': return 'Sales';
-    case 'COST_OF_SALES': return 'Cost of Sales';
-    case 'SALES_AND_MARKETING': return 'Sales & Marketing';
-    case 'LABOR': return 'Labor';
-    case 'GENERAL_AND_ADMINISTRATIVE': return 'General & Administrative';
+    case 'WALLETS':
+      return 'Cash';
+    case 'OTHER_CURRENT_ASSETS':
+      return 'Other Current Assets';
+    case 'FIXED_ASSETS':
+      return 'Fixed Assets';
+    case 'SUSPENSE':
+      return 'Other Assets';
+    case 'CURRENT_LIABILITIES':
+      return 'Current Liabilities';
+    case 'LONG_TERM_LIABILITIES':
+      return 'Long-Term Liabilities';
+    case 'OWNERS_EQUITY':
+      return "Owner's Equity";
+    case 'RETAINED_EARNINGS':
+      return 'Retained Earnings';
+    case 'SALES':
+      return 'Sales';
+    case 'COST_OF_SALES':
+      return 'Cost of Sales';
+    case 'SALES_AND_MARKETING':
+      return 'Sales & Marketing';
+    case 'LABOR':
+      return 'Labor';
+    case 'GENERAL_AND_ADMINISTRATIVE':
+      return 'General & Administrative';
   }
 }
 
@@ -145,11 +153,16 @@ function subTypeToGroupName(subType: import('./types').AccountSubType): string {
  *  singular; "EQUITY" matches as-is). */
 function accountTypeToTabType(type: AccountType): string {
   switch (type) {
-    case 'ASSET': return 'ASSETS';
-    case 'LIABILITY': return 'LIABILITIES';
-    case 'EQUITY': return 'EQUITY';
-    case 'INCOME': return 'INCOME';
-    case 'EXPENSE': return 'EXPENSE';
+    case 'ASSET':
+      return 'ASSETS';
+    case 'LIABILITY':
+      return 'LIABILITIES';
+    case 'EQUITY':
+      return 'EQUITY';
+    case 'INCOME':
+      return 'INCOME';
+    case 'EXPENSE':
+      return 'EXPENSE';
   }
 }
 
@@ -249,8 +262,8 @@ function resolveClassifications(
 }
 
 function inferFallbackBucket(account: ParsedTrialBalanceAccount): FallbackBucket {
-  const debit = Number(account.debit) | 0;
-  const credit = Number(account.credit) | 0;
+  const debit = Number(account.debit) || 0;
+  const credit = Number(account.credit) || 0;
   if (credit > debit) return 'INCOME';
   return 'EXPENSE';
 }
@@ -266,7 +279,14 @@ async function ensureUncategorizedAccounts(
 
   if (!existingNames.has(UNCATEGORIZED_EXPENSE_NAME)) {
     try {
-      await insertSimpleAccount(orgId, UNCATEGORIZED_EXPENSE_NAME, UNCATEGORIZED_EXPENSE_CODE, 'EXPENSE', 'Uncategorized Expenses', encrypt);
+      await insertSimpleAccount(
+        orgId,
+        UNCATEGORIZED_EXPENSE_NAME,
+        UNCATEGORIZED_EXPENSE_CODE,
+        'EXPENSE',
+        'Uncategorized Expenses',
+        encrypt,
+      );
       result.accountsCreated += 1;
     } catch (err) {
       result.errors.push({
@@ -278,7 +298,14 @@ async function ensureUncategorizedAccounts(
   }
   if (!existingNames.has(UNCATEGORIZED_REVENUE_NAME)) {
     try {
-      await insertSimpleAccount(orgId, UNCATEGORIZED_REVENUE_NAME, UNCATEGORIZED_REVENUE_CODE, 'INCOME', 'Uncategorized Income', encrypt);
+      await insertSimpleAccount(
+        orgId,
+        UNCATEGORIZED_REVENUE_NAME,
+        UNCATEGORIZED_REVENUE_CODE,
+        'INCOME',
+        'Uncategorized Income',
+        encrypt,
+      );
       result.accountsCreated += 1;
     } catch (err) {
       result.errors.push({
@@ -311,12 +338,10 @@ async function insertSimpleAccount(
     },
     encrypt,
   );
-  const { error } = await supabase
-    .from('chart_of_accounts')
-    .insert({
-      org_id: orgId,
-      ...enc,
-    } as never);
+  const { error } = await supabase.from('chart_of_accounts').insert({
+    org_id: orgId,
+    ...enc,
+  } as never);
   if (error) throw error;
 }
 
@@ -397,10 +422,7 @@ async function loadExistingAccountIndex(
   orgId: string,
   decrypt: DecryptFn,
 ): Promise<Map<string, string>> {
-  const { data, error } = await supabase
-    .from('chart_of_accounts')
-    .select('*')
-    .eq('org_id', orgId);
+  const { data, error } = await supabase.from('chart_of_accounts').select('*').eq('org_id', orgId);
   if (error) throw error;
   const index = new Map<string, string>();
   for (const row of (data as Array<Record<string, unknown>>) ?? []) {
@@ -436,7 +458,7 @@ async function commitContacts(
   for (const contact of contacts) {
     done += 1;
     const key = `${contact.kind}:${contact.name.trim().toLowerCase()}`;
-    if (existingNames.has(key) | seenThisBatch.has(key)) {
+    if (existingNames.has(key) || seenThisBatch.has(key)) {
       result.contactsSkipped += 1;
       onStep(done, total);
       continue;
@@ -457,9 +479,7 @@ async function commitContacts(
         },
         encrypt,
       );
-      const { error } = await supabase
-        .from('contacts')
-        .insert({ org_id: orgId, ...enc } as never);
+      const { error } = await supabase.from('contacts').insert({ org_id: orgId, ...enc } as never);
       if (error) throw error;
       result.contactsCreated += 1;
     } catch (err) {
@@ -473,21 +493,15 @@ async function commitContacts(
   }
 }
 
-async function loadExistingContactNames(
-  orgId: string,
-  decrypt: DecryptFn,
-): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('contacts')
-    .select('*')
-    .eq('org_id', orgId);
+async function loadExistingContactNames(orgId: string, decrypt: DecryptFn): Promise<Set<string>> {
+  const { data, error } = await supabase.from('contacts').select('*').eq('org_id', orgId);
   if (error) throw error;
   const out = new Set<string>();
   for (const row of (data as Array<Record<string, unknown>>) ?? []) {
     try {
       const fields = await decryptContact(row as never, decrypt);
       const name = fields.name?.trim().toLowerCase();
-      const type = (fields.type | '').toUpperCase();
+      const type = (fields.type || '').toUpperCase();
       if (name && type) out.add(`${type}:${name}`);
     } catch {
       // Ignore undecryptable rows.
@@ -527,8 +541,8 @@ async function commitJournalEntries(
   if (entries.length > QB_IMPORT_HARD_CAP) {
     throw new Error(
       `This QuickBooks export has ${entries.length.toLocaleString()} journal entries. ` +
-      `The current import limit is ${QB_IMPORT_HARD_CAP.toLocaleString()}. ` +
-      `Please split the export into smaller files (by year, quarter, or month) and import each one separately.`,
+        `The current import limit is ${QB_IMPORT_HARD_CAP.toLocaleString()}. ` +
+        `Please split the export into smaller files (by year, quarter, or month) and import each one separately.`,
     );
   }
 
@@ -551,7 +565,15 @@ async function commitJournalEntries(
 
   for (let offset = 0; offset < fresh.length; offset += JE_BATCH_SIZE) {
     const batch = fresh.slice(offset, offset + JE_BATCH_SIZE);
-    await commitJournalEntryBatch(orgId, importId, batch, fallbacks, primaryCurrency, encrypt, result);
+    await commitJournalEntryBatch(
+      orgId,
+      importId,
+      batch,
+      fallbacks,
+      primaryCurrency,
+      encrypt,
+      result,
+    );
     done += batch.length;
     onStep(done, total);
   }
@@ -573,33 +595,35 @@ async function commitJournalEntryBatch(
   // Encrypt all headers in parallel.
   let encHeaders: Array<{ entry: ParsedJournalEntry; row: Record<string, unknown> }>;
   try {
-    encHeaders = await Promise.all(batch.map(async (entry) => {
-      const enc = await encryptJournalEntry(
-        {
-          memo: entry.memo,
-          ref_number: entry.refNum,
-          currency: primaryCurrency,
-          exchange_rate: null,
-          status: 'POSTED',
-          source_type: SOURCE_TAG,
-          period_locked: false,
-        },
-        encrypt,
-      );
-      return {
-        entry,
-        row: {
-          org_id: orgId,
-          date: entry.date,
-          encrypted_metadata: {
-            source: SOURCE_TAG,
-            import_id: importId,
-            qb_ref_num: entry.refNum,
+    encHeaders = await Promise.all(
+      batch.map(async (entry) => {
+        const enc = await encryptJournalEntry(
+          {
+            memo: entry.memo,
+            ref_number: entry.refNum,
+            currency: primaryCurrency,
+            exchange_rate: null,
+            status: 'POSTED',
+            source_type: SOURCE_TAG,
+            period_locked: false,
           },
-          ...enc,
-        },
-      };
-    }));
+          encrypt,
+        );
+        return {
+          entry,
+          row: {
+            org_id: orgId,
+            date: entry.date,
+            encrypted_metadata: {
+              source: SOURCE_TAG,
+              import_id: importId,
+              qb_ref_num: entry.refNum,
+            },
+            ...enc,
+          },
+        };
+      }),
+    );
   } catch (err) {
     // Encryption error — record one error and bail; this is a vault-state issue,
     // not a per-row problem.
@@ -616,14 +640,25 @@ async function commitJournalEntryBatch(
     .insert(encHeaders.map((h) => h.row) as never)
     .select('id, encrypted_metadata');
 
-  if (headerErr | !insertedHeaders) {
+  if (headerErr || !insertedHeaders) {
     // Fall back to per-entry retries so one bad row doesn't kill the batch.
-    await commitJournalEntriesPerEntry(orgId, importId, batch, fallbacks, primaryCurrency, encrypt, result);
+    await commitJournalEntriesPerEntry(
+      orgId,
+      importId,
+      batch,
+      fallbacks,
+      primaryCurrency,
+      encrypt,
+      result,
+    );
     return;
   }
 
   const idByRef = new Map<string, string>();
-  for (const r of insertedHeaders as Array<{ id: string; encrypted_metadata: { qb_ref_num?: string } | null }>) {
+  for (const r of insertedHeaders as Array<{
+    id: string;
+    encrypted_metadata: { qb_ref_num?: string } | null;
+  }>) {
     const refNum = r.encrypted_metadata?.qb_ref_num;
     if (refNum) idByRef.set(refNum, r.id);
   }
@@ -644,7 +679,7 @@ async function commitJournalEntryBatch(
     for (const line of entry.lines) {
       const routed = applyFallbackRouting(line, fallbacks);
       const built = await buildJournalEntryLineInsert({
-        wallet_currency: line.nativeCurrency | primaryCurrency,
+        wallet_currency: line.nativeCurrency || primaryCurrency,
         primary_currency: primaryCurrency,
         date: entry.date,
         debit: Number(line.debit),
@@ -660,9 +695,7 @@ async function commitJournalEntryBatch(
   }
 
   if (allLines.length > 0) {
-    const { error: lineErr } = await supabase
-      .from('journal_entry_lines')
-      .insert(allLines as never);
+    const { error: lineErr } = await supabase.from('journal_entry_lines').insert(allLines as never);
     if (lineErr) {
       // Lines failed — the headers are already in. Per-entry retry is harder
       // here because dedup will skip the headers next time. Record an
@@ -729,7 +762,7 @@ async function commitJournalEntriesPerEntry(
       for (const line of entry.lines) {
         const routed = applyFallbackRouting(line, fallbacks);
         const built = await buildJournalEntryLineInsert({
-          wallet_currency: line.nativeCurrency | primaryCurrency,
+          wallet_currency: line.nativeCurrency || primaryCurrency,
           primary_currency: primaryCurrency,
           date: entry.date,
           debit: Number(line.debit),

@@ -37,14 +37,14 @@ describe('validateOpeningBalanceEntries', () => {
 
   it('accepts a multi-account trial balance', () => {
     const entries = [
-      entry({ accountId: 'a1', accountName: 'Cash CAD', debit: 5432.10 }),
-      entry({ accountId: 'a2', accountName: 'AR', debit: 890.00 }),
+      entry({ accountId: 'a1', accountName: 'Cash CAD', debit: 5432.1 }),
+      entry({ accountId: 'a2', accountName: 'AR', debit: 890.0 }),
       entry({ accountId: 'a3', accountName: 'Visa 4020', credit: 1234.56 }),
       entry({ accountId: 'a4', accountName: 'Retained Earnings', credit: 5087.54 }),
     ];
     const result = validateOpeningBalanceEntries(entries);
-    expect(result.totalDebits).toBeCloseTo(6322.10, 2);
-    expect(result.totalCredits).toBeCloseTo(6322.10, 2);
+    expect(result.totalDebits).toBeCloseTo(6322.1, 2);
+    expect(result.totalCredits).toBeCloseTo(6322.1, 2);
   });
 
   it('rejects empty entries', () => {
@@ -81,17 +81,13 @@ describe('validateOpeningBalanceEntries', () => {
 
   it('rejects an entry with both debit and credit > 0', () => {
     expect(() =>
-      validateOpeningBalanceEntries([
-        entry({ accountId: 'a1', debit: 50, credit: 50 }),
-      ]),
+      validateOpeningBalanceEntries([entry({ accountId: 'a1', debit: 50, credit: 50 })]),
     ).toThrow(/cannot have both debit and credit/);
   });
 
   it('rejects a zero-amount line', () => {
     expect(() =>
-      validateOpeningBalanceEntries([
-        entry({ accountId: 'a1', debit: 0, credit: 0 }),
-      ]),
+      validateOpeningBalanceEntries([entry({ accountId: 'a1', debit: 0, credit: 0 })]),
     ).toThrow(/zero amount/);
   });
 
@@ -117,8 +113,8 @@ describe('validateOpeningBalanceEntries', () => {
     // 100.10 + 200.20 + 50.05 = 350.35
     // 350.34 + 0.01 = 350.35 — but float arithmetic may give 350.34999...
     const result = validateOpeningBalanceEntries([
-      entry({ accountId: 'a1', debit: 100.10 }),
-      entry({ accountId: 'a2', debit: 200.20 }),
+      entry({ accountId: 'a1', debit: 100.1 }),
+      entry({ accountId: 'a2', debit: 200.2 }),
       entry({ accountId: 'a3', debit: 50.05 }),
       entry({ accountId: 'a4', credit: 350.35 }),
     ]);

@@ -32,7 +32,7 @@ let rpcResponse: { data: unknown; error: unknown } = { data: null, error: null }
 function makeSupabase() {
   return {
     from(table: string) {
-      let filterEq: Record<string, unknown> = {};
+      const filterEq: Record<string, unknown> = {};
       let filterIn: { col: string; values: unknown[] } | null = null;
       let mode: 'list' | 'maybeSingle' = 'list';
 
@@ -94,9 +94,10 @@ import {
 
 const ORG = 'org-1';
 const loadOrgSigningKey = vi.fn(async (_orgId: string) => ({}));
-const signMutation = vi.fn(
-  (_payload: Uint8Array, _orgId: string) => ({ signature_b64: 'sig-merge', key_version: 3 }),
-);
+const signMutation = vi.fn((_payload: Uint8Array, _orgId: string) => ({
+  signature_b64: 'sig-merge',
+  key_version: 3,
+}));
 
 beforeEach(() => {
   phRows = [];
@@ -117,15 +118,17 @@ describe('mergeWithPlaceholder', () => {
       is_placeholder: true,
     });
     rpcResponse = {
-      data: [{
-        payment_id: 'ph-1',
-        invoice_id: 'inv-1',
-        new_transaction_id: 'tx-new',
-        superseded_transaction_id: 'tx-old',
-        je_reversed_id: 'je-rev',
-        je_posted_id: 'je-fresh',
-        noop: false,
-      }],
+      data: [
+        {
+          payment_id: 'ph-1',
+          invoice_id: 'inv-1',
+          new_transaction_id: 'tx-new',
+          superseded_transaction_id: 'tx-old',
+          je_reversed_id: 'je-rev',
+          je_posted_id: 'je-fresh',
+          noop: false,
+        },
+      ],
       error: null,
     };
 
@@ -185,15 +188,17 @@ describe('mergeWithPlaceholder', () => {
       is_placeholder: true,
     });
     rpcResponse = {
-      data: [{
-        payment_id: 'ph-3',
-        invoice_id: 'inv-3',
-        new_transaction_id: 'tx-new',
-        superseded_transaction_id: 'tx-old',
-        je_reversed_id: null,
-        je_posted_id: null,
-        noop: false,
-      }],
+      data: [
+        {
+          payment_id: 'ph-3',
+          invoice_id: 'inv-3',
+          new_transaction_id: 'tx-new',
+          superseded_transaction_id: 'tx-old',
+          je_reversed_id: null,
+          je_posted_id: null,
+          noop: false,
+        },
+      ],
       error: null,
     };
 
@@ -221,15 +226,17 @@ describe('mergeWithPlaceholder', () => {
       is_placeholder: false,
     });
     rpcResponse = {
-      data: [{
-        payment_id: 'ph-4',
-        invoice_id: 'inv-4',
-        new_transaction_id: 'tx-new',
-        superseded_transaction_id: null,
-        je_reversed_id: null,
-        je_posted_id: null,
-        noop: true,
-      }],
+      data: [
+        {
+          payment_id: 'ph-4',
+          invoice_id: 'inv-4',
+          new_transaction_id: 'tx-new',
+          superseded_transaction_id: null,
+          je_reversed_id: null,
+          je_posted_id: null,
+          noop: true,
+        },
+      ],
       error: null,
     };
 
@@ -286,9 +293,30 @@ describe('mergeWithPlaceholder', () => {
 describe('fetchPlaceholderPayments', () => {
   it('returns only placeholder rows keyed by invoice_id', async () => {
     phRows.push(
-      { id: 'a', invoice_id: 'inv-a', transaction_id: 'tx-a', amount_applied: 50, is_placeholder: true, applied_at: '2026-05-01' },
-      { id: 'b', invoice_id: 'inv-b', transaction_id: 'tx-b', amount_applied: 60, is_placeholder: false, applied_at: '2026-05-02' },
-      { id: 'c', invoice_id: 'inv-c', transaction_id: 'tx-c', amount_applied: 70, is_placeholder: true, applied_at: '2026-05-03' },
+      {
+        id: 'a',
+        invoice_id: 'inv-a',
+        transaction_id: 'tx-a',
+        amount_applied: 50,
+        is_placeholder: true,
+        applied_at: '2026-05-01',
+      },
+      {
+        id: 'b',
+        invoice_id: 'inv-b',
+        transaction_id: 'tx-b',
+        amount_applied: 60,
+        is_placeholder: false,
+        applied_at: '2026-05-02',
+      },
+      {
+        id: 'c',
+        invoice_id: 'inv-c',
+        transaction_id: 'tx-c',
+        amount_applied: 70,
+        is_placeholder: true,
+        applied_at: '2026-05-03',
+      },
     );
 
     const map = await fetchPlaceholderPayments(['inv-a', 'inv-b', 'inv-c']);

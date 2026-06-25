@@ -19,15 +19,15 @@ interface PrintOptions {
 }
 
 const esc = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+  s.replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
+  );
 
 const defaultFormat = (amt: number, cur: string) =>
   `${cur} ${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`;
 
-export function openInvoicePrint(
-  payload: InvoiceSharePayload,
-  opts: PrintOptions = {},
-): void {
+export function openInvoicePrint(payload: InvoiceSharePayload, opts: PrintOptions = {}): void {
   const fmt = opts.formatAmount ?? defaultFormat;
   const orgName = opts.orgPublicName ?? 'An organization using Orange Way Books';
 
@@ -36,14 +36,18 @@ export function openInvoicePrint(
     throw new Error('Could not open print window. Allow popups for this site.');
   }
 
-  const lineRows = payload.lines.map((l) => `
+  const lineRows = payload.lines
+    .map(
+      (l) => `
     <tr>
-      <td class="desc">${esc(l.description | '—')}</td>
+      <td class="desc">${esc(l.description || '-')}</td>
       <td class="qty">${l.quantity != null ? l.quantity : ''}</td>
       <td class="unit">${l.unit_price != null ? fmt(l.unit_price, payload.currency) : ''}</td>
       <td class="amt">${fmt(l.amount, payload.currency)}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join('');
 
   const html = `<!doctype html>
 <html lang="en">

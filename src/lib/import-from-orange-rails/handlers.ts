@@ -3,9 +3,9 @@
  * and the `ImportFromOrangeRailsWizard` (Mode 2 bundle upload).
  *
  * One canonical implementation per entity:
- *   - commitAccountsFromStaged   — Chart of Accounts → chart_of_accounts + legacy ledger backend
- *   - commitContactsFromStaged   — Contacts → contacts table (encrypted)
- *   - commitJournalEntriesFromStaged — placeholder, returns a skip (see below)
+ *   - commitAccountsFromStaged: Chart of Accounts → chart_of_accounts + the ledger
+ *   - commitContactsFromStaged: Contacts → contacts table (encrypted)
+ *   - commitJournalEntriesFromStaged: placeholder, returns a skip (see below)
  *
  * Why JE is a placeholder: OWB's existing JE import flow on the JournalEntries
  * page is ~150 lines and depends on page-scoped state (lockDate, ref counter,
@@ -17,7 +17,7 @@
  * Row shape: every helper takes `ImportPreviewRow[]` where `row.data` keys
  * are the standard OWB lower_snake_case (name, code, type, …). Both the
  * inline CSV ImportPopup AND the Orange Rails staged payload produce this
- * shape — by design of the contract.
+ * shape, by design of the contract.
  */
 
 import { supabase } from '@/lib/supabase';
@@ -60,7 +60,8 @@ export async function commitAccountsFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   const { data: existing } = await supabase
     .from('chart_of_accounts' as any)
@@ -68,7 +69,7 @@ export async function commitAccountsFromStaged(
     .eq('org_id', orgId);
 
   const decryptedCoaNames = await Promise.all(
-    (existing | []).map(async (a: any) => {
+    (existing || []).map(async (a: any) => {
       if (a.key_version && a.encrypted_name) {
         return decryptText(a.encrypted_name);
       }
@@ -77,7 +78,7 @@ export async function commitAccountsFromStaged(
   );
   const existingNames = new Set(decryptedCoaNames.map((n: string) => n?.toLowerCase()));
   const existingCodes = new Set(
-    (existing | []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
+    (existing || []).map((a: any) => a.account_code?.toLowerCase()).filter(Boolean),
   );
 
   let created = 0;
@@ -88,29 +89,29 @@ export async function commitAccountsFromStaged(
 
   for (const row of rows) {
     const name = row.data.name?.trim() ?? '';
-    const code = row.data.code?.trim() | '';
+    const code = row.data.code?.trim() || '';
     if (!name) {
       failed++;
       errors.push(`Row ${row.rowIndex + 1}: Name is required`);
       continue;
     }
-    if (existingNames.has(name.toLowerCase()) | (code && existingCodes.has(code.toLowerCase()))) {
+    if (existingNames.has(name.toLowerCase()) || (code && existingCodes.has(code.toLowerCase()))) {
       skipped++;
-      warnings.push(`"${name}" already exists — skipped`);
+      warnings.push(`"${name}" already exists, skipped`);
       continue;
     }
     const normalBalance =
       row.data.normal_balance ||
-      (row.data.type === 'ASSET' | row.data.type === 'EXPENSE' ? 'DEBIT' : 'CREDIT');
-    // Phase 2 (legacy-ledger removal): no legacy ledger account provisioning. Row inserted
+      (row.data.type === 'ASSET' || row.data.type === 'EXPENSE' ? 'DEBIT' : 'CREDIT');
+    // Phase 2 (external-ledger removal): no legacy ledger account provisioning. Row inserted
     // directly into chart_of_accounts below.
     const enc = await encryptChartOfAccount(
       {
         account_name: name,
-        account_code: code | null,
+        account_code: code || null,
         account_type: row.data.type,
-        account_group: row.data.subtype | null,
-        account_category: row.data.category | null,
+        account_group: row.data.subtype || null,
+        account_category: row.data.category || null,
         is_archived: false,
       },
       encryptText,
@@ -137,7 +138,8 @@ export async function commitContactsFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   const { data: existing } = await supabase
     .from('contacts')
@@ -145,7 +147,7 @@ export async function commitContactsFromStaged(
     .eq('org_id', orgId);
 
   const decryptedNames = await Promise.all(
-    (existing | []).map(async (c: any) => {
+    (existing || []).map(async (c: any) => {
       if (!c.key_version) return c.name;
       return decryptText(c.name);
     }),
@@ -167,20 +169,20 @@ export async function commitContactsFromStaged(
     }
     if (existingNames.has(name.toLowerCase())) {
       skipped++;
-      warnings.push(`"${name}" already exists — skipped`);
+      warnings.push(`"${name}" already exists, skipped`);
       continue;
     }
     const encrypted = await encryptContact(
       {
         name,
-        street: row.data.street | null,
-        city: row.data.city | null,
-        state: row.data.state | null,
-        zip: row.data.zip | null,
-        country: row.data.country | null,
-        email: row.data.email | null,
-        phone: row.data.phone | null,
-        type: row.data.type | null,
+        street: row.data.street || null,
+        city: row.data.city || null,
+        state: row.data.state || null,
+        zip: row.data.zip || null,
+        country: row.data.country || null,
+        email: row.data.email || null,
+        phone: row.data.phone || null,
+        type: row.data.type || null,
       },
       encryptText,
     );
@@ -228,7 +230,8 @@ export async function commitJournalEntriesFromStaged(
   deps: ImportDeps,
 ): Promise<ImportResult> {
   const { orgId, encryptText, decryptText } = deps;
-  if (!orgId) return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
+  if (!orgId)
+    return { created: 0, skipped: 0, failed: rows.length, errors: ['No organization found'] };
 
   // Fetch org settings: lock date (plaintext column) + primary currency
   // (encrypted, decrypt for use). One call, both values.
@@ -250,15 +253,17 @@ export async function commitJournalEntriesFromStaged(
     .from('journal_entries')
     .select('*')
     .eq('org_id', orgId);
-  for (const row of existingEntries | []) {
+  for (const row of existingEntries || []) {
     const dec = await decryptJournalEntry(row as any, decryptText);
-    existingKeys.add([
-      (row as any).date | '',
-      dec.ref_number | '',
-      dec.memo | '',
-      (dec.status | 'DRAFT').toUpperCase(),
-      dec.currency | '',
-    ].join('\x1f'));
+    existingKeys.add(
+      [
+        (row as any).date || '',
+        dec.ref_number || '',
+        dec.memo || '',
+        (dec.status || 'DRAFT').toUpperCase(),
+        dec.currency || '',
+      ].join('\x1f'),
+    );
   }
 
   const groups = groupJournalImportRows(rows);
@@ -270,22 +275,24 @@ export async function commitJournalEntriesFromStaged(
 
   for (const g of groups) {
     const first = g[0];
-    const groupLabel = `Rows ${g[0].rowIndex}–${g[g.length - 1].rowIndex} (${first.data.je_date | 'no date'})`;
+    const groupLabel = `Rows ${g[0].rowIndex}–${g[g.length - 1].rowIndex} (${first.data.je_date || 'no date'})`;
     if (g.some((r) => r.error)) {
       failed += g.length;
       const parts = g.filter((r) => r.error).map((r) => `Row ${r.rowIndex}: ${r.error}`);
-      errors.push(parts.length ? `${groupLabel}: ${parts.join(' · ')}` : `${groupLabel}: invalid data`);
+      errors.push(
+        parts.length ? `${groupLabel}: ${parts.join(' · ')}` : `${groupLabel}: invalid data`,
+      );
       continue;
     }
 
     const dupeKey = journalGroupKey(first.data);
     if (existingKeys.has(dupeKey)) {
       skipped += g.length;
-      warnings.push(`${groupLabel}: duplicate of an existing journal entry — skipped`);
+      warnings.push(`${groupLabel}: duplicate of an existing journal entry, skipped`);
       continue;
     }
 
-    const dateStr = (first.data.je_date | '').trim();
+    const dateStr = (first.data.je_date || '').trim();
     if (entryFallsInLockedPeriod(dateStr, lockDate)) {
       failed += g.length;
       errors.push(
@@ -295,7 +302,7 @@ export async function commitJournalEntriesFromStaged(
     }
 
     const currency = parseJournalCurrencyLabel(first.data.wallet_currency);
-    const memo = first.data.je_memo?.trim() | null;
+    const memo = first.data.je_memo?.trim() || null;
     let refNum = (first.data['je_ref_#'] ?? '').trim();
     if (!refNum) {
       try {
@@ -307,13 +314,13 @@ export async function commitJournalEntriesFromStaged(
 
     const formLines = g
       .map((r) => ({
-        account_code: r.data.account_code?.trim() | '',
-        account_name: r.data.account_name?.trim() | '',
+        account_code: r.data.account_code?.trim() || '',
+        account_name: r.data.account_name?.trim() || '',
         debit: String(parseJournalAmountCell(r.data.debit)),
         credit: String(parseJournalAmountCell(r.data.credit)),
-        description: r.data.line_description?.trim() | '',
+        description: r.data.line_description?.trim() || '',
       }))
-      .filter((l) => (parseFloat(l.debit) | 0) > 0 | (parseFloat(l.credit) | 0) > 0);
+      .filter((l) => (parseFloat(l.debit) || 0) > 0 || (parseFloat(l.credit) || 0) > 0);
 
     if (formLines.length < 2) {
       failed += g.length;
@@ -321,8 +328,8 @@ export async function commitJournalEntriesFromStaged(
       continue;
     }
 
-    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) | 0), 0);
-    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) | 0), 0);
+    const totalD = formLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
+    const totalC = formLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
     if (Math.abs(totalD - totalC) >= 0.001) {
       failed += g.length;
       errors.push(
@@ -335,7 +342,7 @@ export async function commitJournalEntriesFromStaged(
       const encEntry = await encryptJournalEntry(
         {
           memo,
-          ref_number: refNum | null,
+          ref_number: refNum || null,
           currency,
           exchange_rate: null,
           status: 'DRAFT',
@@ -361,24 +368,22 @@ export async function commitJournalEntriesFromStaged(
             wallet_currency: currency,
             primary_currency: primaryCurrency,
             date: dateStr,
-            account_name: l.account_name | null,
-            account_code: l.account_code | null,
-            description: l.description | null,
-            debit: parseFloat(l.debit) | 0,
-            credit: parseFloat(l.credit) | 0,
+            account_name: l.account_name || null,
+            account_code: l.account_code || null,
+            description: l.description || null,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0,
             encrypt: encryptText,
           });
           if (result.pending) {
             warnings.push(
-              `${groupLabel}: rate for ${currency}→${primaryCurrency} unavailable on ${dateStr} — saved as pending; resolve from the Pending Rates banner.`,
+              `${groupLabel}: rate for ${currency}→${primaryCurrency} unavailable on ${dateStr}, saved as pending; resolve from the Pending Rates banner.`,
             );
           }
           return { journal_entry_id: (je as any).id, ...result.insert };
         }),
       );
-      const { error: lineErr } = await supabase
-        .from('journal_entry_lines')
-        .insert(encLines as any);
+      const { error: lineErr } = await supabase.from('journal_entry_lines').insert(encLines as any);
       if (lineErr) throw lineErr;
 
       created += 1;

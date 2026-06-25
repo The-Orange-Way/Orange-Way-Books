@@ -17,20 +17,45 @@ export type MonetaryClassification = 'monetary' | 'non-monetary' | 'ignore';
 
 const MONETARY_GROUPS = new Set([
   // Assets
-  'cash', 'bank', 'receivable', 'receivables', 'accounts receivable',
-  'notes receivable', 'short-term investment', 'short-term investments',
+  'cash',
+  'bank',
+  'receivable',
+  'receivables',
+  'accounts receivable',
+  'notes receivable',
+  'short-term investment',
+  'short-term investments',
   'other current assets',
   // Liabilities
-  'payable', 'payables', 'accounts payable', 'credit card', 'credit cards',
-  'short-term loan', 'short-term loans', 'accrued liabilities', 'current liabilities',
-  'other current liabilities', 'long-term liabilities', 'notes payable',
+  'payable',
+  'payables',
+  'accounts payable',
+  'credit card',
+  'credit cards',
+  'short-term loan',
+  'short-term loans',
+  'accrued liabilities',
+  'current liabilities',
+  'other current liabilities',
+  'long-term liabilities',
+  'notes payable',
 ]);
 
 const NON_MONETARY_GROUPS = new Set([
-  'fixed assets', 'property plant equipment', 'intangible', 'intangibles',
-  'inventory', 'prepaid', 'prepaid expenses', 'deferred revenue',
-  "owner's equity", 'retained earnings', 'dividends paid', 'equity',
-  'capital', 'opening balance equity',
+  'fixed assets',
+  'property plant equipment',
+  'intangible',
+  'intangibles',
+  'inventory',
+  'prepaid',
+  'prepaid expenses',
+  'deferred revenue',
+  "owner's equity",
+  'retained earnings',
+  'dividends paid',
+  'equity',
+  'capital',
+  'opening balance equity',
 ]);
 
 /**
@@ -54,14 +79,14 @@ export function classifyMonetary(
   const group = (account.accountGroup ?? '').toLowerCase().trim();
 
   // Revenue/Expense don't get revalued on the B/S
-  if (type === 'REVENUE' | type === 'INCOME' | type === 'EXPENSE') return 'ignore';
+  if (type === 'REVENUE' || type === 'INCOME' || type === 'EXPENSE') return 'ignore';
 
   if (MONETARY_GROUPS.has(group)) return 'monetary';
   if (NON_MONETARY_GROUPS.has(group)) return 'non-monetary';
 
   // Default by type
-  if (type === 'ASSETS' | type === 'ASSET') return 'monetary';
-  if (type === 'LIABILITIES' | type === 'LIABILITY') return 'monetary';
+  if (type === 'ASSETS' || type === 'ASSET') return 'monetary';
+  if (type === 'LIABILITIES' || type === 'LIABILITY') return 'monetary';
   if (type === 'EQUITY') return 'non-monetary';
 
   return 'ignore';
@@ -82,7 +107,7 @@ export function getMonetaryForeignAccounts(
   primaryCurrency: string,
   overrides?: Map<string, boolean>,
 ): AccountInfo[] {
-  return accounts.filter(account => {
+  return accounts.filter((account) => {
     const override = overrides?.get(account.id) ?? null;
     if (classifyMonetary(account, override) !== 'monetary') return false;
     const currency = walletCurrencies.get(account.id);

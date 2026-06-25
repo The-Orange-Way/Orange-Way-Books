@@ -1,7 +1,7 @@
 /**
  * Orange Way Books — full E2E suite.
  *
- * Runs against dev.books.orangeway.app by default. Captures screenshots at
+ * Runs against books.orangeway.dev by default. Captures screenshots at
  * every key step into tests/e2e/__artifacts__/owb-full-suite-<run>/.
  *
  * Sections:
@@ -24,7 +24,8 @@ import { fileURLToPath } from 'node:url';
 import { signIn, unlockVaultIfNeeded, signInAndUnlock } from './lib/auth';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RUN_ID = process.env.E2E_RUN_ID | new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const RUN_ID =
+  process.env.E2E_RUN_ID || new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const SHOTS = path.join(HERE, '__artifacts__', `owb-full-suite-${RUN_ID}`);
 
 let stepIdx = 0;
@@ -50,7 +51,9 @@ async function gotoAuthed(page: Page, url: string) {
   // capture actual page content. Pages use the w-6 h-6 size for full-page
   // loading indicators (Dashboard's `py-20` wrapper, Periods' `min-h-screen`
   // wrapper); button spinners use w-4 h-4, so we can discriminate by size.
-  await page.locator('svg.animate-spin.w-6.h-6').first()
+  await page
+    .locator('svg.animate-spin.w-6.h-6')
+    .first()
     .waitFor({ state: 'hidden', timeout: 10_000 })
     .catch(() => undefined);
   // Final settle wait for React to finish post-fetch renders.
@@ -72,11 +75,20 @@ test.describe.configure({ mode: 'serial' });
 // ── A. Anonymous marketing pages ────────────────────────────────────────────
 
 test.describe('A. Anonymous marketing', () => {
-  for (const p of ['/', '/features', '/security', '/pricing', '/faq', '/about', '/contact', '/docs']) {
+  for (const p of [
+    '/',
+    '/features',
+    '/security',
+    '/pricing',
+    '/faq',
+    '/about',
+    '/contact',
+    '/docs',
+  ]) {
     test(`A ${p} loads`, async ({ page }) => {
       const res = await page.goto(p, { waitUntil: 'networkidle' });
       expect(res?.status() ?? 0, p).toBeLessThan(400);
-      await shot(page, `anon${p.replace(/\//g, '-') | '-root'}`);
+      await shot(page, `anon${p.replace(/\//g, '-') || '-root'}`);
     });
   }
 });
@@ -132,7 +144,10 @@ test.describe('C-E. Authenticated journey', () => {
   });
 
   test.afterAll(async () => {
-    await sharedPage?.context().close().catch(() => undefined);
+    await sharedPage
+      ?.context()
+      .close()
+      .catch(() => undefined);
   });
 
   for (const [label, route, shotLabel] of [
@@ -174,7 +189,9 @@ test.describe('C-E. Authenticated journey', () => {
           .locator('text="Unlock your encrypted vault"')
           .isVisible({ timeout: 200 })
           .catch(() => false);
-        expect(lockedAtShot, `${route} should not show vault unlock at screenshot time`).toBe(false);
+        expect(lockedAtShot, `${route} should not show vault unlock at screenshot time`).toBe(
+          false,
+        );
 
         // Per-route regression assertions. Today two bugs shipped
         // and were only caught on visual screenshot inspection because the
@@ -188,14 +205,20 @@ test.describe('C-E. Authenticated journey', () => {
             .first()
             .isVisible({ timeout: 500 })
             .catch(() => false);
-          expect(stillFinishing, '/app dashboard should NOT show "Finishing setup…" pill — ledger_status not written to ready').toBe(false);
+          expect(
+            stillFinishing,
+            '/app dashboard should NOT show "Finishing setup…" pill — ledger_status not written to ready',
+          ).toBe(false);
         }
         if (route === '/app/settings/master-recovery') {
           // React error #310 regression: hook ordering in MasterRecovery.tsx
           // must keep all useState declarations above the early returns or
           // the page renders blank.
           await expect(
-            sharedPage.locator('h1, h2').filter({ hasText: /Master recovery code/i }).first(),
+            sharedPage
+              .locator('h1, h2')
+              .filter({ hasText: /Master recovery code/i })
+              .first(),
             'master-recovery heading should be visible — React error #310 regression',
           ).toBeVisible({ timeout: 5_000 });
         }
@@ -203,7 +226,9 @@ test.describe('C-E. Authenticated journey', () => {
         await shot(sharedPage, shotLabel);
 
         if (label === 'D') {
-          const significant = consoleErrors.filter((e) => !FILTERED_CONSOLE.some((s) => e.includes(s)));
+          const significant = consoleErrors.filter(
+            (e) => !FILTERED_CONSOLE.some((s) => e.includes(s)),
+          );
           if (significant.length > 0) {
             // Log but don't fail. A transient "Failed to fetch" from the
             // Supabase session refresher should not cascade-skip the rest of

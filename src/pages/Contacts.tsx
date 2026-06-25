@@ -11,13 +11,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 
 type ContactKind = 'CUSTOMER' | 'VENDOR' | 'EMPLOYEE' | 'OTHER';
@@ -40,7 +53,15 @@ const KIND_OPTIONS: { value: ContactKind; label: string }[] = [
 ];
 
 function blankForm(): ContactRow & { id: '' } {
-  return { id: '', name: '', email: null, phone: null, city: null, country: null, type: 'CUSTOMER' };
+  return {
+    id: '',
+    name: '',
+    email: null,
+    phone: null,
+    city: null,
+    country: null,
+    type: 'CUSTOMER',
+  };
 }
 
 export default function ContactsPage() {
@@ -86,7 +107,10 @@ export default function ContactsPage() {
           return {
             id: r.id as string,
             name: '[Encrypted]',
-            email: null, phone: null, city: null, country: null,
+            email: null,
+            phone: null,
+            city: null,
+            country: null,
             type: r.type ?? null,
           };
         }
@@ -108,7 +132,7 @@ export default function ContactsPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rows
-      .filter((r) => typeFilter === 'all' | (r.type | 'OTHER').toUpperCase() === typeFilter)
+      .filter((r) => typeFilter === 'all' || (r.type || 'OTHER').toUpperCase() === typeFilter)
       .filter((r) => {
         if (!term) return true;
         return (
@@ -124,32 +148,41 @@ export default function ContactsPage() {
   const countByKind = useMemo(() => {
     const acc: Record<string, number> = { CUSTOMER: 0, VENDOR: 0, EMPLOYEE: 0, OTHER: 0 };
     for (const r of rows) {
-      const k = (r.type | 'OTHER').toUpperCase();
+      const k = (r.type || 'OTHER').toUpperCase();
       acc[k] = (acc[k] ?? 0) + 1;
     }
     return acc;
   }, [rows]);
 
-  const openCreate = () => { setForm(blankForm()); setEditOpen(true); };
-  const openEdit = (row: ContactRow) => { setForm({ ...row }); setEditOpen(true); };
+  const openCreate = () => {
+    setForm(blankForm());
+    setEditOpen(true);
+  };
+  const openEdit = (row: ContactRow) => {
+    setForm({ ...row });
+    setEditOpen(true);
+  };
 
   const save = async () => {
     if (!orgId) return;
     const trimmed = form.name.trim();
-    if (!trimmed) { toast.error('Name is required.'); return; }
+    if (!trimmed) {
+      toast.error('Name is required.');
+      return;
+    }
     setSaving(true);
     try {
       const enc = await encryptContact(
         {
           name: trimmed,
           street: null,
-          city: form.city | null,
+          city: form.city || null,
           state: null,
           zip: null,
-          country: form.country | null,
-          email: form.email | null,
-          phone: form.phone | null,
-          type: form.type | 'OTHER',
+          country: form.country || null,
+          email: form.email || null,
+          phone: form.phone || null,
+          type: form.type || 'OTHER',
         },
         encryptText,
       );
@@ -161,9 +194,7 @@ export default function ContactsPage() {
         if (error) throw error;
         toast.success(`Updated "${trimmed}".`);
       } else {
-        const { error } = await supabase
-          .from('contacts')
-          .insert({ org_id: orgId, ...enc } as any);
+        const { error } = await supabase.from('contacts').insert({ org_id: orgId, ...enc } as any);
         if (error) throw error;
         toast.success(`Created "${trimmed}".`);
       }
@@ -177,7 +208,12 @@ export default function ContactsPage() {
   };
 
   const remove = async (id: string, name: string) => {
-    if (!confirm(`Delete contact "${name}"? Transactions and journal entries already linked to this contact stay intact and just lose the link.`)) return;
+    if (
+      !confirm(
+        `Delete contact "${name}"? Transactions and journal entries already linked to this contact stay intact and just lose the link.`,
+      )
+    )
+      return;
     setDeletingId(id);
     const { error } = await supabase.from('contacts').delete().eq('id', id);
     setDeletingId(null);
@@ -197,7 +233,8 @@ export default function ContactsPage() {
   const toggleOne = (id: string, on: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (on) next.add(id); else next.delete(id);
+      if (on) next.add(id);
+      else next.delete(id);
       return next;
     });
 
@@ -206,7 +243,12 @@ export default function ContactsPage() {
 
   const bulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} selected contact${selected.size === 1 ? '' : 's'}? Existing transactions and journal entries stay intact and just lose the link.`)) return;
+    if (
+      !confirm(
+        `Delete ${selected.size} selected contact${selected.size === 1 ? '' : 's'}? Existing transactions and journal entries stay intact and just lose the link.`,
+      )
+    )
+      return;
     setBulkDeleting(true);
     const ids = Array.from(selected);
     const { error } = await supabase.from('contacts').delete().in('id', ids);
@@ -226,14 +268,16 @@ export default function ContactsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Customers, vendors, employees. Search, edit, and create — encrypted client-side, same as transactions.
+            Customers, vendors, employees. Search, edit, and create — encrypted client-side, same as
+            transactions.
           </p>
         </div>
         <div className="flex gap-2 sm:self-end">
           <Button
             variant="outline"
             onClick={() => {
-              const scope = selected.size > 0 ? filtered.filter((r) => selected.has(r.id)) : filtered;
+              const scope =
+                selected.size > 0 ? filtered.filter((r) => selected.has(r.id)) : filtered;
               const headers = ['Name', 'Type', 'Email', 'Phone', 'City', 'Country'];
               const rows = scope.map((c) => [
                 c.name,
@@ -253,17 +297,28 @@ export default function ContactsPage() {
             Export {selected.size > 0 ? `selected (${selected.size})` : 'CSV'}
           </Button>
           <Button onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1.5" />New contact
+            <Plus className="w-4 h-4 mr-1.5" />
+            New contact
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">All: {rows.length}</span>
-        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">Customers: {countByKind.CUSTOMER}</span>
-        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">Vendors: {countByKind.VENDOR}</span>
-        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">Employees: {countByKind.EMPLOYEE}</span>
-        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">Other: {countByKind.OTHER}</span>
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">
+          All: {rows.length}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">
+          Customers: {countByKind.CUSTOMER}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">
+          Vendors: {countByKind.VENDOR}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">
+          Employees: {countByKind.EMPLOYEE}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5">
+          Other: {countByKind.OTHER}
+        </span>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
@@ -283,7 +338,11 @@ export default function ContactsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
-            {KIND_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            {KIND_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -294,14 +353,14 @@ export default function ContactsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center text-muted-foreground text-sm">
-          {rows.length === 0
-            ? 'No contacts yet — add one to use it on transactions, journal entries, and payments.'
-            : (
-              <>
-                <p>No contacts match the current filter.</p>
-                <p className="mt-1 text-xs">Clear the search or change the type filter.</p>
-              </>
-            )}
+          {rows.length === 0 ? (
+            'No contacts yet — add one to use it on transactions, journal entries, and payments.'
+          ) : (
+            <>
+              <p>No contacts match the current filter.</p>
+              <p className="mt-1 text-xs">Clear the search or change the type filter.</p>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -335,7 +394,9 @@ export default function ContactsPage() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="text-xs uppercase tracking-wide text-muted-foreground">{c.type ?? 'OTHER'}</TableCell>
+                    <TableCell className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {c.type ?? 'OTHER'}
+                    </TableCell>
                     <TableCell className="text-sm">{c.email ?? '—'}</TableCell>
                     <TableCell className="text-sm">{c.phone ?? '—'}</TableCell>
                     <TableCell className="text-sm">{c.city ?? '—'}</TableCell>
@@ -361,7 +422,11 @@ export default function ContactsPage() {
 
           <div className="grid gap-2 md:hidden">
             {filtered.map((c) => (
-              <div key={c.id} className="bg-card border border-border rounded-lg p-3" data-state={selected.has(c.id) ? 'selected' : undefined}>
+              <div
+                key={c.id}
+                className="bg-card border border-border rounded-lg p-3"
+                data-state={selected.has(c.id) ? 'selected' : undefined}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2 min-w-0">
                     <Checkbox
@@ -372,7 +437,9 @@ export default function ContactsPage() {
                     />
                     <div className="min-w-0">
                       <p className="font-medium truncate">{c.name}</p>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">{c.type ?? 'OTHER'}</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-0.5">
+                        {c.type ?? 'OTHER'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -390,13 +457,15 @@ export default function ContactsPage() {
                     </Button>
                   </div>
                 </div>
-                {(c.email | c.phone | c.city) && (
-                  <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                    {c.email && <p>{c.email}</p>}
-                    {c.phone && <p>{c.phone}</p>}
-                    {c.city && <p>{c.city}</p>}
-                  </div>
-                )}
+                {c.email ||
+                  c.phone ||
+                  (c.city && (
+                    <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                      {c.email && <p>{c.email}</p>}
+                      {c.phone && <p>{c.phone}</p>}
+                      {c.city && <p>{c.city}</p>}
+                    </div>
+                  ))}
               </div>
             ))}
           </div>
@@ -419,10 +488,19 @@ export default function ContactsPage() {
             disabled={bulkDeleting}
             data-testid="contacts-bulk-delete"
           >
-            {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+            {bulkDeleting ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <Trash2 className="w-4 h-4 mr-1.5" />
+            )}
             Delete selected
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+            disabled={bulkDeleting}
+          >
             Cancel
           </Button>
         </div>
@@ -436,40 +514,67 @@ export default function ContactsPage() {
           <div className="space-y-3 py-2">
             <label className="block text-sm">
               <span className="text-muted-foreground text-xs">Name *</span>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                autoFocus
+              />
             </label>
             <label className="block text-sm">
               <span className="text-muted-foreground text-xs">Type</span>
-              <Select value={(form.type | 'OTHER').toUpperCase()} onValueChange={(v) => setForm({ ...form, type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={(form.type || 'OTHER').toUpperCase()}
+                onValueChange={(v) => setForm({ ...form, type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {KIND_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  {KIND_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">Email</span>
-                <Input value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value | null })} />
+                <Input
+                  value={form.email ?? ''}
+                  onChange={(e) => setForm({ ...form, email: e.target.value || null })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">Phone</span>
-                <Input value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value | null })} />
+                <Input
+                  value={form.phone ?? ''}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value || null })}
+                />
               </label>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">City</span>
-                <Input value={form.city ?? ''} onChange={(e) => setForm({ ...form, city: e.target.value | null })} />
+                <Input
+                  value={form.city ?? ''}
+                  onChange={(e) => setForm({ ...form, city: e.target.value || null })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="text-muted-foreground text-xs">Country</span>
-                <Input value={form.country ?? ''} onChange={(e) => setForm({ ...form, country: e.target.value | null })} />
+                <Input
+                  value={form.country ?? ''}
+                  onChange={(e) => setForm({ ...form, country: e.target.value || null })}
+                />
               </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
             <Button onClick={save} disabled={saving}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
               {form.id ? 'Save' : 'Create'}

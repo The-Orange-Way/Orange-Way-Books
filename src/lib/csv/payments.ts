@@ -1,7 +1,15 @@
 import { parseCsvText } from './parse-csv-row';
 import type { ImportPreviewRow } from '@/components/ui/import-popup';
 
-export const PAYMENT_COLUMNS = ['Contact', 'Amount', 'Currency', 'Type', 'Vendor Ref', 'Description', 'Due Date'];
+export const PAYMENT_COLUMNS = [
+  'Contact',
+  'Amount',
+  'Currency',
+  'Type',
+  'Vendor Ref',
+  'Description',
+  'Due Date',
+];
 
 export const PAYMENT_SAMPLE_CSV = `Contact,Amount,Currency,Type,Vendor Ref,Description,Due Date
 Acme Corp,1500.00,USD,Invoice,INV-2026-001,Office supplies Q1,2026-02-15
@@ -24,13 +32,13 @@ export function parseCsvPayments(csvText: string): { rows: ImportPreviewRow[]; e
     return {
       rowIndex: i + 1,
       data: {
-        contact: data.contact | '',
-        amount: data.amount | '',
-        currency: (data.currency | 'USD').toUpperCase(),
-        type: data.type | 'Invoice',
-        vendor_ref: data['vendor ref'] | '',
-        description: data.description | '',
-        due_date: data['due date'] | '',
+        contact: data.contact || '',
+        amount: data.amount || '',
+        currency: (data.currency || 'USD').toUpperCase(),
+        type: data.type || 'Invoice',
+        vendor_ref: data['vendor ref'] || '',
+        description: data.description || '',
+        due_date: data['due date'] || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

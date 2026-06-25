@@ -15,19 +15,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
-  Plus, Search, RefreshCw, Loader2, ArrowUpDown, Eye, X, CalendarIcon, Trash2,
-  Send, Copy, Printer, ExternalLink, Check, DollarSign,
+  Plus,
+  Search,
+  RefreshCw,
+  Loader2,
+  ArrowUpDown,
+  Eye,
+  X,
+  CalendarIcon,
+  Trash2,
+  Send,
+  Copy,
+  Printer,
+  ExternalLink,
+  Check,
+  DollarSign,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useVault } from '@/context/VaultContext';
 import { useCapability } from '@/hooks/useCapability';
 import {
-  encryptInvoice, decryptInvoice,
-  encryptInvoiceLineItem, decryptInvoiceLineItem,
+  encryptInvoice,
+  decryptInvoice,
+  encryptInvoiceLineItem,
+  decryptInvoiceLineItem,
   decryptWallet,
   decryptChartOfAccount,
-  type InvoiceFields, type InvoiceLineItemFields,
+  type InvoiceFields,
+  type InvoiceLineItemFields,
 } from '@/lib/crypto-fields';
 import {
   recordPlaceholderPayment,
@@ -42,9 +58,28 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -61,10 +96,7 @@ const DEFAULT_INVOICE_EMAIL_BODY =
   `View and pay:\n{{share_url}}\n\n` +
   `Thanks,\n{{org_name}}\n`;
 
-function renderTemplate(
-  template: string,
-  vars: Record<string, string>,
-): string {
+function renderTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) =>
     Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : '',
   );
@@ -73,9 +105,16 @@ function renderTemplate(
 // ── Types ──
 
 const INVOICE_STATUSES = [
-  'DRAFT', 'SENT', 'VIEWED', 'PARTIAL', 'PAID', 'OVERDUE', 'VOIDED', 'WRITTEN_OFF',
+  'DRAFT',
+  'SENT',
+  'VIEWED',
+  'PARTIAL',
+  'PAID',
+  'OVERDUE',
+  'VOIDED',
+  'WRITTEN_OFF',
 ] as const;
-type InvoiceStatus = typeof INVOICE_STATUSES[number];
+type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 interface InvoiceRow {
   id: string;
@@ -97,7 +136,7 @@ interface InvoiceRow {
 interface LineDraft {
   id?: string;
   description: string;
-  amount: string;        // string for input control
+  amount: string; // string for input control
   chart_of_accounts_id: string | null;
   sort_order: number;
 }
@@ -113,14 +152,14 @@ interface AccountOption {
 
 function statusBadge(status: InvoiceStatus) {
   const variants: Record<InvoiceStatus, string> = {
-    DRAFT:        'bg-slate-100 text-slate-700 border-slate-200',
-    SENT:         'bg-blue-100 text-blue-800 border-blue-200',
-    VIEWED:       'bg-indigo-100 text-indigo-800 border-indigo-200',
-    PARTIAL:      'bg-amber-100 text-amber-800 border-amber-200',
-    PAID:         'bg-emerald-100 text-emerald-800 border-emerald-200',
-    OVERDUE:      'bg-red-100 text-red-800 border-red-200',
-    VOIDED:       'bg-zinc-100 text-zinc-600 border-zinc-200',
-    WRITTEN_OFF:  'bg-purple-100 text-purple-800 border-purple-200',
+    DRAFT: 'bg-slate-100 text-slate-700 border-slate-200',
+    SENT: 'bg-blue-100 text-blue-800 border-blue-200',
+    VIEWED: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    PARTIAL: 'bg-amber-100 text-amber-800 border-amber-200',
+    PAID: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    OVERDUE: 'bg-red-100 text-red-800 border-red-200',
+    VOIDED: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+    WRITTEN_OFF: 'bg-purple-100 text-purple-800 border-purple-200',
   };
   return (
     <Badge variant="outline" className={cn('font-medium', variants[status])}>
@@ -140,10 +179,7 @@ interface WalletOption {
 
 export default function Invoices() {
   const { orgId } = useUserOrg();
-  const {
-    encryptText, decryptText, isUnlocked,
-    loadOrgSigningKey, signMutation,
-  } = useVault();
+  const { encryptText, decryptText, isUnlocked, loadOrgSigningKey, signMutation } = useVault();
   const { formatAmount } = useFormatCurrency();
 
   // I16 producer — gate the "Mark paid" affordance on payments.create
@@ -174,7 +210,9 @@ export default function Invoices() {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   // Sort
-  const [sortBy, setSortBy] = useState<'invoice_number' | 'issue_date' | 'due_date' | 'amount'>('issue_date');
+  const [sortBy, setSortBy] = useState<'invoice_number' | 'issue_date' | 'due_date' | 'amount'>(
+    'issue_date',
+  );
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Dialogs
@@ -207,7 +245,7 @@ export default function Invoices() {
   // ── Data load ──
 
   const load = useCallback(async () => {
-    if (!orgId | !isUnlocked) return;
+    if (!orgId || !isUnlocked) return;
     setLoading(true);
     try {
       // Pull invoices
@@ -260,9 +298,9 @@ export default function Invoices() {
           const fields = await decryptChartOfAccount(a, decryptText);
           return {
             id: a.id,
-            name: fields.account_name | '',
-            code: fields.account_code | null,
-            type: fields.account_type | '',
+            name: fields.account_name || '',
+            code: fields.account_code || null,
+            type: fields.account_type || '',
           };
         }),
       );
@@ -297,7 +335,9 @@ export default function Invoices() {
     }
   }, [orgId, isUnlocked, decryptText, refreshTick]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   // ── Filtering + sorting ──
 
@@ -308,10 +348,11 @@ export default function Invoices() {
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      rows = rows.filter((r) =>
-        r.invoice_number.toLowerCase().includes(q)
-        | r.customer_name.toLowerCase().includes(q)
-        | (r.memo ?? '').toLowerCase().includes(q)
+      rows = rows.filter(
+        (r) =>
+          r.invoice_number.toLowerCase().includes(q) ||
+          r.customer_name.toLowerCase().includes(q) ||
+          (r.memo ?? '').toLowerCase().includes(q),
       );
     }
     if (dateFrom) {
@@ -340,9 +381,18 @@ export default function Invoices() {
   const counts = useMemo(() => {
     const c: Record<'ALL' | InvoiceStatus, number> = {
       ALL: invoices.length,
-      DRAFT: 0, SENT: 0, VIEWED: 0, PARTIAL: 0, PAID: 0, OVERDUE: 0, VOIDED: 0, WRITTEN_OFF: 0,
+      DRAFT: 0,
+      SENT: 0,
+      VIEWED: 0,
+      PARTIAL: 0,
+      PAID: 0,
+      OVERDUE: 0,
+      VOIDED: 0,
+      WRITTEN_OFF: 0,
     };
-    invoices.forEach((r) => { c[r.status] += 1; });
+    invoices.forEach((r) => {
+      c[r.status] += 1;
+    });
     return c;
   }, [invoices]);
 
@@ -363,26 +413,35 @@ export default function Invoices() {
   };
 
   const formTotal = useMemo(() => {
-    return formLines.reduce((acc, l) => acc + (parseFloat(l.amount) | 0), 0);
+    return formLines.reduce((acc, l) => acc + (parseFloat(l.amount) || 0), 0);
   }, [formLines]);
 
   const addLine = () => {
-    setFormLines((ls) => [...ls, { description: '', amount: '', chart_of_accounts_id: null, sort_order: ls.length }]);
+    setFormLines((ls) => [
+      ...ls,
+      { description: '', amount: '', chart_of_accounts_id: null, sort_order: ls.length },
+    ]);
   };
   const removeLine = (i: number) => {
-    setFormLines((ls) => ls.filter((_, idx) => idx !== i).map((l, idx) => ({ ...l, sort_order: idx })));
+    setFormLines((ls) =>
+      ls.filter((_, idx) => idx !== i).map((l, idx) => ({ ...l, sort_order: idx })),
+    );
   };
   const updateLine = (i: number, patch: Partial<LineDraft>) => {
-    setFormLines((ls) => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
+    setFormLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   };
 
   // ── Save (create or update) ──
 
   const handleSave = async (asDraft: boolean) => {
     if (!orgId) return;
-    if (!formCustomerName.trim()) { toast.error('Customer name is required'); return; }
-    if (formLines.length === 0 | formLines.every((l) => !l.description.trim() && !l.amount)) {
-      toast.error('Add at least one line item'); return;
+    if (!formCustomerName.trim()) {
+      toast.error('Customer name is required');
+      return;
+    }
+    if (formLines.length === 0 || formLines.every((l) => !l.description.trim() && !l.amount)) {
+      toast.error('Add at least one line item');
+      return;
     }
     setSaving(true);
     try {
@@ -391,28 +450,34 @@ export default function Invoices() {
       if (editOpen) {
         invoice_number = editOpen.invoice_number;
       } else {
-        const { data: numRes, error: numErr } = await (supabase as any)
-          .rpc('next_invoice_number', { p_org_id: orgId });
+        const { data: numRes, error: numErr } = await (supabase as any).rpc('next_invoice_number', {
+          p_org_id: orgId,
+        });
         if (numErr) throw new Error(`Couldn't mint invoice number: ${numErr.message}`);
         invoice_number = numRes as string;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const issue_date_iso = format(formIssueDate, 'yyyy-MM-dd');
       const due_date_iso = formDueDate ? format(formDueDate, 'yyyy-MM-dd') : null;
 
-      const enc = await encryptInvoice({
-        customer_name: formCustomerName,
-        customer_email_snapshot: formCustomerEmail | null,
-        customer_phone_snapshot: formCustomerPhone | null,
-        customer_address: formCustomerAddress | null,
-        memo: formMemo | null,
-        internal_notes: formInternalNotes | null,
-        payment_instructions: formPaymentInstructions | null,
-        void_reason: null,
-        write_off_reason: null,
-        amount: formTotal,
-      }, encryptText);
+      const enc = await encryptInvoice(
+        {
+          customer_name: formCustomerName,
+          customer_email_snapshot: formCustomerEmail || null,
+          customer_phone_snapshot: formCustomerPhone || null,
+          customer_address: formCustomerAddress || null,
+          memo: formMemo || null,
+          internal_notes: formInternalNotes || null,
+          payment_instructions: formPaymentInstructions || null,
+          void_reason: null,
+          write_off_reason: null,
+          amount: formTotal,
+        },
+        encryptText,
+      );
 
       const insertRow: any = {
         ...enc,
@@ -451,21 +516,26 @@ export default function Invoices() {
       // Insert line items
       for (const l of formLines) {
         if (!l.description.trim() && !l.amount) continue;
-        const lineEnc = await encryptInvoiceLineItem({
-          description: l.description,
-          amount: parseFloat(l.amount) | 0,
-          quantity: null,
-          unit_price: null,
-          chart_of_accounts_id: l.chart_of_accounts_id,
-          sort_order: l.sort_order,
-        }, encryptText);
+        const lineEnc = await encryptInvoiceLineItem(
+          {
+            description: l.description,
+            amount: parseFloat(l.amount) || 0,
+            quantity: null,
+            unit_price: null,
+            chart_of_accounts_id: l.chart_of_accounts_id,
+            sort_order: l.sort_order,
+          },
+          encryptText,
+        );
         await (supabase as any).from('invoice_line_items').insert({
           ...lineEnc,
           invoice_id: invoiceId,
         });
       }
 
-      toast.success(editOpen ? `Invoice ${invoice_number} updated` : `Invoice ${invoice_number} created`);
+      toast.success(
+        editOpen ? `Invoice ${invoice_number} updated` : `Invoice ${invoice_number} created`,
+      );
       setCreateOpen(false);
       setEditOpen(null);
       resetForm();
@@ -576,24 +646,23 @@ export default function Invoices() {
       // template substitutions. Falls back to sensible defaults so the
       // operator can send without configuring templates first.
       const vars = {
-        customer_name: payload.customer_name | 'there',
+        customer_name: payload.customer_name || 'there',
         invoice_number: payload.invoice_number,
         amount: formatAmount(payload.amount, payload.currency),
         currency: payload.currency,
         due_date: payload.due_date ? format(new Date(payload.due_date), 'PP') : 'on receipt',
         share_url: share.shareUrl,
-        org_name: orgPublicName | 'Orange Way Books',
+        org_name: orgPublicName || 'Orange Way Books',
         memo: payload.memo ?? '',
       };
       setEmailTo(payload.customer_email ?? '');
-      setEmailSubject(renderTemplate(
-        emailSubjectTemplate ?? `Invoice ${vars.invoice_number} from {{org_name}}`,
-        vars,
-      ));
-      setEmailBody(renderTemplate(
-        emailBodyTemplate ?? DEFAULT_INVOICE_EMAIL_BODY,
-        vars,
-      ));
+      setEmailSubject(
+        renderTemplate(
+          emailSubjectTemplate ?? `Invoice ${vars.invoice_number} from {{org_name}}`,
+          vars,
+        ),
+      );
+      setEmailBody(renderTemplate(emailBodyTemplate ?? DEFAULT_INVOICE_EMAIL_BODY, vars));
 
       toast.success(`Share link ready for ${row.invoice_number}`);
       setRefreshTick((t) => t + 1);
@@ -625,11 +694,12 @@ export default function Invoices() {
       toast.success(`Sent to ${emailTo.trim()}`);
     } catch (err) {
       console.error('[invoices] email send failed', err);
-      const msg = err instanceof Error
-        ? err.message
-        : typeof err === 'object' && err && 'message' in err
-        ? String((err as { message: unknown }).message)
-        : 'Email failed';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Email failed';
       toast.error(msg);
     } finally {
       setEmailSending(false);
@@ -642,7 +712,9 @@ export default function Invoices() {
       await navigator.clipboard.writeText(shareDialog.url);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handlePrintFromShare = () => {
@@ -655,13 +727,22 @@ export default function Invoices() {
   };
 
   const handleVoid = async (row: InvoiceRow) => {
-    if (!window.confirm(`Void invoice ${row.invoice_number}? This preserves it for audit but marks it cancelled.`)) return;
+    if (
+      !window.confirm(
+        `Void invoice ${row.invoice_number}? This preserves it for audit but marks it cancelled.`,
+      )
+    )
+      return;
     const reason = window.prompt('Reason (audit-logged):') ?? '';
     try {
       const enc = await encryptText(reason);
       const { error } = await (supabase as any)
         .from('invoices')
-        .update({ status: 'VOIDED', encrypted_void_reason: enc, voided_at: new Date().toISOString() })
+        .update({
+          status: 'VOIDED',
+          encrypted_void_reason: enc,
+          voided_at: new Date().toISOString(),
+        })
         .eq('id', row.id);
       if (error) throw error;
       toast.success(`Invoice ${row.invoice_number} voided`);
@@ -673,7 +754,8 @@ export default function Invoices() {
 
   const handleDelete = async (row: InvoiceRow) => {
     if (row.status !== 'DRAFT' && row.status !== 'VOIDED') {
-      toast.error('Only DRAFT or VOIDED invoices can be deleted'); return;
+      toast.error('Only DRAFT or VOIDED invoices can be deleted');
+      return;
     }
     if (!window.confirm(`Delete invoice ${row.invoice_number}? This cannot be undone.`)) return;
     try {
@@ -694,9 +776,7 @@ export default function Invoices() {
   // when the real bank deposit lands, the InvoiceMatchPanel offers to
   // MERGE the placeholder + deposit into one canonical record.
 
-  const recordPayStatusesAllowed: InvoiceStatus[] = [
-    'SENT', 'VIEWED', 'PARTIAL', 'OVERDUE',
-  ];
+  const recordPayStatusesAllowed: InvoiceStatus[] = ['SENT', 'VIEWED', 'PARTIAL', 'OVERDUE'];
 
   // Sum of placeholder + applied payments already recorded against an
   // invoice. Used to default the dialog's amount to the remaining
@@ -712,8 +792,10 @@ export default function Invoices() {
         .from('invoice_payments')
         .select('amount_applied')
         .eq('invoice_id', row.id);
-      applied = ((paymentRows ?? []) as Array<{ amount_applied: number }>)
-        .reduce((acc, r) => acc + Number(r.amount_applied ?? 0), 0);
+      applied = ((paymentRows ?? []) as Array<{ amount_applied: number }>).reduce(
+        (acc, r) => acc + Number(r.amount_applied ?? 0),
+        0,
+      );
     } catch (err) {
       console.warn('[invoices] remaining-balance lookup failed', err);
     }
@@ -722,9 +804,7 @@ export default function Invoices() {
     setRecordPayAmount(remaining > 0 ? String(remaining) : String(row.amount));
     // Default wallet: first wallet whose asset matches the invoice
     // currency, else the first wallet.
-    const matchAsset = wallets.find(
-      (w) => w.asset?.toUpperCase() === row.currency.toUpperCase(),
-    );
+    const matchAsset = wallets.find((w) => w.asset?.toUpperCase() === row.currency.toUpperCase());
     setRecordPayWalletId((matchAsset ?? wallets[0])?.id ?? '');
     setRecordPayDate(new Date());
     setRecordPayMemo('');
@@ -732,9 +812,9 @@ export default function Invoices() {
   };
 
   const handleRecordPay = async () => {
-    if (!recordPayRow | !orgId) return;
+    if (!recordPayRow || !orgId) return;
     const amt = parseFloat(recordPayAmount);
-    if (!Number.isFinite(amt) | amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0) {
       toast.error('Amount must be a positive number');
       return;
     }
@@ -754,9 +834,9 @@ export default function Invoices() {
         amount: amt,
         walletId: wallet.id,
         walletLegacyAccountId: wallet.external_account_id,
-        asset: wallet.asset | recordPayRow.currency,
+        asset: wallet.asset || recordPayRow.currency,
         appliedAt: format(recordPayDate, 'yyyy-MM-dd'),
-        memo: recordPayMemo.trim() | null,
+        memo: recordPayMemo.trim() || null,
         orgId,
         invoiceAmount: recordPayRow.amount,
         invoiceNumber: recordPayRow.invoice_number,
@@ -804,7 +884,10 @@ export default function Invoices() {
 
   const openEdit = async (row: InvoiceRow) => {
     const dec = await decryptInvoice(row.raw, decryptText).catch(() => null);
-    if (!dec) { toast.error('Could not decrypt invoice'); return; }
+    if (!dec) {
+      toast.error('Could not decrypt invoice');
+      return;
+    }
     setFormCustomerName(dec.customer_name ?? '');
     setFormCustomerEmail(dec.customer_email_snapshot ?? '');
     setFormCustomerPhone(dec.customer_phone_snapshot ?? '');
@@ -834,7 +917,11 @@ export default function Invoices() {
         };
       }),
     );
-    setFormLines(decLines.length ? decLines : [{ description: '', amount: '', chart_of_accounts_id: null, sort_order: 0 }]);
+    setFormLines(
+      decLines.length
+        ? decLines
+        : [{ description: '', amount: '', chart_of_accounts_id: null, sort_order: 0 }],
+    );
     setEditOpen(row);
   };
 
@@ -851,7 +938,8 @@ export default function Invoices() {
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -873,7 +961,7 @@ export default function Invoices() {
     try {
       for (const id of selected) {
         const row = invoices.find((r) => r.id === id);
-        if (!row | row.status !== 'DRAFT') continue;
+        if (!row || row.status !== 'DRAFT') continue;
         try {
           await handleSend(row);
           moved += 1;
@@ -890,7 +978,10 @@ export default function Invoices() {
 
   const handleBulkVoid = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Void ${selected.size} selected invoice(s)? This preserves them for audit.`)) return;
+    if (
+      !window.confirm(`Void ${selected.size} selected invoice(s)? This preserves them for audit.`)
+    )
+      return;
     setBulkActing(true);
     let moved = 0;
     try {
@@ -901,7 +992,8 @@ export default function Invoices() {
       for (const id of selected) {
         const row = invoices.find((r) => r.id === id);
         if (!row) continue;
-        if (row.status === 'VOIDED' | row.status === 'PAID' | row.status === 'WRITTEN_OFF') continue;
+        if (row.status === 'VOIDED' || row.status === 'PAID' || row.status === 'WRITTEN_OFF')
+          continue;
         const { error } = await (supabase as any)
           .from('invoices')
           .update({ status: 'VOIDED', encrypted_void_reason: enc, voided_at: nowIso })
@@ -917,15 +1009,21 @@ export default function Invoices() {
   };
 
   const handleBulkExportCsv = () => {
-    const targets = selected.size > 0
-      ? filtered.filter((r) => selected.has(r.id))
-      : filtered;
+    const targets = selected.size > 0 ? filtered.filter((r) => selected.has(r.id)) : filtered;
     if (targets.length === 0) {
       toast.error('Nothing to export.');
       return;
     }
     const headers = [
-      'Invoice #', 'Status', 'Issue date', 'Due date', 'Customer', 'Currency', 'Amount', 'Sent at', 'Paid at',
+      'Invoice #',
+      'Status',
+      'Issue date',
+      'Due date',
+      'Customer',
+      'Currency',
+      'Amount',
+      'Sent at',
+      'Paid at',
     ];
     const rows = targets.map((r) => [
       r.invoice_number,
@@ -960,7 +1058,9 @@ export default function Invoices() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
-          <p className="text-sm text-muted-foreground">Bill your customers — zero-knowledge end-to-end.</p>
+          <p className="text-sm text-muted-foreground">
+            Bill your customers — zero-knowledge end-to-end.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -974,7 +1074,10 @@ export default function Invoices() {
             Export CSV
           </Button>
           <Button
-            onClick={() => { resetForm(); setCreateOpen(true); }}
+            onClick={() => {
+              resetForm();
+              setCreateOpen(true);
+            }}
             data-testid="new-invoice-button"
           >
             <Plus className="w-4 h-4 mr-1" /> New invoice
@@ -1029,11 +1132,21 @@ export default function Invoices() {
             <Calendar
               mode="range"
               selected={{ from: dateFrom, to: dateTo }}
-              onSelect={(r) => { setDateFrom(r?.from); setDateTo(r?.to); }}
+              onSelect={(r) => {
+                setDateFrom(r?.from);
+                setDateTo(r?.to);
+              }}
               initialFocus
             />
             <div className="p-2 border-t flex justify-end">
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
+                }}
+              >
                 <X className="w-3 h-3 mr-1" /> Clear
               </Button>
             </div>
@@ -1108,7 +1221,10 @@ export default function Invoices() {
             Bill your first customer — zero-knowledge end-to-end.
           </p>
           <Button
-            onClick={() => { resetForm(); setCreateOpen(true); }}
+            onClick={() => {
+              resetForm();
+              setCreateOpen(true);
+            }}
             data-testid="invoice-empty-cta"
           >
             <Plus className="w-4 h-4 mr-1" /> Create your first invoice
@@ -1116,62 +1232,187 @@ export default function Invoices() {
         </div>
       ) : (
         <>
-        {/* Desktop / tablet table (>= md). Card list below covers mobile. */}
-        <Table className="hidden md:table">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
-                  onCheckedChange={() => toggleSelectAll(filtered.map((r) => r.id))}
-                  aria-label="Select all rows"
-                  data-testid="invoice-select-all"
-                />
-              </TableHead>
-              <TableHead className="cursor-pointer" onClick={() => { setSortBy('invoice_number'); setSortDir((d) => d === 'asc' ? 'desc' : 'asc'); }}>
-                Invoice # <ArrowUpDown className="inline w-3 h-3 opacity-60" />
-              </TableHead>
-              <TableHead className="cursor-pointer" onClick={() => { setSortBy('issue_date'); setSortDir((d) => d === 'asc' ? 'desc' : 'asc'); }}>
-                Issued
-              </TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="cursor-pointer" onClick={() => { setSortBy('due_date'); setSortDir((d) => d === 'asc' ? 'desc' : 'asc'); }}>
-                Due
-              </TableHead>
-              <TableHead className="cursor-pointer text-right" onClick={() => { setSortBy('amount'); setSortDir((d) => d === 'asc' ? 'desc' : 'asc'); }}>
-                Amount
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-32 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((row) => (
-              <TableRow key={row.id} data-testid="invoice-row">
-                <TableCell onClick={(e) => e.stopPropagation()}>
+          {/* Desktop / tablet table (>= md). Card list below covers mobile. */}
+          <Table className="hidden md:table">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
                   <Checkbox
-                    checked={selected.has(row.id)}
-                    onCheckedChange={() => toggleSelect(row.id)}
-                    aria-label={`Select invoice ${row.invoice_number}`}
-                    data-testid={`invoice-select-${row.invoice_number}`}
+                    checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
+                    onCheckedChange={() => toggleSelectAll(filtered.map((r) => r.id))}
+                    aria-label="Select all rows"
+                    data-testid="invoice-select-all"
                   />
-                </TableCell>
-                <TableCell className="font-mono text-xs">{row.invoice_number}</TableCell>
-                <TableCell className="text-xs">{row.issue_date ?? '—'}</TableCell>
-                <TableCell className="text-sm">{row.customer_name}</TableCell>
-                <TableCell className="text-xs">{row.due_date ?? '—'}</TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatAmount(row.amount, row.currency)}
-                </TableCell>
-                <TableCell>{statusBadge(row.status)}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => void openEdit(row)} title="View / edit">
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSortBy('invoice_number');
+                    setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                  }}
+                >
+                  Invoice # <ArrowUpDown className="inline w-3 h-3 opacity-60" />
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSortBy('issue_date');
+                    setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                  }}
+                >
+                  Issued
+                </TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSortBy('due_date');
+                    setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                  }}
+                >
+                  Due
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer text-right"
+                  onClick={() => {
+                    setSortBy('amount');
+                    setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                  }}
+                >
+                  Amount
+                </TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-32 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((row) => (
+                <TableRow key={row.id} data-testid="invoice-row">
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selected.has(row.id)}
+                      onCheckedChange={() => toggleSelect(row.id)}
+                      aria-label={`Select invoice ${row.invoice_number}`}
+                      data-testid={`invoice-select-${row.invoice_number}`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{row.invoice_number}</TableCell>
+                  <TableCell className="text-xs">{row.issue_date ?? '—'}</TableCell>
+                  <TableCell className="text-sm">{row.customer_name}</TableCell>
+                  <TableCell className="text-xs">{row.due_date ?? '—'}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatAmount(row.amount, row.currency)}
+                  </TableCell>
+                  <TableCell>{statusBadge(row.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void openEdit(row)}
+                      title="View / edit"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    {row.status !== 'VOIDED' && row.status !== 'WRITTEN_OFF' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleSend(row)}
+                        title={row.status === 'DRAFT' ? 'Send' : 'Get new share link'}
+                        data-testid="invoice-send-button"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {canCreatePayments && recordPayStatusesAllowed.includes(row.status) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void openRecordPay(row)}
+                        title="Mark paid (records a placeholder payment)"
+                        data-testid="invoice-mark-paid-button"
+                      >
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                      </Button>
+                    )}
+                    {row.status !== 'VOIDED' && row.status !== 'PAID' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleVoid(row)}
+                        title="Void"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {row.status === 'DRAFT' ||
+                      (row.status === 'VOIDED' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDelete(row)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Mobile: card list (< md). Tap row body opens view/edit. */}
+          <div className="md:hidden space-y-2">
+            {filtered.map((row) => (
+              <div
+                key={row.id}
+                className="bg-card border border-border rounded-lg p-3 cursor-pointer active:bg-muted/40"
+                onClick={() => void openEdit(row)}
+                data-testid="invoice-row-mobile"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
+                      <Checkbox
+                        checked={selected.has(row.id)}
+                        onCheckedChange={() => toggleSelect(row.id)}
+                        aria-label={`Select invoice ${row.invoice_number}`}
+                        data-testid={`invoice-select-mobile-${row.invoice_number}`}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-mono">{row.invoice_number}</span>
+                        {statusBadge(row.status)}
+                      </div>
+                      <div className="mt-1 text-sm truncate">{row.customer_name}</div>
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        Issued {row.issue_date ?? '—'} · Due {row.due_date ?? '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-mono text-sm tabular-nums">
+                      {formatAmount(row.amount, row.currency)}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => void openEdit(row)}
+                    title="View / edit"
+                  >
                     <Eye className="w-3.5 h-3.5" />
                   </Button>
                   {row.status !== 'VOIDED' && row.status !== 'WRITTEN_OFF' && (
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={() => void handleSend(row)}
                       title={row.status === 'DRAFT' ? 'Send' : 'Get new share link'}
                       data-testid="invoice-send-button"
@@ -1182,115 +1423,55 @@ export default function Invoices() {
                   {canCreatePayments && recordPayStatusesAllowed.includes(row.status) && (
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={() => void openRecordPay(row)}
-                      title="Mark paid (records a placeholder payment)"
+                      title="Mark paid"
                       data-testid="invoice-mark-paid-button"
                     >
                       <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                     </Button>
                   )}
                   {row.status !== 'VOIDED' && row.status !== 'PAID' && (
-                    <Button variant="ghost" size="sm" onClick={() => void handleVoid(row)} title="Void">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => void handleVoid(row)}
+                      title="Void"
+                    >
                       <X className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  {(row.status === 'DRAFT' | row.status === 'VOIDED') && (
-                    <Button variant="ghost" size="sm" onClick={() => void handleDelete(row)} title="Delete">
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
+                  {row.status === 'DRAFT' ||
+                    (row.status === 'VOIDED' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => void handleDelete(row)}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    ))}
+                </div>
+              </div>
             ))}
-          </TableBody>
-        </Table>
-
-        {/* Mobile: card list (< md). Tap row body opens view/edit. */}
-        <div className="md:hidden space-y-2">
-          {filtered.map((row) => (
-            <div
-              key={row.id}
-              className="bg-card border border-border rounded-lg p-3 cursor-pointer active:bg-muted/40"
-              onClick={() => void openEdit(row)}
-              data-testid="invoice-row"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2 min-w-0 flex-1">
-                  <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
-                    <Checkbox
-                      checked={selected.has(row.id)}
-                      onCheckedChange={() => toggleSelect(row.id)}
-                      aria-label={`Select invoice ${row.invoice_number}`}
-                      data-testid={`invoice-select-${row.invoice_number}`}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-mono">{row.invoice_number}</span>
-                      {statusBadge(row.status)}
-                    </div>
-                    <div className="mt-1 text-sm truncate">{row.customer_name}</div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      Issued {row.issue_date ?? '—'} · Due {row.due_date ?? '—'}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="font-mono text-sm tabular-nums">
-                    {formatAmount(row.amount, row.currency)}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void openEdit(row)} title="View / edit">
-                  <Eye className="w-3.5 h-3.5" />
-                </Button>
-                {row.status !== 'VOIDED' && row.status !== 'WRITTEN_OFF' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => void handleSend(row)}
-                    title={row.status === 'DRAFT' ? 'Send' : 'Get new share link'}
-                    data-testid="invoice-send-button"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-                {canCreatePayments && recordPayStatusesAllowed.includes(row.status) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => void openRecordPay(row)}
-                    title="Mark paid"
-                    data-testid="invoice-mark-paid-button"
-                  >
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                  </Button>
-                )}
-                {row.status !== 'VOIDED' && row.status !== 'PAID' && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void handleVoid(row)} title="Void">
-                    <X className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-                {(row.status === 'DRAFT' | row.status === 'VOIDED') && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void handleDelete(row)} title="Delete">
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+          </div>
         </>
       )}
 
       {/* Create / edit dialog */}
       <Dialog
-        open={createOpen | editOpen !== null}
-        onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditOpen(null); resetForm(); } }}
+        open={createOpen || editOpen !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCreateOpen(false);
+            setEditOpen(null);
+            resetForm();
+          }
+        }}
       >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1304,30 +1485,49 @@ export default function Invoices() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Customer name *</Label>
-                <Input value={formCustomerName} onChange={(e) => setFormCustomerName(e.target.value)} data-testid="invoice-customer-name" />
+                <Input
+                  value={formCustomerName}
+                  onChange={(e) => setFormCustomerName(e.target.value)}
+                  data-testid="invoice-customer-name"
+                />
               </div>
               <div>
                 <Label>Email</Label>
-                <Input value={formCustomerEmail} onChange={(e) => setFormCustomerEmail(e.target.value)} type="email" />
+                <Input
+                  value={formCustomerEmail}
+                  onChange={(e) => setFormCustomerEmail(e.target.value)}
+                  type="email"
+                />
               </div>
               <div>
                 <Label>Phone</Label>
-                <Input value={formCustomerPhone} onChange={(e) => setFormCustomerPhone(e.target.value)} />
+                <Input
+                  value={formCustomerPhone}
+                  onChange={(e) => setFormCustomerPhone(e.target.value)}
+                />
               </div>
               <div>
                 <Label>Currency</Label>
                 <Select value={formCurrency} onValueChange={setFormCurrency}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'BTC'].map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="col-span-2">
                 <Label>Billing address</Label>
-                <Textarea rows={2} value={formCustomerAddress} onChange={(e) => setFormCustomerAddress(e.target.value)} />
+                <Textarea
+                  rows={2}
+                  value={formCustomerAddress}
+                  onChange={(e) => setFormCustomerAddress(e.target.value)}
+                />
               </div>
             </div>
 
@@ -1343,7 +1543,12 @@ export default function Invoices() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={formIssueDate} onSelect={(d) => d && setFormIssueDate(d)} initialFocus />
+                    <Calendar
+                      mode="single"
+                      selected={formIssueDate}
+                      onSelect={(d) => d && setFormIssueDate(d)}
+                      initialFocus
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -1357,7 +1562,12 @@ export default function Invoices() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={formDueDate} onSelect={setFormDueDate} initialFocus />
+                    <Calendar
+                      mode="single"
+                      selected={formDueDate}
+                      onSelect={setFormDueDate}
+                      initialFocus
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -1384,14 +1594,19 @@ export default function Invoices() {
                     <div className="col-span-3">
                       <Select
                         value={l.chart_of_accounts_id ?? '__none__'}
-                        onValueChange={(v) => updateLine(i, { chart_of_accounts_id: v === '__none__' ? null : v })}
+                        onValueChange={(v) =>
+                          updateLine(i, { chart_of_accounts_id: v === '__none__' ? null : v })
+                        }
                       >
-                        <SelectTrigger><SelectValue placeholder="Account" /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Account" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">— Uncategorized —</SelectItem>
                           {accounts.map((a) => (
                             <SelectItem key={a.id} value={a.id}>
-                              {a.code ? `${a.code} ` : ''}{a.name}
+                              {a.code ? `${a.code} ` : ''}
+                              {a.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1436,20 +1651,32 @@ export default function Invoices() {
               </div>
               <div>
                 <Label>Internal notes (not shown to customer)</Label>
-                <Textarea rows={2} value={formInternalNotes} onChange={(e) => setFormInternalNotes(e.target.value)} />
+                <Textarea
+                  rows={2}
+                  value={formInternalNotes}
+                  onChange={(e) => setFormInternalNotes(e.target.value)}
+                />
               </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setCreateOpen(false); setEditOpen(null); resetForm(); }} disabled={saving}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setCreateOpen(false);
+                setEditOpen(null);
+                resetForm();
+              }}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button variant="outline" onClick={() => void handleSave(true)} disabled={saving}>
               Save as draft
             </Button>
             <Button onClick={() => void handleSave(false)} disabled={saving}>
-              {saving ? 'Saving…' : (editOpen ? 'Update' : 'Create + mark sent')}
+              {saving ? 'Saving…' : editOpen ? 'Update' : 'Create + mark sent'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1459,7 +1686,9 @@ export default function Invoices() {
           InvoiceMatchPanel's merge UX later folds into the real deposit. */}
       <Dialog
         open={recordPayRow !== null}
-        onOpenChange={(o) => { if (!o) setRecordPayRow(null); }}
+        onOpenChange={(o) => {
+          if (!o) setRecordPayRow(null);
+        }}
       >
         <DialogContent className="max-w-md" data-testid="invoice-mark-paid-dialog">
           <DialogHeader>
@@ -1470,10 +1699,9 @@ export default function Invoices() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-900 dark:text-emerald-200">
-              We record this as a <strong>placeholder</strong> payment now so
-              bookkeeping is correct immediately. When the real bank deposit
-              lands later, the Transactions screen will offer to merge it
-              with this placeholder — no duplicate counted.
+              We record this as a <strong>placeholder</strong> payment now so bookkeeping is correct
+              immediately. When the real bank deposit lands later, the Transactions screen will
+              offer to merge it with this placeholder — no duplicate counted.
             </div>
 
             <div>
@@ -1552,7 +1780,9 @@ export default function Invoices() {
               data-testid="invoice-mark-paid-submit"
             >
               {recordPaySaving ? (
-                <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Recording</>
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Recording
+                </>
               ) : (
                 <>Record payment</>
               )}
@@ -1564,7 +1794,12 @@ export default function Invoices() {
       {/* Share dialog — appears after Send creates the encrypted share */}
       <Dialog
         open={shareDialog !== null}
-        onOpenChange={(o) => { if (!o) { setShareDialog(null); setSharePayload(null); } }}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShareDialog(null);
+            setSharePayload(null);
+          }
+        }}
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -1576,15 +1811,32 @@ export default function Invoices() {
 
           <div className="space-y-4">
             <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
-              <p className="text-xs font-medium text-primary uppercase tracking-wider">Share link</p>
-              <div className="font-mono text-xs break-all bg-background border border-border rounded p-2" data-testid="invoice-share-url">
+              <p className="text-xs font-medium text-primary uppercase tracking-wider">
+                Share link
+              </p>
+              <div
+                className="font-mono text-xs break-all bg-background border border-border rounded p-2"
+                data-testid="invoice-share-url"
+              >
                 {shareDialog?.url}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleCopyShare}>
-                  {shareCopied ? <><Check className="w-3 h-3 mr-1" /> Copied</> : <><Copy className="w-3 h-3 mr-1" /> Copy link</>}
+                  {shareCopied ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 mr-1" /> Copy link
+                    </>
+                  )}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => window.open(shareDialog?.url, '_blank', 'noopener')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(shareDialog?.url, '_blank', 'noopener')}
+                >
                   <ExternalLink className="w-3 h-3 mr-1" /> Open in new tab
                 </Button>
                 <Button variant="outline" size="sm" onClick={handlePrintFromShare}>
@@ -1594,9 +1846,13 @@ export default function Invoices() {
             </div>
 
             <div className="rounded-md border border-border bg-card p-3 space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Send by email</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Send by email
+              </p>
               <div className="space-y-2">
-                <Label htmlFor="invoice-email-to" className="text-xs">To</Label>
+                <Label htmlFor="invoice-email-to" className="text-xs">
+                  To
+                </Label>
                 <Input
                   id="invoice-email-to"
                   type="email"
@@ -1607,7 +1863,9 @@ export default function Invoices() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-email-subject" className="text-xs">Subject</Label>
+                <Label htmlFor="invoice-email-subject" className="text-xs">
+                  Subject
+                </Label>
                 <Input
                   id="invoice-email-subject"
                   value={emailSubject}
@@ -1616,7 +1874,9 @@ export default function Invoices() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-email-body" className="text-xs">Message</Label>
+                <Label htmlFor="invoice-email-body" className="text-xs">
+                  Message
+                </Label>
                 <Textarea
                   id="invoice-email-body"
                   value={emailBody}
@@ -1630,13 +1890,17 @@ export default function Invoices() {
                 <Button
                   size="sm"
                   onClick={handleSendEmail}
-                  disabled={emailSending | !emailTo.trim()}
+                  disabled={emailSending || !emailTo.trim()}
                   data-testid="invoice-email-send"
                 >
                   {emailSending ? (
-                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending</>
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending
+                    </>
                   ) : (
-                    <><Send className="w-3 h-3 mr-1" /> Send email</>
+                    <>
+                      <Send className="w-3 h-3 mr-1" /> Send email
+                    </>
                   )}
                 </Button>
                 {emailSentAt && (
@@ -1651,17 +1915,28 @@ export default function Invoices() {
               <Send className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-medium mb-1">Zero-knowledge link</p>
-                <p>The decryption key is in the part after <code>#</code>. It never reaches our servers. Send the full URL to your customer (email, chat, SMS).</p>
+                <p>
+                  The decryption key is in the part after <code>#</code>. It never reaches our
+                  servers. Send the full URL to your customer (email, chat, SMS).
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Link expires 90 days from now. Generating a new share link rotates the key — older links stop working.
+              Link expires 90 days from now. Generating a new share link rotates the key — older
+              links stop working.
             </p>
           </div>
 
           <DialogFooter>
-            <Button onClick={() => { setShareDialog(null); setSharePayload(null); }}>Done</Button>
+            <Button
+              onClick={() => {
+                setShareDialog(null);
+                setSharePayload(null);
+              }}
+            >
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

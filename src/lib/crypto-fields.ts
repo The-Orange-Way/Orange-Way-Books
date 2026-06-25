@@ -6,7 +6,7 @@ const L2 = 2;
 /**
  * Active field-level encryption key version stamped on every row our
  * encrypt helpers write. This is NOT the vault MEK / KEK version
- * (which lives in `vault.ts` as LATEST_VAULT_KEY_VERSION = 4) — that's
+ * (which lives in `vault.ts` as LATEST_VAULT_KEY_VERSION). That's
  * the password-derived KEK, which is one layer above the symmetric DEK
  * applied at the row/column level here. Callers that write encrypted
  * columns directly (status flips, key_version migrations) should import
@@ -28,7 +28,7 @@ export const FIELD_KEY_VERSION = L2;
  * defaulted to 0 after the column was added).
  */
 function looksEncrypted(value: string | null | undefined): boolean {
-  if (!value | typeof value !== 'string') return false;
+  if (!value || typeof value !== 'string') return false;
   if (value.length < 24) return false;
   return /^[A-Za-z0-9+/]+={0,2}$/.test(value);
 }
@@ -38,7 +38,11 @@ async function encryptNullable(value: string | null, encrypt: EncryptFn): Promis
   return encrypt(value);
 }
 
-async function decryptNullable(value: string | null, decrypt: DecryptFn, kv?: number | null): Promise<string | null> {
+async function decryptNullable(
+  value: string | null,
+  decrypt: DecryptFn,
+  kv?: number | null,
+): Promise<string | null> {
   if (!value) return null;
   if (kv && kv >= L2) return decrypt(value);
   // Limbo fallback: row has no key_version but the value itself looks
@@ -55,22 +59,38 @@ async function decryptNullable(value: string | null, decrypt: DecryptFn, kv?: nu
   return value;
 }
 
-export async function encryptNumber(value: number | null | undefined, encrypt: EncryptFn): Promise<string | null> {
+export async function encryptNumber(
+  value: number | null | undefined,
+  encrypt: EncryptFn,
+): Promise<string | null> {
   if (value == null) return null;
   return encrypt(String(value));
 }
 
-async function decryptNumber(cipher: string | null, decrypt: DecryptFn, kv?: number | null, fallback?: number | null): Promise<number | null> {
+async function decryptNumber(
+  cipher: string | null,
+  decrypt: DecryptFn,
+  kv?: number | null,
+  fallback?: number | null,
+): Promise<number | null> {
   if (kv && kv >= L2 && cipher) return parseFloat(await decrypt(cipher));
   return fallback ?? null;
 }
 
-async function encryptBoolean(value: boolean | null | undefined, encrypt: EncryptFn): Promise<string | null> {
+async function encryptBoolean(
+  value: boolean | null | undefined,
+  encrypt: EncryptFn,
+): Promise<string | null> {
   if (value == null) return null;
   return encrypt(value ? 'true' : 'false');
 }
 
-async function decryptBoolean(cipher: string | null, decrypt: DecryptFn, kv?: number | null, fallback?: boolean | null): Promise<boolean> {
+async function decryptBoolean(
+  cipher: string | null,
+  decrypt: DecryptFn,
+  kv?: number | null,
+  fallback?: boolean | null,
+): Promise<boolean> {
   if (kv && kv >= L2 && cipher) return (await decrypt(cipher)) === 'true';
   return fallback ?? false;
 }
@@ -136,11 +156,18 @@ export async function decryptContact(
   row: ContactFields & { key_version?: number | null },
   decrypt: DecryptFn,
 ): Promise<ContactFields> {
-  if (!row.key_version) return {
-    name: row.name,
-    street: row.street, city: row.city, state: row.state, zip: row.zip, country: row.country,
-    email: row.email ?? null, phone: row.phone ?? null, type: row.type ?? null,
-  };
+  if (!row.key_version)
+    return {
+      name: row.name,
+      street: row.street,
+      city: row.city,
+      state: row.state,
+      zip: row.zip,
+      country: row.country,
+      email: row.email ?? null,
+      phone: row.phone ?? null,
+      type: row.type ?? null,
+    };
   const [name, street, city, state, zip, country, email, phone, type] = await Promise.all([
     decrypt(row.name),
     decryptNullable(row.street, decrypt, row.key_version),
@@ -181,7 +208,14 @@ export async function encryptWallet(
   fields: WalletFields,
   encrypt: EncryptFn,
 ): Promise<WalletEncrypted> {
-  const [encrypted_name, encrypted_balance, asset, account_type, connection_type, external_account_code] = await Promise.all([
+  const [
+    encrypted_name,
+    encrypted_balance,
+    asset,
+    account_type,
+    connection_type,
+    external_account_code,
+  ] = await Promise.all([
     encrypt(fields.encrypted_name),
     encryptNumber(fields.initial_balance, encrypt),
     encrypt(fields.asset),
@@ -201,20 +235,25 @@ export async function encryptWallet(
   };
 }
 
-export async function decryptWallet(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<WalletFields> {
+export async function decryptWallet(row: any, decrypt: DecryptFn): Promise<WalletFields> {
   const kv = row.key_version;
-  if (!kv) return {
-    encrypted_name: row.encrypted_name,
-    initial_balance: row.initial_balance,
-    asset: row.asset,
-    account_type: row.account_type,
-    connection_type: row.connection_type,
-    external_account_code: row.external_account_code,
-  };
-  const [encrypted_name, initial_balance, asset, account_type, connection_type, external_account_code] = await Promise.all([
+  if (!kv)
+    return {
+      encrypted_name: row.encrypted_name,
+      initial_balance: row.initial_balance,
+      asset: row.asset,
+      account_type: row.account_type,
+      connection_type: row.connection_type,
+      external_account_code: row.external_account_code,
+    };
+  const [
+    encrypted_name,
+    initial_balance,
+    asset,
+    account_type,
+    connection_type,
+    external_account_code,
+  ] = await Promise.all([
     decrypt(row.encrypted_name),
     decryptNumber(row.encrypted_balance, decrypt, kv, row.initial_balance),
     kv >= L2 ? decrypt(row.asset) : Promise.resolve(row.asset),
@@ -222,7 +261,14 @@ export async function decryptWallet(
     decryptNullable(row.connection_type, decrypt, kv >= L2 ? kv : null),
     decryptNullable(row.external_account_code, decrypt, kv >= L2 ? kv : null),
   ]);
-  return { encrypted_name, initial_balance, asset, account_type, connection_type, external_account_code };
+  return {
+    encrypted_name,
+    initial_balance,
+    asset,
+    account_type,
+    connection_type,
+    external_account_code,
+  };
 }
 
 // ── Transactions ──
@@ -257,7 +303,16 @@ export async function encryptTransaction(
   fields: TransactionFields,
   encrypt: EncryptFn,
 ): Promise<TransactionEncrypted> {
-  const [memo, encrypted_amount, encrypted_usd_value, encrypted_exchange_rate, asset, type, status, cleared_status] = await Promise.all([
+  const [
+    memo,
+    encrypted_amount,
+    encrypted_usd_value,
+    encrypted_exchange_rate,
+    asset,
+    type,
+    status,
+    cleared_status,
+  ] = await Promise.all([
     encryptNullable(fields.memo, encrypt),
     encryptNumber(fields.amount, encrypt),
     encryptNumber(fields.usd_value, encrypt),
@@ -268,35 +323,56 @@ export async function encryptTransaction(
     encryptNullable(fields.cleared_status, encrypt),
   ]);
   return {
-    memo, encrypted_amount, encrypted_usd_value, encrypted_exchange_rate,
-    asset, type, status, cleared_status,
-    amount: 0, usd_value: null, exchange_rate: null,
+    memo,
+    encrypted_amount,
+    encrypted_usd_value,
+    encrypted_exchange_rate,
+    asset,
+    type,
+    status,
+    cleared_status,
+    amount: 0,
+    usd_value: null,
+    exchange_rate: null,
     key_version: L2,
   };
 }
 
-export async function decryptTransaction(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<TransactionFields> {
+export async function decryptTransaction(row: any, decrypt: DecryptFn): Promise<TransactionFields> {
   const kv = row.key_version;
-  if (!kv) return {
-    memo: row.memo, amount: row.amount, usd_value: row.usd_value,
-    exchange_rate: row.exchange_rate, asset: row.asset, type: row.type,
-    status: row.status, cleared_status: row.cleared_status,
-  };
+  if (!kv)
+    return {
+      memo: row.memo,
+      amount: row.amount,
+      usd_value: row.usd_value,
+      exchange_rate: row.exchange_rate,
+      asset: row.asset,
+      type: row.type,
+      status: row.status,
+      cleared_status: row.cleared_status,
+    };
   const isL2 = kv >= L2;
-  const [memo, amount, usd_value, exchange_rate, asset, type, status, cleared_status] = await Promise.all([
-    decryptNullable(row.memo, decrypt, kv),
-    decryptNumber(row.encrypted_amount, decrypt, kv, row.amount),
-    decryptNumber(row.encrypted_usd_value, decrypt, kv, row.usd_value),
-    decryptNumber(row.encrypted_exchange_rate, decrypt, kv, row.exchange_rate),
-    isL2 ? decrypt(row.asset) : Promise.resolve(row.asset),
-    isL2 ? decrypt(row.type) : Promise.resolve(row.type),
-    isL2 ? decryptNullable(row.status, decrypt, kv) : Promise.resolve(row.status),
-    isL2 ? decryptNullable(row.cleared_status, decrypt, kv) : Promise.resolve(row.cleared_status),
-  ]);
-  return { memo, amount: amount ?? 0, usd_value, exchange_rate, asset, type, status, cleared_status };
+  const [memo, amount, usd_value, exchange_rate, asset, type, status, cleared_status] =
+    await Promise.all([
+      decryptNullable(row.memo, decrypt, kv),
+      decryptNumber(row.encrypted_amount, decrypt, kv, row.amount),
+      decryptNumber(row.encrypted_usd_value, decrypt, kv, row.usd_value),
+      decryptNumber(row.encrypted_exchange_rate, decrypt, kv, row.exchange_rate),
+      isL2 ? decrypt(row.asset) : Promise.resolve(row.asset),
+      isL2 ? decrypt(row.type) : Promise.resolve(row.type),
+      isL2 ? decryptNullable(row.status, decrypt, kv) : Promise.resolve(row.status),
+      isL2 ? decryptNullable(row.cleared_status, decrypt, kv) : Promise.resolve(row.cleared_status),
+    ]);
+  return {
+    memo,
+    amount: amount ?? 0,
+    usd_value,
+    exchange_rate,
+    asset,
+    type,
+    status,
+    cleared_status,
+  };
 }
 
 // ── Journal Entries ──
@@ -325,7 +401,7 @@ export interface JournalEntryEncrypted {
   encrypted_currency: string;
   encrypted_exchange_rate: string | null;
   encrypted_period_locked: string | null;
-  status: string;            // PLAINTEXT
+  status: string; // PLAINTEXT
   source_type: string | null; // PLAINTEXT
   key_version: number;
 }
@@ -334,7 +410,13 @@ export async function encryptJournalEntry(
   fields: JournalEntryFields,
   encrypt: EncryptFn,
 ): Promise<JournalEntryEncrypted> {
-  const [encrypted_memo, encrypted_ref_number, encrypted_currency, encrypted_exchange_rate, encrypted_period_locked] = await Promise.all([
+  const [
+    encrypted_memo,
+    encrypted_ref_number,
+    encrypted_currency,
+    encrypted_exchange_rate,
+    encrypted_period_locked,
+  ] = await Promise.all([
     encryptNullable(fields.memo, encrypt),
     encryptNullable(fields.ref_number, encrypt),
     encrypt(fields.currency),
@@ -372,8 +454,8 @@ export async function decryptJournalEntry(
     ref_number,
     currency,
     exchange_rate,
-    status: row.status,             // plaintext
-    source_type: row.source_type,   // plaintext
+    status: row.status, // plaintext
+    source_type: row.source_type, // plaintext
     period_locked,
   };
 }
@@ -438,10 +520,16 @@ export async function encryptJournalEntryLine(
   },
 ): Promise<JournalEntryLineEncrypted> {
   const [
-    account_name, account_code, description,
-    encrypted_debit, encrypted_credit, encrypted_book_value,
-    encrypted_amount_native, encrypted_amount_primary,
-    encrypted_posted_rate, encrypted_wallet_currency,
+    account_name,
+    account_code,
+    description,
+    encrypted_debit,
+    encrypted_credit,
+    encrypted_book_value,
+    encrypted_amount_native,
+    encrypted_amount_primary,
+    encrypted_posted_rate,
+    encrypted_wallet_currency,
     encrypted_primary_currency_at_posting,
     encrypted_manual_rate_reason,
     encrypted_manual_rate_source,
@@ -462,8 +550,12 @@ export async function encryptJournalEntryLine(
   ]);
   const hasDual = fields.amount_native != null && fields.amount_primary != null;
   return {
-    account_name, account_code, description,
-    encrypted_debit, encrypted_credit, encrypted_book_value,
+    account_name,
+    account_code,
+    description,
+    encrypted_debit,
+    encrypted_credit,
+    encrypted_book_value,
     key_version: L2,
     encrypted_amount_native,
     encrypted_amount_primary,
@@ -484,17 +576,28 @@ export async function decryptJournalEntryLine(
   decrypt: DecryptFn,
 ): Promise<JournalEntryLineFields> {
   const kv = row.key_version;
-  if (!kv) return {
-    account_name: row.account_name, account_code: row.account_code,
-    description: row.description, debit: 0, credit: 0,
-    book_value: null,
-  };
+  if (!kv)
+    return {
+      account_name: row.account_name,
+      account_code: row.account_code,
+      description: row.description,
+      debit: 0,
+      credit: 0,
+      book_value: null,
+    };
   // Post-Phase 1: plaintext debit/credit/book_value columns no longer exist.
   // The null fallbacks pass through unchanged when encrypted_* is null.
   const [
-    account_name, account_code, description,
-    debit, credit, book_value,
-    amount_native, amount_primary, posted_rate, wallet_currency,
+    account_name,
+    account_code,
+    description,
+    debit,
+    credit,
+    book_value,
+    amount_native,
+    amount_primary,
+    posted_rate,
+    wallet_currency,
   ] = await Promise.all([
     decryptNullable(row.account_name, decrypt, kv),
     decryptNullable(row.account_code, decrypt, kv),
@@ -508,8 +611,12 @@ export async function decryptJournalEntryLine(
     decryptNullable(row.encrypted_wallet_currency, decrypt, kv),
   ]);
   return {
-    account_name, account_code, description,
-    debit: debit ?? 0, credit: credit ?? 0, book_value,
+    account_name,
+    account_code,
+    description,
+    debit: debit ?? 0,
+    credit: credit ?? 0,
+    book_value,
     amount_native: amount_native ?? null,
     amount_primary: amount_primary ?? null,
     posted_rate: posted_rate ?? null,
@@ -517,7 +624,7 @@ export async function decryptJournalEntryLine(
   };
 }
 
-// ── legacy ledger backend Account Map ──
+// ── the ledger Account Map ──
 
 export interface LegacyAccountFields {
   account_name: string;
@@ -562,9 +669,7 @@ export async function encryptChartOfAccount(
   key_version: number;
   parent_id: string | null;
 }> {
-  const allowedJson = fields.allowed_currencies
-    ? JSON.stringify(fields.allowed_currencies)
-    : null;
+  const allowedJson = fields.allowed_currencies ? JSON.stringify(fields.allowed_currencies) : null;
   const [
     encrypted_name,
     encrypted_code,
@@ -631,8 +736,8 @@ export async function decryptChartOfAccount(
     account_code,
     description,
     account_type,
-    account_group: null,      // legacy field; new schema folds into encrypted_metadata if needed
-    account_category: null,   // legacy field
+    account_group: null, // legacy field; new schema folds into encrypted_metadata if needed
+    account_category: null, // legacy field
     account_sub_type,
     is_group,
     is_system,
@@ -672,7 +777,17 @@ export async function encryptPaymentRequest(
   payment_address: string | null;
   key_version: number;
 }> {
-  const [encrypted_payee, encrypted_description, encrypted_rejection_reason, encrypted_amount, currency, status, request_type, vendor_ref, payment_address] = await Promise.all([
+  const [
+    encrypted_payee,
+    encrypted_description,
+    encrypted_rejection_reason,
+    encrypted_amount,
+    currency,
+    status,
+    request_type,
+    vendor_ref,
+    payment_address,
+  ] = await Promise.all([
     encryptNullable(fields.payee, encrypt),
     encryptNullable(fields.description, encrypt),
     encryptNullable(fields.rejection_reason, encrypt),
@@ -684,8 +799,16 @@ export async function encryptPaymentRequest(
     encryptNullable(fields.payment_address, encrypt),
   ]);
   return {
-    encrypted_payee, encrypted_description, encrypted_rejection_reason, encrypted_amount,
-    amount: 0, currency, status, request_type, vendor_ref, payment_address,
+    encrypted_payee,
+    encrypted_description,
+    encrypted_rejection_reason,
+    encrypted_amount,
+    amount: 0,
+    currency,
+    status,
+    request_type,
+    vendor_ref,
+    payment_address,
     key_version: L2,
   };
 }
@@ -695,19 +818,25 @@ export async function decryptPaymentRequest(
   decrypt: DecryptFn,
 ): Promise<PaymentRequestFields> {
   const kv = row.key_version;
-  if (!kv) return {
-    payee: row.encrypted_payee, description: row.encrypted_description,
-    rejection_reason: row.encrypted_rejection_reason, amount: row.amount,
-    currency: row.currency, status: row.status, request_type: row.request_type,
-    vendor_ref: row.vendor_ref, payment_address: row.payment_address,
-  };
+  if (!kv)
+    return {
+      payee: row.encrypted_payee,
+      description: row.encrypted_description,
+      rejection_reason: row.encrypted_rejection_reason,
+      amount: row.amount,
+      currency: row.currency,
+      status: row.status,
+      request_type: row.request_type,
+      vendor_ref: row.vendor_ref,
+      payment_address: row.payment_address,
+    };
   const isL2 = kv >= L2;
   // Fail closed. If a row claims a key_version but decryption of any field
   // fails (key mismatch, tampered ciphertext, wrong MEK) we must NOT return
   // the raw ciphertext — that turns a cryptographic failure into silent bad
   // data in the UI. Wrap each field so we can attach which field failed,
   // then let the error bubble up to the page-level try/catch.
-  const failingField = async <T,>(field: string, work: Promise<T>): Promise<T> => {
+  const failingField = async <T>(field: string, work: Promise<T>): Promise<T> => {
     try {
       return await work;
     } catch (err) {
@@ -715,18 +844,38 @@ export async function decryptPaymentRequest(
       throw new Error(`Failed to decrypt payment_request.${field}: ${msg}`);
     }
   };
-  const decryptTextField = async (cipher: string | null | undefined, active: boolean, field: string): Promise<string> => {
-    if (cipher == null | cipher === '') return '';
+  const decryptTextField = async (
+    cipher: string | null | undefined,
+    active: boolean,
+    field: string,
+  ): Promise<string> => {
+    if (cipher == null || cipher === '') return '';
     if (!active) return String(cipher);
     return failingField(field, decrypt(cipher));
   };
-  const decryptNullableField = async (cipher: string | null | undefined, active: boolean, field: string): Promise<string | null> => {
-    if (cipher == null | cipher === '') return null;
+  const decryptNullableField = async (
+    cipher: string | null | undefined,
+    active: boolean,
+    field: string,
+  ): Promise<string | null> => {
+    if (cipher == null || cipher === '') return null;
     if (!active) return cipher;
     return failingField(field, decrypt(cipher));
   };
-  const amount = await failingField('encrypted_amount', decryptNumber(row.encrypted_amount, decrypt, kv, row.amount));
-  const [payee, description, rejection_reason, currency, status, request_type, vendor_ref, payment_address] = await Promise.all([
+  const amount = await failingField(
+    'encrypted_amount',
+    decryptNumber(row.encrypted_amount, decrypt, kv, row.amount),
+  );
+  const [
+    payee,
+    description,
+    rejection_reason,
+    currency,
+    status,
+    request_type,
+    vendor_ref,
+    payment_address,
+  ] = await Promise.all([
     decryptNullableField(row.encrypted_payee, !!kv, 'encrypted_payee'),
     decryptNullableField(row.encrypted_description, !!kv, 'encrypted_description'),
     decryptNullableField(row.encrypted_rejection_reason, !!kv, 'encrypted_rejection_reason'),
@@ -737,8 +886,15 @@ export async function decryptPaymentRequest(
     decryptNullableField(row.payment_address, isL2, 'payment_address'),
   ]);
   return {
-    payee, description, rejection_reason, amount: amount ?? 0,
-    currency, status, request_type, vendor_ref, payment_address,
+    payee,
+    description,
+    rejection_reason,
+    amount: amount ?? 0,
+    currency,
+    status,
+    request_type,
+    vendor_ref,
+    payment_address,
   };
 }
 
@@ -811,8 +967,8 @@ export interface InvoiceFields {
   customer_email_snapshot: string | null;
   customer_phone_snapshot: string | null;
   customer_address: string | null;
-  memo: string | null;              // customer-facing
-  internal_notes: string | null;     // org-only
+  memo: string | null; // customer-facing
+  internal_notes: string | null; // org-only
   payment_instructions: string | null; // BTC address / Lightning / bank
   void_reason: string | null;
   write_off_reason: string | null;
@@ -875,10 +1031,7 @@ export async function encryptInvoice(
   };
 }
 
-export async function decryptInvoice(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<InvoiceFields> {
+export async function decryptInvoice(row: any, decrypt: DecryptFn): Promise<InvoiceFields> {
   const kv = row.key_version;
   if (!kv) {
     return {
@@ -897,7 +1050,7 @@ export async function decryptInvoice(
 
   // Fail-closed: surface field-level decryption failures rather than
   // returning raw ciphertext to the UI.
-  const failingField = async <T,>(field: string, work: Promise<T>): Promise<T> => {
+  const failingField = async <T>(field: string, work: Promise<T>): Promise<T> => {
     try {
       return await work;
     } catch (err) {
@@ -905,12 +1058,18 @@ export async function decryptInvoice(
       throw new Error(`Failed to decrypt invoice.${field}: ${msg}`);
     }
   };
-  const decryptNullableField = async (cipher: string | null | undefined, field: string): Promise<string | null> => {
-    if (cipher == null | cipher === '') return null;
+  const decryptNullableField = async (
+    cipher: string | null | undefined,
+    field: string,
+  ): Promise<string | null> => {
+    if (cipher == null || cipher === '') return null;
     return failingField(field, decrypt(cipher));
   };
 
-  const amount = await failingField('encrypted_amount', decryptNumber(row.encrypted_amount, decrypt, kv, row.amount));
+  const amount = await failingField(
+    'encrypted_amount',
+    decryptNumber(row.encrypted_amount, decrypt, kv, row.amount),
+  );
   const [
     customer_name,
     customer_email_snapshot,
@@ -923,8 +1082,14 @@ export async function decryptInvoice(
     write_off_reason,
   ] = await Promise.all([
     decryptNullableField(row.encrypted_customer_name, 'encrypted_customer_name'),
-    decryptNullableField(row.encrypted_customer_email_snapshot, 'encrypted_customer_email_snapshot'),
-    decryptNullableField(row.encrypted_customer_phone_snapshot, 'encrypted_customer_phone_snapshot'),
+    decryptNullableField(
+      row.encrypted_customer_email_snapshot,
+      'encrypted_customer_email_snapshot',
+    ),
+    decryptNullableField(
+      row.encrypted_customer_phone_snapshot,
+      'encrypted_customer_phone_snapshot',
+    ),
     decryptNullableField(row.encrypted_customer_address, 'encrypted_customer_address'),
     decryptNullableField(row.encrypted_memo, 'encrypted_memo'),
     decryptNullableField(row.encrypted_internal_notes, 'encrypted_internal_notes'),
@@ -968,12 +1133,13 @@ export async function encryptInvoiceLineItem(
   sort_order: number;
   key_version: number;
 }> {
-  const [encrypted_description, encrypted_amount, encrypted_quantity, encrypted_unit_price] = await Promise.all([
-    encryptNullable(fields.description, encrypt),
-    encryptNumber(fields.amount, encrypt),
-    fields.quantity == null ? Promise.resolve(null) : encryptNumber(fields.quantity, encrypt),
-    fields.unit_price == null ? Promise.resolve(null) : encryptNumber(fields.unit_price, encrypt),
-  ]);
+  const [encrypted_description, encrypted_amount, encrypted_quantity, encrypted_unit_price] =
+    await Promise.all([
+      encryptNullable(fields.description, encrypt),
+      encryptNumber(fields.amount, encrypt),
+      fields.quantity == null ? Promise.resolve(null) : encryptNumber(fields.quantity, encrypt),
+      fields.unit_price == null ? Promise.resolve(null) : encryptNumber(fields.unit_price, encrypt),
+    ]);
   return {
     encrypted_description,
     encrypted_amount,
@@ -994,8 +1160,12 @@ export async function decryptInvoiceLineItem(
   const [description, amount, quantity, unit_price] = await Promise.all([
     decryptNullable(row.encrypted_description, decrypt, kv),
     decryptNumber(row.encrypted_amount, decrypt, kv, row.amount),
-    row.encrypted_quantity == null ? Promise.resolve(null) : decryptNumber(row.encrypted_quantity, decrypt, kv, 0),
-    row.encrypted_unit_price == null ? Promise.resolve(null) : decryptNumber(row.encrypted_unit_price, decrypt, kv, 0),
+    row.encrypted_quantity == null
+      ? Promise.resolve(null)
+      : decryptNumber(row.encrypted_quantity, decrypt, kv, 0),
+    row.encrypted_unit_price == null
+      ? Promise.resolve(null)
+      : decryptNumber(row.encrypted_unit_price, decrypt, kv, 0),
   ]);
   return {
     description,
@@ -1027,12 +1197,14 @@ export async function encryptAuditLog(
   return { summary, before_snapshot, after_snapshot, key_version: L2 };
 }
 
-export async function decryptAuditLog(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<AuditLogFields> {
+export async function decryptAuditLog(row: any, decrypt: DecryptFn): Promise<AuditLogFields> {
   const kv = row.key_version;
-  if (!kv) return { summary: row.summary, before_snapshot: row.before_snapshot, after_snapshot: row.after_snapshot };
+  if (!kv)
+    return {
+      summary: row.summary,
+      before_snapshot: row.before_snapshot,
+      after_snapshot: row.after_snapshot,
+    };
   const [summary, before_snapshot, after_snapshot] = await Promise.all([
     decryptNullable(row.summary, decrypt, kv),
     decryptNullable(row.before_snapshot, decrypt, kv),
@@ -1059,10 +1231,7 @@ export async function encryptAttachment(
   return { file_name, mime_type, key_version: L2 };
 }
 
-export async function decryptAttachment(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<AttachmentFields> {
+export async function decryptAttachment(row: any, decrypt: DecryptFn): Promise<AttachmentFields> {
   const kv = row.key_version;
   if (!kv) return { file_name: row.file_name, mime_type: row.mime_type };
   const [file_name, mime_type] = await Promise.all([
@@ -1112,9 +1281,16 @@ export async function encryptOrgSettings(
   encrypt: EncryptFn,
 ): Promise<EncryptedOrgSettings> {
   const [
-    primary_currency, secondary_currency, bitcoin_display, fiscal_year_type,
-    encrypted_fiscal_month, date_format, time_format, number_format,
-    encrypted_approval_threshold_amount, encrypted_approval_threshold_currency,
+    primary_currency,
+    secondary_currency,
+    bitcoin_display,
+    fiscal_year_type,
+    encrypted_fiscal_month,
+    date_format,
+    time_format,
+    number_format,
+    encrypted_approval_threshold_amount,
+    encrypted_approval_threshold_currency,
   ] = await Promise.all([
     encryptNullable(fields.primary_currency, encrypt),
     encryptNullable(fields.secondary_currency, encrypt),
@@ -1128,31 +1304,48 @@ export async function encryptOrgSettings(
     encryptNullable(fields.approval_threshold_currency ?? null, encrypt),
   ]);
   return {
-    primary_currency, secondary_currency, bitcoin_display, fiscal_year_type,
-    encrypted_fiscal_month, fiscal_start_month: null,
-    date_format, time_format, number_format,
-    encrypted_approval_threshold_amount, encrypted_approval_threshold_currency,
+    primary_currency,
+    secondary_currency,
+    bitcoin_display,
+    fiscal_year_type,
+    encrypted_fiscal_month,
+    fiscal_start_month: null,
+    date_format,
+    time_format,
+    number_format,
+    encrypted_approval_threshold_amount,
+    encrypted_approval_threshold_currency,
     key_version: L2,
   };
 }
 
-export async function decryptOrgSettings(
-  row: any,
-  decrypt: DecryptFn,
-): Promise<OrgSettingsFields> {
+export async function decryptOrgSettings(row: any, decrypt: DecryptFn): Promise<OrgSettingsFields> {
   const kv = row.key_version;
-  if (!kv) return {
-    primary_currency: row.primary_currency, secondary_currency: row.secondary_currency,
-    bitcoin_display: row.bitcoin_display, fiscal_year_type: row.fiscal_year_type,
-    fiscal_start_month: row.fiscal_start_month, date_format: row.date_format,
-    time_format: row.time_format, number_format: row.number_format,
-    timezone: row.timezone,
-  };
+  if (!kv)
+    return {
+      primary_currency: row.primary_currency,
+      secondary_currency: row.secondary_currency,
+      bitcoin_display: row.bitcoin_display,
+      fiscal_year_type: row.fiscal_year_type,
+      fiscal_start_month: row.fiscal_start_month,
+      date_format: row.date_format,
+      time_format: row.time_format,
+      number_format: row.number_format,
+      timezone: row.timezone,
+    };
   const isL2 = kv >= L2;
   const [
-    primary_currency, secondary_currency, bitcoin_display, fiscal_year_type,
-    fiscal_start_month, date_format, time_format, number_format, timezone,
-    approval_threshold_amount, approval_threshold_currency,
+    primary_currency,
+    secondary_currency,
+    bitcoin_display,
+    fiscal_year_type,
+    fiscal_start_month,
+    date_format,
+    time_format,
+    number_format,
+    timezone,
+    approval_threshold_amount,
+    approval_threshold_currency,
   ] = await Promise.all([
     decryptNullable(row.primary_currency, decrypt, isL2 ? kv : null),
     decryptNullable(row.secondary_currency, decrypt, isL2 ? kv : null),
@@ -1167,8 +1360,15 @@ export async function decryptOrgSettings(
     decryptNullable(row.encrypted_approval_threshold_currency, decrypt, isL2 ? kv : null),
   ]);
   return {
-    primary_currency, secondary_currency, bitcoin_display, fiscal_year_type,
-    fiscal_start_month, date_format, time_format, number_format, timezone,
+    primary_currency,
+    secondary_currency,
+    bitcoin_display,
+    fiscal_year_type,
+    fiscal_start_month,
+    date_format,
+    time_format,
+    number_format,
+    timezone,
     approval_threshold_amount: approval_threshold_amount ?? null,
     approval_threshold_currency: approval_threshold_currency ?? null,
   };
@@ -1190,7 +1390,7 @@ export async function computeBlindIndex(
   value: string | null | undefined,
   hmacKey: CryptoKey,
 ): Promise<string | null> {
-  if (value == null | value === '') return null;
+  if (value == null || value === '') return null;
   const normalized = value.trim().toLowerCase();
   const sig = await window.crypto.subtle.sign(
     'HMAC',
@@ -1199,4 +1399,3 @@ export async function computeBlindIndex(
   );
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
-

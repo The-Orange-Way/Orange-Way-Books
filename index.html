@@ -34,23 +34,29 @@
       public/_headers (delivered as a real HTTP response header by
       Cloudflare Pages), which is where browsers actually honor it.
     -->
-    <meta http-equiv="Content-Security-Policy" content="
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://eu-assets.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com https://support.orangeway.app;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://hcaptcha.com https://*.hcaptcha.com;
       font-src 'self' https://fonts.gstatic.com data:;
       img-src 'self' data: blob: https://eu.i.posthog.com https://support.orangeway.app;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com https://support.orangeway.app wss://support.orangeway.app;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com https://support.orangeway.app wss://support.orangeway.app https://pulse.orangeway.app;
       frame-src https://hcaptcha.com https://*.hcaptcha.com https://support.orangeway.app;
       base-uri 'self';
       form-action 'self';
       object-src 'none';
-    ">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
+    "
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
 
     <title>Orange Way Books — Zero-Knowledge Bitcoin Accounting</title>
-    <meta name="description" content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free." />
+    <meta
+      name="description"
+      content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free."
+    />
     <link rel="canonical" href="https://books.orangeway.app/" />
     <meta name="author" content="Orange Way Books" />
 
@@ -66,7 +72,10 @@
     <meta property="og:site_name" content="Orange Way Books" />
     <meta property="og:url" content="https://books.orangeway.app/" />
     <meta property="og:title" content="Orange Way Books — Zero-Knowledge Bitcoin Accounting" />
-    <meta property="og:description" content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free." />
+    <meta
+      property="og:description"
+      content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free."
+    />
     <meta property="og:image" content="https://books.orangeway.app/og/default.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -75,12 +84,20 @@
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Orange Way Books — Zero-Knowledge Bitcoin Accounting" />
-    <meta name="twitter:description" content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free." />
+    <meta
+      name="twitter:description"
+      content="Open-source, zero-knowledge accounting for Bitcoin businesses. Encrypted on your device. Double-entry. IFRS & GAAP. Free."
+    />
     <meta name="twitter:image" content="https://books.orangeway.app/og/default.png" />
 
     <!-- AI / LLM crawler hints -->
     <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-friendly site index" />
-    <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM-friendly full content" />
+    <link
+      rel="alternate"
+      type="text/plain"
+      href="/llms-full.txt"
+      title="LLM-friendly full content"
+    />
 
     <!--
       Default JSON-LD structured data + AI-readable summary shipped in the
@@ -89,56 +106,56 @@
       page-specific schema (FAQPage, BreadcrumbList, Review, etc.).
     -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "Organization",
-          "@id": "https://books.orangeway.app/#organization",
-          "name": "Orange Way Books",
-          "url": "https://books.orangeway.app",
-          "sameAs": ["https://github.com/The-Orange-Way/Orange-Way-Books"]
-        },
-        {
-          "@type": "WebSite",
-          "@id": "https://books.orangeway.app/#website",
-          "url": "https://books.orangeway.app",
-          "name": "Orange Way Books",
-          "publisher": { "@id": "https://books.orangeway.app/#organization" },
-          "description": "Open-source, zero-knowledge accounting platform for Bitcoin businesses."
-        },
-        {
-          "@type": "SoftwareApplication",
-          "name": "Orange Way Books",
-          "applicationCategory": "BusinessApplication",
-          "applicationSubCategory": "AccountingApplication",
-          "operatingSystem": "Web",
-          "url": "https://books.orangeway.app",
-          "description": "Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses. Argon2id + AES-GCM client-side encryption. IFRS & US GAAP. Multi-currency BTC and fiat with historical FX. Apache-2.0.",
-          "license": "https://www.apache.org/licenses/LICENSE-2.0",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD",
-            "description": "Free for individuals. Free to self-host."
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://books.orangeway.app/#organization",
+            "name": "Orange Way Books",
+            "url": "https://books.orangeway.app",
+            "sameAs": ["https://github.com/The-Orange-Way/Orange-Way-Books"]
           },
-          "featureList": [
-            "Zero-knowledge end-to-end encryption (Argon2id + AES-GCM)",
-            "Bitcoin-native multi-currency ledger (sats / BTC / fiat)",
-            "Double-entry bookkeeping (legacy ledger backend engine)",
-            "IFRS and US GAAP frameworks",
-            "Capability-based role-based access control",
-            "Multi-organization with envelope encryption",
-            "Post-quantum signing keys (ML-DSA-65)",
-            "Full data takeout export",
-            "CSV import/export",
-            "Open source under Apache-2.0"
-          ]
-        }
-      ]
-    }
+          {
+            "@type": "WebSite",
+            "@id": "https://books.orangeway.app/#website",
+            "url": "https://books.orangeway.app",
+            "name": "Orange Way Books",
+            "publisher": { "@id": "https://books.orangeway.app/#organization" },
+            "description": "Open-source, zero-knowledge accounting platform for Bitcoin businesses."
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Orange Way Books",
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": "AccountingApplication",
+            "operatingSystem": "Web",
+            "url": "https://books.orangeway.app",
+            "description": "Open-source, zero-knowledge, double-entry accounting for Bitcoin businesses. Argon2id + AES-GCM client-side encryption. IFRS & US GAAP. Multi-currency BTC and fiat with historical FX. Apache-2.0.",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "description": "Free for individuals. Free to self-host."
+            },
+            "featureList": [
+              "Zero-knowledge end-to-end encryption (Argon2id + AES-GCM)",
+              "Bitcoin-native multi-currency ledger (sats / BTC / fiat)",
+              "Double-entry bookkeeping (legacy ledger backend engine)",
+              "IFRS and US GAAP frameworks",
+              "Capability-based role-based access control",
+              "Multi-organization with envelope encryption",
+              "Post-quantum signing keys (ML-DSA-65)",
+              "Full data takeout export",
+              "CSV import/export",
+              "Open source under Apache-2.0"
+            ]
+          }
+        ]
+      }
     </script>
-</head>
+  </head>
 
   <body>
     <div id="root">
@@ -149,27 +166,37 @@
       -->
       <noscript>
         <h1>Orange Way Books — Zero-Knowledge Bitcoin Accounting</h1>
-        <p>Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin businesses. Your books are encrypted on your device with a vault password before being uploaded; the server stores only ciphertext. Apache-2.0 licensed.</p>
-        <p>Please enable JavaScript to use the application, or visit the public marketing pages: <a href="/features">Features</a>, <a href="/security">Security</a>, <a href="/pricing">Pricing</a>, <a href="/faq">FAQ</a>, <a href="/compare">Compare</a>, <a href="/docs">Docs</a>.</p>
+        <p>
+          Orange Way Books is the open-source, zero-knowledge accounting platform built for Bitcoin
+          businesses. Your books are encrypted on your device with a vault password before being
+          uploaded; the server stores only ciphertext. Apache-2.0 licensed.
+        </p>
+        <p>
+          Please enable JavaScript to use the application, or visit the public marketing pages:
+          <a href="/features">Features</a>, <a href="/security">Security</a>,
+          <a href="/pricing">Pricing</a>, <a href="/faq">FAQ</a>, <a href="/compare">Compare</a>,
+          <a href="/docs">Docs</a>.
+        </p>
       </noscript>
     </div>
-    <script type="module" src="/src/main.tsx"></script>    <!-- Chatwoot live chat -->
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- Chatwoot live chat -->
     <script>
-      (function(d, t) {
-        var BASE_URL = "https://support.orangeway.app";
-        var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-        g.src = BASE_URL + "/packs/js/sdk.js";
+      (function (d, t) {
+        var BASE_URL = 'https://support.orangeway.app';
+        var g = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+        g.src = BASE_URL + '/packs/js/sdk.js';
         g.defer = true;
         g.async = true;
         s.parentNode.insertBefore(g, s);
-        g.onload = function() {
+        g.onload = function () {
           window.chatwootSDK.run({
-            websiteToken: "DDeepTdV9PqTVJs4H3ZhZccw",
+            websiteToken: 'DDeepTdV9PqTVJs4H3ZhZccw',
             baseUrl: BASE_URL,
           });
         };
-      })(document, "script");
+      })(document, 'script');
     </script>
-
   </body>
 </html>

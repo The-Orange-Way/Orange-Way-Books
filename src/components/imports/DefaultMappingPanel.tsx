@@ -15,7 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DefaultMappingOption, DefaultMappingSelections } from '@/lib/import-from-orange-rails/apply-defaults';
+import type {
+  DefaultMappingOption,
+  DefaultMappingSelections,
+} from '@/lib/import-from-orange-rails/apply-defaults';
 
 const NONE_VALUE = '__none__';
 
@@ -70,8 +73,8 @@ export function DefaultMappingPanel({
         Some rows are missing a category
       </div>
       <p className="text-xs text-muted-foreground">
-        Pick a default for rows that arrived without an Account or Contact.
-        Rows that already have one are not touched.
+        Pick a default for rows that arrived without an Account or Contact. Rows that already have
+        one are not touched.
       </p>
 
       {hasEmptyAccounts && (

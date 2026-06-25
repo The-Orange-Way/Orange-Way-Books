@@ -22,7 +22,16 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check, Copy, KeyRound, Loader2, Printer, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  KeyRound,
+  Loader2,
+  Printer,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +44,9 @@ import { toast } from 'sonner';
 type Status = 'none' | 'partial' | 'complete';
 type Stage = 'intro' | 'display' | 'verify' | 'done' | 'rotate' | 'disable';
 
-interface MembershipRow { org_id: string }
+interface MembershipRow {
+  org_id: string;
+}
 
 export default function MasterRecovery() {
   const navigate = useNavigate();
@@ -61,8 +72,13 @@ export default function MasterRecovery() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate('/app'); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/app');
+        return;
+      }
       setUserId(user.id);
 
       const { data: members } = await supabase
@@ -73,7 +89,7 @@ export default function MasterRecovery() {
       const orgIds = ((members ?? []) as MembershipRow[]).map((m) => m.org_id);
       setMemberships(orgIds);
 
-      const stored = localStorage.getItem('owb_active_org');
+      const stored = localStorage.getItem('orangewaybooks.active_org');
       setActiveOrgId(stored && orgIds.includes(stored) ? stored : (orgIds[0] ?? null));
 
       const { data: master } = await (supabase as any)
@@ -99,14 +115,17 @@ export default function MasterRecovery() {
     }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   // Warn during display/verify so the code isn't lost on a stray close.
   useEffect(() => {
     if (stage !== 'display' && stage !== 'verify') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = 'Your new master recovery code has not been verified saved. Closing now will lose it.';
+      e.returnValue =
+        'Your new master recovery code has not been verified saved. Closing now will lose it.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -114,38 +133,46 @@ export default function MasterRecovery() {
   }, [stage]);
 
   if (loading) {
-    return <div className="p-6 flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading master recovery status…</div>;
+    return (
+      <div className="p-6 flex items-center gap-2 text-muted-foreground text-sm">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading master recovery status…
+      </div>
+    );
   }
   if (!isUnlocked) {
-    return <div className="p-6"><div className="max-w-2xl rounded-lg border border-border bg-card p-5"><p className="text-sm text-muted-foreground">Unlock your vault to manage your master recovery code.</p></div></div>;
+    return (
+      <div className="p-6">
+        <div className="max-w-2xl rounded-lg border border-border bg-card p-5">
+          <p className="text-sm text-muted-foreground">
+            Unlock your vault to manage your master recovery code.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const unwrappedOrgIds = memberships.filter((id) => !wrappedOrgIds.includes(id));
 
   // ── Setup: brand-new master recovery ───────────────────────────────
   const handleSetup = async () => {
-    if (!userId | !activeOrgId) return;
+    if (!userId || !activeOrgId) return;
     setSubmitting(true);
     try {
       const out = await setupMasterRecoveryCode();
-      const { error: insErr } = await (supabase as any)
-        .from('user_master_recovery')
-        .insert({
-          user_id: userId,
-          master_salt: out.masterSalt,
-          master_verifier_ciphertext: out.verifierCiphertext,
-          key_version: 1,
-        });
+      const { error: insErr } = await (supabase as any).from('user_master_recovery').insert({
+        user_id: userId,
+        master_salt: out.masterSalt,
+        master_verifier_ciphertext: out.verifierCiphertext,
+        key_version: 1,
+      });
       if (insErr) throw new Error(`user_master_recovery insert: ${insErr.message}`);
 
-      const { error: wrapErr } = await (supabase as any)
-        .from('org_master_wraps')
-        .insert({
-          user_id: userId,
-          org_id: activeOrgId,
-          master_wrapped_mek: out.currentOrgWrap,
-          key_version: 1,
-        });
+      const { error: wrapErr } = await (supabase as any).from('org_master_wraps').insert({
+        user_id: userId,
+        org_id: activeOrgId,
+        master_wrapped_mek: out.currentOrgWrap,
+        key_version: 1,
+      });
       if (wrapErr) throw new Error(`org_master_wraps insert: ${wrapErr.message}`);
 
       setNewCode(out.newMasterCode);
@@ -160,7 +187,7 @@ export default function MasterRecovery() {
 
   // ── Enroll the active org into existing master recovery ────────────
   const handleEnrollActiveOrg = async () => {
-    if (!userId | !activeOrgId) return;
+    if (!userId || !activeOrgId) return;
     setSubmitting(true);
     try {
       const { data: master } = await (supabase as any)
@@ -192,7 +219,12 @@ export default function MasterRecovery() {
   // ── Disable: drop master record + all wraps ────────────────────────
   const handleDisable = async () => {
     if (!userId) return;
-    if (!window.confirm('Disable master recovery? Per-org recovery codes still work. Your saved master code stops working immediately.')) return;
+    if (
+      !window.confirm(
+        'Disable master recovery? Per-org recovery codes still work. Your saved master code stops working immediately.',
+      )
+    )
+      return;
     setSubmitting(true);
     try {
       await (supabase as any).from('org_master_wraps').delete().eq('user_id', userId);
@@ -225,8 +257,8 @@ export default function MasterRecovery() {
   const handleConfirmVerify = () => {
     if (!newCode) return;
     const words = newCode.split(' ');
-    const allMatch = verifyPositions.every((pos, i) =>
-      verifyInputs[i].trim().toLowerCase() === words[pos]
+    const allMatch = verifyPositions.every(
+      (pos, i) => verifyInputs[i].trim().toLowerCase() === words[pos],
     );
     if (!allMatch) {
       setVerifyError('One or more words do not match. Check your saved copy and try again.');
@@ -242,7 +274,9 @@ export default function MasterRecovery() {
       await navigator.clipboard.writeText(newCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
@@ -265,24 +299,38 @@ export default function MasterRecovery() {
             <h2 className="text-base font-semibold text-card-foreground">Set it up</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            You belong to <strong>{memberships.length}</strong> organization{memberships.length === 1 ? '' : 's'}.
-            Setting up master recovery will wrap your current org's data key under a new master code.
-            You can enroll additional orgs by unlocking each one and returning here.
+            You belong to <strong>{memberships.length}</strong> organization
+            {memberships.length === 1 ? '' : 's'}. Setting up master recovery will wrap your current
+            org's data key under a new master code. You can enroll additional orgs by unlocking each
+            one and returning here.
           </p>
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium mb-1">This adds a recovery path — it doesn't replace per-org codes.</p>
-              <p>Per-org recovery codes still work for their specific org. The master code is an extra layer that covers all your orgs at once.</p>
+              <p className="font-medium mb-1">
+                This adds a recovery path — it doesn't replace per-org codes.
+              </p>
+              <p>
+                Per-org recovery codes still work for their specific org. The master code is an
+                extra layer that covers all your orgs at once.
+              </p>
             </div>
           </div>
           <div className="flex items-start gap-2">
-            <Checkbox id="ack" checked={confirmAck} onCheckedChange={(v) => setConfirmAck(Boolean(v))} />
+            <Checkbox
+              id="ack"
+              checked={confirmAck}
+              onCheckedChange={(v) => setConfirmAck(Boolean(v))}
+            />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
               I will save my master recovery code immediately and store it offline.
             </Label>
           </div>
-          <Button onClick={handleSetup} disabled={!confirmAck | submitting} data-testid="generate-master-code">
+          <Button
+            onClick={handleSetup}
+            disabled={!confirmAck || submitting}
+            data-testid="generate-master-code"
+          >
             {submitting ? 'Generating…' : 'Generate master recovery code'}
           </Button>
         </section>
@@ -293,16 +341,21 @@ export default function MasterRecovery() {
           <section className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-5 space-y-2">
             <div className="flex items-center gap-2">
               <Check className="w-5 h-5 text-emerald-600" />
-              <h2 className="text-base font-semibold text-card-foreground">Master recovery is enabled</h2>
+              <h2 className="text-base font-semibold text-card-foreground">
+                Master recovery is enabled
+              </h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              {wrappedOrgIds.length} of {memberships.length} organization{memberships.length === 1 ? '' : 's'} enrolled.
+              {wrappedOrgIds.length} of {memberships.length} organization
+              {memberships.length === 1 ? '' : 's'} enrolled.
             </p>
           </section>
 
           {unwrappedOrgIds.length > 0 && (
             <section className="rounded-lg border border-border bg-card p-5 space-y-3">
-              <h2 className="text-base font-semibold text-card-foreground">Enroll the active organization</h2>
+              <h2 className="text-base font-semibold text-card-foreground">
+                Enroll the active organization
+              </h2>
               <p className="text-sm text-muted-foreground">
                 {unwrappedOrgIds.includes(activeOrgId ?? '')
                   ? 'This organization is not yet enrolled. Enter your master recovery code to enroll it.'
@@ -316,7 +369,10 @@ export default function MasterRecovery() {
                     onChange={(e) => setEnrollCode(e.target.value)}
                     className="font-mono"
                   />
-                  <Button onClick={handleEnrollActiveOrg} disabled={submitting | enrollCode.trim().split(/\s+/).length !== 12}>
+                  <Button
+                    onClick={handleEnrollActiveOrg}
+                    disabled={submitting || enrollCode.trim().split(/\s+/).length !== 12}
+                  >
                     Enroll this organization
                   </Button>
                 </>
@@ -325,7 +381,9 @@ export default function MasterRecovery() {
           )}
 
           <section className="rounded-lg border border-border bg-card p-5 space-y-3">
-            <h2 className="text-base font-semibold text-card-foreground">Disable master recovery</h2>
+            <h2 className="text-base font-semibold text-card-foreground">
+              Disable master recovery
+            </h2>
             <p className="text-sm text-muted-foreground">
               Removes the master record and all org wraps. Per-org recovery codes are unaffected.
             </p>
@@ -341,26 +399,55 @@ export default function MasterRecovery() {
           <h2 className="text-base font-semibold text-card-foreground flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-primary" /> Your master recovery code
           </h2>
-          <p className="text-xs text-muted-foreground">Shown once. Treat it like a key to all your books.</p>
-          <div className="rounded-md border border-primary/40 bg-background p-4 grid grid-cols-3 gap-2" data-testid="master-code-grid">
+          <p className="text-xs text-muted-foreground">
+            Shown once. Treat it like a key to all your books.
+          </p>
+          <div
+            className="rounded-md border border-primary/40 bg-background p-4 grid grid-cols-3 gap-2"
+            data-testid="master-code-grid"
+          >
             {newCode.split(' ').map((w, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-sm" data-testid={`master-word-${i}`}>
-                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">{i + 1}.</span>
+              <div
+                key={i}
+                className="flex items-center gap-1.5 text-sm"
+                data-testid={`master-word-${i}`}
+              >
+                <span className="w-5 text-right text-xs text-muted-foreground shrink-0">
+                  {i + 1}.
+                </span>
                 <span className="font-mono font-medium">{w}</span>
               </div>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleCopy}>
-              {copied ? <><Check className="w-4 h-4 mr-1" /> Copied</> : <><Copy className="w-4 h-4 mr-1" /> Copy</>}
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-1" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1" /> Copy
+                </>
+              )}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              try { openRecoveryBackup({ code: newCode }); } catch (err) { toast.error(err instanceof Error ? err.message : 'Print failed.'); }
-            }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                try {
+                  openRecoveryBackup({ code: newCode });
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Print failed.');
+                }
+              }}
+            >
               <Printer className="w-4 h-4 mr-1" /> Download printable backup
             </Button>
           </div>
-          <Button className="w-full" onClick={handleStartVerify}>I have saved it — verify</Button>
+          <Button className="w-full" onClick={handleStartVerify}>
+            I have saved it — verify
+          </Button>
         </section>
       )}
 
@@ -373,7 +460,12 @@ export default function MasterRecovery() {
                 <span className="w-16 text-xs text-muted-foreground">Word {pos + 1}</span>
                 <Input
                   value={verifyInputs[i]}
-                  onChange={(e) => { const next = [...verifyInputs]; next[i] = e.target.value; setVerifyInputs(next); setVerifyError(''); }}
+                  onChange={(e) => {
+                    const next = [...verifyInputs];
+                    next[i] = e.target.value;
+                    setVerifyInputs(next);
+                    setVerifyError('');
+                  }}
                   autoComplete="off"
                   spellCheck={false}
                   className="font-mono"
@@ -382,10 +474,23 @@ export default function MasterRecovery() {
               </div>
             ))}
           </div>
-          {verifyError && <p className="text-sm text-destructive flex items-start gap-1"><AlertTriangle className="w-4 h-4 mt-0.5" />{verifyError}</p>}
+          {verifyError && (
+            <p className="text-sm text-destructive flex items-start gap-1">
+              <AlertTriangle className="w-4 h-4 mt-0.5" />
+              {verifyError}
+            </p>
+          )}
           <div className="flex gap-2">
-            <Button variant="ghost" className="flex-1" onClick={() => setStage('display')}>Back to code</Button>
-            <Button className="flex-1" disabled={verifyInputs.some((v) => !v.trim())} onClick={handleConfirmVerify}>Confirm</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => setStage('display')}>
+              Back to code
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={verifyInputs.some((v) => !v.trim())}
+              onClick={handleConfirmVerify}
+            >
+              Confirm
+            </Button>
           </div>
         </section>
       )}
@@ -394,12 +499,23 @@ export default function MasterRecovery() {
         <section className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-base font-semibold text-card-foreground">Master recovery is live</h2>
+            <h2 className="text-base font-semibold text-card-foreground">
+              Master recovery is live
+            </h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            The active organization is enrolled. To enroll others, switch to each org and click "Enroll this organization" here.
+            The active organization is enrolled. To enroll others, switch to each org and click
+            "Enroll this organization" here.
           </p>
-          <Button variant="outline" onClick={() => { setStage('intro'); setNewCode(null); }}>Done</Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setStage('intro');
+              setNewCode(null);
+            }}
+          >
+            Done
+          </Button>
         </section>
       )}
     </div>

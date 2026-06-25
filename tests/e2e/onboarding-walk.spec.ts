@@ -43,9 +43,14 @@ const VAULT_PW = 'OwbE2EVault-Stable-2026!';
 const ORG_NAME = 'OWB E2E Org';
 
 // Pin to OWB DEV ref. Refuses to run if env points elsewhere.
-const ALLOWED_PROJECT_REFS = new Set((process.env.OWB_E2E_ALLOWED_PROJECT_REFS ?? '').split(',').filter(Boolean));
+const ALLOWED_PROJECT_REFS = new Set(
+  (process.env.OWB_E2E_ALLOWED_PROJECT_REFS ?? '').split(',').filter(Boolean),
+);
 
-interface SupaCreds { url: string; secret: string; }
+interface SupaCreds {
+  url: string;
+  secret: string;
+}
 
 function readSupaCreds(): SupaCreds | null {
   // Provision script wrote this; reuse rather than re-derive.
@@ -56,44 +61,65 @@ function readSupaCreds(): SupaCreds | null {
   }
 }
 
-function adminFetch(url: string, secret: string, path: string, method: string, body?: unknown): Promise<{ status: number; body: string }> {
+function adminFetch(
+  url: string,
+  secret: string,
+  path: string,
+  method: string,
+  body?: unknown,
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url + path);
-    const req = https.request({
-      hostname: u.hostname,
-      path: u.pathname + u.search,
-      method,
-      headers: {
-        apikey: secret,
-        Authorization: `Bearer ${secret}`,
-        'Content-Type': 'application/json',
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method,
+        headers: {
+          apikey: secret,
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
       },
-    }, (r) => {
-      let b = '';
-      r.on('data', (c) => b += c);
-      r.on('end', () => resolve({ status: r.statusCode | 0, body: b }));
-    });
+      (r) => {
+        let b = '';
+        r.on('data', (c) => (b += c));
+        r.on('end', () => resolve({ status: r.statusCode || 0, body: b }));
+      },
+    );
     req.on('error', reject);
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
 }
 
-test.skip(!OPT_IN, 'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly');
+test.skip(
+  !OPT_IN,
+  'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly',
+);
 
 test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
   let supa: SupaCreds | null = null;
 
   test.beforeAll(async () => {
     supa = readSupaCreds();
-    if (!supa) throw new Error('cannot read /tmp/owb-pw/owb-dev-supabase.json — run provision-e2e-user.js once first to seed it');
+    if (!supa)
+      throw new Error(
+        'cannot read /tmp/owb-pw/owb-dev-supabase.json — run provision-e2e-user.js once first to seed it',
+      );
     const ref = new URL(supa.url).hostname.split('.')[0];
     if (!ALLOWED_PROJECT_REFS.has(ref)) {
-      throw new Error(`onboarding walk refuses to run against project ref "${ref}" — DEV allowlist only`);
+      throw new Error(
+        `onboarding walk refuses to run against project ref "${ref}" — DEV allowlist only`,
+      );
     }
 
     // Ensure the user exists (idempotent: 422 means already there).
-    const cr = await adminFetch(supa.url, supa.secret, '/auth/v1/admin/users', 'POST', { email: EMAIL, password: PASSWORD, email_confirm: true });
+    const cr = await adminFetch(supa.url, supa.secret, '/auth/v1/admin/users', 'POST', {
+      email: EMAIL,
+      password: PASSWORD,
+      email_confirm: true,
+    });
     if (cr.status >= 400 && cr.status !== 422) {
       throw new Error(`admin user-create failed: HTTP ${cr.status} ${cr.body}`);
     }
@@ -104,16 +130,31 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     //
     // Strategy: find user_id → list their org_members → DELETE organizations
     // (cascade via FK does the rest).
-    const userQ = await adminFetch(supa.url, supa.secret, `/auth/v1/admin/users?email=${encodeURIComponent(EMAIL)}`, 'GET');
+    const userQ = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users?email=${encodeURIComponent(EMAIL)}`,
+      'GET',
+    );
     const userPayload = JSON.parse(userQ.body);
     const userId = userPayload.users?.[0]?.id;
     if (!userId) throw new Error(`could not resolve user_id for ${EMAIL}`);
 
     // org_members lookup
-    const memQ = await adminFetch(supa.url, supa.secret, `/rest/v1/org_members?user_id=eq.${userId}&select=org_id`, 'GET');
+    const memQ = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/org_members?user_id=eq.${userId}&select=org_id`,
+      'GET',
+    );
     const mems: Array<{ org_id: string }> = JSON.parse(memQ.body);
     for (const m of mems) {
-      const del = await adminFetch(supa.url, supa.secret, `/rest/v1/organizations?id=eq.${m.org_id}`, 'DELETE');
+      const del = await adminFetch(
+        supa.url,
+        supa.secret,
+        `/rest/v1/organizations?id=eq.${m.org_id}`,
+        'DELETE',
+      );
       if (del.status >= 400) {
         console.warn(`org delete returned HTTP ${del.status}: ${del.body}`);
       }
@@ -122,7 +163,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
 
   test('walks full onboarding with per-step asserts', async ({ page }) => {
     test.setTimeout(180_000);
-    const baseURL = 'https://dev.books.orangeway.app';
+    const baseURL = 'https://books.orangeway.dev';
 
     // 01 — /login renders + sign in (user already created by admin-create
     // in beforeAll with email_confirm=true; going to /signup fails because
@@ -142,7 +183,9 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await page.waitForTimeout(2_000);
 
     const vaultSetup = page.locator('input[placeholder*="Minimum 14"]').first();
-    await expect(vaultSetup, 'vault password setup field (Minimum 14)').toBeVisible({ timeout: 15_000 });
+    await expect(vaultSetup, 'vault password setup field (Minimum 14)').toBeVisible({
+      timeout: 15_000,
+    });
 
     // 03 — fill vault password + continue → recovery code screen
     await vaultSetup.fill(VAULT_PW);
@@ -156,15 +199,18 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       for (const c of Array.from(document.querySelectorAll('div'))) {
         const spans = c.querySelectorAll(':scope > span');
         if (spans.length !== 2) continue;
-        const m = (spans[0].textContent | '').trim().match(/^(\d+)\.?$/);
-        const w = (spans[1].textContent | '').trim();
+        const m = (spans[0].textContent || '').trim().match(/^(\d+)\.?$/);
+        const w = (spans[1].textContent || '').trim();
         if (m && /^[a-z]+$/.test(w)) map[parseInt(m[1])] = w;
       }
       return map;
     });
     expect(Object.keys(wordsByPos).length, 'recovery code should yield 12 words').toBe(12);
     const cb = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
-    if (await cb.count() > 0) await cb.check({ force: true }).catch(async () => { await cb.click({ force: true }).catch(()=>{}); });
+    if ((await cb.count()) > 0)
+      await cb.check({ force: true }).catch(async () => {
+        await cb.click({ force: true }).catch(() => {});
+      });
     await page.locator('button:has-text("Continue")').first().click({ force: true });
 
     // 05 — verify-words step
@@ -185,19 +231,36 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // Click through any remaining "Continue / Create organization / Finish" buttons
     for (let i = 0; i < 6; i++) {
       await page.waitForTimeout(1_000);
-      const btn = page.locator('button:visible:not([disabled])').filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i }).first();
-      if (await btn.count() === 0) break;
-      try { await btn.click({ force: true, timeout: 1_500 }); } catch { /* may have left the screen */ }
+      const btn = page
+        .locator('button:visible:not([disabled])')
+        .filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i })
+        .first();
+      if ((await btn.count()) === 0) break;
+      try {
+        await btn.click({ force: true, timeout: 1_500 });
+      } catch {
+        /* may have left the screen */
+      }
     }
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
-    await expect(page.locator('text=Insights').first(), 'authenticated shell sidebar after onboarding').toBeVisible({ timeout: 45_000 });
+    await expect(
+      page.locator('text=Insights').first(),
+      'authenticated shell sidebar after onboarding',
+    ).toBeVisible({ timeout: 45_000 });
 
     // 08 — dashboard renders, no "Finishing setup…"
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2_000);
-    const stillFinishing = await page.locator('text=Finishing setup').first().isVisible({ timeout: 500 }).catch(() => false);
-    expect(stillFinishing, 'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready').toBe(false);
+    const stillFinishing = await page
+      .locator('text=Finishing setup')
+      .first()
+      .isVisible({ timeout: 500 })
+      .catch(() => false);
+    expect(
+      stillFinishing,
+      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
+    ).toBe(false);
 
     // 09 — chart_of_accounts seed verification.
     // Direct REST queries from the browser would need either an exposed
@@ -219,10 +282,16 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       await lock.waitFor({ state: 'hidden', timeout: 30_000 });
     }
     // Wait for sidebar to mount (proves auth shell rendered).
-    await expect(page.locator('text=Insights').first(), 'sidebar after master-recovery unlock').toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator('text=Insights').first(),
+      'sidebar after master-recovery unlock',
+    ).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(1_500);
     await expect(
-      page.locator('h1, h2').filter({ hasText: /Master recovery code/i }).first(),
+      page
+        .locator('h1, h2')
+        .filter({ hasText: /Master recovery code/i })
+        .first(),
       'master-recovery heading must render — React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
   });

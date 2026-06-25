@@ -1,0 +1,66 @@
+Orange Way Books
+Copyright 2026 The Orange Way contributors
+
+This product is licensed under the Apache License, Version 2.0
+(the "License"); you may not use this product except in compliance
+with the License. You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This NOTICE file is provided under Apache 2.0 Section 4(d). The
+list below is a courtesy subset highlighting notable upstream
+projects whose code ships in this distribution; it does NOT
+purport to be a complete attribution of every dependency. The
+authoritative attribution surface is the auto-generated file
+`dist/third-party-licenses.txt`, emitted by every production
+build via `scripts/third-party-licenses-plugin.ts`. That file
+enumerates every package in the resolved production dependency
+graph along with each package's license metadata and license
+text where the upstream ships one. Distributions and downstream
+packagers should propagate `dist/third-party-licenses.txt`
+alongside this NOTICE.
+
+---
+
+Courtesy subset of notable runtime dependencies and their
+upstream copyright holders:
+
+- @noble/curves, @noble/hashes, @noble/post-quantum
+    Copyright (c) Paul Miller (https://paulmillr.com)
+    Licensed under the MIT License.
+
+- @radix-ui/* primitives
+    Copyright (c) WorkOS, Inc.
+    Licensed under the MIT License.
+
+- @supabase/supabase-js
+    Copyright (c) Supabase, Inc.
+    Licensed under the MIT License.
+
+- @tanstack/react-query
+    Copyright (c) Tanner Linsley
+    Licensed under the MIT License.
+
+- react, react-dom
+    Copyright (c) Meta Platforms, Inc. and affiliates.
+    Licensed under the MIT License.
+
+- vite
+    Copyright (c) Yuxi (Evan) You and Vite contributors.
+    Licensed under the MIT License.
+
+- tailwindcss
+    Copyright (c) Tailwind Labs, Inc.
+    Licensed under the MIT License.
+
+- posthog-js
+    Copyright (c) PostHog Inc.
+    Licensed under the MIT License.
+
+For the exhaustive, machine-generated list of every dependency
+and its license (including license text where the upstream
+ships one), see `dist/third-party-licenses.txt` after running
+`bun run build`. That file is the authoritative attribution
+surface; this NOTICE lists only the upstream projects whose
+code ships meaningfully in the client bundle or the Edge
+Function runtime.

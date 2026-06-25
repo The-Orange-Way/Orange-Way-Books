@@ -23,19 +23,19 @@ export function parseCsvAccounts(csvText: string): { rows: ImportPreviewRow[]; e
     const rowErrors: string[] = [];
     if (!data.name?.trim()) rowErrors.push('Name is required');
     if (!data.currency?.trim()) rowErrors.push('Currency is required');
-    const type = (data.type | '').toUpperCase();
+    const type = (data.type || '').toUpperCase();
     if (type && !VALID_TYPES.includes(type)) rowErrors.push(`Invalid type: ${data.type}`);
     if (data.balance && isNaN(Number(data.balance))) rowErrors.push('Balance must be a number');
 
     return {
       rowIndex: i + 1,
       data: {
-        name: data.name | '',
-        currency: (data.currency | '').toUpperCase(),
-        type: type | 'EXCHANGE',
-        institution: data.institution | '',
-        balance: data.balance | '0',
-        date: data.date | '',
+        name: data.name || '',
+        currency: (data.currency || '').toUpperCase(),
+        type: type || 'EXCHANGE',
+        institution: data.institution || '',
+        balance: data.balance || '0',
+        date: data.date || '',
       },
       error: rowErrors.length ? rowErrors.join('; ') : undefined,
     };

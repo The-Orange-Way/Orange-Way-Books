@@ -57,19 +57,23 @@ serve(async (req) => {
     if (!RESEND_API_KEY) {
       return jsonResponse(
         { error: 'Email sending is not configured. Contact support.' },
-        503, cors,
+        503,
+        cors,
       );
     }
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -90,10 +94,16 @@ serve(async (req) => {
       return jsonResponse({ error: 'Request body too large' }, 413, cors);
     }
     let body: {
-      invoice_id?: unknown; to?: unknown; subject?: unknown;
-      body_text?: unknown; body_html?: unknown; reply_to?: unknown;
+      invoice_id?: unknown;
+      to?: unknown;
+      subject?: unknown;
+      body_text?: unknown;
+      body_html?: unknown;
+      reply_to?: unknown;
     };
-    try { body = JSON.parse(raw | '{}'); } catch {
+    try {
+      body = JSON.parse(raw || '{}');
+    } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
@@ -104,10 +114,10 @@ serve(async (req) => {
     const bodyHtml = typeof body.body_html === 'string' ? body.body_html : '';
     const replyTo = typeof body.reply_to === 'string' ? body.reply_to.trim() : '';
 
-    if (!invoiceId | !UUID_RE.test(invoiceId)) {
+    if (!invoiceId || !UUID_RE.test(invoiceId)) {
       return jsonResponse({ error: 'invoice_id is required' }, 400, cors);
     }
-    if (!to | to.length > MAX_EMAIL_LEN | !EMAIL_RE.test(to)) {
+    if (!to || to.length > MAX_EMAIL_LEN || !EMAIL_RE.test(to)) {
       return jsonResponse({ error: 'to is not a valid email' }, 400, cors);
     }
     // Per-invoice cap on top of the per-user rate limit above. A
@@ -123,16 +133,16 @@ serve(async (req) => {
     if (!perInvoice.allowed) {
       return jsonResponse({ error: 'Per-invoice send limit reached (5 / 24h)' }, 429, cors);
     }
-    if (!subject | subject.length > MAX_SUBJECT_LEN) {
+    if (!subject || subject.length > MAX_SUBJECT_LEN) {
       return jsonResponse({ error: 'subject is required (<=300 chars)' }, 400, cors);
     }
-    if (!bodyText | bodyText.length > MAX_BODY_LEN) {
+    if (!bodyText || bodyText.length > MAX_BODY_LEN) {
       return jsonResponse({ error: 'body_text is required (<=64KB)' }, 400, cors);
     }
     if (bodyHtml.length > MAX_BODY_LEN) {
       return jsonResponse({ error: 'body_html exceeds 64KB' }, 400, cors);
     }
-    if (replyTo && (replyTo.length > MAX_EMAIL_LEN | !EMAIL_RE.test(replyTo))) {
+    if (replyTo && (replyTo.length > MAX_EMAIL_LEN || !EMAIL_RE.test(replyTo))) {
       return jsonResponse({ error: 'reply_to is not a valid email' }, 400, cors);
     }
 
@@ -168,17 +178,18 @@ serve(async (req) => {
     const resendResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(resendBody),
     });
-    const resendJson: { id?: string; message?: string; name?: string } =
-      await resendResp.json().catch(() => ({}));
+    const resendJson: { id?: string; message?: string; name?: string } = await resendResp
+      .json()
+      .catch(() => ({}));
 
-    if (!resendResp.ok | !resendJson.id) {
+    if (!resendResp.ok || !resendJson.id) {
       console.error('Resend send failed', resendResp.status, resendJson);
-      const msg = resendJson.message | 'Resend rejected the send';
+      const msg = resendJson.message || 'Resend rejected the send';
       return jsonResponse({ error: msg }, 502, cors);
     }
 

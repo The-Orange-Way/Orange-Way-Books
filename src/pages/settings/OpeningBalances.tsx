@@ -40,14 +40,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
 } from '@/components/ui/table';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
@@ -70,7 +77,7 @@ function newLineKey(): string {
 }
 
 function parseAmt(s: string): number {
-  const n = Number.parseFloat((s | '').replace(/,/g, '').trim());
+  const n = Number.parseFloat((s || '').replace(/,/g, '').trim());
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -99,7 +106,7 @@ export default function OpeningBalances() {
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const primaryCurrency = orgSettings.primaryCurrency | 'USD';
+  const primaryCurrency = orgSettings.primaryCurrency || 'USD';
 
   // Load decrypted chart of accounts
   useEffect(() => {
@@ -119,7 +126,7 @@ export default function OpeningBalances() {
               const dec = await decryptChartOfAccount(row, decryptText);
               return {
                 id: row.id as string,
-                name: dec.account_name | '(unnamed)',
+                name: dec.account_name || '(unnamed)',
                 code: dec.account_code ?? null,
                 archived: dec.is_archived ?? false,
               };
@@ -133,8 +140,8 @@ export default function OpeningBalances() {
           .filter((a): a is NonNullable<typeof a> => a !== null && !a.archived)
           .map((a) => ({ id: a.id, name: a.name, code: a.code }))
           .sort((a, b) => {
-            const ac = a.code | '';
-            const bc = b.code | '';
+            const ac = a.code || '';
+            const bc = b.code || '';
             if (ac && bc) return ac.localeCompare(bc);
             return a.name.localeCompare(b.name);
           });
@@ -215,18 +222,12 @@ export default function OpeningBalances() {
 
     setSubmitting(true);
     try {
-      const result = await postOpeningBalanceJournal(
-        supabase,
-        encryptText,
-        blindIndex,
-        orgId,
-        {
-          date: format(date, 'yyyy-MM-dd'),
-          primaryCurrency,
-          entries,
-          memo: memo.trim() | undefined,
-        },
-      );
+      const result = await postOpeningBalanceJournal(supabase, encryptText, blindIndex, orgId, {
+        date: format(date, 'yyyy-MM-dd'),
+        primaryCurrency,
+        entries,
+        memo: memo.trim() || undefined,
+      });
       toast.success(
         `Opening balance posted (${result.lineCount} lines, total ${result.totalDebits.toFixed(2)} ${primaryCurrency}).`,
       );
@@ -253,7 +254,7 @@ export default function OpeningBalances() {
     }
   };
 
-  if (orgSettingsLoading | loading) {
+  if (orgSettingsLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -263,28 +264,37 @@ export default function OpeningBalances() {
 
   return (
     <div className="container max-w-5xl py-8">
-      <Link to="/app/admin" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
+      <Link
+        to="/app/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Admin
       </Link>
 
       <header className="mb-6">
         <h1 className="text-2xl font-semibold mb-1">Opening Balances</h1>
         <p className="text-sm text-muted-foreground">
-          Start your books on a specific date with the right balances. Enter the trial balance at end of the prior period:
-          assets and expenses go in Debit, liabilities, equity, and income go in Credit. Total debits must equal total credits.
-          Only one opening balance journal can exist per date.
+          Start your books on a specific date with the right balances. Enter the trial balance at
+          end of the prior period: assets and expenses go in Debit, liabilities, equity, and income
+          go in Credit. Total debits must equal total credits. Only one opening balance journal can
+          exist per date.
         </p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
-          <Label htmlFor="ob-date" className="text-sm font-medium">Effective date</Label>
+          <Label htmlFor="ob-date" className="text-sm font-medium">
+            Effective date
+          </Label>
           <Popover open={datePopOpen} onOpenChange={setDatePopOpen}>
             <PopoverTrigger asChild>
               <Button
                 id="ob-date"
                 variant="outline"
-                className={cn('w-full justify-start text-left font-normal mt-1', !date && 'text-muted-foreground')}
+                className={cn(
+                  'w-full justify-start text-left font-normal mt-1',
+                  !date && 'text-muted-foreground',
+                )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {date ? format(date, 'PPP') : 'Pick a date'}
@@ -294,7 +304,12 @@ export default function OpeningBalances() {
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={(d) => { if (d) { setDate(d); setDatePopOpen(false); } }}
+                onSelect={(d) => {
+                  if (d) {
+                    setDate(d);
+                    setDatePopOpen(false);
+                  }
+                }}
                 initialFocus
               />
             </PopoverContent>
@@ -302,7 +317,9 @@ export default function OpeningBalances() {
         </div>
 
         <div>
-          <Label htmlFor="ob-memo" className="text-sm font-medium">Memo (optional)</Label>
+          <Label htmlFor="ob-memo" className="text-sm font-medium">
+            Memo (optional)
+          </Label>
           <Input
             id="ob-memo"
             value={memo}
@@ -414,11 +431,7 @@ export default function OpeningBalances() {
       </div>
 
       <div className="flex justify-end">
-        <Button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!totals.balanced | submitting}
-        >
+        <Button type="button" onClick={handleSubmit} disabled={!totals.balanced || submitting}>
           {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Post opening balance
         </Button>

@@ -50,6 +50,9 @@ jobs:
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_ORBI_SUPABASE_URL: ${{ vars.VITE_ORBI_SUPABASE_URL }}
           VITE_ORBI_SUPABASE_ANON_KEY: ${{ vars.VITE_ORBI_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_DEPLOY_ENV: ${{ github.ref_name }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
 
       - name: Pick Pages project for this branch
         id: target
@@ -59,7 +62,7 @@ jobs:
             echo "verify_url=https://books.orangeway.app" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "dev" ]; then
             echo "project=owb-dev" >> "$GITHUB_OUTPUT"
-            echo "verify_url=https://dev.books.orangeway.app" >> "$GITHUB_OUTPUT"
+            echo "verify_url=https://books.orangeway.dev" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown branch ${{ github.ref_name }} — skipping deploy"
             exit 0

@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, BellDot, Check } from 'lucide-react';
-import {
-  Popover, PopoverTrigger, PopoverContent,
-} from '@/components/ui/popover';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { format } from 'date-fns';
@@ -39,14 +37,21 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
   // Derived counts — the "current state to query" notifications that
   // don't have a dedicated inbox row.
   useEffect(() => {
-    if (!orgId) { setLoadingDerived(false); return; }
+    if (!orgId) {
+      setLoadingDerived(false);
+      return;
+    }
     let cancelled = false;
 
     const run = async () => {
       const [jeRes, walletsRes, txPendingRes] = await Promise.all([
         supabase.from('journal_entries').select('id, status, key_version').eq('org_id', orgId),
         supabase.from('accounts').select('id, external_account_id').eq('org_id', orgId),
-        supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('org_id', orgId).is('account_id', null),
+        supabase
+          .from('transactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', orgId)
+          .is('account_id', null),
       ]);
 
       if (cancelled) return;
@@ -55,12 +60,15 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
       for (const row of (jeRes.data as any[]) ?? []) {
         let status: string | null = null;
         if (row.key_version && row.status) {
-          try { status = await decryptText(row.status); }
-          catch { status = null; }
+          try {
+            status = await decryptText(row.status);
+          } catch {
+            status = null;
+          }
         } else if (row.status) {
           status = row.status;
         }
-        if (!status | status.toUpperCase() === 'DRAFT') draftCount += 1;
+        if (!status || status.toUpperCase() === 'DRAFT') draftCount += 1;
       }
 
       const unmappedWallets = ((walletsRes.data as any[]) ?? []).filter(
@@ -103,16 +111,26 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
     };
 
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [orgId, decryptText]);
 
   // Inbox notifications — newest 20 from the notifications table. The
   // realtime subscription below keeps the list fresh while the bell is
   // visible.
   const fetchInbox = useCallback(async () => {
-    if (!orgId) { setInbox([]); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setInbox([]); return; }
+    if (!orgId) {
+      setInbox([]);
+      return;
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setInbox([]);
+      return;
+    }
     const { data, error } = await (supabase as any)
       .from('notifications')
       .select('id, kind, body, action_href, read_at, created_at')
@@ -129,7 +147,9 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
     setInbox((data as InboxRow[] | null) ?? []);
   }, [orgId]);
 
-  useEffect(() => { void fetchInbox(); }, [fetchInbox]);
+  useEffect(() => {
+    void fetchInbox();
+  }, [fetchInbox]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -138,10 +158,14 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
       .on(
         'postgres_changes' as never,
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `org_id=eq.${orgId}` },
-        () => { void fetchInbox(); },
+        () => {
+          void fetchInbox();
+        },
       )
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [orgId, fetchInbox]);
 
   const unreadInbox = inbox.filter((n) => n.read_at === null);
@@ -194,7 +218,9 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
             <p className="text-xs text-muted-foreground">
               {loadingDerived && inbox.length === 0
                 ? 'Checking…'
-                : hasAny ? 'Click an item to go there.' : 'All caught up.'}
+                : hasAny
+                  ? 'Click an item to go there.'
+                  : 'All caught up.'}
             </p>
           </div>
           {unreadInbox.length > 0 && (
@@ -205,7 +231,8 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
               disabled={marking}
               data-testid="notifications-mark-all-read"
             >
-              <Check className="inline w-3 h-3 mr-0.5" />Mark all read
+              <Check className="inline w-3 h-3 mr-0.5" />
+              Mark all read
             </button>
           )}
         </div>
@@ -219,10 +246,7 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
 
           {derived.map((it) => (
             <li key={`d:${it.id}`}>
-              <Link
-                to={it.href}
-                className="block px-4 py-3 hover:bg-muted/50 transition-colors"
-              >
+              <Link to={it.href} className="block px-4 py-3 hover:bg-muted/50 transition-colors">
                 <div className="flex items-start gap-2">
                   <span
                     className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
@@ -249,7 +273,11 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
                   aria-hidden
                 />
                 <div className="min-w-0">
-                  <p className={`text-sm leading-tight ${unread ? 'font-semibold' : 'text-muted-foreground'}`}>{n.body}</p>
+                  <p
+                    className={`text-sm leading-tight ${unread ? 'font-semibold' : 'text-muted-foreground'}`}
+                  >
+                    {n.body}
+                  </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     {format(new Date(n.created_at), 'MMM d, h:mm a')}
                   </p>
@@ -259,7 +287,10 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
             return (
               <li key={`n:${n.id}`}>
                 {n.action_href ? (
-                  <Link to={n.action_href} className="block px-4 py-3 hover:bg-muted/50 transition-colors">
+                  <Link
+                    to={n.action_href}
+                    className="block px-4 py-3 hover:bg-muted/50 transition-colors"
+                  >
                     {inner}
                   </Link>
                 ) : (

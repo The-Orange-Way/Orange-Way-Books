@@ -15,8 +15,13 @@ export function useUserOrg() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user | !active) { setLoading(false); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || !active) {
+        setLoading(false);
+        return;
+      }
 
       const { data } = await supabase
         .from('org_members')
@@ -25,7 +30,7 @@ export function useUserOrg() {
 
       if (!active) return;
 
-      const memberships: UserOrgMembership[] = (data | []).map(d => ({
+      const memberships: UserOrgMembership[] = (data || []).map((d) => ({
         org_id: d.org_id,
         role: d.role,
       }));
@@ -33,13 +38,15 @@ export function useUserOrg() {
 
       // Determine active org: localStorage override, or first membership
       const stored = getActiveOrgId();
-      const validStored = stored && memberships.some(m => m.org_id === stored);
+      const validStored = stored && memberships.some((m) => m.org_id === stored);
       const selectedOrgId = validStored ? stored : (memberships[0]?.org_id ?? null);
 
       setOrgId(selectedOrgId);
       setLoading(false);
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const switchOrg = (newOrgId: string) => {

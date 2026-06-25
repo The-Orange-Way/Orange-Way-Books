@@ -77,8 +77,7 @@ const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
 
 // Upper bound on display name length. Matches the schema-level sanity
@@ -139,14 +138,17 @@ Deno.serve(async (req) => {
     //    the function still behaves correctly if someone deploys with
     //    --no-verify-jwt by mistake.
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader | !authHeader.toLowerCase().startsWith('bearer ')) {
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
       return jsonResponse({ error: 'Missing Authorization header' }, 401, cors);
     }
     const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
-    if (authErr | !caller) {
+    const {
+      data: { user: caller },
+      error: authErr,
+    } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
       return jsonResponse({ error: 'Unauthorized' }, 401, cors);
     }
 
@@ -185,26 +187,33 @@ Deno.serve(async (req) => {
       };
     };
     try {
-      body = JSON.parse(raw | '{}');
+      body = JSON.parse(raw || '{}');
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400, cors);
     }
 
-    const targetUserIdRaw = typeof body.target_user_id === 'string' ? body.target_user_id.trim() : '';
+    const targetUserIdRaw =
+      typeof body.target_user_id === 'string' ? body.target_user_id.trim() : '';
     const orgId = typeof body.org_id === 'string' ? body.org_id.trim() : '';
     const action = typeof body.action === 'string' ? (body.action as Action) : null;
     const payloadName = typeof body.payload?.name === 'string' ? body.payload.name : undefined;
     const payloadEmail = typeof body.payload?.email === 'string' ? body.payload.email : undefined;
-    const payloadRoleGrantId = typeof body.payload?.role_grant_id === 'string'
-      ? body.payload.role_grant_id.trim() : undefined;
-    const payloadNewExpiresAt = typeof body.payload?.new_expires_at === 'string'
-      ? body.payload.new_expires_at.trim() : undefined;
-    const payloadSupportEmail = typeof body.payload?.support_email === 'string'
-      ? body.payload.support_email.trim() : undefined;
-    const payloadDurationHours = typeof body.payload?.duration_hours === 'number'
-      ? body.payload.duration_hours : undefined;
-    const payloadSessionId = typeof body.payload?.session_id === 'string'
-      ? body.payload.session_id.trim() : undefined;
+    const payloadRoleGrantId =
+      typeof body.payload?.role_grant_id === 'string'
+        ? body.payload.role_grant_id.trim()
+        : undefined;
+    const payloadNewExpiresAt =
+      typeof body.payload?.new_expires_at === 'string'
+        ? body.payload.new_expires_at.trim()
+        : undefined;
+    const payloadSupportEmail =
+      typeof body.payload?.support_email === 'string'
+        ? body.payload.support_email.trim()
+        : undefined;
+    const payloadDurationHours =
+      typeof body.payload?.duration_hours === 'number' ? body.payload.duration_hours : undefined;
+    const payloadSessionId =
+      typeof body.payload?.session_id === 'string' ? body.payload.session_id.trim() : undefined;
 
     if (!orgId) {
       return jsonResponse({ error: 'org_id is required' }, 400, cors);
@@ -212,7 +221,7 @@ Deno.serve(async (req) => {
     if (!UUID_RE.test(orgId)) {
       return jsonResponse({ error: 'org_id must be a UUID' }, 400, cors);
     }
-    if (!action | !VALID_ACTIONS.includes(action)) {
+    if (!action || !VALID_ACTIONS.includes(action)) {
       return jsonResponse({ error: 'Unknown action' }, 400, cors);
     }
     const isOrgScoped = ORG_SCOPED_ACTIONS.has(action);
@@ -234,12 +243,16 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Name is required' }, 400, cors);
       }
       if (trimmed.length > MAX_NAME_LEN) {
-        return jsonResponse({ error: `Name must be ${MAX_NAME_LEN} characters or fewer` }, 400, cors);
+        return jsonResponse(
+          { error: `Name must be ${MAX_NAME_LEN} characters or fewer` },
+          400,
+          cors,
+        );
       }
     }
     if (action === 'update_email') {
       const trimmed = (payloadEmail ?? '').trim();
-      if (!trimmed | !EMAIL_RE.test(trimmed)) {
+      if (!trimmed || !EMAIL_RE.test(trimmed)) {
         return jsonResponse({ error: 'A valid email address is required' }, 400, cors);
       }
     }
@@ -254,18 +267,20 @@ Deno.serve(async (req) => {
     //    and set a flag — the handler below re-checks the "is support
     //    user" path.
     const requiredCapability = REVOKE_ACTIONS.has(action) ? 'users.revoke' : 'users.invite';
-    const { data: hasCap, error: capErr } = await adminClient.rpc(
-      'user_has_capability',
-      { p_user_id: caller.id, p_capability: requiredCapability, p_org_id: orgId },
-    );
+    const { data: hasCap, error: capErr } = await adminClient.rpc('user_has_capability', {
+      p_user_id: caller.id,
+      p_capability: requiredCapability,
+      p_org_id: orgId,
+    });
     if (capErr) {
       console.error('admin-update-user capability check failed:', capErr);
       return jsonResponse({ error: 'Failed to authorize caller' }, 500, cors);
     }
     if (!hasCap && action !== 'end_support_session') {
-      const copy = requiredCapability === 'users.revoke'
-        ? "You don't have permission to remove this user."
-        : "You don't have permission to edit this user.";
+      const copy =
+        requiredCapability === 'users.revoke'
+          ? "You don't have permission to remove this user."
+          : "You don't have permission to edit this user.";
       return jsonResponse({ error: copy }, 403, cors);
     }
     // For end_support_session specifically, defer the authorization
@@ -295,11 +310,7 @@ Deno.serve(async (req) => {
       );
     }
     if (!isOrgScoped && !memberIds.has(targetUserId)) {
-      return jsonResponse(
-        { error: "You don't have permission to edit this user." },
-        403,
-        cors,
-      );
+      return jsonResponse({ error: "You don't have permission to edit this user." }, 403, cors);
     }
 
     // 5) Perform the action. Each branch returns its own success
@@ -310,8 +321,9 @@ Deno.serve(async (req) => {
 
       // Fetch current metadata so we can merge rather than clobber.
       // Other keys (avatar_url, locale, etc.) must survive this write.
-      const { data: currentData, error: getErr } = await adminClient.auth.admin.getUserById(targetUserId);
-      if (getErr | !currentData?.user) {
+      const { data: currentData, error: getErr } =
+        await adminClient.auth.admin.getUserById(targetUserId);
+      if (getErr || !currentData?.user) {
         console.error('admin-update-user getUserById failed:', getErr);
         return jsonResponse({ error: 'User not found' }, 404, cors);
       }
@@ -343,23 +355,35 @@ Deno.serve(async (req) => {
       if (updErr) {
         console.error('admin-update-user updateUserById(email) failed:', updErr);
         const msg = (updErr.message ?? '').toLowerCase();
-        if (msg.includes('already') && (msg.includes('registered') | msg.includes('in use') | msg.includes('exists'))) {
-          return jsonResponse({ error: 'That email is already used by another account.' }, 400, cors);
+        if (
+          msg.includes('already') &&
+          (msg.includes('registered') || msg.includes('in use') || msg.includes('exists'))
+        ) {
+          return jsonResponse(
+            { error: 'That email is already used by another account.' },
+            400,
+            cors,
+          );
         }
         return jsonResponse({ error: 'Failed to update email' }, 500, cors);
       }
 
       await writeAudit(caller.id, targetUserId, orgId, action, { new_email: newEmail });
-      return jsonResponse({
-        ok: true,
-        pending: true,
-        message: 'Confirmation email sent to new address',
-      }, 200, cors);
+      return jsonResponse(
+        {
+          ok: true,
+          pending: true,
+          message: 'Confirmation email sent to new address',
+        },
+        200,
+        cors,
+      );
     }
 
     if (action === 'send_password_reset') {
-      const { data: tgtData, error: getErr } = await adminClient.auth.admin.getUserById(targetUserId);
-      if (getErr | !tgtData?.user?.email) {
+      const { data: tgtData, error: getErr } =
+        await adminClient.auth.admin.getUserById(targetUserId);
+      if (getErr || !tgtData?.user?.email) {
         console.error('admin-update-user getUserById(reset) failed:', getErr);
         return jsonResponse({ error: 'User has no email on file' }, 404, cors);
       }
@@ -379,8 +403,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'resend_invite') {
-      const { data: tgtData, error: getErr } = await adminClient.auth.admin.getUserById(targetUserId);
-      if (getErr | !tgtData?.user?.email) {
+      const { data: tgtData, error: getErr } =
+        await adminClient.auth.admin.getUserById(targetUserId);
+      if (getErr || !tgtData?.user?.email) {
         console.error('admin-update-user getUserById(invite) failed:', getErr);
         return jsonResponse({ error: 'User has no email on file' }, 404, cors);
       }
@@ -404,7 +429,7 @@ Deno.serve(async (req) => {
       );
       if (inviteErr) {
         const msg = (inviteErr.message ?? '').toLowerCase();
-        if (msg.includes('already') && (msg.includes('confirm') | msg.includes('registered'))) {
+        if (msg.includes('already') && (msg.includes('confirm') || msg.includes('registered'))) {
           return jsonResponse({ error: 'User has already accepted the invite' }, 400, cors);
         }
         console.error('admin-update-user inviteUserByEmail failed:', inviteErr);
@@ -492,7 +517,7 @@ Deno.serve(async (req) => {
       // Customer can extend an Auditor expiry any time before it
       // elapses. Validates the grant row, bounds the new date to
       // (now, now+1y], updates the row, and audits.
-      if (!payloadRoleGrantId | !UUID_RE.test(payloadRoleGrantId)) {
+      if (!payloadRoleGrantId || !UUID_RE.test(payloadRoleGrantId)) {
         return jsonResponse({ error: 'role_grant_id is required' }, 400, cors);
       }
       if (!payloadNewExpiresAt) {
@@ -508,7 +533,11 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'new_expires_at must be in the future' }, 400, cors);
       }
       if (parsed > now + oneYear) {
-        return jsonResponse({ error: 'new_expires_at must be at most 1 year from today' }, 400, cors);
+        return jsonResponse(
+          { error: 'new_expires_at must be at most 1 year from today' },
+          400,
+          cors,
+        );
       }
       const newIso = new Date(parsed).toISOString();
 
@@ -522,7 +551,7 @@ Deno.serve(async (req) => {
         console.error('admin-update-user extend_role_expiry read failed:', grantReadErr);
         return jsonResponse({ error: 'Failed to load role grant' }, 500, cors);
       }
-      if (!grant | grant.org_id !== orgId) {
+      if (!grant || grant.org_id !== orgId) {
         return jsonResponse({ error: 'Role grant not found in this org' }, 404, cors);
       }
       if (grant.revoked_at) {
@@ -539,12 +568,19 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Failed to update expiry' }, 500, cors);
       }
 
-      await writeAudit(caller.id, grant.user_id, orgId, action, {
-        role_grant_id:     payloadRoleGrantId,
-        old_expires_at:    oldIso,
-        new_expires_at:    newIso,
-        source:            grant.source,
-      }, 'role.expiry_extended');
+      await writeAudit(
+        caller.id,
+        grant.user_id,
+        orgId,
+        action,
+        {
+          role_grant_id: payloadRoleGrantId,
+          old_expires_at: oldIso,
+          new_expires_at: newIso,
+          source: grant.source,
+        },
+        'role.expiry_extended',
+      );
       return jsonResponse({ ok: true, new_expires_at: newIso }, 200, cors);
     }
 
@@ -554,16 +590,12 @@ Deno.serve(async (req) => {
       // otherwise we inviteUserByEmail to create the account. The
       // session row is the audit anchor; the org_member_roles row is
       // what activates the RLS capabilities.
-      if (!payloadSupportEmail | !EMAIL_RE.test(payloadSupportEmail)) {
+      if (!payloadSupportEmail || !EMAIL_RE.test(payloadSupportEmail)) {
         return jsonResponse({ error: 'A valid support_email is required' }, 400, cors);
       }
       const VALID_DURATIONS = new Set([1, 6, 12, 24]);
-      if (!payloadDurationHours | !VALID_DURATIONS.has(payloadDurationHours)) {
-        return jsonResponse(
-          { error: 'duration_hours must be 1, 6, 12, or 24' },
-          400,
-          cors,
-        );
+      if (!payloadDurationHours || !VALID_DURATIONS.has(payloadDurationHours)) {
+        return jsonResponse({ error: 'duration_hours must be 1, 6, 12, or 24' }, 400, cors);
       }
       const supportEmail = payloadSupportEmail.toLowerCase();
 
@@ -572,7 +604,10 @@ Deno.serve(async (req) => {
       let supportUserId: string | null = null;
       let page = 1;
       while (page <= 50) {
-        const { data: listPage, error: listErr } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+        const { data: listPage, error: listErr } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage: 1000,
+        });
         if (listErr) break;
         const hit = listPage.users.find(
           (u: { id: string; email?: string | null }) => u.email?.toLowerCase() === supportEmail,
@@ -585,8 +620,9 @@ Deno.serve(async (req) => {
         page += 1;
       }
       if (!supportUserId) {
-        const { data: invited, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(supportEmail);
-        if (inviteErr | !invited?.user) {
+        const { data: invited, error: inviteErr } =
+          await adminClient.auth.admin.inviteUserByEmail(supportEmail);
+        if (inviteErr || !invited?.user) {
           console.error('admin-update-user grant_support_session invite failed:', inviteErr);
           return jsonResponse({ error: 'Failed to invite support user' }, 500, cors);
         }
@@ -601,7 +637,7 @@ Deno.serve(async (req) => {
         .eq('is_system', true)
         .is('org_id', null)
         .maybeSingle();
-      if (roleErr | !roleDef) {
+      if (roleErr || !roleDef) {
         console.error('admin-update-user grant_support_session role lookup failed:', roleErr);
         return jsonResponse({ error: 'OWBSupport role is not configured' }, 500, cors);
       }
@@ -616,15 +652,15 @@ Deno.serve(async (req) => {
       const { data: sessionRow, error: sessionErr } = await adminClient
         .from('support_sessions')
         .insert({
-          org_id:          orgId,
+          org_id: orgId,
           support_user_id: supportUserId,
-          granted_by:      caller.id,
-          granted_at:      grantedAtIso,
-          expires_at:      expiresAtIso,
+          granted_by: caller.id,
+          granted_at: grantedAtIso,
+          expires_at: expiresAtIso,
         })
         .select('id')
         .single();
-      if (sessionErr | !sessionRow) {
+      if (sessionErr || !sessionRow) {
         console.error('admin-update-user grant_support_session insert session failed:', sessionErr);
         return jsonResponse({ error: 'Failed to record support session' }, 500, cors);
       }
@@ -643,7 +679,10 @@ Deno.serve(async (req) => {
           user_id: supportUserId,
         });
         if (memberInsertErr) {
-          console.error('admin-update-user grant_support_session org_members insert failed:', memberInsertErr);
+          console.error(
+            'admin-update-user grant_support_session org_members insert failed:',
+            memberInsertErr,
+          );
           return jsonResponse({ error: 'Failed to add support user to org' }, 500, cors);
         }
       }
@@ -651,13 +690,13 @@ Deno.serve(async (req) => {
       // Finally, the capability grant. Carries source='support_grant'
       // so the sweep attributes the expiry correctly.
       const { error: grantErr } = await adminClient.from('org_member_roles').insert({
-        org_id:             orgId,
-        user_id:            supportUserId,
+        org_id: orgId,
+        user_id: supportUserId,
         role_definition_id: roleDef.id,
-        granted_by:         caller.id,
-        granted_at:         grantedAtIso,
-        expires_at:         expiresAtIso,
-        source:             'support_grant',
+        granted_by: caller.id,
+        granted_at: grantedAtIso,
+        expires_at: expiresAtIso,
+        source: 'support_grant',
       });
       if (grantErr) {
         console.error('admin-update-user grant_support_session grant insert failed:', grantErr);
@@ -666,22 +705,33 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Failed to activate support role grant' }, 500, cors);
       }
 
-      await writeAudit(caller.id, supportUserId, orgId, action, {
-        session_id:     sessionRow.id,
-        duration_hours: payloadDurationHours,
-        expires_at:     expiresAtIso,
-      }, 'support.session_granted');
+      await writeAudit(
+        caller.id,
+        supportUserId,
+        orgId,
+        action,
+        {
+          session_id: sessionRow.id,
+          duration_hours: payloadDurationHours,
+          expires_at: expiresAtIso,
+        },
+        'support.session_granted',
+      );
 
-      return jsonResponse({
-        ok: true,
-        session_id:      sessionRow.id,
-        expires_at:      expiresAtIso,
-        support_user_id: supportUserId,
-      }, 200, cors);
+      return jsonResponse(
+        {
+          ok: true,
+          session_id: sessionRow.id,
+          expires_at: expiresAtIso,
+          support_user_id: supportUserId,
+        },
+        200,
+        cors,
+      );
     }
 
     if (action === 'end_support_session') {
-      if (!payloadSessionId | !UUID_RE.test(payloadSessionId)) {
+      if (!payloadSessionId || !UUID_RE.test(payloadSessionId)) {
         return jsonResponse({ error: 'session_id is required' }, 400, cors);
       }
 
@@ -694,7 +744,7 @@ Deno.serve(async (req) => {
         console.error('admin-update-user end_support_session read failed:', sessionReadErr);
         return jsonResponse({ error: 'Failed to load support session' }, 500, cors);
       }
-      if (!session | session.org_id !== orgId) {
+      if (!session || session.org_id !== orgId) {
         return jsonResponse({ error: 'Support session not found in this org' }, 404, cors);
       }
       if (session.ended_at) {
@@ -743,11 +793,18 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Failed to revoke support role' }, 500, cors);
       }
 
-      await writeAudit(caller.id, session.support_user_id, orgId, action, {
-        session_id:  session.id,
-        end_reason:  endReason,
-        ended_at:    endedAt,
-      }, 'support.session_ended');
+      await writeAudit(
+        caller.id,
+        session.support_user_id,
+        orgId,
+        action,
+        {
+          session_id: session.id,
+          end_reason: endReason,
+          ended_at: endedAt,
+        },
+        'support.session_ended',
+      );
 
       return jsonResponse({ ok: true, ended: true }, 200, cors);
     }

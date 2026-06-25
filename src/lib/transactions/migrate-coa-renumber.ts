@@ -49,10 +49,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import {
-  decryptChartOfAccount,
-  encryptChartOfAccount,
-} from '@/lib/crypto-fields';
+import { decryptChartOfAccount, encryptChartOfAccount } from '@/lib/crypto-fields';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
@@ -106,7 +103,12 @@ const WAVE_2_STEPS: Wave2Step[] = [
   //    safety — if it collides with this step, we skip and the user can
   //    rename/archive it manually. New orgs from the updated seed don't
   //    get the generic 5000 row anymore.
-  { fromCode: '5100', fromName: 'Cost of Goods Sold', toCode: '5000', toName: 'Cost of Goods Sold' },
+  {
+    fromCode: '5100',
+    fromName: 'Cost of Goods Sold',
+    toCode: '5000',
+    toName: 'Cost of Goods Sold',
+  },
 ];
 
 type DecodedRow = {
@@ -125,7 +127,7 @@ async function loadDecodedRows(orgId: string, decryptText: DecryptFn): Promise<D
     .select('*')
     .eq('org_id', orgId);
   if (error) throw error;
-  if (!rows | rows.length === 0) return [];
+  if (!rows || rows.length === 0) return [];
 
   const decoded: DecodedRow[] = [];
   for (const row of rows as any[]) {
@@ -133,7 +135,7 @@ async function loadDecodedRows(orgId: string, decryptText: DecryptFn): Promise<D
       const f = await decryptChartOfAccount(row, decryptText);
       decoded.push({
         row,
-        name: (f.account_name | '').trim(),
+        name: (f.account_name || '').trim(),
         code: f.account_code,
         type: f.account_type,
         group: f.account_group,
@@ -158,17 +160,13 @@ export async function migrateEquipmentTransferClearingCodes(
   let updated = 0;
   for (const pair of WAVE_1_PAIRS) {
     const target = decoded.find(
-      (d) =>
-        d.name.toLowerCase() === pair.name.toLowerCase() &&
-        d.code === pair.fromCode,
+      (d) => d.name.toLowerCase() === pair.name.toLowerCase() && d.code === pair.fromCode,
     );
     if (!target) continue;
 
     // Sanity: do not overwrite if a different row already owns the toCode
     // (some org may have user-created their own account there).
-    const collision = decoded.find(
-      (d) => d.row.id !== target.row.id && d.code === pair.toCode,
-    );
+    const collision = decoded.find((d) => d.row.id !== target.row.id && d.code === pair.toCode);
     if (collision) {
       // Skip silently — we never destroy user data. The Transfer Clearing
       // helper will fall back to its existing find-or-create path.
@@ -225,9 +223,7 @@ export async function migrateCoaWave2(
 
   for (const step of WAVE_2_STEPS) {
     const target = decoded.find(
-      (d) =>
-        d.code === step.fromCode &&
-        d.name.toLowerCase() === step.fromName.toLowerCase(),
+      (d) => d.code === step.fromCode && d.name.toLowerCase() === step.fromName.toLowerCase(),
     );
     if (!target) continue;
 
@@ -247,9 +243,7 @@ export async function migrateCoaWave2(
     // Name collision: refuse to land if another row already decrypts to the
     // new name. Protects against duplicating user-renamed accounts.
     const nameCollision = decoded.find(
-      (d) =>
-        d.row.id !== target.row.id &&
-        d.name.toLowerCase() === step.toName.toLowerCase(),
+      (d) => d.row.id !== target.row.id && d.name.toLowerCase() === step.toName.toLowerCase(),
     );
     if (nameCollision) {
       skipped += 1;

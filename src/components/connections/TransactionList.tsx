@@ -52,7 +52,7 @@ interface DisplayTx {
 }
 
 export interface TransactionListProps {
-  /** Caller invokes the bb-or-proxy `or-transactions-list` endpoint. */
+  /** Caller invokes the owb-or-proxy `or-transactions-list` endpoint. */
   fetchEncrypted: () => Promise<EncryptedTxRow[]>;
   /** Decrypts a single encrypted_payload (base64 IV+ciphertext) using ORT. */
   decrypt: (ciphertext: string) => Promise<string>;
@@ -130,7 +130,9 @@ export function TransactionList({
     }
   }, [fetchEncrypted, decrypt]);
 
-  useEffect(() => { void load(); }, [load, refreshKey]);
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
 
   // Phase 5: once decrypted rows are available AND we have routing context,
   // ask OWB which OR external_ids already have a corresponding ledger row.
@@ -139,7 +141,7 @@ export function TransactionList({
   // unrelated wallet histories.
   useEffect(() => {
     let cancelled = false;
-    if (!orConnectionId | !resolveDestinationWalletId | !rows | rows.length === 0) {
+    if (!orConnectionId || !resolveDestinationWalletId || !rows || rows.length === 0) {
       setImportedIds(new Set());
       return;
     }
@@ -151,18 +153,22 @@ export function TransactionList({
       const destId = resolveDestinationWalletId(r.payload.source_wallet_id);
       if (destId) walletIdSet.add(destId);
     }
-    if (walletIdSet.size === 0 | orExternalIds.length === 0) {
+    if (walletIdSet.size === 0 || orExternalIds.length === 0) {
       setImportedIds(new Set());
       return;
     }
     void findImportedOrTxIds(Array.from(walletIdSet), orConnectionId, orExternalIds)
-      .then((set) => { if (!cancelled) setImportedIds(set); })
+      .then((set) => {
+        if (!cancelled) setImportedIds(set);
+      })
       .catch((err) => {
         // Badge lookup is decorative — log but never block the row render.
         console.warn('[TransactionList] findImportedOrTxIds failed:', err);
         if (!cancelled) setImportedIds(new Set());
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [rows, orConnectionId, resolveDestinationWalletId]);
 
   // Memoize the imported set into a stable callback the row component can
@@ -182,13 +188,11 @@ export function TransactionList({
 
   if (error) {
     return (
-      <div className="text-xs text-destructive py-2">
-        Failed to load transactions: {error}
-      </div>
+      <div className="text-xs text-destructive py-2">Failed to load transactions: {error}</div>
     );
   }
 
-  if (!rows | rows.length === 0) {
+  if (!rows || rows.length === 0) {
     return (
       <div className="text-xs text-muted-foreground py-2">
         No transactions yet — click Sync to fetch the latest from your provider.
@@ -208,7 +212,7 @@ export function TransactionList({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <TransactionRow
               key={r.rowId}
               tx={r}
@@ -257,7 +261,7 @@ function TransactionRow({
       : typeof p.amount === 'number'
         ? `${formatMoney(p.amount)} ${p.currency ?? ''}`.trim()
         : '—';
-  const memo = p.description | p.counterparty | (p.type ? capitalize(p.type) : '');
+  const memo = p.description || p.counterparty || (p.type ? capitalize(p.type) : '');
 
   const routedAccountName = resolveRouting ? resolveRouting(p.source_wallet_id) : null;
 
@@ -265,13 +269,16 @@ function TransactionRow({
     <TableRow>
       <TableCell className="text-xs whitespace-nowrap">{date}</TableCell>
       <TableCell className="text-right text-xs whitespace-nowrap">
-        <span className={`inline-flex items-center gap-1 font-medium ${isIn ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}>
+        <span
+          className={`inline-flex items-center gap-1 font-medium ${isIn ? 'text-green-600 dark:text-green-400' : 'text-foreground'}`}
+        >
           <Icon className="w-3 h-3" />
-          {sign}{amountText}
+          {sign}
+          {amountText}
         </span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground truncate max-w-[280px]">
-        {memo | <span className="italic">no memo</span>}
+        {memo || <span className="italic">no memo</span>}
       </TableCell>
       <TableCell className="text-xs whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
@@ -301,8 +308,11 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   } catch {
     return iso;

@@ -82,7 +82,7 @@ function makeSupabase() {
     },
     from(table: string) {
       const t = table as TableName;
-      let filterEq: Record<string, unknown> = {};
+      const filterEq: Record<string, unknown> = {};
       let filterIn: { col: string; values: unknown[] } | null = null;
       let mode: 'list' | 'maybeSingle' | 'single' = 'list';
       let op: 'select' | 'insert' | 'update' | 'delete' = 'select';
@@ -90,17 +90,39 @@ function makeSupabase() {
       let updatePatch: any = null;
 
       const api: any = {
-        select(_cols?: string) { return api; },
-        eq(col: string, val: unknown) { filterEq[col] = val; return api; },
+        select(_cols?: string) {
+          return api;
+        },
+        eq(col: string, val: unknown) {
+          filterEq[col] = val;
+          return api;
+        },
         in(col: string, vals: unknown[]) {
           filterIn = { col, values: vals };
           return api;
         },
-        maybeSingle() { mode = 'maybeSingle'; return runRead(); },
-        single() { mode = 'single'; return runWriteOrRead(); },
-        insert(row: any) { op = 'insert'; insertRow = row; return api; },
-        update(patch: any) { op = 'update'; updatePatch = patch; return api; },
-        delete() { op = 'delete'; return runDelete(); },
+        maybeSingle() {
+          mode = 'maybeSingle';
+          return runRead();
+        },
+        single() {
+          mode = 'single';
+          return runWriteOrRead();
+        },
+        insert(row: any) {
+          op = 'insert';
+          insertRow = row;
+          return api;
+        },
+        update(patch: any) {
+          op = 'update';
+          updatePatch = patch;
+          return api;
+        },
+        delete() {
+          op = 'delete';
+          return runDelete();
+        },
         then(onFulfilled: (v: any) => unknown) {
           // Default terminal — list-select or fire-and-forget write.
           if (op === 'insert' && mode === 'list') {
@@ -161,16 +183,16 @@ function makeSupabase() {
 }
 
 vi.mock('@/lib/supabase', () => ({
-  get supabase() { return makeSupabase(); },
+  get supabase() {
+    return makeSupabase();
+  },
 }));
 
 // Stable, predictable "encryption" so tests can assert on the
 // ciphertext format without crypto in scope. The shape matches what
 // encryptNumber / encryptText return at the call site — strings.
 vi.mock('@/lib/crypto-fields', async () => {
-  const real = await vi.importActual<typeof import('@/lib/crypto-fields')>(
-    '@/lib/crypto-fields',
-  );
+  const real = await vi.importActual<typeof import('@/lib/crypto-fields')>('@/lib/crypto-fields');
   return {
     ...real,
     encryptTransaction: vi.fn(async (fields: any, _enc: any) => ({
@@ -187,16 +209,11 @@ vi.mock('@/lib/crypto-fields', async () => {
       exchange_rate: null,
       key_version: 2,
     })),
-    encryptNumber: vi.fn(async (v: number | null) =>
-      v == null ? null : `enc:num:${v}`,
-    ),
+    encryptNumber: vi.fn(async (v: number | null) => (v == null ? null : `enc:num:${v}`)),
   };
 });
 
-import {
-  recordPlaceholderPayment,
-  AmountExceedsRemainingError,
-} from '../recordPlaceholderPayment';
+import { recordPlaceholderPayment, AmountExceedsRemainingError } from '../recordPlaceholderPayment';
 
 const ORG = 'org-1';
 const INV = 'inv-1';
@@ -206,9 +223,10 @@ const USER = 'user-1';
 const encryptText = vi.fn(async (s: string) => `enc:${s}`);
 const decryptText = vi.fn(async (s: string) => s.replace(/^enc:/, ''));
 const loadOrgSigningKey = vi.fn(async (_o: string) => ({}));
-const signMutation = vi.fn(
-  (_p: Uint8Array, _o: string) => ({ signature_b64: 'sig-placeholder', key_version: 3 }),
-);
+const signMutation = vi.fn((_p: Uint8Array, _o: string) => ({
+  signature_b64: 'sig-placeholder',
+  key_version: 3,
+}));
 
 function makeCall(over: Partial<Parameters<typeof recordPlaceholderPayment>[0]> = {}) {
   return {
@@ -259,14 +277,16 @@ beforeEach(() => {
       .reduce((a, r) => a + r.amount_applied, 0);
     if (inv) inv.status = sum >= inv.amount ? 'PAID' : 'PARTIAL';
     return {
-      data: [{
-        payment_id: ipId,
-        invoice_status: inv?.status ?? 'PARTIAL',
-        total_applied: sum,
-        invoice_amount: inv?.amount ?? 0,
-        je_posted: true,
-        je_id: 'je-1',
-      }],
+      data: [
+        {
+          payment_id: ipId,
+          invoice_status: inv?.status ?? 'PARTIAL',
+          total_applied: sum,
+          invoice_amount: inv?.amount ?? 0,
+          je_posted: true,
+          je_id: 'je-1',
+        },
+      ],
       error: null,
     };
   };
@@ -325,14 +345,16 @@ describe('recordPlaceholderPayment', () => {
         is_placeholder: false,
       });
       return {
-        data: [{
-          payment_id: ipId,
-          invoice_status: 'PAID',
-          total_applied: Number(args.p_amount_applied),
-          invoice_amount: 100,
-          je_posted: false, // ← A/R not configured
-          je_id: null,
-        }],
+        data: [
+          {
+            payment_id: ipId,
+            invoice_status: 'PAID',
+            total_applied: Number(args.p_amount_applied),
+            invoice_amount: 100,
+            je_posted: false, // ← A/R not configured
+            je_id: null,
+          },
+        ],
         error: null,
       };
     };

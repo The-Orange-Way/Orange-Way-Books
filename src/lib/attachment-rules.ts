@@ -31,10 +31,19 @@ export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * BYTES_PER_MB;
  *  capture HEIC by default). */
 export const ALLOWED_EXTENSIONS = [
   'pdf',
-  'doc', 'docx',
-  'xls', 'xlsx',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
   'csv',
-  'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'heic',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'bmp',
+  'tiff',
+  'webp',
+  'heic',
 ] as const;
 
 export type AllowedExtension = (typeof ALLOWED_EXTENSIONS)[number];
@@ -48,7 +57,7 @@ const ALLOWED_SET: ReadonlySet<string> = new Set<string>(ALLOWED_EXTENSIONS);
  *  caller to distinguish "no extension" from "wrong extension". */
 function extractExtension(fileName: string): string {
   const dotIdx = fileName.lastIndexOf('.');
-  if (dotIdx <= 0 | dotIdx === fileName.length - 1) return '';
+  if (dotIdx <= 0 || dotIdx === fileName.length - 1) return '';
   return fileName.slice(dotIdx + 1).toLowerCase();
 }
 

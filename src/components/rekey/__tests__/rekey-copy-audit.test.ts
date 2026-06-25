@@ -11,7 +11,7 @@
  *
  * Scope: JSX text nodes and string literals inside the three sweep
  * files. We intentionally EXCLUDE:
- *   - Code comments (`//` and `/* ... *​/`)
+ *   - Code comments (`//` and `slash-star ... star-slash`)
  *   - Identifier-only occurrences inside imports / type-only code
  *     (`RekeyStage` is a type ident, not user copy — but we look for
  *     the lowercase `rotate`/`rotation`, which these don't contain)
@@ -39,11 +39,13 @@ const UI_FILES = [
  * syntax without exotic string-embedded delimiters.
  */
 function stripComments(source: string): string {
-  return source
-    // block comments /* ... */ (possibly multi-line)
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    // line comments // ...
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  return (
+    source
+      // block comments /* ... */ (possibly multi-line)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      // line comments // ...
+      .replace(/(^|[^:])\/\/.*$/gm, '$1')
+  );
 }
 
 describe('Phase 4.5 copy audit — no "rotate"/"rotation" in customer-facing strings', () => {
@@ -81,9 +83,7 @@ describe('Phase 4.5 copy audit — no "rotate"/"rotation" in customer-facing str
       // any occurrence of an allowed token gets blanked before we
       // scan for the lowercase/uppercase customer-facing word.
       const identRegex = new RegExp(
-        ALLOWED_IDENTIFIERS
-          .map((s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
-          .join('|'),
+        ALLOWED_IDENTIFIERS.map((s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).join('|'),
         'g',
       );
 
