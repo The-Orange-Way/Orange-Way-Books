@@ -23,7 +23,10 @@ jobs:
   build-and-deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+    # Hotfix branches (hotfix/prod-*) target the prod environment so
+    # vars.VITE_* resolve to the prod values; otherwise the build ships
+    # without Supabase env and the prod bundle dies on first load.
+    environment: ${{ startsWith(github.ref_name, 'hotfix/prod-') && 'prod' || github.ref_name }}
     steps:
       - uses: actions/checkout@v6
 
