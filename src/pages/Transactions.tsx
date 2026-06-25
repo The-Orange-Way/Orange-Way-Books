@@ -32,6 +32,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useCapability } from '@/hooks/useCapability';
+import { useLedgerStatus } from '@/hooks/useLedgerStatus';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -231,6 +232,12 @@ function getDateRange(preset: DatePreset): { from: Date | undefined; to: Date | 
 
 export default function Transactions() {
   const { orgId, loading: orgLoading } = useUserOrg();
+  // Block creation while the chart of accounts is still being seeded.
+  // Without this gate a user who reaches the dashboard during the
+  // background COA seed (fire-and-forget IIFE in onboarding) can open
+  // the New Transaction dialog
+  // and land a row referencing an account that hasn't been written yet.
+  const { status: ledgerStatus } = useLedgerStatus();
   const { encryptText, decryptText, encryptBlob, loadOrgSigningKey, signMutation } = useVault();
   // Capability gates — server-side RLS is the authoritative enforcement
   // (user_has_capability). These flags only control button visibility so
@@ -687,6 +694,15 @@ export default function Transactions() {
   // Reconciliation edit-lock: opening edit on a RECONCILED tx shows the
   // informational dialog rather than letting the user mutate it.
   const openAdd = () => {
+    if (ledgerStatus !== 'ready') {
+      toast.info('Setting up your chart of accounts. Try again in a moment.', {
+        description:
+          ledgerStatus === 'failed'
+            ? 'The previous setup hit an issue, retry from the dashboard pill.'
+            : 'New transactions become available once setup finishes.',
+      });
+      return;
+    }
     setEditingTx(null);
     setModalOpen(true);
   };
