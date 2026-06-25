@@ -3,6 +3,14 @@ import App from './App.tsx';
 import './index.css';
 import posthog from 'posthog-js';
 import { PostHogProvider } from 'posthog-js/react';
+import { initSentry } from './lib/observability/sentry';
+
+// Wire Sentry/GlitchTip before React mounts so the very first render
+// errors are captured. No-op when VITE_SENTRY_DSN is unset, so dev
+// builds and forks without a DSN stay quiet. The SDK is statically
+// imported but Sentry.init is only called once; first-render captures
+// before init complete are queued internally.
+initSentry();
 
 // PostHog only initializes when VITE_POSTHOG_KEY is present at build
 // time. Self-hosted builds leave it unset and ship with zero

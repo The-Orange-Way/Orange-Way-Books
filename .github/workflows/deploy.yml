@@ -47,6 +47,9 @@ jobs:
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_ORBI_SUPABASE_URL: ${{ vars.VITE_ORBI_SUPABASE_URL }}
           VITE_ORBI_SUPABASE_ANON_KEY: ${{ vars.VITE_ORBI_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_DEPLOY_ENV: ${{ github.ref_name }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
 
       - name: Pick Pages project for this branch
         id: target
