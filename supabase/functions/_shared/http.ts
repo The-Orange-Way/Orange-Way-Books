@@ -1,9 +1,20 @@
 /**
- * Shared Edge Function HTTP helpers: CORS, body-size guards, JSON responses.
+ * Shared Edge Function HTTP helpers: CORS, body-size guards, JSON responses,
+ * and the standard error-capture path that routes uncaught exceptions to
+ * GlitchTip with the ZKA-aware scrubber applied.
  *
  * Keep this file dependency-free (no Supabase SDK imports) so every function
- * can import it without pulling an extra chunk.
+ * can import it without pulling an extra chunk. The Sentry import below is
+ * tree-shaken on builds where SENTRY_DSN is not configured (the wrapper
+ * module is a no-op).
  */
+
+import { captureEdgeError, initEdgeSentry } from './sentry.ts';
+
+// Initialise on module load. The wrapper is a no-op when SENTRY_DSN is
+// unset, so importing _shared/http carries no cost on builds without
+// observability wired up.
+initEdgeSentry();
 
 /** Max JSON body we accept from clients. 256 KB is plenty for every call
  *  site in this repo (exchange-rate params, invites, GraphQL mutations).
@@ -80,7 +91,7 @@ export function jsonResponse(
 
 /**
  * Read the request body as text with a hard size cap. Returns null when the
- * body exceeds MAX_BODY_BYTES — the caller should respond with 413.
+ * body exceeds MAX_BODY_BYTES , the caller should respond with 413.
  *
  * We prefer Content-Length as a fast path but still enforce the cap while
  * streaming in case a client omits the header.
@@ -121,4 +132,34 @@ export async function readBoundedText(req: Request): Promise<string | null> {
     off += c.byteLength;
   }
   return new TextDecoder().decode(buf);
+}
+
+/**
+ * Wrap a function handler so any thrown error is captured to GlitchTip
+ * (scrubbed via captureEdgeError) and converted to a 500 JSON response.
+ * The handler still controls all success-path responses. No-op when
+ * SENTRY_DSN is unset (capture path is internally a no-op).
+ *
+ * Usage:
+ *   Deno.serve(withErrorCapture(async (req) => {
+ *     // ... your handler body
+ *     return jsonResponse(req, { ok: true });
+ *   }));
+ */
+export function withErrorCapture(
+  handler: (req: Request) => Promise<Response> | Response,
+): (req: Request) => Promise<Response> {
+  return async (req: Request) => {
+    try {
+      return await handler(req);
+    } catch (err) {
+      captureEdgeError(req, err);
+      const message = err instanceof Error ? err.message : 'Internal error';
+      // Never echo unsanitized error.message verbatim if it could carry
+      // upstream-leak detail. The captureEdgeError above stored the full
+      // error in GlitchTip for triage; the client gets a generic 500.
+      console.error('[withErrorCapture] caught:', message);
+      return jsonResponse({ error: 'Internal Server Error' }, 500, buildCorsHeaders(req));
+    }
+  };
 }
