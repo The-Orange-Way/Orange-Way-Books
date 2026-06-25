@@ -52,15 +52,28 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) {
         return this.props.fallback(this.state.error, this.reset);
       }
+      // "Team has been notified" is conditional on a configured Sentry/GlitchTip
+      // DSN. Self-hosted forks without VITE_SENTRY_DSN run initSentry() as a
+      // no-op and the captureException call silently drops the event. Showing
+      // a definite "notified" claim there would be misleading.
+      const telemetryConfigured =
+        typeof import.meta.env.VITE_SENTRY_DSN === 'string' &&
+        import.meta.env.VITE_SENTRY_DSN.length > 0;
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="min-h-screen flex items-center justify-center bg-background p-6"
+        >
           <div className="max-w-md w-full bg-card border border-border rounded-lg p-6 shadow-sm">
             <h2 className="text-base font-semibold text-card-foreground mb-2">
               Something went wrong
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Orange Way Books hit an unexpected error. Your data has not been touched. The team has
-              been notified.
+              Orange Way Books hit an unexpected error. Your data has not been touched.{' '}
+              {telemetryConfigured
+                ? 'The team has been notified.'
+                : 'If this keeps happening, please copy the message in your browser console and contact support.'}
             </p>
             <button
               type="button"
