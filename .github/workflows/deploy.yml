@@ -51,7 +51,7 @@ jobs:
       - name: Pick Pages project for this branch
         id: target
         run: |
-          if [ "${{ github.ref_name }}" = "prod" ]; then
+          if [ "${{ github.ref_name }}" = "prod" ] || [[ "${{ github.ref_name }}" == hotfix/prod-* ]]; then
             echo "project=owb-prod" >> "$GITHUB_OUTPUT"
             echo "verify_url=https://books.orangeway.app" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref_name }}" = "dev" ]; then
