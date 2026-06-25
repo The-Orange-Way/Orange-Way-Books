@@ -29,6 +29,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useCapability } from '@/hooks/useCapability';
+import { useLedgerStatus } from '@/hooks/useLedgerStatus';
 import { mintInternalJeRefNumber } from '@/lib/journal-entry-ref-numbers';
 import { formatCrypto, formatFiat } from '@/lib/formatters';
 import { useVault } from '@/context/VaultContext';
@@ -519,6 +520,12 @@ function AccountCombobox({
 
 export default function JournalEntries() {
   const { orgId, loading: orgLoading } = useUserOrg();
+  // Block JE creation while the chart of accounts is still being seeded.
+  // Without this gate a user who reaches the dashboard during the
+  // background COA seed (fire-and-forget IIFE in onboarding) can open
+  // the New JE dialog and stage
+  // lines referencing accounts that have not been written yet.
+  const { status: ledgerStatus } = useLedgerStatus();
   const { encryptText, decryptText } = useVault();
   // Capability gates — UI presence only; RLS still authoritative.
   const canWriteJE = useCapability('journal_entries.write', orgId);
@@ -871,6 +878,15 @@ export default function JournalEntries() {
   }, [orgId]);
 
   const openAdd = async () => {
+    if (ledgerStatus !== 'ready') {
+      toast.info('Setting up your chart of accounts. Try again in a moment.', {
+        description:
+          ledgerStatus === 'failed'
+            ? 'The previous setup hit an issue, retry from the dashboard pill.'
+            : 'New journal entries become available once setup finishes.',
+      });
+      return;
+    }
     setEditingEntry(null);
     setFDate(new Date());
     setFCurrency('USD');
