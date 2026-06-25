@@ -77,7 +77,7 @@ EXEMPT_GENERIC=(
   ".github/PULL_REQUEST_TEMPLATE.md"
   ".github/workflows/leak-check.yml"
   ".github/workflows/post-merge-identity-scan.yml"
-  "docs/CONTRIBUTING.md"
+  "CONTRIBUTING.md"
   # Pre-push gate scripts: the gate's private-host regex enumerates
   # exactly the strings the scanner is looking for; install-hooks.sh
   # references the gate by path.
@@ -332,7 +332,7 @@ if [[ "$EXIT_CODE" -eq 0 ]]; then
   printf "\033[32m▎ Tree is clean. Safe to publish or merge.\033[0m\n\n"
 else
   printf "\033[31m▎ Leaks found. Clean up the items above before publishing.\033[0m\n"
-  printf "  See \033[1mdocs/CONTRIBUTING.md\033[0m for the rules and exemption process.\n\n"
+  printf "  See \033[1mCONTRIBUTING.md\033[0m for the rules and exemption process.\n\n"
 fi
 
 exit "$EXIT_CODE"
