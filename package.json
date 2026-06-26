@@ -32,8 +32,8 @@
   },
   "dependencies": {
     "@fontsource/plus-jakarta-sans": "^5.2.8",
-    "@hcaptcha/react-hcaptcha": "^2.0.2",
     "@hookform/resolvers": "^5.2.2",
+    "@marsidev/react-turnstile": "^1.5.3",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
     "@noble/post-quantum": "^0.6.1",

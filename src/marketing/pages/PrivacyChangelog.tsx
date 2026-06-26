@@ -30,6 +30,17 @@ export default function PrivacyChangelog() {
 
         <section className="space-y-6">
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.06.26c</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Captcha vendor switched from hCaptcha to Cloudflare Turnstile. Privacy copy updated
+                to name Turnstile as the upstream and to confirm Turnstile does not use tracking
+                cookies or build a profile of the visitor.
+              </li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26b</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
