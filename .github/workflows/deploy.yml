@@ -53,6 +53,10 @@ jobs:
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
           VITE_DEPLOY_ENV: ${{ github.ref_name }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          # Branch-derived Turnstile site key. Site keys are browser-safe
+          # by design; the corresponding secret lives on the Supabase Auth
+          # config (security_captcha_secret), not on the SPA.
+          VITE_TURNSTILE_SITE_KEY: ${{ (github.ref_name == 'prod' || startsWith(github.ref_name, 'hotfix/prod-')) && vars.TURNSTILE_SITE_KEY_PROD || vars.TURNSTILE_SITE_KEY_DEV }}
 
       - name: Pick Pages project for this branch
         id: target

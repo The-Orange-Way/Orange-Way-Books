@@ -24,7 +24,7 @@ export default function Privacy() {
             after.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
-            Version: 2026.06.26b.{' '}
+            Version: 2026.06.26c.{' '}
             <Link to="/privacy-changelog" className="underline">
               See changes to this policy.
             </Link>
@@ -100,11 +100,12 @@ export default function Privacy() {
               Disabled entirely on self-hosted builds.
             </li>
             <li>
-              <strong>Anti-abuse signals at signup</strong> via hCaptcha when the operator
-              configures a site key. hCaptcha receives your IP address, user-agent, and behavioral
-              signals from the challenge widget so it can score whether the request looks human. The
-              score is the only thing returned to Orange Way Books. See hCaptcha's privacy notice
-              for the upstream side.
+              <strong>Anti-abuse signals at signup</strong> via Cloudflare Turnstile when the
+              operator configures a site key. Turnstile receives your IP address, user-agent, and
+              behavioral signals from the challenge widget so it can score whether the request looks
+              human. The score is the only thing returned to Orange Way Books. Turnstile does not
+              use tracking cookies and does not build a profile of you. See Cloudflare's Turnstile
+              privacy notice for the upstream side.
             </li>
           </ul>
 
@@ -188,9 +189,9 @@ export default function Privacy() {
           <p className="mt-2 text-muted-foreground">
             Hosts the website and runs the captcha challenge that appears on signup. Cloudflare is
             headquartered in the United States. Sees: standard request metadata (IP, user agent,
-            timestamp) and the captcha challenge response. The captcha vendor (hCaptcha today) does
-            not use tracking cookies and does not build a profile of you. Retention: edge logs are
-            typically deleted within 7 days.{' '}
+            timestamp) and the captcha challenge response. Cloudflare Turnstile (the captcha vendor)
+            does not use tracking cookies and does not build a profile of you. Retention: edge logs
+            are typically deleted within 7 days.{' '}
             <a
               href="https://www.cloudflare.com/cloudflare-customer-dpa/"
               className="underline"
