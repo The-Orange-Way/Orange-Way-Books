@@ -8,6 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { VaultProvider, useVault } from '@/context/VaultContext';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { ErrorBoundary } from '@/components/error/ErrorBoundary';
+import { setSentryUser, addBreadcrumb } from '@/lib/observability/sentry';
 
 import AppShell from '@/components/layout/AppShell';
 import VaultUnlockScreen from '@/components/layout/VaultUnlockScreen';
@@ -44,7 +46,7 @@ import ImportJobs from '@/pages/settings/ImportJobs';
 import DemoData from '@/pages/settings/DemoData';
 import Security from '@/pages/settings/Security';
 
-// Public marketing surface — readable by AI crawlers and search engines.
+// Public marketing surface , readable by AI crawlers and search engines.
 import MarketingLayout from '@/marketing/MarketingLayout';
 import Landing from '@/marketing/pages/Landing';
 import Features from '@/marketing/pages/Features';
@@ -84,12 +86,18 @@ function RootRouter() {
       if (!isActive) return;
       setSession(session);
       setSessionLoaded(true);
+      // Attach user-id-only context to GlitchTip events so we can filter
+      // captured errors by user without ever shipping an email or name to
+      // the telemetry backend. ZKA invariant: the GlitchTip operator
+      // (the founder, same operator as the app) sees only opaque ids.
+      setSentryUser(session?.user?.id ?? null);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isActive) return;
       setSession(session);
       setSessionLoaded(true);
+      setSentryUser(session?.user?.id ?? null);
     });
 
     return () => {
@@ -99,55 +107,81 @@ function RootRouter() {
   }, []);
 
   return (
-    <Routes>
-      {/* Public marketing routes — always available, no auth required. */}
-      <Route element={<MarketingLayout session={session} />}>
-        {/* Authenticated users hitting `/` (e.g. after email confirmation,
+    <>
+      <RouteBreadcrumb />
+      <Routes>
+        {/* Public marketing routes , always available, no auth required. */}
+        <Route element={<MarketingLayout session={session} />}>
+          {/* Authenticated users hitting `/` (e.g. after email confirmation,
             which lands them at the Site URL with the auth hash) get sent
             straight to the app. Unauthenticated users see Landing. */}
-        <Route path="/" element={session ? <Navigate to="/app" replace /> : <Landing />} />
-        <Route path="/features" element={<Features />} />
-        <Route path="/security" element={<SecurityPage />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/faq" element={<Faq />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/compare" element={<CompareHub />} />
-        <Route path="/compare/:slug" element={<CompareStub />} />
-        <Route path="/docs" element={<DocsIndex />} />
-        <Route path="/ai" element={<AiAgentsPage />} />
-        <Route path="/privacy" element={<Privacy />} />
-      </Route>
+          <Route path="/" element={session ? <Navigate to="/app" replace /> : <Landing />} />
+          <Route path="/features" element={<Features />} />
+          <Route path="/security" element={<SecurityPage />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/faq" element={<Faq />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/compare" element={<CompareHub />} />
+          <Route path="/compare/:slug" element={<CompareStub />} />
+          <Route path="/docs" element={<DocsIndex />} />
+          <Route path="/ai" element={<AiAgentsPage />} />
+          <Route path="/privacy" element={<Privacy />} />
+        </Route>
 
-      {/* Auth pages */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+        {/* Auth pages */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/signup" element={<SignupPage />} />
 
-      {/* Public hosted invoice view — Bitwarden Send pattern (key in URL fragment) */}
-      <Route path="/i/:urlId" element={<PublicInvoice />} />
+        {/* Public hosted invoice view , Bitwarden Send pattern (key in URL fragment) */}
+        <Route path="/i/:urlId" element={<PublicInvoice />} />
 
-      {/* Authenticated app */}
-      <Route path="/app/*" element={<AuthGate session={session} sessionLoaded={sessionLoaded} />} />
+        {/* Authenticated app */}
+        <Route
+          path="/app/*"
+          element={<AuthGate session={session} sessionLoaded={sessionLoaded} />}
+        />
 
-      {/* Backward-compatibility: old top-level app paths redirect to /app/*. */}
-      <Route path="/accounts" element={<Navigate to="/app/accounts" replace />} />
-      <Route path="/transactions" element={<Navigate to="/app/transactions" replace />} />
-      <Route path="/journal" element={<Navigate to="/app/journal" replace />} />
-      <Route path="/reports" element={<Navigate to="/app/reports" replace />} />
-      <Route path="/payments" element={<Navigate to="/app/payments" replace />} />
-      <Route path="/connections" element={<Navigate to="/app/connections" replace />} />
-      <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
-      <Route path="/settings/security" element={<Navigate to="/app/settings/security" replace />} />
-      <Route
-        path="/settings/change-password"
-        element={<Navigate to="/app/settings/change-password" replace />}
-      />
-      <Route path="/settings/roles" element={<Navigate to="/app/admin?tab=roles" replace />} />
+        {/* Backward-compatibility: old top-level app paths redirect to /app/*. */}
+        <Route path="/accounts" element={<Navigate to="/app/accounts" replace />} />
+        <Route path="/transactions" element={<Navigate to="/app/transactions" replace />} />
+        <Route path="/journal" element={<Navigate to="/app/journal" replace />} />
+        <Route path="/reports" element={<Navigate to="/app/reports" replace />} />
+        <Route path="/payments" element={<Navigate to="/app/payments" replace />} />
+        <Route path="/connections" element={<Navigate to="/app/connections" replace />} />
+        <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
+        <Route
+          path="/settings/security"
+          element={<Navigate to="/app/settings/security" replace />}
+        />
+        <Route
+          path="/settings/change-password"
+          element={<Navigate to="/app/settings/change-password" replace />}
+        />
+        <Route path="/settings/roles" element={<Navigate to="/app/admin?tab=roles" replace />} />
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
+}
+
+/**
+ * Emits a navigation breadcrumb every time the route changes. Pathname only,
+ * never query string or fragment (those may carry auth fragments or other
+ * transient tokens). The breadcrumb gives every captured exception a
+ * navigation trail without ever shipping decrypted data.
+ */
+function RouteBreadcrumb() {
+  const location = useLocation();
+  useEffect(() => {
+    addBreadcrumb({
+      category: 'navigation',
+      message: location.pathname,
+    });
+  }, [location.pathname]);
+  return null;
 }
 
 function AuthGate({ session, sessionLoaded }: { session: Session | null; sessionLoaded: boolean }) {
@@ -160,7 +194,7 @@ function AuthGate({ session, sessionLoaded }: { session: Session | null; session
   }
 
   if (!session) {
-    // Authenticated routes require a session — bounce to login and remember
+    // Authenticated routes require a session , bounce to login and remember
     // the originally-requested path so we can return after sign-in.
     return <Navigate to="/login" replace />;
   }
@@ -241,7 +275,7 @@ function VaultGate({ session }: { session: Session }) {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        {/* Authenticated app — mounted under /app/* by RootRouter. */}
+        {/* Authenticated app , mounted under /app/* by RootRouter. */}
         <Route index element={<Dashboard />} />
         <Route path="accounts" element={<Accounts />} />
         <Route path="transactions" element={<Transactions />} />
@@ -275,7 +309,7 @@ function VaultGate({ session }: { session: Session }) {
 }
 
 // One-time analytics-notice banner shown once per browser, dismissed via
-// localStorage (UI state, not tracking — exempt from consent under
+// localStorage (UI state, not tracking , exempt from consent under
 // GDPR Article 6 because it's strictly necessary for the banner not to
 // nag). Same wording shipped across every Orange Way Books-family surface.
 function AnalyticsNotice() {
@@ -392,20 +426,22 @@ function AnalyticsNotice() {
 }
 
 const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <VaultProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <RootRouter />
-            <AnalyticsNotice />
-          </BrowserRouter>
-        </VaultProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
+  <ErrorBoundary source="app-root">
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <VaultProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <RootRouter />
+              <AnalyticsNotice />
+            </BrowserRouter>
+          </VaultProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  </ErrorBoundary>
 );
 
 export default App;
