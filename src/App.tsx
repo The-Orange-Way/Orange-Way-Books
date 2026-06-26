@@ -60,6 +60,7 @@ import CompareStub from '@/marketing/pages/CompareStub';
 import DocsIndex from '@/marketing/pages/DocsIndex';
 import AiAgentsPage from '@/marketing/pages/AiAgents';
 import Privacy from '@/marketing/pages/Privacy';
+import PrivacyChangelog from '@/marketing/pages/PrivacyChangelog';
 
 const queryClient = new QueryClient();
 
@@ -127,6 +128,7 @@ function RootRouter() {
           <Route path="/docs" element={<DocsIndex />} />
           <Route path="/ai" element={<AiAgentsPage />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/privacy-changelog" element={<PrivacyChangelog />} />
         </Route>
 
         {/* Auth pages */}
