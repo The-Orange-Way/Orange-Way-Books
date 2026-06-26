@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Bitcoin } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 // Site key is browser-safe by design (sent to hCaptcha as-is). Stored as
@@ -102,9 +102,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md px-8">
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Bitcoin className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-lg" />
             <h1 className="text-2xl font-bold text-foreground">Orange Way Books</h1>
           </div>
           <p className="text-muted-foreground text-sm">Create your secure account</p>
