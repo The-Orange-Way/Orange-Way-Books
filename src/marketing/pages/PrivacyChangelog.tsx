@@ -30,6 +30,18 @@ export default function PrivacyChangelog() {
 
         <section className="space-y-6">
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.06.26b</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Added a Controller section naming the postal address responsible for personal-
+                information protection (Orange Way, 24 Maple Ave #1, Barrie, ON L4N 1R6, Canada).
+                Closes Quebec Law 25 §8.1 and GDPR Art. 13(1)(a) disclosure gaps.
+              </li>
+              <li>Contact section now points to both the privacy email and the postal address.</li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>Added Cross-border data transfers section (SCC + DPF + Quebec Law 25 §17).</li>
