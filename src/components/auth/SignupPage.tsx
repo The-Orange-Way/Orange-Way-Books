@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,18 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-// Site key is browser-safe by design (sent to hCaptcha as-is). Stored as
-// VITE_HCAPTCHA_SITE_KEY at build time; missing value disables the widget
-// gracefully (signup still works for local dev where you don't want the
-// captcha challenge in the loop).
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
+// Site key is browser-safe by design (sent to the captcha vendor as-is).
+// Stored as VITE_TURNSTILE_SITE_KEY at build time; missing value disables
+// the widget gracefully (signup still works for local dev where you don't
+// want the captcha challenge in the loop).
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const captchaRef = useRef<HCaptcha>(null);
+  const captchaRef = useRef<TurnstileInstance | null>(null);
   const { toast } = useToast();
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ export default function SignupPage() {
     setLoading(true);
 
     // Require a fresh captcha token whenever the widget is in play.
-    if (HCAPTCHA_SITE_KEY && !captchaToken) {
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
       setLoading(false);
       toast({
         title: 'Captcha required',
@@ -47,7 +47,7 @@ export default function SignupPage() {
       );
       if (rpcError || !allowed) {
         setLoading(false);
-        captchaRef.current?.resetCaptcha();
+        captchaRef.current?.reset();
         setCaptchaToken(null);
         toast({
           title: 'Private beta',
@@ -59,7 +59,7 @@ export default function SignupPage() {
       }
     } catch {
       setLoading(false);
-      captchaRef.current?.resetCaptcha();
+      captchaRef.current?.reset();
       setCaptchaToken(null);
       toast({
         title: 'Signup unavailable',
@@ -82,7 +82,7 @@ export default function SignupPage() {
     setLoading(false);
     // Always reset the widget after a submit, success or fail — tokens
     // are single-use and must not be replayed if the user retries.
-    captchaRef.current?.resetCaptcha();
+    captchaRef.current?.reset();
     setCaptchaToken(null);
 
     if (error) {
@@ -137,12 +137,12 @@ export default function SignupPage() {
                 required
               />
             </div>
-            {HCAPTCHA_SITE_KEY && (
+            {TURNSTILE_SITE_KEY && (
               <div className="flex justify-center">
-                <HCaptcha
+                <Turnstile
                   ref={captchaRef}
-                  sitekey={HCAPTCHA_SITE_KEY}
-                  onVerify={(token) => setCaptchaToken(token)}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
                   onError={() => setCaptchaToken(null)}
                 />
@@ -151,7 +151,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-              disabled={loading || (!!HCAPTCHA_SITE_KEY && !captchaToken)}
+              disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
             >
               {loading ? 'Creating account…' : 'Create Account'}
             </Button>
