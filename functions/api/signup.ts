@@ -7,11 +7,17 @@
  *   - "demo":     Demo request for the bookkeeping product
  *
  * Env vars required (set on the orangewaybooks-dev + orangewaybooks-prod CF Pages projects):
- *   RESEND_API_KEY_OW   — Resend API key, scoped to send.orangeway.app
+ *   RESEND_API_KEY_OW   - Resend API key, scoped to send.orangeway.app
+ *   SENTRY_DSN_PAGES    - optional. When set, errors capture to the
+ *                         Orange Way Books (Pages Functions) GlitchTip
+ *                         project. When unset, the wrapper is a pass-through.
  */
+
+import { withSentry } from '../_lib/sentry';
 
 interface Env {
   RESEND_API_KEY_OW: string;
+  SENTRY_DSN_PAGES?: string;
 }
 
 type FormType = 'waitlist' | 'demo';
@@ -57,7 +63,7 @@ function escapeHtml(s: string): string {
   );
 }
 
-export const onRequestPost: PagesFunction<Env> = async (ctx) => {
+export const onRequestPost: PagesFunction<Env> = withSentry<Env>(async (ctx) => {
   let body: SignupBody;
   try {
     body = await ctx.request.json();
@@ -93,7 +99,7 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   }
 
   return json({ ok: true }, 200);
-};
+});
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {
