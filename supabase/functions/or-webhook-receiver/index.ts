@@ -25,7 +25,7 @@
  *
  * On verified events we:
  *   1. Resolve org_id from subaccount_id via organizations.or_subaccount_id.
- *      That column is written by or-proxy after a successful or-provision.
+ *      That column is written by owb-or-proxy after a successful or-provision.
  *   2. Insert (upsert on or_event_id) a row into public.sync_events.
  *      The Connections page subscribes via Supabase realtime so the UI
  *      refreshes without polling.
@@ -64,7 +64,7 @@ const service = createClient(SUPABASE_URL, SERVICE_KEY, {
 
 /**
  * Resolve org_id from OR's subaccount_id via organizations.or_subaccount_id.
- * The mapping is written by or-proxy after a successful or-provision call.
+ * The mapping is written by owb-or-proxy after a successful or-provision call.
  *
  * If we can't resolve, the receiver returns 202 (accepted but skipped)
  * so OR's dispatcher considers the delivery successful and won't retry
