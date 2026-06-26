@@ -23,7 +23,12 @@ export default function Privacy() {
             your rights. Plain-English version first, controller / sub-processor / retention details
             after.
           </p>
-          <p className="text-sm text-muted-foreground mt-4">Last updated: 2026-06-26.</p>
+          <p className="text-sm text-muted-foreground mt-4">
+            Version: 2026.06.26.{' '}
+            <Link to="/privacy-changelog" className="underline">
+              See changes to this policy.
+            </Link>
+          </p>
         </header>
 
         <Section title="The short version">
@@ -167,7 +172,16 @@ export default function Privacy() {
             Stores your account, authentication state, and the ciphertext your device produces.
             Hosted in the United States. Sees: your email, the ciphertext blobs (which it cannot
             decrypt), and connection metadata. Retention: as long as your account exists, plus 30
-            days after deletion for backups.
+            days after deletion for backups.{' '}
+            <a
+              href="https://supabase.com/legal/dpa"
+              className="underline"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Supabase DPA
+            </a>
+            .
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">Cloudflare</h3>
@@ -176,7 +190,16 @@ export default function Privacy() {
             headquartered in the United States. Sees: standard request metadata (IP, user agent,
             timestamp) and the captcha challenge response. The captcha vendor (hCaptcha today) does
             not use tracking cookies and does not build a profile of you. Retention: edge logs are
-            typically deleted within 7 days.
+            typically deleted within 7 days.{' '}
+            <a
+              href="https://www.cloudflare.com/cloudflare-customer-dpa/"
+              className="underline"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Cloudflare DPA
+            </a>
+            .
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">Resend</h3>
@@ -185,7 +208,16 @@ export default function Privacy() {
             and any future notification we explicitly opt into. Headquartered in Delaware, United
             States, with mail delivery infrastructure in the United States and Europe. Sees: your
             email address and the email body. Retention: send logs for the period required by the
-            Resend service plan, typically up to 30 days.
+            Resend service plan, typically up to 30 days.{' '}
+            <a
+              href="https://resend.com/legal/dpa"
+              className="underline"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Resend DPA
+            </a>
+            .
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">GlitchTip</h3>
@@ -195,14 +227,24 @@ export default function Privacy() {
             browser version). Before any report leaves your device, an in-browser scrubber strips
             known sensitive field names (passwords, recovery codes, vault keys, account balances,
             merchant names) and rewrites URL fragments. Retention: 30 days on the GlitchTip server.
+            No external DPA: GlitchTip is operated by us, not a third-party vendor.
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">PostHog (optional)</h3>
           <p className="mt-2 text-muted-foreground">
-            Marketing-site analytics. Disabled by default on self-hosted builds. Anonymous events
-            only; no cross-site cookies, no profiles. Sees: page views and aggregate clicks. The
-            actual retention is the value the operator has configured on the PostHog project; our
-            target is 90 days.
+            Marketing-site analytics. Enabled on `books.orangeway.app`. Disabled by default on
+            self-hosted builds. Anonymous events only; no cross-site cookies, no profiles. Sees:
+            page views and aggregate clicks. The actual retention is the value the operator has
+            configured on the PostHog project; our target is 90 days.{' '}
+            <a
+              href="https://posthog.com/dpa"
+              className="underline"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              PostHog DPA
+            </a>
+            .
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">Flash (optional)</h3>
@@ -222,6 +264,79 @@ export default function Privacy() {
           <p className="mt-2 text-muted-foreground">
             BTC/fiat historical exchange rates. Public read-only data; no user identifier is sent.
           </p>
+        </Section>
+
+        <Section title="Cross-border data transfers">
+          <p className="text-muted-foreground">
+            Most of our sub-processors are headquartered in the United States. When personal
+            information crosses a border to reach them, the transfer relies on one of the following
+            safeguards. For Quebec residents, Law 25 §17 requires us to inform you of the transfer
+            and the assessment; for EEA / UK residents, GDPR Art. 13(1)(f) requires the same.
+          </p>
+          <ul className="list-disc pl-6 space-y-2 text-muted-foreground mt-4">
+            <li>
+              <strong>Supabase (US).</strong> Standard Contractual Clauses (SCCs) as the default
+              transfer mechanism. Supabase has assessed Quebec Law 25 in their DPA. Risk assessment:
+              ciphertext-only payload, server cannot read the content.
+            </li>
+            <li>
+              <strong>Cloudflare (US).</strong> SCCs plus EU-US Data Privacy Framework
+              self-certification. Quebec Law 25 §17 implication: edge logs are short-lived (≤ 7
+              days) and do not contain customer business data.
+            </li>
+            <li>
+              <strong>Resend (US).</strong> SCCs. Quebec Law 25 §17 implication: only the message
+              recipient address and the message body cross the border; no business data leaves the
+              encrypted store.
+            </li>
+            <li>
+              <strong>PostHog (US, optional).</strong> SCCs. Quebec Law 25 §17 implication:
+              anonymous event-level analytics; no profile, no cross-site identifier. Disabled
+              entirely on self-hosted builds.
+            </li>
+            <li>
+              <strong>GlitchTip (operated by us).</strong> No third-country transfer: data lands on
+              our own server. Geographic location of the GlitchTip host is documented in the OWB
+              security page.
+            </li>
+          </ul>
+          <p className="text-muted-foreground mt-4">
+            If your jurisdiction's data-protection authority requires a copy of the SCCs or the
+            transfer-impact assessment for any of the above vendors, contact us at the address in
+            the Contact section and we will share the relevant document.
+          </p>
+        </Section>
+
+        <Section title="Changes to sub-processors">
+          <p className="text-muted-foreground">
+            We commit to notifying you before adding or replacing a sub-processor that sees personal
+            information. The mechanism:
+          </p>
+          <ul className="list-disc pl-6 space-y-2 text-muted-foreground mt-4">
+            <li>
+              <strong>30-day pre-change notice.</strong> When we plan to add or replace a
+              sub-processor, we update this page at least 30 days before the change takes effect.
+              The Version anchor at the top of this page (e.g. <code>Version: 2026.06.26</code>)
+              bumps to the new date.
+            </li>
+            <li>
+              <strong>Change log.</strong> Each version bump is recorded with a one-line summary on{' '}
+              <Link to="/privacy-changelog" className="underline">
+                the privacy change log
+              </Link>
+              , so a reader can see what changed without diffing the page by hand.
+            </li>
+            <li>
+              <strong>Right to object.</strong> If a planned change is unacceptable to you, you may
+              cancel your account before the change takes effect. Your encrypted business data is
+              not migrated to the new sub-processor before then.
+            </li>
+            <li>
+              <strong>Emergency changes</strong> (vendor outage, security incident, sudden
+              policy-of-record change) may occur without the 30-day window. We will record those
+              after the fact on the change log and explain the trigger.
+            </li>
+          </ul>
         </Section>
 
         <Section title="Retention">
