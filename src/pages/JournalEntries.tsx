@@ -27,6 +27,7 @@ import {
   subYears,
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/observability/sentry';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useCapability } from '@/hooks/useCapability';
 import { useLedgerStatus } from '@/hooks/useLedgerStatus';
@@ -1102,6 +1103,8 @@ export default function JournalEntries() {
       }
       await fetchData();
     } catch (err: any) {
+      console.error('[JournalEntries] save failed', err);
+      captureException(err, { tags: { source: 'je-save' } });
       alert('Save failed: ' + err.message);
     } finally {
       setSaving(false);

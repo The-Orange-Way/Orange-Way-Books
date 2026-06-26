@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { captureException } from '@/lib/observability/sentry';
 import StepVaultPassword from './StepVaultPassword';
 import StepOrganization from './StepOrganization';
 import StepReporting from './StepReporting';
@@ -205,6 +206,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       } catch (coaErr) {
         const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
         console.error('Chart of accounts seeding failed:', coaErr);
+        captureException(coaErr, { tags: { source: 'onboarding-coa-seed' } });
         // Mark the org as failed so the dashboard's LedgerStatusPill can
         // surface a "Retry" button instead of a perpetual spinner.
         await (supabase as any)

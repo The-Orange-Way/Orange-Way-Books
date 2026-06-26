@@ -48,6 +48,7 @@ import {
 } from '@/lib/signing-key';
 import { derivePqcSecretWrapKey } from '@/lib/key-derivation';
 import { isCredentialError } from './vault-unlock-errors';
+import { captureException } from '@/lib/observability/sentry';
 
 interface VaultContextType {
   isUnlocked: boolean;
@@ -497,6 +498,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         void logSecurityEvent(user.id, 'vault_unlock_failed');
       } else {
         console.warn('[vault] unlock failed (non-credential):', err);
+        // Capture only the non-credential path. A wrong-password attempt
+        // is an expected user action and would just flood GlitchTip; the
+        // S10 rate-limit + audit_log row above is already the right
+        // signal for that. What lands here is a system bug (post-password
+        // derivation failure, signing-key load failure, etc.) that we
+        // want a real issue for.
+        captureException(err, { tags: { source: 'vault-unlock-noncred' } });
       }
       throw err;
     }
