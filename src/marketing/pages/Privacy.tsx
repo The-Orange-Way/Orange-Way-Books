@@ -24,7 +24,7 @@ export default function Privacy() {
             after.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
-            Version: 2026.06.26.{' '}
+            Version: 2026.06.26b.{' '}
             <Link to="/privacy-changelog" className="underline">
               See changes to this policy.
             </Link>
@@ -406,11 +406,31 @@ export default function Privacy() {
           </p>
         </Section>
 
+        <Section title="Controller">
+          <p className="text-muted-foreground">
+            The controller for personal information collected through Orange Way Books is:
+          </p>
+          <address className="not-italic mt-4 text-muted-foreground">
+            Orange Way
+            <br />
+            24 Maple Ave #1
+            <br />
+            Barrie, ON L4N 1R6
+            <br />
+            Canada
+          </address>
+          <p className="text-muted-foreground mt-4">
+            This disclosure satisfies Quebec Law 25 §8.1 (identification of the person responsible
+            for the protection of personal information) and EU GDPR Art. 13(1)(a) (identity and
+            contact details of the controller).
+          </p>
+        </Section>
+
         <Section title="Contact">
           <p className="text-muted-foreground">
             For privacy questions, data-rights requests, or breach notifications, write to
-            privacy@orangeway.app. We aim to respond within 30 days as required by GDPR Art. 12 and
-            equivalent statutes.
+            privacy@orangeway.app or to the postal address above. We aim to respond within 30 days
+            as required by GDPR Art. 12 and equivalent statutes.
           </p>
         </Section>
 
