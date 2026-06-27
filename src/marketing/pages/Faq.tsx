@@ -36,7 +36,7 @@ const FAQ = [
   },
   {
     q: 'How is Orange Way Books different from Bitwave?',
-    a: 'Bitwave is a closed-source crypto sub-ledger that integrates with QuickBooks/NetSuite. Orange Way Books is a standalone, open-source, zero-knowledge full ledger — you do not need a separate accounting system underneath, and your data is not visible to the vendor.',
+    a: 'Bitwave is a closed-source crypto sub-ledger that integrates with QuickBooks/NetSuite. Orange Way Books is a standalone, open-source, zero-knowledge full ledger, you do not need a separate accounting system underneath, and your data is not visible to the vendor.',
   },
   {
     q: 'How is Orange Way Books different from Cryptio?',

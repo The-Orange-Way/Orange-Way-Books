@@ -20,7 +20,7 @@ export default function About() {
       <article className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-6">About Orange Way Books</h1>
         <p className="text-lg text-muted-foreground mb-8">
-          Orange Way Books exists because Bitcoin businesses deserve real accounting — and because
+          Orange Way Books exists because Bitcoin businesses deserve real accounting, and because
           trusting a SaaS vendor with plaintext books stopped being acceptable a long time ago.
         </p>
 
@@ -28,7 +28,7 @@ export default function About() {
         <p className="text-muted-foreground mb-6">
           Every existing accounting platform stores your books in plaintext on a server you
           don&apos;t control. Some have weak Bitcoin support; others bolt on a sub-ledger. None of
-          them can credibly say &quot;we cannot read your data&quot; — because they can.
+          them can credibly say &quot;we cannot read your data&quot;, because they can.
         </p>
 
         <h2 className="text-2xl font-bold mt-10 mb-4">Our approach</h2>

@@ -4,7 +4,7 @@
 
 ### Open-source bookkeeping where the app cannot read your books.
 
-Bookkeeping that assumes the people running the servers — including us — should not be able to read your business. Built for Bitcoin businesses, useful for anyone who treats their financials as private. Self-hostable, auditable, Apache-2.0.
+Bookkeeping that assumes the people running the servers, including us, should not be able to read your business. Built for Bitcoin businesses, useful for anyone who treats their financials as private. Self-hostable, auditable, Apache-2.0.
 
 **Looking for accountants, bookkeepers, engineers, designers, and writers to help build this.** See [Join the build](#join-the-build).
 
@@ -31,7 +31,7 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 **Three honest caveats.** This matters because every privacy product over-promises, and most people don't want to read the small print:
 
-1. **The app can't read your books — but your bank still keeps its own records.** When you connect a bank or exchange, the bank already has its copy of your transactions. We never see your bank login or the bank's plaintext data. But the categories, memos, journal entries, account names, customer records, vendor contracts, and balances _you_ enter into the app are encrypted on your device and unreadable to anyone but you.
+1. **The app can't read your books, but your bank still keeps its own records.** When you connect a bank or exchange, the bank already has its copy of your transactions. We never see your bank login or the bank's plaintext data. But the categories, memos, journal entries, account names, customer records, vendor contracts, and balances _you_ enter into the app are encrypted on your device and unreadable to anyone but you.
 2. **Anyone you grant access can read what they're allowed to read.** If you invite your accountant, they get keys to the rows you share. The privacy guarantee is against _the operator and any future buyer of the company_, not against people you intentionally invite.
 3. **On-chain transactions remain on-chain.** Bitcoin's blockchain is public by design. We don't change that. The privacy boundary is the bookkeeping layer: your business interpretation of those transactions (memos, account assignments, internal notes) is what we cannot read.
 
@@ -39,9 +39,9 @@ Orange Way Books is a double-entry bookkeeping app for Bitcoin-native businesses
 
 ## Why this exists
 
-> _"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization — and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations. The computer can be used as a tool to liberate and protect people, rather than to control them."_
+> _"Here we are faced with the problems of loss of privacy, creeping computerization, massive databases, more centralization (and \[David\] Chaum offers a completely different direction to go in, one which puts power into the hands of individuals rather than governments and corporations). The computer can be used as a tool to liberate and protect people, rather than to control them."_
 >
-> — **Hal Finney**, cypherpunks mailing list, November 1992
+> &nbsp;&nbsp;&nbsp;&nbsp;_Hal Finney, cypherpunks mailing list, November 1992_
 
 Thirty-four years later, every mainstream business-accounting product still operates the way Finney warned against.
 
@@ -49,14 +49,14 @@ Thirty-four years later, every mainstream business-accounting product still oper
 
 That bargain made sense when "the cloud" was new. It makes less sense when:
 
-- **[LastPass was breached in 2022.](https://en.wikipedia.org/wiki/LastPass_2022_data_breach)** Encrypted vaults exfiltrated; master passwords brute-forced for years afterward. Federal prosecutors later [linked a $150 million crypto heist](https://krebsonsecurity.com/2025/03/feds-link-150m-cyberheist-to-2022-lastpass-hacks/) directly to that breach. What saved most users was strong passwords — not the vendor's architecture.
+- **[LastPass was breached in 2022.](https://en.wikipedia.org/wiki/LastPass_2022_data_breach)** Encrypted vaults exfiltrated; master passwords brute-forced for years afterward. Federal prosecutors later [linked a $150 million crypto heist](https://krebsonsecurity.com/2025/03/feds-link-150m-cyberheist-to-2022-lastpass-hacks/) directly to that breach. What saved most users was strong passwords, not the vendor's architecture.
 - **Intuit killed Mint in 2024**, forcing 3.6 million users to migrate or lose years of history under a 90-day deadline. Vendor risk is your risk.
 - **Change Healthcare paid a $22M ransom in 2024** after attackers walked off with records on 100 million Americans. _"Bank-level encryption"_ is a marketing phrase, not an architectural claim.
-- **Your business runs on Bitcoin** — a money system designed to remove trusted third parties — while your **books** still sit on a third party who can read them.
+- **Your business runs on Bitcoin**, a money system designed to remove trusted third parties, while your **books** still sit on a third party who can read them.
 
 **Orange Way Books flips the model.** The browser holds the password. It derives a key that never leaves the device. Before anything touches the server, everything sensitive is encrypted. Reports and balances are computed in your browser, after unlock, using the key the server has never seen.
 
-We did not invent "encrypt the database." We are building **bookkeeping that assumes the operator is adversarial** — including us — and still feels usable for a real company. [Read the threat model.](./SECURITY.md)
+We did not invent "encrypt the database." We are building **bookkeeping that assumes the operator is adversarial**, including us, and still feels usable for a real company. [Read the threat model.](./SECURITY.md)
 
 ---
 
@@ -73,7 +73,7 @@ We did not invent "encrypt the database." We are building **bookkeeping that ass
 | Cannot be shut down by an acquirer                |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
 | Published open threat model                       |     ✗      |  ✗   |     ✗      |  ✗   |  ✗   |    ✗     |        **✓**         |
 
-Every other accounting product keeps the keys to read your books on its own servers. We keep only ciphertext plus transaction dates (needed so the server can answer "show me May" without reading the rows). If an attacker breaches our database, they get opaque blobs and row counts — not your margins.
+Every other accounting product keeps the keys to read your books on its own servers. We keep only ciphertext plus transaction dates (needed so the server can answer "show me May" without reading the rows). If an attacker breaches our database, they get opaque blobs and row counts, not your margins.
 
 This is the same architectural pattern used by [Bitwarden](https://bitwarden.com/help/bitwarden-security-white-paper/), [1Password](https://agilebits.github.io/security-design/), [Proton](https://proton.me/security/end-to-end-encryption), and [Signal](https://signal.org/docs/), applied as far as we know for the first time in open source to double-entry business accounting. If you find prior art that contradicts that claim, open an issue and we'll soften the wording further.
 
@@ -92,10 +92,10 @@ flowchart LR
 
 **In plain English:**
 
-1. **You unlock once with a vault password.** That password never goes to our server — it stays in your browser session.
-2. **Your browser computes a key from the password.** Everything sensitive you type into the app — account names, journal entries, customer details, memos — is encrypted with that key before it leaves your machine.
+1. **You unlock once with a vault password.** That password never goes to our server, it stays in your browser session.
+2. **Your browser computes a key from the password.** Everything sensitive you type into the app (account names, journal entries, customer details, memos) is encrypted with that key before it leaves your machine.
 3. **The server stores only ciphertext.** Our database sees opaque blobs and timestamps. It cannot decrypt them. We cannot decrypt them.
-4. **Reports run in your browser.** P&L, balance sheet, trial balance, general ledger, cash flow — all the math happens after decrypt, in the page you have open.
+4. **Reports run in your browser.** P&L, balance sheet, trial balance, general ledger, cash flow, all the math happens after decrypt, in the page you have open.
 5. **Close the tab and the key is gone.** We never had a copy. If you forget your password and didn't print the recovery code, the data is unrecoverable. That is the cost of the privacy guarantee.
 6. **You can invite people.** When you invite your accountant or a colleague, your browser wraps a copy of the key for them. Each invitee unlocks with their own vault password and gets only the rows their role can see.
 
@@ -105,7 +105,7 @@ The cryptography uses standard primitives in well-vetted combinations. Full deta
 
 ## Who this is for
 
-- **Bitcoin-native businesses** — miners, custodians, OTC desks, exchanges, Lightning service providers, Bitcoin-only funds — that want bookkeeping with the same trust posture as the money they handle.
+- **Bitcoin-native businesses** (miners, custodians, OTC desks, exchanges, Lightning service providers, Bitcoin-only funds) that want bookkeeping with the same trust posture as the money they handle.
 - **Accountants and bookkeepers** serving Bitcoin clients who need full double-entry, IFRS/GAAP-aware reporting, but can't ethically upload client books to a vendor that can read them.
 - **Privacy-conscious small businesses** that don't need Bitcoin specifically but refuse the "trust us with everything" bargain of generic SaaS accounting.
 - **Engineers and auditors** who want a real accounting domain (chart of accounts, journal entries, reconciliation, reports) to stress-test a client-side encryption design.
@@ -130,7 +130,7 @@ The cryptography uses standard primitives in well-vetted combinations. Full deta
 
 - Hardening the deploy story: clearer self-host docs, better defaults, easier backup workflow.
 - Polishing the import experience for accountants migrating from QuickBooks or Xero.
-- Research into zero-knowledge proofs for audit attestations — prove your P&L is consistent without revealing line items.
+- Research into zero-knowledge proofs for audit attestations, prove your P&L is consistent without revealing line items.
 - A self-hostable mobile app for transaction capture on the go.
 
 **What's not built:**
@@ -169,11 +169,11 @@ Start at [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`docs/DOCUMENTATION-INDEX.m
 
 ### Community
 
-- **Star the repo** if the mission resonates — that signal helps every other contributor decide we're worth their time.
+- **Star the repo** if the mission resonates, that signal helps every other contributor decide we're worth their time.
 - **Open issues** with your worst SaaS-accounting story. Those sharpen the roadmap more than any feature spec.
 - **Tell your favorite Bitcoin-company CFO.** The leverage point is one company switching, then describing why publicly.
 - **Spread the word** on Nostr, Hacker News, r/Bitcoin, r/selfhosted, r/Accounting, on podcasts, at meetups.
-- **Responsible security disclosure** — see [`SECURITY.md`](./SECURITY.md). Credit for verified findings.
+- **Responsible security disclosure**, see [`SECURITY.md`](./SECURITY.md). Credit for verified findings.
 
 If none of those fit, open a discussion on the repo and tell us how you'd help. We'll figure something out.
 
@@ -217,25 +217,25 @@ The project is managed with [Bun](https://bun.sh). CI runs `bun install --frozen
 
 Orange Way Books stands on thirty-five years of cypherpunk thought.
 
-- **Satoshi Nakamoto**, Bitcoin whitepaper (2008) — _"electronic cash without going through a financial institution."_ [[bitcoin.org]](https://bitcoin.org/bitcoin.pdf)
-- **Eric Hughes**, _A Cypherpunk's Manifesto_ (1993) — _"Privacy is the power to selectively reveal oneself to the world… Cypherpunks write code."_ [[activism.net]](https://www.activism.net/cypherpunk/manifesto.html)
-- **Tim May**, _The Crypto Anarchist Manifesto_ (1988) — _"A specter is haunting the modern world, the specter of crypto anarchy."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/)
-- **Phil Zimmermann**, _Why I Wrote PGP_ (1991) — _"It's personal. It's private. And it's no one's business but yours."_ [[philzimmermann.com]](https://philzimmermann.com/EN/essays/WhyIWrotePGP.html)
-- **Hal Finney**, cypherpunks list (1992) — _"The computer can be used as a tool to liberate and protect people, rather than to control them."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/finney/)
+- **Satoshi Nakamoto**, Bitcoin whitepaper (2008), _"electronic cash without going through a financial institution."_ [[bitcoin.org]](https://bitcoin.org/bitcoin.pdf)
+- **Eric Hughes**, _A Cypherpunk's Manifesto_ (1993), _"Privacy is the power to selectively reveal oneself to the world… Cypherpunks write code."_ [[activism.net]](https://www.activism.net/cypherpunk/manifesto.html)
+- **Tim May**, _The Crypto Anarchist Manifesto_ (1988), _"A specter is haunting the modern world, the specter of crypto anarchy."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/)
+- **Phil Zimmermann**, _Why I Wrote PGP_ (1991), _"It's personal. It's private. And it's no one's business but yours."_ [[philzimmermann.com]](https://philzimmermann.com/EN/essays/WhyIWrotePGP.html)
+- **Hal Finney**, cypherpunks list (1992), _"The computer can be used as a tool to liberate and protect people, rather than to control them."_ [[Nakamoto Institute]](https://nakamotoinstitute.org/finney/)
 
 ---
 
 ## Related projects
 
-- **[Orange Way Me](https://github.com/The-Orange-Way/Orange-Way-Me)** — the sibling project for households. Same architecture, applied to personal finance. Built for Bitcoin households whose bank, aggregator, and tracker should not be able to read what they store.
-- **[Orange Rails](https://github.com/MorningRevolution/orangerails)** — open-source aggregator for bank and exchange feeds. Orange Way Books consumes Orange Rails feeds for connected accounts.
+- **[Orange Way Me](https://github.com/The-Orange-Way/Orange-Way-Me)**, the sibling project for households. Same architecture, applied to personal finance. Built for Bitcoin households whose bank, aggregator, and tracker should not be able to read what they store.
+- **[Orange Rails](https://github.com/MorningRevolution/orangerails)**, open-source aggregator for bank and exchange feeds. Orange Way Books consumes Orange Rails feeds for connected accounts.
 
 ---
 
 ## License
 
-Apache-2.0 — see [`LICENSE`](./LICENSE). Apache was chosen specifically for its explicit patent grant: the privacy techniques here are meant to spread, not be litigated.
+Apache-2.0, see [`LICENSE`](./LICENSE). Apache was chosen specifically for its explicit patent grant: the privacy techniques here are meant to spread, not be litigated.
 
 ---
 
-_Orange Way Books — because "trust us with everything" is not a business model for your books._
+_Orange Way Books, because "trust us with everything" is not a business model for your books._

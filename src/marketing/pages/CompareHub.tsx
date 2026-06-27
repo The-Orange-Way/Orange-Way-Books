@@ -6,7 +6,7 @@ const COMPETITORS: ReadonlyArray<{ slug: string; name: string; tagline: string }
   {
     slug: 'quickbooks',
     name: 'QuickBooks',
-    tagline: 'The mainstream SMB default — closed, plaintext, weak Bitcoin support.',
+    tagline: 'The mainstream SMB default, closed, plaintext, weak Bitcoin support.',
   },
   {
     slug: 'xero',
