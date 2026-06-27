@@ -335,3 +335,51 @@ function scrubEventLoose(event: unknown): unknown {
  */
 export const captureException = Sentry.captureException;
 export const captureMessage = Sentry.captureMessage;
+
+/**
+ * Attach a user-id-only context tag to every subsequent captured event.
+ * Pass `null` to clear (called on sign-out).
+ *
+ * ZKA invariant: only the Supabase auth.uid lands on GlitchTip. Never
+ * the email, never the display name, never the IP. The id is opaque to
+ * any GlitchTip operator who reads a captured event later.
+ */
+export function setSentryUser(userId: string | null): void {
+  if (userId) {
+    Sentry.setUser({ id: userId });
+  } else {
+    Sentry.setUser(null);
+  }
+}
+
+/**
+ * Attach an org-id tag to every subsequent captured event. Org-scoped
+ * issues filter cleanly by this tag in GlitchTip. Same ZKA invariant:
+ * only the opaque org id, never the encrypted org name.
+ */
+export function setSentryOrgTag(orgId: string | null): void {
+  if (orgId) {
+    Sentry.setTag('org_id', orgId);
+  } else {
+    Sentry.setTag('org_id', null);
+  }
+}
+
+/**
+ * Emit a navigation / action breadcrumb. Limits to short categories +
+ * scrubbed messages so a downstream captured event has trail context
+ * without ever shipping decrypted data.
+ */
+export function addBreadcrumb(opts: {
+  category: 'navigation' | 'ui.action' | 'auth' | 'vault' | 'or.proxy' | 'edge';
+  message: string;
+  level?: 'info' | 'warning' | 'error';
+  data?: Record<string, unknown>;
+}): void {
+  Sentry.addBreadcrumb({
+    category: opts.category,
+    message: scrubString(opts.message),
+    level: opts.level ?? 'info',
+    data: opts.data ? (scrubValue(opts.data) as Record<string, unknown>) : undefined,
+  });
+}

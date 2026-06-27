@@ -1,5 +1,4 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Bitcoin } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 
 interface MarketingLayoutProps {
@@ -28,9 +27,7 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
       <header className="border-b border-border">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold">
-            <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Bitcoin className="w-5 h-5 text-primary-foreground" />
-            </span>
+            <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
             <span>Orange Way Books</span>
           </Link>
 
@@ -86,9 +83,7 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
         <div className="max-w-6xl mx-auto px-6 py-12 grid gap-8 sm:grid-cols-2 md:grid-cols-4 text-sm">
           <div>
             <div className="flex items-center gap-2 font-semibold mb-3">
-              <span className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-                <Bitcoin className="w-4 h-4 text-primary-foreground" />
-              </span>
+              <img src="/icon-192.png" alt="" className="w-7 h-7 rounded-lg" />
               <span>Orange Way Books</span>
             </div>
             <p className="text-muted-foreground">
