@@ -12,7 +12,7 @@ import {
 const LANDING_FAQ = [
   {
     q: 'What is Orange Way Books?',
-    a: 'Orange Way Books is an open-source, zero-knowledge accounting platform built specifically for Bitcoin businesses. Your books are encrypted on your device with a vault password — the server stores only ciphertext and cannot read transactions, account names, contacts, or balances.',
+    a: 'Orange Way Books is an open-source, zero-knowledge accounting platform built specifically for Bitcoin businesses. Your books are encrypted on your device with a vault password, the server stores only ciphertext and cannot read transactions, account names, contacts, or balances.',
   },
   {
     q: 'How is Orange Way Books different from QuickBooks or Xero?',
@@ -24,7 +24,7 @@ const LANDING_FAQ = [
   },
   {
     q: 'How does zero-knowledge accounting work?',
-    a: 'When you create your account you set a vault password that derives an encryption key in your browser using Argon2id. Every sensitive field — transaction amounts, memos, account names, contacts — is encrypted locally with AES-GCM before being sent to the server. The server only ever sees ciphertext. If you forget your vault password, only you can recover the data.',
+    a: 'When you create your account you set a vault password that derives an encryption key in your browser using Argon2id. Every sensitive field, transaction amounts, memos, account names, contacts, is encrypted locally with AES-GCM before being sent to the server. The server only ever sees ciphertext. If you forget your vault password, only you can recover the data.',
   },
 ];
 
@@ -82,7 +82,7 @@ export default function Landing() {
           <ValueCard
             icon={<Lock className="w-5 h-5" />}
             title="Zero-knowledge by default"
-            body="Argon2id-derived keys, AES-GCM encryption, post-quantum signing. The server stores ciphertext. We literally cannot read your books — and neither can a subpoena."
+            body="Argon2id-derived keys, AES-GCM encryption, post-quantum signing. The server stores ciphertext. We literally cannot read your books, and neither can a subpoena."
           />
           <ValueCard
             icon={<Bitcoin className="w-5 h-5" />}
@@ -107,7 +107,7 @@ export default function Landing() {
           <ValueCard
             icon={<Eye className="w-5 h-5" />}
             title="Your data, exportable"
-            body="One-click takeout export of every byte we hold — encrypted or plaintext, your choice. CSV import/export. No hostage situation."
+            body="One-click takeout export of every byte we hold, encrypted or plaintext, your choice. CSV import/export. No hostage situation."
           />
         </div>
       </section>

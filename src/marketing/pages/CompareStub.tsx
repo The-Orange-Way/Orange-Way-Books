@@ -22,14 +22,14 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
   quickbooks: {
     name: 'QuickBooks',
     category: 'General-purpose SMB accounting',
-    bitcoinSupport: 'Limited — no native sats, no historical-rate snapshots per tx',
-    zkEncryption: 'No — Intuit stores plaintext',
+    bitcoinSupport: 'Limited, no native sats, no historical-rate snapshots per tx',
+    zkEncryption: 'No, Intuit stores plaintext',
     doubleEntry: 'Yes',
     ifrsGaap: 'US GAAP focus; IFRS via add-ons',
-    openSource: 'No — proprietary',
-    selfHostable: 'No — SaaS only (Desktop is being sunset)',
+    openSource: 'No, proprietary',
+    selfHostable: 'No, SaaS only (Desktop is being sunset)',
     pricing: 'Paid SaaS, ~$30–$200/mo per company',
-    vendorReadsBooks: 'Yes — Intuit can read all data',
+    vendorReadsBooks: 'Yes, Intuit can read all data',
     bestFor:
       'Traditional SMBs with no Bitcoin exposure who need deep accountant-network integration.',
     whenToPickThem:
@@ -40,14 +40,14 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     name: 'Xero',
     category: 'General-purpose SMB accounting',
     bitcoinSupport:
-      'Limited — multi-currency exists but not Bitcoin-native (no sats display, no per-tx rate snapshots)',
-    zkEncryption: 'No — plaintext on Xero servers',
+      'Limited, multi-currency exists but not Bitcoin-native (no sats display, no per-tx rate snapshots)',
+    zkEncryption: 'No, plaintext on Xero servers',
     doubleEntry: 'Yes',
     ifrsGaap: 'IFRS-friendly; GAAP via configuration',
-    openSource: 'No — proprietary',
-    selfHostable: 'No — SaaS only',
+    openSource: 'No, proprietary',
+    selfHostable: 'No, SaaS only',
     pricing: 'Paid SaaS, ~$15–$78/mo per org',
-    vendorReadsBooks: 'Yes — Xero can read all data',
+    vendorReadsBooks: 'Yes, Xero can read all data',
     bestFor: 'International SMBs that prioritize ease of use and bank-feed integrations.',
     whenToPickThem:
       'You operate in fiat only and want a polished, well-integrated SaaS with strong bank feeds.',
@@ -57,10 +57,10 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     name: 'Wave',
     category: 'Free SMB accounting',
     bitcoinSupport: 'None',
-    zkEncryption: 'No — plaintext',
+    zkEncryption: 'No, plaintext',
     doubleEntry: 'Yes (basic)',
-    ifrsGaap: 'Limited — US/Canadian focus',
-    openSource: 'No — proprietary',
+    ifrsGaap: 'Limited, US/Canadian focus',
+    openSource: 'No, proprietary',
     selfHostable: 'No',
     pricing: 'Free core; paid for payments/payroll',
     vendorReadsBooks: 'Yes',
@@ -73,10 +73,10 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     name: 'FreshBooks',
     category: 'Invoicing-first SMB accounting',
     bitcoinSupport: 'None',
-    zkEncryption: 'No — plaintext',
+    zkEncryption: 'No, plaintext',
     doubleEntry: 'Yes (added later; invoicing remains the focus)',
     ifrsGaap: 'US/Canada/UK focus',
-    openSource: 'No — proprietary',
+    openSource: 'No, proprietary',
     selfHostable: 'No',
     pricing: 'Paid SaaS, ~$19–$60/mo per org',
     vendorReadsBooks: 'Yes',
@@ -88,13 +88,13 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
   bitwave: {
     name: 'Bitwave',
     category: 'Crypto sub-ledger',
-    bitcoinSupport: 'Yes — multi-chain crypto sub-ledger',
-    zkEncryption: 'No — vendor reads everything',
-    doubleEntry: 'Sub-ledger only — relies on QuickBooks/NetSuite as the GL',
+    bitcoinSupport: 'Yes, multi-chain crypto sub-ledger',
+    zkEncryption: 'No, vendor reads everything',
+    doubleEntry: 'Sub-ledger only, relies on QuickBooks/NetSuite as the GL',
     ifrsGaap: 'Yes',
-    openSource: 'No — proprietary',
+    openSource: 'No, proprietary',
     selfHostable: 'No',
-    pricing: 'Enterprise SaaS — contact sales',
+    pricing: 'Enterprise SaaS, contact sales',
     vendorReadsBooks: 'Yes',
     bestFor: 'Crypto-active enterprises already committed to QuickBooks or NetSuite as their GL.',
     whenToPickThem:
@@ -104,13 +104,13 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
   cryptio: {
     name: 'Cryptio',
     category: 'Crypto back-office accounting',
-    bitcoinSupport: 'Yes — broad crypto coverage',
-    zkEncryption: 'No — vendor reads everything',
+    bitcoinSupport: 'Yes, broad crypto coverage',
+    zkEncryption: 'No, vendor reads everything',
     doubleEntry: 'Sub-ledger; integrates with mainstream GLs',
     ifrsGaap: 'Yes',
-    openSource: 'No — proprietary',
+    openSource: 'No, proprietary',
     selfHostable: 'No',
-    pricing: 'Enterprise SaaS — contact sales',
+    pricing: 'Enterprise SaaS, contact sales',
     vendorReadsBooks: 'Yes',
     bestFor: 'Crypto enterprises wanting a managed back-office tool with vendor support.',
     whenToPickThem:
@@ -122,7 +122,7 @@ const COMPETITORS: Record<string, CompetitorProfile> = {
     category: 'DIY (Excel / Google Sheets)',
     bitcoinSupport: 'Whatever you build manually',
     zkEncryption: 'Only if you encrypt the file yourself',
-    doubleEntry: 'Manual — error-prone, no enforcement',
+    doubleEntry: 'Manual, error-prone, no enforcement',
     ifrsGaap: 'Manual',
     openSource: 'N/A',
     selfHostable: 'Yes (the file)',
@@ -220,34 +220,34 @@ export default function CompareStub() {
               <Row
                 cap="Category"
                 us="Zero-knowledge Bitcoin-native ledger"
-                them={profile?.category ?? '—'}
+                them={profile?.category ?? 'n/a'}
               />
               <Row
                 cap="Zero-knowledge encryption"
-                us="Yes — AES-GCM + Argon2id"
+                us="Yes, AES-GCM + Argon2id"
                 them={profile?.zkEncryption ?? 'No'}
               />
               <Row
                 cap="Native Bitcoin / sats"
-                us="Yes — first-class currency"
-                them={profile?.bitcoinSupport ?? '—'}
+                us="Yes, first-class currency"
+                them={profile?.bitcoinSupport ?? 'n/a'}
               />
-              <Row cap="Double-entry ledger" us="Yes" them={profile?.doubleEntry ?? '—'} />
+              <Row cap="Double-entry ledger" us="Yes" them={profile?.doubleEntry ?? 'n/a'} />
               <Row
                 cap="IFRS & US GAAP"
-                us="Yes — both, per-org switchable"
-                them={profile?.ifrsGaap ?? '—'}
+                us="Yes, both, per-org switchable"
+                them={profile?.ifrsGaap ?? 'n/a'}
               />
-              <Row cap="Open source" us="Yes — Apache-2.0" them={profile?.openSource ?? 'No'} />
+              <Row cap="Open source" us="Yes, Apache-2.0" them={profile?.openSource ?? 'No'} />
               <Row cap="Self-hostable" us="Yes" them={profile?.selfHostable ?? 'No'} />
               <Row
                 cap="Pricing"
                 us="Free for individuals; team tier on roadmap"
-                them={profile?.pricing ?? '—'}
+                them={profile?.pricing ?? 'n/a'}
               />
               <Row
                 cap="Vendor can read your books"
-                us="No — cryptographically impossible"
+                us="No, cryptographically impossible"
                 them={profile?.vendorReadsBooks ?? 'Yes'}
               />
             </tbody>
@@ -258,7 +258,7 @@ export default function CompareStub() {
         <p className="text-muted-foreground mb-4">
           You operate a Bitcoin treasury, miner, custodian, fund, or any business that materially
           holds or moves Bitcoin, and you cannot accept a vendor reading your financials in the
-          clear. You want one system that handles books end-to-end — not a crypto sub-ledger that
+          clear. You want one system that handles books end-to-end, not a crypto sub-ledger that
           syncs into a separate accounting tool.
         </p>
 
