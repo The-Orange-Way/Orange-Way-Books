@@ -1,8 +1,8 @@
-# Orange Way Books — Enterprise Security Tier (v2 roadmap)
+# Orange Way Books: Enterprise Security Tier (v2 roadmap)
 
 > **Status:** Design spec for Phase 4 v2 (after v1 Phase 4 multi-user ships).
 > **Purpose:** Prevent single-keypair compromise from becoming a 200-client catastrophe for accountants.
-> **Companion:** `OWB-MULTIUSER-DESIGN.md` (v1 Phase 4 — one master keypair per user).
+> **Companion:** `OWB-MULTIUSER-DESIGN.md` (v1 Phase 4, one master keypair per user).
 
 ---
 
@@ -24,9 +24,9 @@ Adding per-org keypairs was the obvious instinct but it's the wrong fix:
 
 ## 1. Three layers (additive)
 
-### Layer 1 — Hardware-backed master key (WebAuthn / passkey)
+### Layer 1, Hardware-backed master key (WebAuthn / passkey)
 
-The master hybrid keypair's **private key is sealed to a hardware authenticator** — Yubikey, Apple Passkey, Touch ID Secure Enclave, TPM. Unlock requires physical presence.
+The master hybrid keypair's **private key is sealed to a hardware authenticator**, Yubikey, Apple Passkey, Touch ID Secure Enclave, TPM. Unlock requires physical presence.
 
 **What this defends against:**
 
@@ -40,9 +40,9 @@ The master hybrid keypair's **private key is sealed to a hardware authenticator*
 
 **Rollout:** Enterprise-only. Core and Advanced users stay on password-only (our Argon2id v4 is strong against offline attack; the real risk is phishing, which hardware keys solve).
 
-### Layer 2 — Device attestation + per-device session scoping
+### Layer 2, Device attestation + per-device session scoping
 
-Each logged-in browser has a **short-lived session keypair attested to the device**. The session keypair is created on first unlock per device and signed by the master. The session keypair is what actually performs the KEM unwrap operations during normal use — the master private key stays sealed to hardware and only signs new session keys.
+Each logged-in browser has a **short-lived session keypair attested to the device**. The session keypair is created on first unlock per device and signed by the master. The session keypair is what actually performs the KEM unwrap operations during normal use, the master private key stays sealed to hardware and only signs new session keys.
 
 **What this defends against:**
 
@@ -68,7 +68,7 @@ CREATE TABLE public.user_devices (
 
 **UX:** Dashboard shows "Active devices" with name, last-seen, one-click revoke. On revoke: all sessions on that device fail immediately; re-login on that device requires hardware key confirmation again.
 
-### Layer 3 — Optional per-sensitive-client keypair enrollment
+### Layer 3, Optional per-sensitive-client keypair enrollment
 
 For a specific client flagged high-sensitivity (defense contractor, healthcare, regulated industry, personal-net-worth threshold), the accountant generates a **dedicated hybrid keypair just for that org**.
 
@@ -113,11 +113,11 @@ ALTER TABLE public.user_vault_keys
 
 **Enterprise tier feature bundle:**
 
-- Custom roles (D1 decision — already in Advanced)
+- Custom roles (D1 decision, already in Advanced)
 - Hardware-backed master key (Layer 1)
 - Device attestation and revocation (Layer 2)
 - Per-sensitive-client enrollment (Layer 3)
-- Orange Way Books Recovery (Shamir custody — D4 decision)
+- Orange Way Books Recovery (Shamir custody, D4 decision)
 - Priority support (OWBSupport concierge with time-boxed scoped access)
 
 **Target:** Accounting firms with 20+ clients, CPAs with high-net-worth or regulated clients, orgs with compliance audit requirements.
@@ -128,27 +128,27 @@ ALTER TABLE public.user_vault_keys
 
 ## 4. Implementation phases
 
-This is **v2 work** — ships after v1 Phase 4 is stable and has paying customers.
+This is **v2 work**, ships after v1 Phase 4 is stable and has paying customers.
 
-**Phase E1 — WebAuthn foundation** (4–6 weeks)
+**Phase E1, WebAuthn foundation** (4–6 weeks)
 
 - Integrate WebAuthn PRF extension for MEK derivation
 - UI: hardware key enrollment flow
 - Recovery path when hardware key is lost (Shamir custody pairs naturally here)
 
-**Phase E2 — Device attestation** (3–4 weeks)
+**Phase E2, Device attestation** (3–4 weeks)
 
 - `user_devices` table + session keypair lifecycle
 - Device management UI (list, rename, revoke)
 - Audit events wire-up
 
-**Phase E3 — Per-sensitive-client enrollment** (3–4 weeks)
+**Phase E3, Per-sensitive-client enrollment** (3–4 weeks)
 
 - `user_vault_keys.scope` extension
 - Client onboarding toggle "this is a high-sensitivity client"
 - Client-switching UX with extra unlock step
 
-**Phase E4 — Enterprise packaging + billing** (ongoing)
+**Phase E4, Enterprise packaging + billing** (ongoing)
 
 - Plan gating on the three layers
 - Migration path from Advanced to Enterprise for existing customers
@@ -174,24 +174,24 @@ Rejected in v1 design. Reiterated here so future agents don't revisit:
 
 ## 6. Open questions for Enterprise implementation (deferred to v2 design)
 
-These are intentionally left open — we'll resolve them when we start Phase E1, not now:
+These are intentionally left open, we'll resolve them when we start Phase E1, not now:
 
 - Which WebAuthn providers do we support initially? (Probably Yubikey + Apple Passkey + Windows Hello.)
-- How does Shamir custody interact with hardware-sealed master keys? Can a Shamir share reconstitute a hardware-sealed private key? (Answer: no — recovery generates a new hardware key + re-wraps the master from a distinct backup. Needs careful design.)
+- How does Shamir custody interact with hardware-sealed master keys? Can a Shamir share reconstitute a hardware-sealed private key? (Answer: no, recovery generates a new hardware key + re-wraps the master from a distinct backup. Needs careful design.)
 - What's the re-enrollment UX when an accountant replaces their laptop? (Device onboarding + attestation migration.)
-- Do per-sensitive-client keypairs support hard re-key independent of the master? (Should — needs separate `key_rotation_jobs` scope.)
+- Do per-sensitive-client keypairs support hard re-key independent of the master? (Should, needs separate `key_rotation_jobs` scope.)
 
 ---
 
 ## 7. References
 
-- `OWB-MULTIUSER-DESIGN.md` — v1 multi-user design
-- `OWB-USER-MANAGEMENT-ZKA.md` — Track D framing
-- WebAuthn Level 3 Spec — https://www.w3.org/TR/webauthn-3/
-- WebAuthn PRF extension — https://github.com/w3c/webauthn/issues/1740
-- Apple Passkey — https://developer.apple.com/passkeys/
-- Yubikey WebAuthn — https://developers.yubico.com/WebAuthn/
+- `OWB-MULTIUSER-DESIGN.md`, v1 multi-user design
+- `OWB-USER-MANAGEMENT-ZKA.md`, Track D framing
+- WebAuthn Level 3 Spec, https://www.w3.org/TR/webauthn-3/
+- WebAuthn PRF extension, https://github.com/w3c/webauthn/issues/1740
+- Apple Passkey, https://developer.apple.com/passkeys/
+- Yubikey WebAuthn, https://developers.yubico.com/WebAuthn/
 
 ---
 
-_Last updated: 2026-04-21 — v2 roadmap doc; no code changes to pair with yet._
+_Last updated: 2026-04-21, v2 roadmap doc; no code changes to pair with yet._
