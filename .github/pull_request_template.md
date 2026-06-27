@@ -8,7 +8,7 @@
 
 ## What changed
 
-<!-- A short list of the concrete edits, grouped by file or area. Not a diff — a reader's-digest version. -->
+<!-- A short list of the concrete edits, grouped by file or area. Not a diff , a reader's-digest version. -->
 
 ## What I considered and rejected
 
