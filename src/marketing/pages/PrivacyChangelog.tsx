@@ -6,7 +6,7 @@ export default function PrivacyChangelog() {
   return (
     <>
       <Seo
-        title="Privacy Policy — Change Log"
+        title="Privacy Policy: Change Log"
         description="One-line summary of every change to the Orange Way Books privacy policy. Bumped on every sub-processor change with a 30-day pre-change notice."
         path="/privacy-changelog"
         jsonLd={breadcrumbJsonLd([
@@ -18,7 +18,7 @@ export default function PrivacyChangelog() {
 
       <article className="max-w-3xl mx-auto px-6 py-16 prose-invert">
         <header className="mb-10">
-          <h1 className="text-4xl font-bold mb-4">Privacy Policy — Change Log</h1>
+          <h1 className="text-4xl font-bold mb-4">Privacy Policy: Change Log</h1>
           <p className="text-muted-foreground">
             One-line summary of every change to the{' '}
             <Link to="/privacy" className="underline">
