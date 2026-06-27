@@ -18,7 +18,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 686",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview",
