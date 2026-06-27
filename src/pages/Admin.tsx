@@ -296,7 +296,7 @@ export default function Admin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-foreground mb-1">Admin</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Organization settings and team management
       </p>
