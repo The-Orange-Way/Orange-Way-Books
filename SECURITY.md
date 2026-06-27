@@ -228,9 +228,16 @@ data-subject rights without server-side decryption:
 
 Orange Way Books uses Supabase as the database, authentication, file
 storage, and edge-function provider; Cloudflare Pages as the static
-frontend host. Both are sub-processors under GDPR / Law 25. Customers
-are notified of any change to this list. The choice of region for each
-project is recorded in the project settings of each environment.
+frontend host; Resend for transactional email; and a self-hosted
+Chatwoot instance at `support.orangeway.app` for the optional in-app
+live-chat widget. All four are sub-processors under GDPR / Law 25.
+Customers are notified of any change to this list. The choice of region
+for each project is recorded in the project settings of each environment.
+
+Chat content sent through the Chatwoot widget is plaintext to the
+operator and is explicitly NOT in the zero-knowledge scope. The
+encryption-at-rest guarantee covers stored books-data only. Customers
+who do not want operator-readable chat should not open the widget.
 
 ---
 
