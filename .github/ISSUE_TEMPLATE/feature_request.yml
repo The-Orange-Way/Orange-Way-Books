@@ -53,4 +53,4 @@ body:
       description: Does this proposal require the server to read data it currently cannot?
       options:
         - label: My proposal keeps sensitive data encrypted client-side.
-        - label: My proposal would require the server to read new fields — I've explained why in the description.
+        - label: My proposal would require the server to read new fields , I've explained why in the description.
