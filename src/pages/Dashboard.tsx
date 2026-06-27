@@ -308,7 +308,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div className="owb-insights-page-head">
-        <h1 className="owb-insights-page-title">Insights</h1>
+        <h1 className="owb-insights-page-title">Dashboard</h1>
         <div className="owb-insights-page-aside">
           <NotificationsBell orgId={orgId} />
           <LedgerStatusIcon
