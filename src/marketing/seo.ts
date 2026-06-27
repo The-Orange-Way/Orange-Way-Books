@@ -15,7 +15,7 @@ export const ORG_JSON_LD = {
   '@type': 'Organization',
   name: SITE_NAME,
   url: SITE_URL,
-  logo: `${SITE_URL}/og/logo.png`,
+  logo: `${SITE_URL}/icon-512.png`,
   sameAs: ['https://github.com/The-Orange-Way/Orange-Way-Books'],
 };
 
