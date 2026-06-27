@@ -55,8 +55,54 @@ export default function prerenderMarketingPlugin(): Plugin {
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, html, 'utf8');
       }
+
+      // Generate sitemap.xml from the same route list, so the sitemap can
+      // never drift from the routes we actually prerender. Hand-maintaining
+      // a separate public/sitemap.xml is how the /compare/* pages ended up
+      // listed there but absent from this list (and how lastmod went missing
+      // entirely). One source of truth removes both failure modes.
+      await fs.writeFile(path.join(distDir, 'sitemap.xml'), renderSitemap(), 'utf8');
     },
   };
+}
+
+const SITE_URL = 'https://books.orangeway.app';
+
+/**
+ * Per-path sitemap tuning. Routes absent from this map fall back to the
+ * defaults below: a missing entry degrades gracefully rather than dropping
+ * the URL, so adding a route to routes-meta.ts is enough to get it indexed.
+ */
+const SITEMAP_TUNING: Record<string, { changefreq: string; priority: string }> = {
+  '/': { changefreq: 'weekly', priority: '1.0' },
+  '/features': { changefreq: 'weekly', priority: '0.9' },
+  '/security': { changefreq: 'monthly', priority: '0.9' },
+  '/pricing': { changefreq: 'monthly', priority: '0.8' },
+  '/faq': { changefreq: 'weekly', priority: '0.9' },
+  '/about': { changefreq: 'monthly', priority: '0.6' },
+  '/contact': { changefreq: 'monthly', priority: '0.5' },
+  '/docs': { changefreq: 'weekly', priority: '0.7' },
+  '/compare': { changefreq: 'weekly', priority: '0.8' },
+  '/compare/quickbooks': { changefreq: 'monthly', priority: '0.8' },
+  '/compare/xero': { changefreq: 'monthly', priority: '0.8' },
+  '/compare/wave': { changefreq: 'monthly', priority: '0.7' },
+  '/compare/freshbooks': { changefreq: 'monthly', priority: '0.7' },
+  '/compare/bitwave': { changefreq: 'monthly', priority: '0.8' },
+  '/compare/cryptio': { changefreq: 'monthly', priority: '0.8' },
+  '/compare/spreadsheets': { changefreq: 'monthly', priority: '0.7' },
+};
+
+const SITEMAP_DEFAULT = { changefreq: 'monthly', priority: '0.5' };
+
+/** Build the sitemap from ALL_PRERENDER_ROUTES. lastmod = build (deploy) date. */
+function renderSitemap(): string {
+  const lastmod = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC
+  const urls = ALL_PRERENDER_ROUTES.map((route) => {
+    const loc = `${SITE_URL}${route.path === '/' ? '/' : route.path}`;
+    const { changefreq, priority } = SITEMAP_TUNING[route.path] ?? SITEMAP_DEFAULT;
+    return `  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
 function escapeHtml(input: string): string {
