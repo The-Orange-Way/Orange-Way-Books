@@ -52,6 +52,7 @@ import {
   type DecryptedOrTx,
   type DestinationWallet,
 } from '@/lib/orImportBridge';
+import { captureException } from '@/lib/observability/sentry';
 
 const SUBACCOUNT_LS_PREFIX = 'or_subaccount_id_for_org_';
 
@@ -280,6 +281,7 @@ export default function Connections() {
       } catch (err) {
         if (!cancelled) {
           console.error('[Connections] provision failed', err);
+          captureException(err, { tags: { source: 'or-provision' } });
           toast.error(
             `Failed to set up OrangeRails: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -357,6 +359,7 @@ export default function Connections() {
       setConnections(decoded);
     } catch (err) {
       console.error('[Connections] list failed', err);
+      captureException(err, { tags: { source: 'or-connection-list' } });
       toast.error(
         `Failed to load connections: ${err instanceof Error ? err.message : String(err)}`,
       );
