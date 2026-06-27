@@ -187,7 +187,7 @@ Do **not** open a public issue for security-sensitive findings. See [`SECURITY.m
 
 ## Code of conduct
 
-We have not adopted a formal Code of Conduct yet. The unwritten rule is: be the kind of contributor you would want others to be. Disagreement is fine; condescension is not. If something feels off, write to the address in [`SECURITY.md`](./SECURITY.md) (we re-use it for conduct issues until we have a proper channel) and a maintainer will respond.
+We follow the [Contributor Covenant](./CODE_OF_CONDUCT.md). In short: be the kind of contributor you would want others to be. Disagreement is fine; condescension is not. If something feels off, write to the address in [`SECURITY.md`](./SECURITY.md) (we re-use it for conduct issues until we have a proper channel) and a maintainer will respond.
 
 ---
 
