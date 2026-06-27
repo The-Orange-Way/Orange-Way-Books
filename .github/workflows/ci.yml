@@ -54,6 +54,14 @@ jobs:
             exit 1
           fi
 
+      # Belt-and-suspenders for the lockstep convention documented in
+      # both scripts/pre-push-gate.sh and
+      # .github/workflows/post-merge-identity-scan.yml. If the two regex
+      # strings drift, one scanner silently lets leaks through that the
+      # other would catch. This step compares the two literally.
+      - name: Pattern drift check
+        run: bash scripts/check-pattern-drift.sh
+
       - name: Lint
         run: bun run lint
 
