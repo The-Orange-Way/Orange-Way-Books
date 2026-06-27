@@ -50,8 +50,8 @@ export default function Privacy() {
             </li>
             <li>
               <strong>What we share.</strong> Sub-processors named below (Supabase for the database,
-              PostHog for analytics, Resend for email, optionally Flash for Lightning billing). We
-              do not sell data and have no advertising business.
+              PostHog for analytics, Resend for email, Chatwoot for live chat support, optionally
+              Flash for Lightning billing). We do not sell data and have no advertising business.
             </li>
             <li>
               <strong>What you can do.</strong> Export your data, delete your account, opt out of
@@ -252,6 +252,14 @@ export default function Privacy() {
           <p className="mt-2 text-muted-foreground">
             Lightning billing for paid plans. Engaged only if you subscribe to a paid tier. Sees:
             the payment metadata required to settle the invoice.
+          </p>
+
+          <h3 className="mt-6 text-lg font-semibold">Chatwoot (optional)</h3>
+          <p className="mt-2 text-muted-foreground">
+            Self-hosted live-chat widget (support.orangeway.app). Engaged only when you open the
+            chat. The operator reads the plaintext messages you send: chat content is NOT in the
+            zero-knowledge scope, which covers your stored books-data only. To avoid
+            operator-readable chat, do not open the widget.
           </p>
 
           <h3 className="mt-6 text-lg font-semibold">Orange Rails (optional)</h3>

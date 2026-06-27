@@ -97,11 +97,18 @@ key (dates, row counts, identifiers).
 
 The full privacy posture, including the list of sub-processors
 (currently Supabase for database and authentication, Cloudflare Pages
-for the static frontend, and Resend for transactional email), data
-residency notes, and how to exercise data-subject rights, is on the
-public **Privacy** page at `/privacy` and in `SECURITY.md`. Both apply.
+for the static frontend, Resend for transactional email, and Chatwoot
+for the optional in-app live-chat widget), data residency notes, and
+how to exercise data-subject rights, is on the public **Privacy** page
+at `/privacy` and in `SECURITY.md`. Both apply.
 
-**Cross-border data transfer.** Supabase, Cloudflare, and Resend may
+Chat messages sent through the Chatwoot widget are plaintext to the
+operator and are explicitly outside the zero-knowledge scope; the
+"the server cannot read your books" guarantee covers stored books-data
+only, never chat content.
+
+**Cross-border data transfer.** Supabase, Cloudflare, Resend, and the
+operator's self-hosted Chatwoot instance may
 store or process some metadata outside Quebec and Canada (typically
 in the United States or the European Union, depending on the region
 configured for each project). The encrypted fields (`enc_*` columns)
