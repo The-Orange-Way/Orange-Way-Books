@@ -5,50 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!--
-      Content Security Policy
-      ───────────────────────
-      Applied via <meta http-equiv> so it ships with the static HTML even on
-      hosting platforms that don't let us set response headers. A hosting-
-      level CSP HTTP header is still preferred in production and should
-      match or tighten these rules.
-
-      script-src:    'self' for our bundle. 'unsafe-inline' covers Vite's
-                     dev-tool injection in preview builds. Remove for prod
-                     if you ship precompiled hashes. 'wasm-unsafe-eval'
-                     allows WebAssembly compilation — required by hash-wasm
-                     for Argon2id in the vault unlock + OrangeRails sync flows.
-      style-src:     Google Fonts loads stylesheets from fonts.googleapis.com;
-                     Tailwind emits inline <style> tags, so 'unsafe-inline'
-                     is required.
-      font-src:      Google Fonts + data: URIs (icons).
-      connect-src:   Supabase REST/Auth/Edge + WebSocket + CoinGecko & OXR
-                     only via edge functions, so no direct entry needed.
-                     PostHog EU endpoints added for product analytics.
-      img-src:       'self' + blob/data for CSV/print workflows.
-      object-src 'none' + base-uri 'self' close classic injection vectors.
-
-      Note: frame-ancestors is intentionally NOT set here. The CSP spec
-      requires browsers to ignore frame-ancestors when delivered via a
-      <meta> element, and Chromium emits a console warning to that
-      effect. The canonical frame-ancestors directive lives in
-      public/_headers (delivered as a real HTTP response header by
-      Cloudflare Pages), which is where browsers actually honor it.
+      Content Security Policy is delivered via the Cloudflare Pages edge
+      header in public/_headers, not a <meta> tag. A <meta> CSP can't carry
+      report-uri or frame-ancestors, and keeping one here alongside the
+      header meant the browser enforced the intersection of two separately
+      maintained policies — confusing and easy to get wrong. Removed as
+      part of Row 11 parity work (2026-06-30); see public/_headers for the
+      policy and rollout notes.
     -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://eu-assets.i.posthog.com https://challenges.cloudflare.com https://support.orangeway.app;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://challenges.cloudflare.com;
-      font-src 'self' https://fonts.gstatic.com data:;
-      img-src 'self' data: blob: https://eu.i.posthog.com https://support.orangeway.app;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com https://challenges.cloudflare.com https://support.orangeway.app wss://support.orangeway.app https://pulse.orangeway.app;
-      frame-src https://challenges.cloudflare.com https://support.orangeway.app;
-      base-uri 'self';
-      form-action 'self';
-      object-src 'none';
-    "
-    />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
