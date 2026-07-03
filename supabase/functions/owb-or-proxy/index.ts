@@ -65,8 +65,8 @@ const ALLOWED_ENDPOINTS = new Set([
   'or-source-wallets-set',
   // Bank-connect (Quiltt via the OR-hosted Link widget): mints a
   // short-lived widget_token before the popup opens. Verified against
-  // V2's live contract (same function serves V2 and every sibling Orange Way app, platform-
-  // parameterized). See connections parity notes, 2026-07-03.
+  // V2's live contract; the same OR function serves V2 and every sibling
+  // Orange Way app, platform-parameterized.
   'or-link-mint-token',
 ]);
 

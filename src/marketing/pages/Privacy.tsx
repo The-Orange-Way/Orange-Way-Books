@@ -24,7 +24,7 @@ export default function Privacy() {
             after.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
-            Version: 2026.06.26c.{' '}
+            Version: 2026.07.03.{' '}
             <Link to="/privacy-changelog" className="underline">
               See changes to this policy.
             </Link>
@@ -269,6 +269,17 @@ export default function Privacy() {
             metadata.
           </p>
 
+          <h3 className="mt-6 text-lg font-semibold">Quiltt (optional)</h3>
+          <p className="mt-2 text-muted-foreground">
+            Regulated bank-account aggregator. Orange Rails' upstream provider for the "Connect a
+            bank" flow: engaged only if you choose to link a bank account. Your bank login never
+            reaches Orange Way Books; Quiltt handles the bank-side authentication directly and hands
+            Orange Rails the resulting account and transaction data. This leg is not in the
+            zero-knowledge scope the way your stored books-data is: Quiltt and Orange Rails see the
+            linked account's balances and transactions as part of running the connection, the same
+            way any bank-aggregator-backed finance app works.
+          </p>
+
           <h3 className="mt-6 text-lg font-semibold">ORBI (optional)</h3>
           <p className="mt-2 text-muted-foreground">
             BTC/fiat historical exchange rates. Public read-only data; no user identifier is sent.
@@ -307,6 +318,12 @@ export default function Privacy() {
               <strong>GlitchTip (operated by us).</strong> No third-country transfer: data lands on
               our own server. Geographic location of the GlitchTip host is documented in the OWB
               security page.
+            </li>
+            <li>
+              <strong>Quiltt (US, optional).</strong> SCCs. Quebec Law 25 §17 implication: bank
+              account and transaction data crosses the border to complete the connection; engaged
+              only if you choose to link a bank account, and never touches your device-encrypted
+              books-data.
             </li>
           </ul>
           <p className="text-muted-foreground mt-4">

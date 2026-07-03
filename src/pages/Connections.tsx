@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Zap,
   ExternalLink,
@@ -156,15 +157,13 @@ const OR_LINK_WIDGET_URL =
   (import.meta.env.VITE_OR_LINK_WIDGET_URL as string | undefined) ??
   'https://orangerails.com/connect';
 
-// TODO(parity, 2026-07-03): OR's provider catalog should drive this list
-// dynamically (listProviderManifests() in OR's connections registry,
-// filtered to category: 'bank') so OWB never diverges from what OR
-// actually offers, same as V2, which holds zero hardcoded providers.
-// Hardcoded here as a single verified entry (parity confirmed slug +
-// connectUrl from OR source) because the public catalog HTTP endpoint
-// lives in the private Hub repo and hasn't been named yet (FORGE, open
-// ask in #orange-way > OWB). Replace with a fetched catalog once that
-// lands. Do not add more hardcoded entries in the meantime.
+// TODO: OR's provider catalog should drive this list dynamically
+// (filtered to bank-category providers) so OWB never diverges from what
+// OR actually offers, same as V2, which holds zero hardcoded providers.
+// Hardcoded here as a single verified entry (slug + connect path
+// confirmed against OR's source) because the public catalog endpoint
+// hasn't been published yet. Replace with a fetched catalog once it is.
+// Do not add more hardcoded entries in the meantime.
 const BANK_PROVIDER = {
   slug: 'quiltt',
   connectPath: '/connect/quiltt',
@@ -668,11 +667,16 @@ export default function Connections() {
    * tail that the manual API-key flow uses.
    */
   const handleConnectBank = useCallback(async () => {
-    if (!subaccountId) {
+    if (!subaccountId || !orgId) {
       toast.error('Subaccount not ready yet, try again in a moment.');
       return;
     }
     setBankConnectBusy(true);
+    // Guards the postMessage/poll race: whichever fires first wins, the
+    // other is a no-op. Without this, a poll tick already in flight when
+    // postMessage fires (or vice versa) could call settle() twice for the
+    // same connection, double-navigating into the wallet picker.
+    let settled = false;
     try {
       // Snapshot existing connection ids so the poll fallback can detect
       // the new one by diffing, not by trusting a message payload alone.
@@ -692,7 +696,7 @@ export default function Connections() {
 
       const url = new URL(BANK_PROVIDER.connectPath, OR_LINK_WIDGET_URL);
       url.searchParams.set('platform', 'orange-way-books');
-      url.searchParams.set('app_user_id', orgId ?? '');
+      url.searchParams.set('app_user_id', orgId);
       url.searchParams.set('provider', BANK_PROVIDER.slug);
       url.searchParams.set('return_to', window.location.href);
       // Fragment so neither the credentials key nor the widget token reach
@@ -710,24 +714,36 @@ export default function Connections() {
       bankPopupRef.current = popup;
 
       const settle = async (newConnectionId: string) => {
+        if (settled) return;
+        settled = true;
         stopBankConnectWatchers();
         await refreshList();
         await finishConnectionSetup(newConnectionId, BANK_PROVIDER.slug, BANK_PROVIDER.name);
       };
 
+      // Resolved once, outside the handler: if OR_LINK_WIDGET_URL is ever
+      // empty or malformed, fail CLOSED (reject every message) rather than
+      // silently accepting postMessage from any origin.
+      let widgetOrigin: string | null = null;
+      try {
+        widgetOrigin = new URL(OR_LINK_WIDGET_URL).origin;
+      } catch {
+        widgetOrigin = null;
+      }
+
       const onMessage = (event: MessageEvent) => {
-        let widgetOrigin: string | null = null;
-        try {
-          widgetOrigin = new URL(OR_LINK_WIDGET_URL).origin;
-        } catch {
-          widgetOrigin = null;
-        }
-        if (widgetOrigin && event.origin !== widgetOrigin) return;
+        if (!widgetOrigin || event.origin !== widgetOrigin) return;
         if (!isOrLinkSuccessMessage(event.data) || !event.data.connection_id) return;
         window.removeEventListener('message', onMessage);
         void settle(event.data.connection_id);
       };
-      window.addEventListener('message', onMessage);
+      if (!widgetOrigin) {
+        console.warn(
+          '[Connections] OR_LINK_WIDGET_URL is not a valid URL, postMessage path disabled, relying on the poll fallback only.',
+        );
+      } else {
+        window.addEventListener('message', onMessage);
+      }
 
       // 3s poll fallback: the robustness fix V2 needed after discovering
       // PROD bank OAuth redirects can sever window.opener, so postMessage
@@ -1005,6 +1021,19 @@ export default function Connections() {
           `Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} across ${ids.length} connection${ids.length === 1 ? '' : 's'}.`,
         );
       }
+      // Auto-expand every synced connection + bump its tx-refresh key, same
+      // as the per-connection handleSync does, so "Sync all" doesn't leave
+      // the user staring at stale collapsed rows after a successful sync.
+      setExpanded((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = true;
+        return next;
+      });
+      setTxRefreshKeys((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = (prev[id] ?? 0) + 1;
+        return next;
+      });
       await refreshList();
 
       if (orgId) {
@@ -1171,6 +1200,15 @@ export default function Connections() {
           <p className="text-sm text-muted-foreground mt-1">
             Sync your Bitcoin accounts via OrangeRails — wallets, exchanges, payment processors,
             mining pools. Zero-knowledge: your credentials are never readable by anyone but you.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Bank connections work differently: they go through Quiltt, a regulated bank-account
+            aggregator, the same way any bank-connected finance app works. That leg is not
+            zero-knowledge the way your stored books-data is.{' '}
+            <Link to="/privacy" className="underline">
+              Details in Privacy
+            </Link>
+            .
           </p>
         </div>
         {subaccountId && canWriteConnectors && (
