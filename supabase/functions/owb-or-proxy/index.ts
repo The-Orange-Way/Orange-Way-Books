@@ -15,6 +15,7 @@
  *     'or-provision' | 'or-connection-create' | 'or-connection-list'
  *     | 'or-connection-delete' | 'or-sync' | 'or-transactions-list'
  *     | 'or-discover-wallets' | 'or-source-wallets-set'
+ *     | 'or-link-mint-token'
  *   org_id: uuid  the Orange Way Books org to act on (caller must be a member)
  *   payload: object  forwarded to OR; subaccount_id auto-injected for
  *                    non-provision endpoints if not present
@@ -62,6 +63,11 @@ const ALLOWED_ENDPOINTS = new Set([
   // Phase 3: source-wallet discovery + per-wallet sync selection.
   'or-discover-wallets',
   'or-source-wallets-set',
+  // Bank-connect (Quiltt via the OR-hosted Link widget): mints a
+  // short-lived widget_token before the popup opens. Verified against
+  // V2's live contract (same function serves V2 and every sibling Orange Way app, platform-
+  // parameterized). See connections parity notes, 2026-07-03.
+  'or-link-mint-token',
 ]);
 
 async function callOr(endpoint: string, body: Record<string, unknown>): Promise<Response> {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Zap,
   ExternalLink,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Pencil,
   Settings,
+  Landmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -142,6 +143,48 @@ const PROVIDERS = [
   },
 ] as const;
 
+// ── Bank-connect (Quiltt, via the OR-hosted Link widget) ──────────────────
+// Mirrors the proven popup pattern from V2's connect flow:
+// mint a short-lived widget_token server-side, open an OR-hosted popup,
+// listen for postMessage AND poll (PROD bank OAuth redirects can sever
+// window.opener, so postMessage alone isn't reliable) as a fallback.
+//
+// The widget origin can be overridden per-environment via
+// VITE_OR_LINK_WIDGET_URL (mirrors V2's NEXT_PUBLIC_OR_LINK_WIDGET_URL);
+// defaults to the same public OR Link widget the sibling Orange Way apps use.
+const OR_LINK_WIDGET_URL =
+  (import.meta.env.VITE_OR_LINK_WIDGET_URL as string | undefined) ??
+  'https://orangerails.com/connect';
+
+// TODO(parity, 2026-07-03): OR's provider catalog should drive this list
+// dynamically (listProviderManifests() in OR's connections registry,
+// filtered to category: 'bank') so OWB never diverges from what OR
+// actually offers, same as V2, which holds zero hardcoded providers.
+// Hardcoded here as a single verified entry (parity confirmed slug +
+// connectUrl from OR source) because the public catalog HTTP endpoint
+// lives in the private Hub repo and hasn't been named yet (FORGE, open
+// ask in #orange-way > OWB). Replace with a fetched catalog once that
+// lands. Do not add more hardcoded entries in the meantime.
+const BANK_PROVIDER = {
+  slug: 'quiltt',
+  connectPath: '/connect/quiltt',
+  name: 'Bank account',
+} as const;
+
+interface OrLinkSuccessMessage {
+  type: 'or-link-success';
+  connection_id?: string;
+  subaccount_id?: string;
+}
+
+function isOrLinkSuccessMessage(data: unknown): data is OrLinkSuccessMessage {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as { type?: unknown }).type === 'or-link-success'
+  );
+}
+
 async function postProxy(
   accessToken: string,
   endpoint: string,
@@ -255,6 +298,12 @@ export default function Connections() {
   const [incompleteConnIds, setIncompleteConnIds] = useState<Set<string>>(new Set());
   /** Branded delete confirmation — controlled state, replaces window.confirm. */
   const [deleteTarget, setDeleteTarget] = useState<ConnectionRow | null>(null);
+
+  // ── Bank-connect (Quiltt popup) lifecycle ──────────────────────────
+  const [bankConnectBusy, setBankConnectBusy] = useState(false);
+  const bankPopupRef = useRef<Window | null>(null);
+  const bankPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bankPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Resolve org + subaccount on mount.
   useEffect(() => {
@@ -527,6 +576,46 @@ export default function Connections() {
     };
   }
 
+  /**
+   * Shared tail for every connect path (manual API-key entry today, the
+   * bank-connect popup below): mark the connection incomplete until the
+   * picker finishes, discover wallets, hand off to WalletPickerStep.
+   * Discovery failure is non-fatal: the connection still works in legacy
+   * account-wide mode, we just surface a warning toast.
+   */
+  const finishConnectionSetup = useCallback(
+    async (newConnectionId: string, providerType: string, providerName: string) => {
+      setIncompleteConnIds((prev) => {
+        const next = new Set(prev);
+        next.add(newConnectionId);
+        writeIncompleteSet(orgId, next);
+        return next;
+      });
+
+      try {
+        const credentials_key = await exportOrCredsKey();
+        const disc = (await callProxy('or-discover-wallets', {
+          subaccount_id: subaccountId,
+          connection_id: newConnectionId,
+          credentials_key,
+        })) as { discovered_wallets?: DiscoveredWallet[] };
+
+        setWalletPicker({
+          connectionId: newConnectionId,
+          providerType,
+          providerName,
+          discovered: disc.discovered_wallets ?? [],
+        });
+      } catch (err) {
+        console.warn('[Connections] discovery failed', err);
+        toast.warning(
+          'Connection saved. Wallet discovery failed: sync will pull all account transactions until you retry.',
+        );
+      }
+    },
+    [orgId, subaccountId, exportOrCredsKey],
+  );
+
   async function handleAddConnection(params: { provider: string; label: string; apiKey: string }) {
     if (!subaccountId) throw new Error('Subaccount not ready yet');
     const labelPlaintext = params.label || params.provider;
@@ -542,48 +631,147 @@ export default function Connections() {
     toast.success('Connection added — your API key is encrypted and stored only as ciphertext.');
     await refreshList();
 
-    // Phase 3 — discover wallets so the user can pick which to sync. Discovery
-    // failure is non-fatal: the connection still works in legacy account-wide
-    // mode, we just surface a warning toast.
+    // Phase 3: discover wallets so the user can pick which to sync.
     const newConnectionId = created?.connection_id;
     if (!newConnectionId) {
       toast.warning('Connection saved but discovery skipped — wallet picker unavailable.');
       return;
     }
 
-    // Mark this connection as incomplete-setup until the user finishes the
-    // picker flow. Cleared in handleSaveWalletPicks once we successfully
-    // call or-source-wallets-set.
-    setIncompleteConnIds((prev) => {
-      const next = new Set(prev);
-      next.add(newConnectionId);
-      writeIncompleteSet(orgId, next);
-      return next;
-    });
-
-    try {
-      const credentials_key = await exportOrCredsKey();
-      const disc = (await callProxy('or-discover-wallets', {
-        subaccount_id: subaccountId,
-        connection_id: newConnectionId,
-        credentials_key,
-      })) as { discovered_wallets?: DiscoveredWallet[] };
-
-      const providerName =
-        PROVIDERS.find((p) => p.type === params.provider)?.name ?? params.provider;
-      setWalletPicker({
-        connectionId: newConnectionId,
-        providerType: params.provider,
-        providerName,
-        discovered: disc.discovered_wallets ?? [],
-      });
-    } catch (err) {
-      console.warn('[Connections] discovery failed', err);
-      toast.warning(
-        'Connection saved. Wallet discovery failed — sync will pull all account transactions until you retry.',
-      );
-    }
+    const providerName = PROVIDERS.find((p) => p.type === params.provider)?.name ?? params.provider;
+    await finishConnectionSetup(newConnectionId, params.provider, providerName);
   }
+
+  /** Tear down the popup + both watchers. Safe to call multiple times. */
+  const stopBankConnectWatchers = useCallback(() => {
+    if (bankPollRef.current) {
+      clearInterval(bankPollRef.current);
+      bankPollRef.current = null;
+    }
+    if (bankPollTimeoutRef.current) {
+      clearTimeout(bankPollTimeoutRef.current);
+      bankPollTimeoutRef.current = null;
+    }
+    if (bankPopupRef.current && !bankPopupRef.current.closed) {
+      bankPopupRef.current.close();
+    }
+    bankPopupRef.current = null;
+    setBankConnectBusy(false);
+  }, []);
+
+  /**
+   * Bank-connect: mint a widget token, open the OR-hosted Quiltt popup,
+   * and race two ways of finding out the user finished: postMessage
+   * (fast path) and a 3s poll of or-connection-list (fallback for when
+   * PROD bank OAuth redirects sever window.opener and postMessage never
+   * fires). Whichever wins first drives the same finishConnectionSetup
+   * tail that the manual API-key flow uses.
+   */
+  const handleConnectBank = useCallback(async () => {
+    if (!subaccountId) {
+      toast.error('Subaccount not ready yet, try again in a moment.');
+      return;
+    }
+    setBankConnectBusy(true);
+    try {
+      // Snapshot existing connection ids so the poll fallback can detect
+      // the new one by diffing, not by trusting a message payload alone.
+      const before = (await callProxy('or-connection-list', {
+        subaccount_id: subaccountId,
+      })) as { connections?: Array<{ id: string }> };
+      const beforeIds = new Set((before.connections ?? []).map((c) => c.id));
+
+      const mint = (await callProxy('or-link-mint-token', {})) as {
+        widget_token?: string;
+      };
+      if (!mint.widget_token) {
+        throw new Error('Orange Rails returned an empty widget token. Please retry in a moment.');
+      }
+
+      const credentialsKeyB64 = await exportOrCredsKey();
+
+      const url = new URL(BANK_PROVIDER.connectPath, OR_LINK_WIDGET_URL);
+      url.searchParams.set('platform', 'orange-way-books');
+      url.searchParams.set('app_user_id', orgId ?? '');
+      url.searchParams.set('provider', BANK_PROVIDER.slug);
+      url.searchParams.set('return_to', window.location.href);
+      // Fragment so neither the credentials key nor the widget token reach
+      // OR's server logs; only the widget's JS reads window.location.hash.
+      url.hash =
+        `cred_key=${encodeURIComponent(credentialsKeyB64)}` +
+        `&widget_token=${encodeURIComponent(mint.widget_token)}`;
+
+      const popup = window.open(url.toString(), 'or-link-quiltt', 'width=520,height=720');
+      if (!popup) {
+        toast.error('Browser blocked the popup. Allow popups for this site and try again.');
+        setBankConnectBusy(false);
+        return;
+      }
+      bankPopupRef.current = popup;
+
+      const settle = async (newConnectionId: string) => {
+        stopBankConnectWatchers();
+        await refreshList();
+        await finishConnectionSetup(newConnectionId, BANK_PROVIDER.slug, BANK_PROVIDER.name);
+      };
+
+      const onMessage = (event: MessageEvent) => {
+        let widgetOrigin: string | null = null;
+        try {
+          widgetOrigin = new URL(OR_LINK_WIDGET_URL).origin;
+        } catch {
+          widgetOrigin = null;
+        }
+        if (widgetOrigin && event.origin !== widgetOrigin) return;
+        if (!isOrLinkSuccessMessage(event.data) || !event.data.connection_id) return;
+        window.removeEventListener('message', onMessage);
+        void settle(event.data.connection_id);
+      };
+      window.addEventListener('message', onMessage);
+
+      // 3s poll fallback: the robustness fix V2 needed after discovering
+      // PROD bank OAuth redirects can sever window.opener, so postMessage
+      // can't be trusted alone.
+      bankPollRef.current = setInterval(() => {
+        void (async () => {
+          try {
+            const after = (await callProxy('or-connection-list', {
+              subaccount_id: subaccountId,
+            })) as { connections?: Array<{ id: string }> };
+            const found = (after.connections ?? []).find((c) => !beforeIds.has(c.id));
+            if (found) {
+              window.removeEventListener('message', onMessage);
+              void settle(found.id);
+            } else if (bankPopupRef.current?.closed) {
+              // Popup closed with no new connection detected yet. One
+              // last poll grace period in case OR's write is still
+              // landing, then give up quietly (user likely cancelled).
+              if (bankPollTimeoutRef.current) return;
+              bankPollTimeoutRef.current = setTimeout(() => {
+                window.removeEventListener('message', onMessage);
+                stopBankConnectWatchers();
+              }, 3000);
+            }
+          } catch (err) {
+            console.warn('[Connections] bank-connect poll failed', err);
+          }
+        })();
+      }, 3000);
+    } catch (err) {
+      stopBankConnectWatchers();
+      toast.error(err instanceof Error ? err.message : "Couldn't start the bank connection.");
+    }
+  }, [
+    subaccountId,
+    orgId,
+    exportOrCredsKey,
+    finishConnectionSetup,
+    stopBankConnectWatchers,
+    refreshList,
+  ]);
+
+  // Belt-and-suspenders cleanup if the component unmounts mid-flow.
+  useEffect(() => stopBankConnectWatchers, [stopBankConnectWatchers]);
 
   /**
    * Phase 3 — encrypt each picked wallet's metadata with ORK in the browser,
@@ -783,6 +971,56 @@ export default function Connections() {
   }
 
   /**
+   * Sync every connection in one or-sync call. `or-sync` already accepted a
+   * `connection_ids` array (used above, one id at a time); this was the
+   * missing "bulk" wiring the connection-parity spec asked for, not a new
+   * endpoint. Same per-connection bridge afterward as handleSync; kept
+   * sequential (not Promise.all) so bridge errors surface per-connection
+   * instead of one failure aborting the batch.
+   */
+  async function handleSyncAll() {
+    if (!subaccountId || connections.length === 0) return;
+    setSyncingId('__all__');
+    try {
+      const credentials_key = await exportOrCredsKey();
+      const transactions_key = await exportOrTxnsKey();
+      const ids = connections.map((c) => c.id);
+      const res = (await callProxy('or-sync', {
+        subaccount_id: subaccountId,
+        connection_ids: ids,
+        credentials_key,
+        transactions_key,
+      })) as {
+        synced: number;
+        connections: Array<{ connection_id: string; synced: number; error?: string }>;
+      };
+
+      const errs = res.connections.filter((c) => c.error);
+      if (errs.length > 0) {
+        toast.warning(`Synced ${res.synced}; ${errs.length} connection(s) had errors.`);
+      } else if (res.synced === 0) {
+        toast.info('No new transactions found across any connection.');
+      } else {
+        toast.success(
+          `Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} across ${ids.length} connection${ids.length === 1 ? '' : 's'}.`,
+        );
+      }
+      await refreshList();
+
+      if (orgId) {
+        for (const conn of connections) {
+          await bridgeConnection(conn);
+        }
+      }
+    } catch (err) {
+      console.error('[Connections] sync-all failed', err);
+      toast.error(`Sync all failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSyncingId(null);
+    }
+  }
+
+  /**
    * Phase 5 bridge — fetch+decrypt this connection's OR transactions, then
    * fan them out to OWB's `transactions` table and a balanced JE pair via
    * importOrTransactionsToV3.
@@ -936,9 +1174,35 @@ export default function Connections() {
           </p>
         </div>
         {subaccountId && canWriteConnectors && (
-          <Button onClick={() => setAddOpen(true)} data-testid="connections-add">
-            + Add connection
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {connections.length >= 2 && (
+              <Button
+                variant="outline"
+                onClick={() => void handleSyncAll()}
+                disabled={syncingId !== null}
+                data-testid="connections-sync-all"
+              >
+                {syncingId === '__all__' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Sync all
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => void handleConnectBank()}
+              disabled={bankConnectBusy}
+              data-testid="connections-connect-bank"
+            >
+              {bankConnectBusy ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Landmark className="w-4 h-4 mr-2" />
+              )}
+              Connect a bank
+            </Button>
+            <Button onClick={() => setAddOpen(true)} data-testid="connections-add">
+              + Add connection
+            </Button>
+          </div>
         )}
       </div>
 
@@ -968,7 +1232,7 @@ export default function Connections() {
                 key={c.id}
                 conn={c}
                 canWrite={canWriteConnectors}
-                syncing={syncingId === c.id}
+                syncing={syncingId === c.id || syncingId === '__all__'}
                 bridging={bridgingId === c.id}
                 expanded={!!expanded[c.id]}
                 onToggleExpand={() => setExpanded((prev) => ({ ...prev, [c.id]: !prev[c.id] }))}
