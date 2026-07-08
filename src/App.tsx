@@ -61,6 +61,7 @@ import DocsIndex from '@/marketing/pages/DocsIndex';
 import AiAgentsPage from '@/marketing/pages/AiAgents';
 import Privacy from '@/marketing/pages/Privacy';
 import PrivacyChangelog from '@/marketing/pages/PrivacyChangelog';
+import Terms from '@/marketing/pages/Terms';
 
 const queryClient = new QueryClient();
 
@@ -129,6 +130,7 @@ function RootRouter() {
           <Route path="/ai" element={<AiAgentsPage />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/privacy-changelog" element={<PrivacyChangelog />} />
+          <Route path="/terms" element={<Terms />} />
         </Route>
 
         {/* Auth pages */}

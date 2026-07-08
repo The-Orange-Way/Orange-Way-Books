@@ -118,6 +118,7 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
               { to: '/about', label: 'About' },
               { to: '/contact', label: 'Contact' },
               { to: '/privacy', label: 'Privacy' },
+              { to: '/terms', label: 'Terms' },
               {
                 to: 'https://github.com/The-Orange-Way/Orange-Way-Books',
                 label: 'GitHub',
