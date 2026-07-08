@@ -14,10 +14,20 @@ function event(properties: Record<string, unknown>) {
 }
 
 describe('posthog scrubber', () => {
+  it('sends $ip as literal null so PostHog suppresses GeoIP enrichment', () => {
+    // PostHog only disables server-side GeoIP lookup when $ip === null.
+    // A placeholder string would be read as a normal property value and
+    // leave enrichment behavior undefined, so this MUST be null, not the
+    // "[redacted]" string used for the other reserved keys.
+    const r = event({ $ip: '1.2.3.4', normal: 'ok' });
+    expect(r?.properties.$ip).toBeNull();
+    expect(r?.properties.normal).toBe('ok');
+  });
+
   it('redacts the reserved auto-capture keys', () => {
-    const r = event({ $ip: '1.2.3.4', $browser: 'Chrome', normal: 'ok' });
-    expect(r?.properties.$ip).toBe('[redacted]');
+    const r = event({ $browser: 'Chrome', $device_id: 'abc', normal: 'ok' });
     expect(r?.properties.$browser).toBe('[redacted]');
+    expect(r?.properties.$device_id).toBe('[redacted]');
     expect(r?.properties.normal).toBe('ok');
   });
 
