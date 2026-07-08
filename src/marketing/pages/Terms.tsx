@@ -36,10 +36,10 @@ export default function Terms() {
           </p>
         </Section>
 
-        <Section title="Service availability">
+        <Section title="Beta status">
           <p className="text-muted-foreground">
-            The service is provided as is. We work to keep it available and correct, but you should
-            maintain your own backups via Settings then Data export.
+            Orange Way Books is in beta. The service is provided as is. Maintain your own backups
+            via Settings then Data export.
           </p>
         </Section>
 
