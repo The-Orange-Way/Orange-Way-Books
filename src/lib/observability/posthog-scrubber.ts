@@ -67,10 +67,12 @@ const SCRUB_VALUE_KEY_HINTS = [
 // These are matched by exact key (with the leading $) and replaced with
 // "[redacted]", separately from the substring-hint list above so a regular
 // "ip" or "browser" inside a payload still passes through unchanged.
-// IP, browser, and device fingerprints are treated as identifiers when
+// Browser and device fingerprints are treated as identifiers when
 // joined to a user id (Law 25 / GDPR recital 75).
+//
+// $ip is handled separately (see IP_KEY below): PostHog reads it for
+// server-side GeoIP, and only a literal null reliably suppresses that.
 const SCRUB_RESERVED_KEYS = new Set([
-  '$ip',
   '$browser',
   '$browser_version',
   '$device',
@@ -80,6 +82,13 @@ const SCRUB_RESERVED_KEYS = new Set([
   '$os_version',
   '$user_agent',
 ]);
+
+// The IP property PostHog uses for server-side GeoIP enrichment. Unlike
+// the fingerprint keys above, a redaction STRING does not stop GeoIP:
+// PostHog only reliably skips enrichment when $ip is the literal null.
+// We null it here and pair that with the $geoip_disable flag set in
+// scrubPostHogEvent.
+const IP_KEY = '$ip';
 
 /**
  * UUID and slug-ish path segments that we treat as sensitive when they
@@ -135,6 +144,11 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 function scrubValue(key: string, value: unknown, depth: number): unknown {
   if (key === '$current_url' || key === '$referrer' || key === '$pathname') {
     return scrubUrl(value);
+  }
+  if (key === IP_KEY) {
+    // Literal null, not a string: this is what makes PostHog skip
+    // server-side GeoIP enrichment for the event.
+    return null;
   }
   if (SCRUB_RESERVED_KEYS.has(key)) {
     return '[redacted]';
@@ -192,8 +206,17 @@ function scrubProperties(
  */
 export function scrubPostHogEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
+  const properties =
+    scrubProperties(event.properties as Record<string, unknown> | undefined) ?? {};
+  // Documented, reliable switch that tells PostHog's server-side enricher
+  // to skip GeoIP for this event. Nulling $ip alone can fall back to the
+  // connection's socket IP; this flag closes that gap. The socket IP still
+  // transiently reaches the collector on a direct browser connection by
+  // construction - a first-party proxy is the only way to stop that and is
+  // tracked separately.
+  properties.$geoip_disable = true;
   return {
     ...event,
-    properties: scrubProperties(event.properties as Record<string, unknown> | undefined) ?? {},
+    properties,
   };
 }
