@@ -58,6 +58,14 @@ export default function Terms() {
           </p>
         </Section>
 
+        <Section title="Governing law">
+          <p className="text-muted-foreground">
+            These Terms are governed by the laws of the Province of Ontario and the federal laws of
+            Canada applicable therein. Disputes submit to the exclusive jurisdiction of Ontario
+            courts.
+          </p>
+        </Section>
+
         <p className="mt-10 text-xs text-muted-foreground">Questions? Email legal@orangeway.app.</p>
       </article>
     </>
