@@ -69,8 +69,12 @@ const SCRUB_VALUE_KEY_HINTS = [
 // "ip" or "browser" inside a payload still passes through unchanged.
 // IP, browser, and device fingerprints are treated as identifiers when
 // joined to a user id (Law 25 / GDPR recital 75).
+//
+// NOTE: $ip is handled by its own branch in scrubValue (returns literal
+// null, not the "[redacted]" string) because PostHog only suppresses
+// server-side GeoIP enrichment on a literal null. It is intentionally
+// NOT in this set.
 const SCRUB_RESERVED_KEYS = new Set([
-  '$ip',
   '$browser',
   '$browser_version',
   '$device',
@@ -135,6 +139,13 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 function scrubValue(key: string, value: unknown, depth: number): unknown {
   if (key === '$current_url' || key === '$referrer' || key === '$pathname') {
     return scrubUrl(value);
+  }
+  // $ip must be literal null, not the "[redacted]" string: PostHog only
+  // suppresses server-side GeoIP enrichment when $ip === null. Any non-null
+  // value (including a placeholder string) leaves enrichment behavior
+  // undefined on PostHog's side. This branch runs before SCRUB_RESERVED_KEYS.
+  if (key === '$ip') {
+    return null;
   }
   if (SCRUB_RESERVED_KEYS.has(key)) {
     return '[redacted]';
