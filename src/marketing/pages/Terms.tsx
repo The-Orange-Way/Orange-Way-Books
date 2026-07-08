@@ -45,16 +45,16 @@ export default function Terms() {
 
         <Section title="Termination">
           <p className="text-muted-foreground">
-            You may delete your account at any time. We may suspend or terminate accounts that abuse
-            the service.
+            You may stop using the service at any time and export your books via Settings then Data
+            export. We may suspend or terminate accounts that abuse the service.
           </p>
         </Section>
 
         <Section title="Liability">
           <p className="text-muted-foreground">
             Orange Way Books is provided without warranties. To the maximum extent permitted by law,
-            our aggregate liability is limited to the fees you paid in the 12 months preceding the
-            claim.
+            our aggregate liability is limited to the greater of the fees you paid in the 12 months
+            preceding the claim or one hundred Canadian dollars (CAD 100).
           </p>
         </Section>
 
