@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { useVault } from '@/context/VaultContext';
 import {
   Settings,
@@ -60,6 +61,14 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { toast } from 'sonner';
 import { ImportPopup } from '@/components/ui/import-popup';
 import type { ImportPreviewRow, ImportResult } from '@/components/ui/import-popup';
