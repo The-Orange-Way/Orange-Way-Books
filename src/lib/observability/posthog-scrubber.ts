@@ -206,8 +206,7 @@ function scrubProperties(
  */
 export function scrubPostHogEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
-  const properties =
-    scrubProperties(event.properties as Record<string, unknown> | undefined) ?? {};
+  const properties = scrubProperties(event.properties as Record<string, unknown> | undefined) ?? {};
   // Documented, reliable switch that tells PostHog's server-side enricher
   // to skip GeoIP for this event. Nulling $ip alone can fall back to the
   // connection's socket IP; this flag closes that gap. The socket IP still
