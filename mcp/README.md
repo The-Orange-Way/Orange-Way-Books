@@ -1,10 +1,12 @@
 # owb-mcp (Orange Way Books local MCP server)
 
-Read-only MCP server that lets an MCP client such as Claude Desktop read your Orange Way Books
-ledger, while your keys and plaintext never leave your machine.
+Read-only MCP server that lets any MCP client read your Orange Way Books ledger, while your keys
+and plaintext never leave your machine. MCP is an open standard, so this works with Claude Desktop,
+Cursor, and any other MCP-compatible client. Nothing here is Claude-specific.
 
 This is slice 1 of the plan "MCP ZKA agent access for OWB". It is intentionally small and
-read-only. Writes come in a later, separately founder-gated slice.
+read-only. Writes come in a later, separately founder-gated slice. Orange Way Me (OWM) ships the
+twin of this server; the two are kept at parity.
 
 ## How it holds zero-knowledge
 
@@ -13,8 +15,9 @@ forwards each data request to a browser extension. The extension holds your data
 service-worker RAM only, pulls ciphertext under your normal auth, and decrypts locally in its
 offscreen document using the Orange Way Books crypto lib. Your servers only ever see ciphertext.
 
-One honest trade-off: the decrypted result is handed to the model (Claude) as a tool result. Your
-servers never see it, but you are choosing to show your books to Claude. That is your call.
+One honest trade-off: the decrypted result is handed to the model as a tool result. Your servers
+never see it, but you are choosing to show your books to whichever LLM you connect. That is your
+call.
 
 ## Status
 
@@ -31,12 +34,15 @@ npm install
 npm start
 ```
 
-## Add it to Claude Desktop
+## Add it to an MCP client
 
-Open your Claude Desktop config and add an entry under `mcpServers`. Config file location:
+Any MCP-compatible client works. Add an entry under `mcpServers` in the client's config. For
+Claude Desktop the config file is:
 
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Cursor and other clients use the same `mcpServers` shape in their own config.
 
 ```json
 {
@@ -51,7 +57,7 @@ Open your Claude Desktop config and add an entry under `mcpServers`. Config file
 
 Replace the path with the absolute path to this file on your machine. If you use bun instead of
 node, set `"command": "bun"` and `"args": ["run", "/absolute/path/.../mcp/src/server.mjs"]`. Restart
-Claude Desktop, and the three tools appear. Until the extension bridge is connected, calling a tool
+the client, and the three tools appear. Until the extension bridge is connected, calling a tool
 returns a clear connect-the-extension message.
 
 ## Boundaries this code keeps
