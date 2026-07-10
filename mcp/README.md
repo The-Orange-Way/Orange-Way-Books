@@ -5,8 +5,8 @@ and plaintext never leave your machine. MCP is an open standard, so this works w
 Cursor, and any other MCP-compatible client. Nothing here is Claude-specific.
 
 This is slice 1 of the plan "MCP ZKA agent access for OWB". It is intentionally small and
-read-only. Writes come in a later, separately founder-gated slice. Orange Way Me (OWM) ships the
-twin of this server; the two are kept at parity.
+read-only. Writes come in a later, separately founder-gated slice. Orange Way Me ships the twin of
+this server; the two are kept at parity.
 
 ## How it holds zero-knowledge
 
