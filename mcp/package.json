@@ -1,0 +1,20 @@
+{
+  "name": "owb-mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Local read-only MCP server for Orange Way Books. Exposes ledger tools to Claude. Holds no keys and no plaintext; all decryption is delegated to a browser extension.",
+  "bin": {
+    "owb-mcp": "src/server.mjs"
+  },
+  "scripts": {
+    "start": "node src/server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  }
+}
