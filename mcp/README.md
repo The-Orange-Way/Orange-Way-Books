@@ -31,7 +31,28 @@ npm install
 npm start
 ```
 
-Then add it to Claude Desktop as a stdio server pointing at `mcp/src/server.mjs`.
+## Add it to Claude Desktop
+
+Open your Claude Desktop config and add an entry under `mcpServers`. Config file location:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "orange-way-books": {
+      "command": "node",
+      "args": ["/absolute/path/to/Orange-Way-Books/mcp/src/server.mjs"]
+    }
+  }
+}
+```
+
+Replace the path with the absolute path to this file on your machine. If you use bun instead of
+node, set `"command": "bun"` and `"args": ["run", "/absolute/path/.../mcp/src/server.mjs"]`. Restart
+Claude Desktop, and the three tools appear. Until the extension bridge is connected, calling a tool
+returns a clear connect-the-extension message.
 
 ## Boundaries this code keeps
 
