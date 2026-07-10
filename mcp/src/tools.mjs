@@ -22,21 +22,26 @@ export function registerReadOnlyTools(server, bridge) {
     {
       title: 'List transactions',
       description:
-        'List transactions from the ledger, most recent first. Read-only. Optionally filter ' +
-        'by account and cap the number returned.',
+        'List transactions from the ledger, most recent first (ordered by booked_at then id, ' +
+        'both descending). Read-only. Optionally filter by account. Uses keyset pagination: the ' +
+        'result includes a nextCursor; pass it back as cursor to fetch the next page.',
       inputSchema: {
         accountId: z.string().optional().describe('Only return transactions for this account id.'),
+        cursor: z
+          .string()
+          .optional()
+          .describe('Opaque pagination cursor from a previous result. Omit for the first page.'),
         limit: z
           .number()
           .int()
           .positive()
-          .max(500)
+          .max(200)
           .optional()
-          .describe('Maximum number of transactions to return (default 50).'),
+          .describe('Maximum number of transactions to return (default 50, hard max 200).'),
       },
     },
-    async ({ accountId, limit }) =>
-      toContent(await bridge.listTransactions({ accountId, limit: limit ?? 50 })),
+    async ({ accountId, cursor, limit }) =>
+      toContent(await bridge.listTransactions({ accountId, cursor, limit: limit ?? 50 })),
   );
 
   server.registerTool(
