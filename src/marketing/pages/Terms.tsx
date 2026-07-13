@@ -17,7 +17,7 @@ export default function Terms() {
       <article className="max-w-3xl mx-auto px-6 py-16 prose-invert">
         <header className="mb-10">
           <h1 className="text-4xl font-bold mb-4">Terms of Service</h1>
-          <p className="text-sm text-muted-foreground">Last updated: 2026-07-08.</p>
+          <p className="text-sm text-muted-foreground">Last updated: 2026-07-13.</p>
         </header>
 
         <Section title="Use of the service">
@@ -40,6 +40,39 @@ export default function Terms() {
           <p className="text-muted-foreground">
             Orange Way Books is in beta. The service is provided as is. Maintain your own backups
             via Settings then Data export.
+          </p>
+        </Section>
+
+        <Section title="Pricing, billing, and refunds">
+          <p className="text-muted-foreground">
+            Prices are in Canadian dollars and exclude applicable taxes. You are responsible for any
+            sales tax, GST, HST, or VAT that applies where you are.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            Paid plans renew automatically at the end of each billing cycle, monthly or annual,
+            until you cancel. You can cancel at any time in account settings, and your access
+            continues to the end of the billing period you already paid for.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            If you cancel an annual plan, we refund the prorated amount for unused complete months
+            when you ask within 30 days of the original charge. Requests after 30 days are at our
+            discretion. Monthly charges are not refundable once a billing cycle has begun. We email
+            a reminder at least 30 days before an annual plan renews, with the amount and the
+            renewal date.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            Current pricing applies during the beta period. We give at least 30 days written notice
+            by email before any price increase takes effect at or after general availability.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            Consumers in the EU and the UK have a statutory 14-day right to withdraw from a distance
+            contract, starting on the purchase date. That right is forfeited once you have actively
+            used the hosted service during the withdrawal window (EU Consumer Rights Directive
+            Article 16(m)). Contact support before the period expires to exercise it.
+          </p>
+          <p className="mt-4 text-muted-foreground">
+            Think a charge was made in error? Contact support within 60 days. We investigate and
+            credit or refund confirmed errors.
           </p>
         </Section>
 
