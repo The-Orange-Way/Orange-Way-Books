@@ -46,23 +46,26 @@ export default function Terms() {
         <Section title="Pricing, billing, and refunds">
           <p className="text-muted-foreground">
             Prices are in Canadian dollars and exclude applicable taxes. You are responsible for any
-            sales tax, GST, HST, or VAT that applies where you are.
+            sales tax, GST, HST, or VAT that applies where you are. The plans on offer are on the
+            Pricing page.
           </p>
           <p className="mt-4 text-muted-foreground">
-            Paid plans renew automatically at the end of each billing cycle, monthly or annual,
-            until you cancel. You can cancel at any time in account settings, and your access
-            continues to the end of the billing period you already paid for.
+            Paid plans are billed monthly. We do not keep a payment instrument on file and nothing
+            is charged to you automatically: at the end of each cycle your billing page shows a
+            payment link (Bitcoin Lightning or fiat) and the subscription continues only if you pay
+            it. Annual plans and automatic renewal are not offered today.
           </p>
           <p className="mt-4 text-muted-foreground">
-            If you cancel an annual plan, we refund the prorated amount for unused complete months
-            when you ask within 30 days of the original charge. Requests after 30 days are at our
-            discretion. Monthly charges are not refundable once a billing cycle has begun. We email
-            a reminder at least 30 days before an annual plan renews, with the amount and the
-            renewal date.
+            Because nothing renews on its own, you stop a paid plan by not paying the next cycle.
+            Your access continues to the end of the billing period you have already paid for. If you
+            want the billing account closed on the record before then, contact support. A monthly
+            cycle is not refundable once it has begun.
           </p>
           <p className="mt-4 text-muted-foreground">
             Current pricing applies during the beta period. We give at least 30 days written notice
-            by email before any price increase takes effect at or after general availability.
+            by email before any price increase takes effect at or after general availability. If we
+            introduce annual plans or automatic renewal, these terms will be updated before that
+            goes live.
           </p>
           <p className="mt-4 text-muted-foreground">
             Consumers in the EU and the UK have a statutory 14-day right to withdraw from a distance
