@@ -34,6 +34,11 @@ legacy/**/target/
 .env.*
 !.env.example
 
+# Reserved-term list for the leak scanners. The real list is internal-only:
+# committing it would publish the very strings it exists to keep out of the
+# public tree. Only .reserved-terms.example (a fictional template) is tracked.
+.reserved-terms
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
