@@ -1,0 +1,18 @@
+# .reserved-terms: reserved-term list for the leak scanners.
+#
+# Copy this file to .reserved-terms (gitignored) and fill it with the
+# project's internal-only strings: one extended-regex fragment per line.
+# Blank lines and #-comments are ignored. The fragments are joined with
+# "|" into a single alternation at scan time.
+#
+# The real list is deliberately NOT committed: publishing it would leak
+# the very strings it exists to keep out of the public tree. Maintainers
+# receive it out of band; CI sources it from the OW_RESERVED_TERMS
+# repository secret.
+#
+# Example entries (fictional):
+#
+# internal-hostname\.example
+# @private-domain\.example
+# Secret Project Codename
+# /home/(someuser)/
