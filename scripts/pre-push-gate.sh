@@ -9,9 +9,9 @@
 #      being pushed. If absent or stale, the push is refused.
 #   2. The repo's pre-publish leak scanner (`scripts/pre-publish-scan.sh`)
 #      reports clean.
-#   3. No private-host / private-wiki URL leaks in the commits being pushed
-#      (commit messages + diff).
-#   4. No secret-shaped strings in the diff that gitleaks would catch.
+#   3. No reserved-term leaks in the commits being pushed (messages + diff).
+#   4. Commit author + committer identities are GitHub noreply addresses.
+#   5. No secret-shaped strings in the diff that gitleaks would catch.
 #
 # Override (escape hatch — emits a loud warning, do not use casually):
 #   PR_THIS_BYPASS=1 git push
@@ -76,71 +76,52 @@ if [ -x "$REPO_ROOT/scripts/pre-publish-scan.sh" ]; then
   fi
 fi
 
-# ---- Check 3: private-host / private-wiki URL leaks ----
-# PRIVATE_PATTERN must stay in lockstep with .github/workflows/post-merge-identity-scan.yml's
-# PATTERN. The two scanners answer the same question on different surfaces
-# (local diff vs server-side commit metadata); any drift means one of them
-# reports clean for a string the other would flag. When changing this,
-# update the workflow too.
-PRIVATE_PATTERN='tail[a-z0-9]+\.ts\.net|\.tailnet|\.local\b|wiki\.abascal|wiki\.bitbooks|bb-support|jarvis\.local|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+|@bitbooks\.com|@abascal\.ca|pop-os'
+# ---- Check 3: reserved-term leaks ----
+# The reserved-term list is NOT hardcoded here: committing the list would
+# publish the very strings it exists to keep out of the public tree. It is
+# sourced at runtime from the OW_RESERVED_TERMS environment variable or a
+# gitignored .reserved-terms file (one regex fragment per line; see
+# .reserved-terms.example). The post-merge identity-scan workflow sources
+# the same list from the repository secret, so local and server-side
+# enforcement share one source of truth and cannot drift.
+PRIVATE_PATTERN="${OW_RESERVED_TERMS:-}"
+if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
+  PRIVATE_PATTERN="$(grep -vE '^[[:space:]]*(#|$)' "$REPO_ROOT/.reserved-terms" | paste -sd'|' -)"
+fi
 
-# Documentation strip-patterns. Each token is a thing that ONLY appears in
-# regex / network documentation, never as part of an accidental leak. A
-# line is checked twice: first against PRIVATE_PATTERN, and if any token
-# here is found in the same line, that token is replaced with a placeholder
-# and the line is re-scanned against PRIVATE_PATTERN. If the stripped line
-# is clean, the line was describing the regex (e.g., "widened CIDR from
-# 100.(91|94) to 100.64.0.0/10 CGNAT block"). If it still matches, a real
-# leak co-exists with the docs and we flag it.
-# Must stay in lockstep with .github/workflows/post-merge-identity-scan.yml
-# DOC_STRIP_* env vars.
-# Examples:
-#   - "100.64.0.0/10" is the canonical CGNAT block notation
-#   - "(91|94)" is literal regex-alternation syntax used only in regex docs
-DOC_STRIP_CGNAT='100\.64\.0\.0/10'
-DOC_STRIP_REGEX_ALT='\([0-9]+(\|[0-9]+)+\)'
-
-# strip_doc replaces documentation tokens with placeholders, leaving any
-# real leak on the same line still visible.
-strip_doc() {
-  sed -E "s|${DOC_STRIP_CGNAT}|[CGNAT-BLOCK]|g; s|${DOC_STRIP_REGEX_ALT}|[REGEX-ALT]|g"
-}
-
-# Scan commits being pushed: messages + diff
-for sha in "${LOCAL_SHAS[@]}"; do
-  # If pushing a brand-new branch, walk back to origin/dev (or origin/main) for the diff base.
-  BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
-  RANGE="$BASE..$sha"
-  # Commit messages: flag lines that match PRIVATE_PATTERN even after we
-  # strip the documentation tokens. A line that only matches because of
-  # a CGNAT-block or regex-alt token is allowed; a line that ALSO carries
-  # a real leak co-existing with the docs is still flagged.
-  MSG_HITS=$(git log --format='%H%n%s%n%b' "$RANGE" 2>/dev/null \
-    | grep -nEi "$PRIVATE_PATTERN" \
-    | while IFS= read -r hit; do echo "$hit" | strip_doc | grep -qEi "$PRIVATE_PATTERN" && echo "$hit" || true; done || true)
-  if [ -n "$MSG_HITS" ]; then
-    red "✗ Private-host URL leak in commit messages:"
-    echo "$MSG_HITS"
-    FAIL=1
-  fi
-  # Diff content — exclude the gate itself (whose regex literally contains the patterns).
-  DIFF_HITS=$(git diff "$RANGE" -- ':!scripts/pre-push-gate.sh' ':!scripts/install-hooks.sh' ':!.github/workflows/post-merge-identity-scan.yml' 2>/dev/null \
-    | grep -nEi "$PRIVATE_PATTERN" \
-    | while IFS= read -r hit; do echo "$hit" | strip_doc | grep -qEi "$PRIVATE_PATTERN" && echo "$hit" || true; done \
-    | head -20 || true)
-  if [ -n "$DIFF_HITS" ]; then
-    red "✗ Private-host URL leak in diff content:"
-    echo "$DIFF_HITS"
-    FAIL=1
-  fi
-done
-[ "$FAIL" = "0" ] && green "✓ No private-host URLs in commits being pushed."
+if [ -z "$PRIVATE_PATTERN" ]; then
+  yellow "– Reserved-term scan skipped (no OW_RESERVED_TERMS / .reserved-terms)."
+  yellow "  The server-side post-merge identity scan still enforces the list."
+else
+  # Scan commits being pushed: messages + diff
+  for sha in "${LOCAL_SHAS[@]}"; do
+    # If pushing a brand-new branch, walk back to origin/dev (or origin/main) for the diff base.
+    BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
+    RANGE="$BASE..$sha"
+    # Commit messages
+    if git log --format='%H%n%s%n%b' "$RANGE" 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+      red "✗ Reserved-term leak in commit messages:"
+      git log --format='%H%n%s%n%b' "$RANGE" | grep -nEi --color=always "$PRIVATE_PATTERN"
+      FAIL=1
+    fi
+    # Diff content: ADDED lines only. Deletions are how leaks get removed;
+    # blocking a push because its diff deletes a reserved term would make
+    # cleanups impossible.
+    if git diff "$RANGE" 2>/dev/null | grep -E '^\+' | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+      red "✗ Reserved-term leak in added diff lines:"
+      git diff "$RANGE" | grep -E '^\+' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
+      FAIL=1
+    fi
+  done
+  [ "$FAIL" = "0" ] && green "✓ No reserved terms in commits being pushed."
+fi
 
 # ---- Check 4: author + committer identity ----
 # Every commit being pushed must use a *@users.noreply.github.com address.
 # An ad-hoc `git config user.email` (or no config at all, falling back to
-# $USER@$HOSTNAME) is the leak pattern that put a tailnet hostname into
-# public history. This catches it before the next push.
+# $USER@$HOSTNAME) is the leak pattern that put a private hostname into
+# public history. This catches it before the next push. Co-authored-by
+# trailers are covered by the reserved-term scan in Check 3.
 ALLOWED_IDENT_RE='@users\.noreply\.github\.com$'
 for sha in "${LOCAL_SHAS[@]}"; do
   BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
@@ -151,15 +132,6 @@ for sha in "${LOCAL_SHAS[@]}"; do
     red "✗ Commit author or committer email is not a GitHub noreply:"
     echo "$BAD_IDENT" | head -10
     red "  Fix with: git config user.email '<id>+<handle>@users.noreply.github.com'"
-    red "  Then rewrite history (filter-branch / filter-repo) and force-push."
-    FAIL=1
-  fi
-  # Also forbid Co-authored-by trailers naming private hosts / corporate domains.
-  TRAILER_LEAKS=$(git log --format='%B' "$RANGE" 2>/dev/null \
-    | grep -iE '^Co-authored-by:.*@(pop-os|tail[a-z0-9]+\.ts\.net|bitbooks\.com|abascal\.ca|thrivefaster\.ca|tryfaster\.ca|cursor\.com|lovable\.dev|gpt-engineer-app)' || true)
-  if [ -n "$TRAILER_LEAKS" ]; then
-    red "✗ Co-authored-by trailer leaks a private host / corporate domain:"
-    echo "$TRAILER_LEAKS" | head -10
     FAIL=1
   fi
 done
