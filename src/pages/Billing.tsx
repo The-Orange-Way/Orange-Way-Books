@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { CreditCard, Loader2, Sparkles, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/table';
 import type { FlashPaymentRow } from '@/lib/flash';
 import {
-  TERMS_VERSION,
   WITHDRAWAL_CONSENT_HELPER,
   WITHDRAWAL_CONSENT_LABEL,
   WITHDRAWAL_CONSENT_UNTICKED_HINT,
@@ -101,13 +100,13 @@ export default function Billing() {
   const [payments, setPayments] = useState<FlashPaymentRow[]>([]);
   const [paying, setPaying] = useState(false);
 
-  // Withdrawal consent. `consentText` holds the string the customer actually
-  // read, captured from the DOM when they tick the box, so null means "not
-  // ticked". We never derive the evidence from the constant at submit time:
-  // if the rendered label and the constant ever diverge, the record has to
-  // follow what was on screen.
-  const consentLabelRef = useRef<HTMLSpanElement>(null);
-  const [consentText, setConsentText] = useState<string | null>(null);
+  // Withdrawal consent. The tick is a boolean and nothing more: the sentence
+  // that lands in the evidence row is written by the edge function from its
+  // own constant, because a browser is not a trustworthy author of a legal
+  // record. What keeps the rendered label and the stored label identical is
+  // the pinning test in src/lib/__tests__/withdrawal-consent.test.ts, which
+  // goes red if either copy of the wording drifts.
+  const [consentTicked, setConsentTicked] = useState(false);
   const consentEnabled = isWithdrawalConsentEnabled();
 
   const load = useCallback(async () => {
@@ -169,15 +168,6 @@ export default function Billing() {
 
   const primarySub = useMemo(() => subs[0] ?? null, [subs]);
 
-  const onConsentChange = useCallback((checked: boolean) => {
-    if (!checked) {
-      setConsentText(null);
-      return;
-    }
-    const rendered = consentLabelRef.current?.textContent?.trim();
-    setConsentText(rendered && rendered.length > 0 ? rendered : WITHDRAWAL_CONSENT_LABEL);
-  }, []);
-
   const onPay = useCallback(async () => {
     if (!primarySub) return;
     setPaying(true);
@@ -185,14 +175,11 @@ export default function Billing() {
       const idempotencyKey = crypto.randomUUID();
       const { data, error } = await supabase.functions.invoke('create-flash-payment', {
         // Consent rides along with the request that starts the service, so the
-        // record and the subscription start succeed or fail together. Absent
-        // when the box is unticked: we record a tick, never infer one.
+        // record and the service start succeed or fail together. Absent when
+        // the box is unticked: we record a tick, we never infer one.
         body: {
           subscriptionId: primarySub.id,
-          withdrawalConsent:
-            consentEnabled && consentText
-              ? { consentText, termsVersion: TERMS_VERSION }
-              : undefined,
+          withdrawalConsent: consentEnabled && consentTicked ? true : undefined,
         },
         headers: { 'Idempotency-Key': idempotencyKey },
       });
@@ -205,7 +192,7 @@ export default function Billing() {
       toast.error(err instanceof Error ? err.message : 'Failed to start payment');
       setPaying(false);
     }
-  }, [primarySub, consentEnabled, consentText]);
+  }, [primarySub, consentEnabled, consentTicked]);
 
   if (loading) {
     return (
@@ -283,18 +270,18 @@ export default function Billing() {
                   <Checkbox
                     id="withdrawal-consent"
                     className="mt-0.5"
-                    checked={consentText !== null}
-                    onCheckedChange={(checked) => onConsentChange(checked === true)}
+                    checked={consentTicked}
+                    onCheckedChange={(checked) => setConsentTicked(checked === true)}
                   />
                   <label
                     htmlFor="withdrawal-consent"
                     className="text-sm leading-snug text-foreground cursor-pointer"
                   >
-                    <span ref={consentLabelRef}>{WITHDRAWAL_CONSENT_LABEL}</span>
+                    {WITHDRAWAL_CONSENT_LABEL}
                   </label>
                 </div>
                 <p className="text-xs text-muted-foreground pl-6">{WITHDRAWAL_CONSENT_HELPER}</p>
-                {consentText === null && (
+                {!consentTicked && (
                   <p className="text-xs text-muted-foreground pl-6">
                     {WITHDRAWAL_CONSENT_UNTICKED_HINT}
                   </p>
