@@ -148,9 +148,15 @@ presents a risk of serious injury to data subjects, we will notify
 the Commission d'accès à l'information (CAI) and affected individuals
 as required by Quebec Law 25 §3.5 and, where applicable, supervisory
 authorities under GDPR Article 33 (within 72 hours of becoming aware
-where feasible). We target a 72-hour acknowledgment window for any
-inbound vulnerability report on the same channel; see `SECURITY.md`
-for the disclosure address and timeline.
+where feasible). As an organization subject to the Personal
+Information Protection and Electronic Documents Act (PIPEDA), we will
+report any breach of security safeguards that creates a real risk of
+significant harm to the Office of the Privacy Commissioner of Canada
+(OPC) as soon as feasible, and notify affected individuals as required
+under the Breach of Security Safeguards Regulations (SOR/2018-64). We
+target a 72-hour acknowledgment window for any inbound vulnerability
+report on the same channel; see `SECURITY.md` for the disclosure
+address and timeline.
 
 We do not sell customer data, do not run an ad business, and do not
 build personal profiles on the analytics side (self-hosted builds run
