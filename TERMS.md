@@ -7,20 +7,18 @@
 > prospective customer with a real budget, ask the maintainers for the
 > reviewed version.
 
-Last updated: 2026-06-22. Effective on the same date.
+Last updated: 2026-07-13. Effective on the same date.
 
 ---
 
 ## 1. Who we are
 
-Orange Way Books is operated by Morning Revolution, a Quebec-domiciled
+Orange Way Books is operated by Morning Revolution, an Ontario-domiciled
 operator. References to "we", "us", or "Orange Way Books" in this
 document mean the operator. References to "you" mean the individual or
 organisation creating an account or self-hosting the software.
 
-The privacy officer (responsable de la protection des renseignements
-personnels under Quebec Law 25) is the founder of Morning Revolution;
-the privacy contact email is published in the public site's footer
+The privacy contact email is published in the public site's footer
 alongside the general contact address. A reviewed version of this
 document will replace the footer-indirection with a literal address.
 
@@ -78,14 +76,47 @@ You will not use the service to:
 The hosted service may suspend or terminate an account that violates
 this section.
 
-## 5. Pricing and payments
+## 5. Pricing, billing, and refunds
 
-Pricing for hosted plans is on the Pricing page. Paid plans renew per
-billing cycle until cancelled. Cancellation takes effect at the end of
-the then-current cycle; pro-rated refunds are not offered by default
-but may be granted on case-by-case for material service failures.
+Prices are in Canadian dollars (CAD) and exclude applicable taxes. You
+are responsible for any sales tax, GST, HST, or VAT that applies in
+your jurisdiction. The plans on offer are listed on the public Pricing
+page.
 
-Self-hosted use carries no fee.
+**How billing works today.** Paid plans are billed monthly. We do not
+store a payment instrument and nothing is charged to you automatically.
+At the end of each cycle the billing page shows a payment link (Bitcoin
+Lightning or fiat, through our payment provider) and the subscription
+continues only if you choose to pay it. Annual plans and automatic
+renewal are not offered today.
+
+**Stopping a paid plan.** Because nothing renews automatically, you stop
+a paid plan by not paying the next cycle's payment link. Your access
+continues to the end of the billing period you have already paid for. If
+you want the billing account closed on the record before then, contact
+support using the address in the site footer.
+
+**Refunds.** A monthly billing cycle is non-refundable once it has
+begun.
+
+**Beta pricing.** Current pricing applies during the beta period. We
+will give at least 30 days written notice by email before any price
+increase takes effect at or after general availability.
+
+**New billing options.** If we introduce annual plans, automatic
+renewal, or any other billing mechanism, this section will be updated
+before that mechanism goes live and the notice period in section 11
+applies.
+
+**EU and UK consumers.** You have a statutory 14-day right to withdraw
+from a distance contract. The period begins on the purchase date. The
+right is forfeited once you have actively used the hosted service
+during the withdrawal window (EU Consumer Rights Directive Art. 16(m)).
+Contact support before the period expires to exercise this right.
+
+**Disputed charges.** Contact support within 60 days of any charge you
+believe was made in error. We will investigate and credit or refund
+confirmed errors.
 
 ## 6. Data and privacy
 
@@ -122,9 +153,15 @@ presents a risk of serious injury to data subjects, we will notify
 the Commission d'accès à l'information (CAI) and affected individuals
 as required by Quebec Law 25 §3.5 and, where applicable, supervisory
 authorities under GDPR Article 33 (within 72 hours of becoming aware
-where feasible). We target a 72-hour acknowledgment window for any
-inbound vulnerability report on the same channel; see `SECURITY.md`
-for the disclosure address and timeline.
+where feasible). As an organization subject to the Personal
+Information Protection and Electronic Documents Act (PIPEDA), we will
+report any breach of security safeguards that creates a real risk of
+significant harm to the Office of the Privacy Commissioner of Canada
+(OPC) as soon as feasible, and notify affected individuals as required
+under the Breach of Security Safeguards Regulations (SOR/2018-64). We
+target a 72-hour acknowledgment window for any inbound vulnerability
+report on the same channel; see `SECURITY.md` for the disclosure
+address and timeline.
 
 We do not sell customer data, do not run an ad business, and do not
 build personal profiles on the analytics side (self-hosted builds run
@@ -182,11 +219,11 @@ the service after a change takes effect constitutes acceptance.
 
 ## 12. Governing law and dispute resolution
 
-These terms are governed by the laws of the Province of Quebec and the
+These terms are governed by the laws of the Province of Ontario and the
 applicable laws of Canada, without regard to conflict-of-laws rules.
-Each party submits to the exclusive jurisdiction of the courts located
-in Montreal, Quebec for any dispute arising out of or in connection
-with these terms or the service.
+Each party submits to the exclusive jurisdiction of the courts of
+competent jurisdiction in the Province of Ontario for any dispute
+arising out of or in connection with these terms or the service.
 
 If you are a consumer resident in a jurisdiction whose mandatory
 consumer-protection laws grant you broader rights, those rights
@@ -201,10 +238,13 @@ prevail.
 
 ## 14. Document version
 
-This is the placeholder draft dated 2026-06-22 (version 0.1, marked
-"placeholder, lawyer review pending"). The note at the top of this
-file restates the same caveat for any reader who skipped the preamble.
-A reviewed version will replace this file in a future release. Older
-versions remain in the git history of this repository for reference.
-The PR that lands the reviewed version will reference this document
-by commit hash for an unambiguous audit trail.
+This is the placeholder draft dated 2026-07-13 (version 0.3, marked
+"placeholder, lawyer review pending"). Version 0.3 scopes the pricing,
+billing, and refund clause to the billing flow that ships today (monthly,
+per-cycle payment link, no stored payment instrument, no automatic
+renewal) and keeps the Ontario governing-law and jurisdiction terms. The
+note at the top of this file restates the same caveat for any reader who
+skipped the preamble. A reviewed version will replace this file in a
+future release. Older versions remain in the git history of this
+repository for reference. The PR that lands the reviewed version will
+reference this document by commit hash for an unambiguous audit trail.
