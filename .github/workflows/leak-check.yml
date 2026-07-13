@@ -20,4 +20,9 @@ jobs:
       - name: Run pre-publish leak scan
         # Fails the job (and the required check) if any leak is found.
         # See scripts/pre-publish-scan.sh for the rules and exemptions.
+        # OW_RESERVED_TERMS is empty on fork PRs (secrets are withheld);
+        # the reserved-term scan then skips with a notice and the
+        # post-merge identity scan remains the canonical enforcement.
+        env:
+          OW_RESERVED_TERMS: ${{ secrets.OW_RESERVED_TERMS }}
         run: bash scripts/pre-publish-scan.sh
