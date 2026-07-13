@@ -25,7 +25,11 @@ const telemetryEnabled = typeof posthogKey === 'string' && posthogKey.length > 0
 
 if (telemetryEnabled) {
   posthog.init(posthogKey, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
+    // Blank counts as unset: || and not ??, because ?? only falls back on
+    // null or undefined and Vite hands us "" for a var that is present but
+    // empty in .env. Without this, a deployer who fills in only the key
+    // silently loses the EU endpoint that .env.example promises.
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com',
     persistence: 'memory',
     person_profiles: 'never',
     capture_pageview: true,
