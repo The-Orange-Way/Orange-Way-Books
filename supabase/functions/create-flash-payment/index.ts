@@ -34,6 +34,9 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
 const PAYMENT_EXPIRES_IN_SECONDS = 24 * 3600;
 
+/** Postgres unique_violation. The one insert error that means "already held". */
+const PG_UNIQUE_VIOLATION = '23505';
+
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -83,6 +86,16 @@ async function listVisibleSubscriptionIds(userId: string): Promise<string[]> {
  * We never send consented_at or expires_at. The table's BEFORE INSERT trigger
  * pins consented_at from the server clock and derives expires_at from it, so
  * the retention clock cannot be chosen by any caller, including this one.
+ *
+ * Uniqueness is the database's job, not this function's. The pre-read below
+ * keeps the ordinary retry off the constraint, but it cannot make the write
+ * safe on its own: two requests can pass the read together. The partial
+ * unique index on (user_id, subscription_id, terms_version) is what actually
+ * pins one row per wording, and the loser of that race gets a unique
+ * violation back. That is not a failure. The evidence is on disk, written by
+ * this same customer a moment earlier, so we treat the conflict as the
+ * outcome we asked for and let the payment proceed. Any other error is a
+ * genuine write failure and stops the request.
  */
 async function recordWithdrawalConsent(userId: string, subscriptionId: string): Promise<boolean> {
   const { data: existing, error: readErr } = await admin
@@ -107,6 +120,13 @@ async function recordWithdrawalConsent(userId: string, subscriptionId: string): 
     terms_version: TERMS_VERSION,
   });
   if (insertErr) {
+    if (insertErr.code === PG_UNIQUE_VIOLATION) {
+      // A concurrent request for this same user, subscription and wording
+      // won the race and wrote the row. One record per wording is exactly
+      // what we wanted, so this is a no-op, not an error.
+      console.info('withdrawal consent already recorded by a concurrent request');
+      return true;
+    }
     console.error('withdrawal consent insert error:', insertErr);
     return false;
   }
