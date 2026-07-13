@@ -80,28 +80,33 @@ this section.
 
 Prices are in Canadian dollars (CAD) and exclude applicable taxes. You
 are responsible for any sales tax, GST, HST, or VAT that applies in
-your jurisdiction.
+your jurisdiction. The plans on offer are listed on the public Pricing
+page.
 
-**Subscriptions.** Paid plans renew automatically at the end of each
-billing cycle (monthly or annual) until you cancel. You may cancel at
-any time through account settings; access continues to the end of the
-current billing period.
+**How billing works today.** Paid plans are billed monthly. We do not
+store a payment instrument and nothing is charged to you automatically.
+At the end of each cycle the billing page shows a payment link (Bitcoin
+Lightning or fiat, through our payment provider) and the subscription
+continues only if you choose to pay it. Annual plans and automatic
+renewal are not offered today.
 
-**Annual plans -- refunds.** If you cancel an annual plan, we will
-refund the prorated amount for unused complete months, provided you
-submit the request within 30 days of the original charge. Requests
-after 30 days are at our discretion. Contact support using the address
-in the site footer.
+**Stopping a paid plan.** Because nothing renews automatically, you stop
+a paid plan by not paying the next cycle's payment link. Your access
+continues to the end of the billing period you have already paid for. If
+you want the billing account closed on the record before then, contact
+support using the address in the site footer.
 
-**Monthly plans.** Monthly charges are non-refundable once a billing
-cycle has begun.
+**Refunds.** A monthly billing cycle is non-refundable once it has
+begun.
 
 **Beta pricing.** Current pricing applies during the beta period. We
 will give at least 30 days written notice by email before any price
 increase takes effect at or after general availability.
 
-**Annual renewal notice.** We will email a reminder at least 30 days
-before an annual plan renews, stating the amount and renewal date.
+**New billing options.** If we introduce annual plans, automatic
+renewal, or any other billing mechanism, this section will be updated
+before that mechanism goes live and the notice period in section 11
+applies.
 
 **EU and UK consumers.** You have a statutory 14-day right to withdraw
 from a distance contract. The period begins on the purchase date. The
@@ -233,12 +238,13 @@ prevail.
 
 ## 14. Document version
 
-This is the placeholder draft dated 2026-07-13 (version 0.2, marked
-"placeholder, lawyer review pending"). Version 0.2 carries the reviewed
-pricing, billing, and refund clause and the Ontario governing-law and
-jurisdiction terms. The note at the top of this file restates the same
-caveat for any reader who skipped the preamble. A reviewed version will
-replace this file in a future release. Older versions remain in the git
-history of this repository for reference. The PR that lands the reviewed
-version will reference this document by commit hash for an unambiguous
-audit trail.
+This is the placeholder draft dated 2026-07-13 (version 0.3, marked
+"placeholder, lawyer review pending"). Version 0.3 scopes the pricing,
+billing, and refund clause to the billing flow that ships today (monthly,
+per-cycle payment link, no stored payment instrument, no automatic
+renewal) and keeps the Ontario governing-law and jurisdiction terms. The
+note at the top of this file restates the same caveat for any reader who
+skipped the preamble. A reviewed version will replace this file in a
+future release. Older versions remain in the git history of this
+repository for reference. The PR that lands the reviewed version will
+reference this document by commit hash for an unambiguous audit trail.
