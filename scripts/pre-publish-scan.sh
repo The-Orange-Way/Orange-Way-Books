@@ -2,10 +2,9 @@
 # pre-publish-scan.sh — leak check for the open-source Orange Way Books repo.
 #
 # Runs a categorized grep over the source tree looking for content that
-# should never ship to a public repo: legacy brand names, internal
-# codenames, personal names, infrastructure hostnames, internal wiki
-# URLs, milestone tags from prior internal audits, dead PR refs, and
-# personally identifiable email addresses.
+# should never ship to a public repo: internal-only naming (earlier
+# codenames, non-public hostnames, personal names, private contact
+# strings), internal milestone tags, and dead PR refs.
 #
 # Exit code:
 #   0  — tree is clean, safe to publish or merge
@@ -14,12 +13,6 @@
 #
 # Run locally before pushing:   bash scripts/pre-publish-scan.sh
 # Runs in CI as a required check (see .github/workflows/leak-check.yml).
-#
-# Updating the allowlist: if you introduce a brand or product reference
-# that is intentional and acceptable (for example a new sibling project),
-# add it to the ACCEPTABLE_PROJECTS list below AND to the leak-check
-# workflow in lock-step. PRs that change this script require a second
-# reviewer.
 
 set -uo pipefail
 
@@ -43,6 +36,9 @@ EXCLUDE_DIRS=(
 
 # Lock files + binary assets: skip wholesale.
 EXCLUDE_FILES=(
+  # The gitignored reserved-term list itself (never committed, but grep -r
+  # would still read it from the working tree and flag its own contents).
+  --exclude=.reserved-terms
   --exclude=bun.lock
   --exclude=package-lock.json
   --exclude=yarn.lock
@@ -67,28 +63,45 @@ EXCLUDE_FILES=(
 # strings are part of an at-rest data format (vault verifier plaintext,
 # Argon2id salt context, localStorage key namespace).
 #
-# When the per-category scan finds matches, results are filtered against
-# these patterns so the matches are dropped without raising the exit code.
+# NOTE: the scanner scripts are NO LONGER exempted from the reserved-term
+# category. They used to be, because they carried the reserved list
+# inline — which meant the one file most likely to leak the list was the
+# one file the scanner would never look at. The list now lives out of
+# tree, so the scripts are scanned like any other file and a
+# reintroduced literal is caught.
 
 EXEMPT_GENERIC=(
-  # This script and the PR template document the forbidden patterns
-  # as examples; they intentionally contain the strings they scan for.
-  "scripts/pre-publish-scan.sh"
   ".github/PULL_REQUEST_TEMPLATE.md"
-  ".github/workflows/leak-check.yml"
-  ".github/workflows/post-merge-identity-scan.yml"
   "CONTRIBUTING.md"
-  # Pre-push gate scripts: the gate's private-host regex enumerates
-  # exactly the strings the scanner is looking for; install-hooks.sh
-  # references the gate by path.
-  "scripts/pre-push-gate.sh"
-  "scripts/install-hooks.sh"
 )
 
-EXEMPT_BITBOOKS_LITERAL=()
-EXEMPT_OSK_ENUM=()
-
 EXIT_CODE=0
+
+# ----------------------------------------------------------------------
+# Reserved-term list (sourced OUT of this committed file)
+# ----------------------------------------------------------------------
+#
+# The public tree must not carry internal-only naming: earlier project or
+# experiment codenames, non-public hostnames, personal names, or private
+# contact strings. The list of such reserved terms is NOT hardcoded here,
+# because committing the list would publish the very strings it exists to
+# keep out of the public tree. It is provided at runtime as a regex
+# alternation, from either source, in this order:
+#
+#   1. The OW_RESERVED_TERMS environment variable (CI sources this from a
+#      repository secret: see the leak-check and post-merge identity-scan
+#      workflows).
+#   2. A gitignored .reserved-terms file (one regex fragment per line;
+#      blank lines and #-comments ignored). See .reserved-terms.example.
+#
+# If neither is configured the reserved-term scan is SKIPPED with a notice
+# (the structural checks below still run). Outside contributors therefore
+# get a working scanner with zero exposure to the internal list.
+
+RESERVED_TERMS="${OW_RESERVED_TERMS:-}"
+if [[ -z "$RESERVED_TERMS" && -f .reserved-terms ]]; then
+  RESERVED_TERMS="$(grep -vE '^[[:space:]]*(#|$)' .reserved-terms | paste -sd'|' -)"
+fi
 
 # ----------------------------------------------------------------------
 # scan: run one categorized grep + exemption filter
@@ -152,18 +165,6 @@ scan() {
 }
 
 # ----------------------------------------------------------------------
-# Build per-category exemption regexes
-# ----------------------------------------------------------------------
-
-join_pipe() {
-  local IFS="|"
-  printf '%s' "$*"
-}
-
-EXEMPT_BB_RE="$(join_pipe "${EXEMPT_BITBOOKS_LITERAL[@]}")"
-EXEMPT_OSK_RE="$(join_pipe "${EXEMPT_OSK_ENUM[@]}")"
-
-# ----------------------------------------------------------------------
 # Header
 # ----------------------------------------------------------------------
 
@@ -171,102 +172,36 @@ printf "\n\033[1m▎ Pre-publish leak scan\033[0m\n"
 printf "  repo: %s\n\n" "$REPO_ROOT"
 
 # ----------------------------------------------------------------------
-# Category 1 — Legacy brand / private codebase references
+# Category 1: Reserved terms (internal list, sourced at runtime)
 # ----------------------------------------------------------------------
 
-printf "\033[1m1. Brand + product references\033[0m\n"
+printf "\033[1m1. Reserved terms\033[0m\n"
 
-scan "BitBooks brand (all variants)" \
-     "\\b(BitBooks|Bitbooks)\\b|\\bbitbooks\\b" \
-     "" \
-     "$EXEMPT_BB_RE"
+if [[ -n "$RESERVED_TERMS" ]]; then
+  scan "Reserved terms (internal list)" \
+       "$RESERVED_TERMS" \
+       "" \
+       ""
+else
+  printf "  \033[33m–\033[0m  Reserved-term scan skipped (set OW_RESERVED_TERMS or add .reserved-terms)\n"
+fi
 
-scan "Cala / Galoy ledger brand" \
-     "\\b(Cala|Galoy|GaloyMoney)\\b" \
-     "" \
-     ""
+# ----------------------------------------------------------------------
+# Category 2: Public-safe structural checks
+# ----------------------------------------------------------------------
 
-scan "Lovable builder platform" \
-     "\\bLovable\\b|lovable\\.app" \
-     "" \
-     "lovable-tagger"
-
-scan "Standalone V2/V3 product references" \
-     "V[23] BitBooks|V3 Vault|BitBooks Vault|BitBooks family|BitBooks Personal|BitBooksSupport" \
-     "" \
-     ""
+printf "\n\033[1m2. Structural naming checks\033[0m\n"
 
 scan "Internal codename: MB / OWM as acronym" \
      "\\(MB\\)|MB —| in MB\\b|MB's|\\bOWM\\b" \
      "" \
      ""
 
-scan "Other personal-project brands" \
-     "\\b(TESSA|COLE|ADUB|ADDLY)\\b|Petit Chou|petitchou" \
-     "" \
-     ""
-
 # ----------------------------------------------------------------------
-# Category 2 — Personal names + PII
+# Category 3: Internal milestone tags + dead PR refs
 # ----------------------------------------------------------------------
 
-printf "\n\033[1m2. Personal names + PII\033[0m\n"
-
-# Allow "Tim May", "Hal Finney" etc. (cypherpunk figures) in README lineage.
-# The pattern below targets the bare given names; the README citations
-# include surnames so they don't match. "tsaekoo" / "Abuelo" remain because
-# they're nicknames, not historical figures.
-scan "Personal first names" \
-     "\\b(Miguel|Daenon|Roark|Brandon|Ashar|tsaekoo|Abuelo)\\b" \
-     "" \
-     ""
-
-scan "External contact names" \
-     "Charles Taylor|Ruben Izmailyan" \
-     "" \
-     ""
-
-scan "Personal-domain emails" \
-     "@(bitbooks\\.com|abascal\\.ca|thrivefaster\\.ca|tryfaster\\.ca)" \
-     "" \
-     ""
-
-# ----------------------------------------------------------------------
-# Category 3 — Internal infrastructure leaks
-# ----------------------------------------------------------------------
-
-printf "\n\033[1m3. Internal infrastructure\033[0m\n"
-
-scan "Internal hostnames" \
-     "\\b(jarvis-hosted|bb-support|Jarvis-hosted)\\b|kiwi@jarvis|ubuntu@100\\." \
-     "" \
-     ""
-
-scan "Internal wiki URLs" \
-     "wiki\\.(abascal\\.ca|bitbooks\\.com)" \
-     "" \
-     ""
-
-scan "Windows-style internal paths" \
-     "C:\\\\CLAUDE|C:\\\\Users\\\\micro" \
-     "" \
-     ""
-
-scan "Home-path leaks" \
-     "/home/(kiwi|cactus|claude)/" \
-     "" \
-     ""
-
-scan "Tailscale 100.x IP leaks" \
-     "\\b100\\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\\.[0-9]+\\.[0-9]+\\b" \
-     "" \
-     ""
-
-# ----------------------------------------------------------------------
-# Category 4 — Internal milestone tags + dead PR references
-# ----------------------------------------------------------------------
-
-printf "\n\033[1m4. Internal milestone tags + dead PR refs\033[0m\n"
+printf "\n\033[1m3. Internal milestone tags + dead PR refs\033[0m\n"
 
 # D-number milestone tags. Match the specific milestone form
 # ("D12:" / "D12)" / "(D12)" / "D12 —" / "D12 .") to avoid false-positives
@@ -298,28 +233,6 @@ scan "PERF-N performance-audit tags" \
 
 scan "Dead PR references" \
      "PR #[0-9]+|V[23] PR\\b|OR PR #" \
-     "" \
-     ""
-
-# ----------------------------------------------------------------------
-# Category 5 — GitHub handle pinning
-# ----------------------------------------------------------------------
-#
-# After the move from MorningRevolution → OrangeWay org, no source file
-# should reference the old handle. Any reintroduction is flagged.
-
-printf "\n\033[1m5. GitHub handle pinning\033[0m\n"
-
-scan "Old GitHub handle MorningRevolution/orangewaybooks" \
-     "MorningRevolution/orangewaybooks|MorningRevolution/orange-way-books" \
-     "" \
-     ""
-
-# Intermediate handle that briefly existed during planning (OrangeWay org
-# was not available on GitHub; the actual org was created as
-# The-Orange-Way). Catch any file that still carries the planning handle.
-scan "Planning handle OrangeWay/ (use The-Orange-Way/ instead)" \
-     "github\\.com/OrangeWay/|^OrangeWay/Orange-Way-" \
      "" \
      ""
 
