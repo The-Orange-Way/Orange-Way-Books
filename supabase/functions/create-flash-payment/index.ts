@@ -4,8 +4,12 @@
  * via their org's billing_account can call this.
  *
  * Request body (JSON):
- *   { subscriptionId?: string }
- *   - Optional. Defaults to the caller's only visible subscription.
+ *   { subscriptionId?: string, withdrawalConsent?: boolean }
+ *   - subscriptionId is optional. Defaults to the caller's only visible
+ *     subscription.
+ *   - withdrawalConsent is true only when the customer ticked the box. It is
+ *     a boolean on purpose: the stored sentence comes from the server
+ *     constant, never from the browser. See _shared/withdrawal-consent.ts.
  *
  * Optional header:
  *   Idempotency-Key: <opaque string>
@@ -21,6 +25,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildCorsHeaders, jsonResponse, readBoundedText } from '../_shared/http.ts';
 import { rateLimit } from '../_shared/rate-limit.ts';
 import { createPaymentLink } from '../_shared/flash.ts';
+import { TERMS_VERSION, WITHDRAWAL_CONSENT_LABEL } from '../_shared/withdrawal-consent.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -69,6 +74,45 @@ async function listVisibleSubscriptionIds(userId: string): Promise<string[]> {
   return (subs ?? []).map((r) => r.id as string);
 }
 
+/**
+ * Record an explicit withdrawal consent, once per (user, subscription,
+ * wording). Returns false only when the write genuinely failed, which is a
+ * hard stop: we never start the service on a request whose consent we could
+ * not store.
+ *
+ * We never send consented_at or expires_at. The table's BEFORE INSERT trigger
+ * pins consented_at from the server clock and derives expires_at from it, so
+ * the retention clock cannot be chosen by any caller, including this one.
+ */
+async function recordWithdrawalConsent(userId: string, subscriptionId: string): Promise<boolean> {
+  const { data: existing, error: readErr } = await admin
+    .from('withdrawal_consents')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('subscription_id', subscriptionId)
+    .eq('terms_version', TERMS_VERSION)
+    .limit(1);
+  if (readErr) {
+    console.error('withdrawal consent read error:', readErr);
+    return false;
+  }
+  // Already held for this wording. The table is append only, so the honest
+  // move on a retry is to write nothing rather than stack duplicate evidence.
+  if (existing && existing.length > 0) return true;
+
+  const { error: insertErr } = await admin.from('withdrawal_consents').insert({
+    user_id: userId,
+    subscription_id: subscriptionId,
+    consent_text: WITHDRAWAL_CONSENT_LABEL,
+    terms_version: TERMS_VERSION,
+  });
+  if (insertErr) {
+    console.error('withdrawal consent insert error:', insertErr);
+    return false;
+  }
+  return true;
+}
+
 Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders(req);
   if (req.method === 'OPTIONS') {
@@ -108,13 +152,19 @@ Deno.serve(async (req: Request) => {
 
   const raw = await readBoundedText(req);
   if (raw === null) return jsonResponse({ error: 'Body too large' }, 413, cors);
-  let parsed: { subscriptionId?: string } = {};
+  let parsed: { subscriptionId?: string; withdrawalConsent?: boolean } = {};
   if (raw.trim().length > 0) {
     try {
       parsed = JSON.parse(raw);
     } catch {
       return jsonResponse({ error: 'Body must be JSON' }, 400, cors);
     }
+  }
+
+  // Anything other than a boolean is a client we do not understand. Ignoring
+  // it would throw away a real tick in silence, so we fail loudly instead.
+  if (parsed.withdrawalConsent !== undefined && typeof parsed.withdrawalConsent !== 'boolean') {
+    return jsonResponse({ error: 'withdrawalConsent must be a boolean' }, 400, cors);
   }
 
   const visibleIds = await listVisibleSubscriptionIds(caller.id);
@@ -141,6 +191,15 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
   if (subErr || !sub) {
     return jsonResponse({ error: 'Subscription not found' }, 404, cors);
+  }
+
+  // Consent is written before the service starts. If we cannot hold the
+  // evidence, we do not act on it: the payment link is never minted.
+  if (parsed.withdrawalConsent === true) {
+    const recorded = await recordWithdrawalConsent(caller.id, sub.id);
+    if (!recorded) {
+      return jsonResponse({ error: 'Failed to record withdrawal consent' }, 500, cors);
+    }
   }
 
   const idempotencyKey = req.headers.get('Idempotency-Key');
