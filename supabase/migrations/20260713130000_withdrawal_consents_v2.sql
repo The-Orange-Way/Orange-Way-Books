@@ -7,7 +7,9 @@
 --   1. Drop consent_flag and its CHECK. The column was constrained to true and
 --      could never carry information.
 --   2. Add expires_at, set server side at insert to consented_at + 5 years
---      (PSD2 Art. 43 and the AML floor). Never accepted from the caller.
+--      (PSD2 Art. 43 and the AML floor). Never accepted from the caller, and
+--      neither is the consented_at it is derived from: both are pinned to the
+--      server clock, so the retention clock cannot be chosen by a writer.
 --   3. Rewrite the append only trigger so the retention job can delete an
 --      expired row, and only an expired row. Everything else still raises.
 --
@@ -40,18 +42,25 @@ ALTER TABLE public.withdrawal_consents
 COMMENT ON COLUMN public.withdrawal_consents.expires_at IS
   'When this evidence may be deleted: consented_at + 5 years. Set server side at insert. A value supplied by the caller is overwritten.';
 
+COMMENT ON COLUMN public.withdrawal_consents.consented_at IS
+  'When the consent was recorded. Pinned to the server clock at insert. A value supplied by the caller is overwritten, because expires_at is derived from it.';
+
 CREATE INDEX IF NOT EXISTS withdrawal_consents_expires_at_idx
   ON public.withdrawal_consents (expires_at);
 
--- Column defaults are applied before BEFORE INSERT triggers fire, so
--- NEW.consented_at is already populated here. The assignment is unconditional
--- on purpose: expiry is a server fact, not caller input.
+-- Both assignments are unconditional on purpose. consented_at is an ordinary
+-- column with a default, so a caller could otherwise supply its own value and
+-- thereby choose the row's expiry: a consented_at backdated past the retention
+-- window would produce a row born already deletable. The retention clock has to
+-- be a server fact end to end, so the timestamp it derives from is pinned here
+-- too, before expires_at is computed.
 CREATE OR REPLACE FUNCTION public.withdrawal_consents_set_expiry()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = ''
 AS $$
 BEGIN
+  NEW.consented_at := pg_catalog.now();
   NEW.expires_at := NEW.consented_at + interval '5 years';
   RETURN NEW;
 END;
