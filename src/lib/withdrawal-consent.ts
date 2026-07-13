@@ -3,18 +3,24 @@
  * 14 day right to withdraw.
  *
  * WHY THIS FILE EXISTS
- * The checkbox renders WITHDRAWAL_CONSENT_LABEL, and when the user ticks it,
- * the string that was actually on screen is captured and stored verbatim as
- * the consent record. One exported constant means the rendered text and the
- * stored evidence cannot drift apart. A consent record that does not match
- * what the customer read proves nothing.
+ * The checkbox renders WITHDRAWAL_CONSENT_LABEL. When the customer ticks it,
+ * the client sends a boolean, and the edge function writes the sentence into
+ * the consent record from its own copy of the constant. The browser is never
+ * the author of the evidence: a stale or tampered client could otherwise
+ * store a sentence nobody reviewed, and the row would look perfectly normal.
+ *
+ * What guarantees the record matches what was on screen is the pinning test
+ * in __tests__/withdrawal-consent.test.ts. It fails CI if this label, the
+ * edge function's copy in supabase/functions/_shared/withdrawal-consent.ts,
+ * or the reviewed wording ever drift apart.
  *
  * DO NOT REWORD THE LABEL WITHOUT A LEGAL REVIEW.
  * It has to carry two separate elements, both intact:
  *   1. an express request for the service to start immediately, and
  *   2. an explicit acknowledgment that the 14 day withdrawal right is lost.
- * Any change to the wording is a new TERMS_VERSION, because old records must
- * keep pointing at the exact text those customers agreed to.
+ * Any change to the wording is a new TERMS_VERSION, in both files, in the
+ * same commit, because old records must keep pointing at the exact text
+ * those customers agreed to.
  */
 
 /**
@@ -48,10 +54,11 @@ export const WITHDRAWAL_CONSENT_UNTICKED_HINT =
   'Leave it unticked and we will still start you now. You just keep the 14 day right to cancel.';
 
 /**
- * Feature flag. Off by default: the checkbox stays dark until the consent
- * table exists on dev and the server side insert path is wired. Rendering a
- * tick we cannot record is worse than not asking, because the customer
- * believes they consented and we hold no evidence.
+ * Feature flag. Off by default. It may be turned on only once the consent
+ * table exists in the target environment AND the create-flash-payment insert
+ * path is deployed there, because rendering a tick we cannot record is worse
+ * than not asking: the customer believes they consented and we hold no
+ * evidence.
  */
 export function isWithdrawalConsentEnabled(): boolean {
   return import.meta.env.VITE_WITHDRAWAL_CONSENT_ENABLED === 'true';
