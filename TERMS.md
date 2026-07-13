@@ -7,20 +7,18 @@
 > prospective customer with a real budget, ask the maintainers for the
 > reviewed version.
 
-Last updated: 2026-06-22. Effective on the same date.
+Last updated: 2026-07-13. Effective on the same date.
 
 ---
 
 ## 1. Who we are
 
-Orange Way Books is operated by Morning Revolution, a Quebec-domiciled
+Orange Way Books is operated by Morning Revolution, an Ontario-domiciled
 operator. References to "we", "us", or "Orange Way Books" in this
 document mean the operator. References to "you" mean the individual or
 organisation creating an account or self-hosting the software.
 
-The privacy officer (responsable de la protection des renseignements
-personnels under Quebec Law 25) is the founder of Morning Revolution;
-the privacy contact email is published in the public site's footer
+The privacy contact email is published in the public site's footer
 alongside the general contact address. A reviewed version of this
 document will replace the footer-indirection with a literal address.
 
@@ -78,14 +76,42 @@ You will not use the service to:
 The hosted service may suspend or terminate an account that violates
 this section.
 
-## 5. Pricing and payments
+## 5. Pricing, billing, and refunds
 
-Pricing for hosted plans is on the Pricing page. Paid plans renew per
-billing cycle until cancelled. Cancellation takes effect at the end of
-the then-current cycle; pro-rated refunds are not offered by default
-but may be granted on case-by-case for material service failures.
+Prices are in Canadian dollars (CAD) and exclude applicable taxes. You
+are responsible for any sales tax, GST, HST, or VAT that applies in
+your jurisdiction.
 
-Self-hosted use carries no fee.
+**Subscriptions.** Paid plans renew automatically at the end of each
+billing cycle (monthly or annual) until you cancel. You may cancel at
+any time through account settings; access continues to the end of the
+current billing period.
+
+**Annual plans -- refunds.** If you cancel an annual plan, we will
+refund the prorated amount for unused complete months, provided you
+submit the request within 30 days of the original charge. Requests
+after 30 days are at our discretion. Contact support using the address
+in the site footer.
+
+**Monthly plans.** Monthly charges are non-refundable once a billing
+cycle has begun.
+
+**Beta pricing.** Current pricing applies during the beta period. We
+will give at least 30 days written notice by email before any price
+increase takes effect at or after general availability.
+
+**Annual renewal notice.** We will email a reminder at least 30 days
+before an annual plan renews, stating the amount and renewal date.
+
+**EU and UK consumers.** You have a statutory 14-day right to withdraw
+from a distance contract. The period begins on the purchase date. The
+right is forfeited once you have actively used the hosted service
+during the withdrawal window (EU Consumer Rights Directive Art. 16(m)).
+Contact support before the period expires to exercise this right.
+
+**Disputed charges.** Contact support within 60 days of any charge you
+believe was made in error. We will investigate and credit or refund
+confirmed errors.
 
 ## 6. Data and privacy
 
@@ -182,11 +208,11 @@ the service after a change takes effect constitutes acceptance.
 
 ## 12. Governing law and dispute resolution
 
-These terms are governed by the laws of the Province of Quebec and the
+These terms are governed by the laws of the Province of Ontario and the
 applicable laws of Canada, without regard to conflict-of-laws rules.
-Each party submits to the exclusive jurisdiction of the courts located
-in Montreal, Quebec for any dispute arising out of or in connection
-with these terms or the service.
+Each party submits to the exclusive jurisdiction of the courts of
+competent jurisdiction in the Province of Ontario for any dispute
+arising out of or in connection with these terms or the service.
 
 If you are a consumer resident in a jurisdiction whose mandatory
 consumer-protection laws grant you broader rights, those rights
@@ -201,10 +227,12 @@ prevail.
 
 ## 14. Document version
 
-This is the placeholder draft dated 2026-06-22 (version 0.1, marked
-"placeholder, lawyer review pending"). The note at the top of this
-file restates the same caveat for any reader who skipped the preamble.
-A reviewed version will replace this file in a future release. Older
-versions remain in the git history of this repository for reference.
-The PR that lands the reviewed version will reference this document
-by commit hash for an unambiguous audit trail.
+This is the placeholder draft dated 2026-07-13 (version 0.2, marked
+"placeholder, lawyer review pending"). Version 0.2 carries the reviewed
+pricing, billing, and refund clause and the Ontario governing-law and
+jurisdiction terms. The note at the top of this file restates the same
+caveat for any reader who skipped the preamble. A reviewed version will
+replace this file in a future release. Older versions remain in the git
+history of this repository for reference. The PR that lands the reviewed
+version will reference this document by commit hash for an unambiguous
+audit trail.
