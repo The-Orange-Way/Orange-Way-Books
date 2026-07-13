@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   TERMS_VERSION,
@@ -5,6 +6,25 @@ import {
   WITHDRAWAL_CONSENT_LABEL,
   WITHDRAWAL_CONSENT_UNTICKED_HINT,
 } from '../withdrawal-consent';
+
+// The edge function runs in Deno and is bundled from supabase/functions, so it
+// cannot import this module. It keeps its own copy of the two constants that
+// end up in the evidence row, and the server copy is the one that gets stored.
+// We read it as text rather than importing it, because a Deno module is not
+// loadable from a Vite test run.
+const SERVER_CONSTANTS_PATH = new URL(
+  '../../../supabase/functions/_shared/withdrawal-consent.ts',
+  import.meta.url,
+);
+
+function serverConstant(name: string): string {
+  const source = readFileSync(SERVER_CONSTANTS_PATH, 'utf8');
+  const match = source.match(new RegExp(`export const ${name} =\\s*'([^']*)'`));
+  if (!match) {
+    throw new Error(`${name} not found in the edge function consent constants`);
+  }
+  return match[1];
+}
 
 describe('withdrawal consent copy', () => {
   it('pins the legally reviewed label exactly', () => {
@@ -30,5 +50,17 @@ describe('withdrawal consent copy', () => {
 
   it('stamps a dated terms version', () => {
     expect(TERMS_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('stores exactly what the customer reads: server label matches the rendered label', () => {
+    // The label on screen comes from this module. The label written into
+    // consent_text comes from the edge function's copy. If they ever differ,
+    // the record no longer proves what the customer saw, so this is a
+    // blocking failure, not a style nit.
+    expect(serverConstant('WITHDRAWAL_CONSENT_LABEL')).toBe(WITHDRAWAL_CONSENT_LABEL);
+  });
+
+  it('keeps the terms version in step on both sides', () => {
+    expect(serverConstant('TERMS_VERSION')).toBe(TERMS_VERSION);
   });
 });
