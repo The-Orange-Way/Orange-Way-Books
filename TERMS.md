@@ -18,9 +18,11 @@ operator. References to "we", "us", or "Orange Way Books" in this
 document mean the operator. References to "you" mean the individual or
 organisation creating an account or self-hosting the software.
 
-The privacy contact email is published in the public site's footer
-alongside the general contact address. A reviewed version of this
-document will replace the footer-indirection with a literal address.
+General and legal contact is `legal@orangeway.app`, the same address
+printed on the public Terms page at `/terms`. Privacy requests go to the
+contact named in the Contact section of the public Privacy page at
+`/privacy`. The public Contact page at `/contact` lists the other
+channels (public issue tracker, private security advisories).
 
 ## 2. The service
 
@@ -93,8 +95,8 @@ renewal are not offered today.
 **Stopping a paid plan.** Because nothing renews automatically, you stop
 a paid plan by not paying the next cycle's payment link. Your access
 continues to the end of the billing period you have already paid for. If
-you want the billing account closed on the record before then, contact
-support using the address in the site footer.
+you want the billing account closed on the record before then, write to
+`legal@orangeway.app`.
 
 **Refunds.** A monthly billing cycle is non-refundable once it has
 begun.
@@ -112,11 +114,12 @@ applies.
 from a distance contract. The period begins on the purchase date. The
 right is forfeited once you have actively used the hosted service
 during the withdrawal window (EU Consumer Rights Directive Art. 16(m)).
-Contact support before the period expires to exercise this right.
+Write to `legal@orangeway.app` before the period expires to exercise
+this right.
 
-**Disputed charges.** Contact support within 60 days of any charge you
-believe was made in error. We will investigate and credit or refund
-confirmed errors.
+**Disputed charges.** Write to `legal@orangeway.app` within 60 days of
+any charge you believe was made in error. We will investigate and credit
+or refund confirmed errors.
 
 ## 6. Data and privacy
 
@@ -231,18 +234,27 @@ prevail.
 
 ## 13. Contact
 
-- General contact and support: the email address on the public site's
-  footer.
+- General contact, support, and billing: `legal@orangeway.app`. The same
+  address is printed on the public Terms page at `/terms`, so the page
+  and this document agree on where to write.
+- Other channels: the public Contact page at `/contact` (public issue
+  tracker for bugs and feature requests, private security advisories for
+  anything sensitive).
+- Privacy requests: the contact named in the Contact section of the
+  public Privacy page at `/privacy`.
 - Security disclosure: see `SECURITY.md` for the responsible-disclosure
-  contact and timeline.
+  contact and timeline. Do not open a public issue for a vulnerability.
 
 ## 14. Document version
 
-This is the placeholder draft dated 2026-07-13 (version 0.3, marked
-"placeholder, lawyer review pending"). Version 0.3 scopes the pricing,
+This is the placeholder draft dated 2026-07-13 (version 0.4, marked
+"placeholder, lawyer review pending"). Version 0.4 replaces the
+footer-indirection in sections 1, 5, and 13 with the literal contact
+address the public Terms page already prints, so a reader of either
+document is told the same thing. Version 0.3 scoped the pricing,
 billing, and refund clause to the billing flow that ships today (monthly,
 per-cycle payment link, no stored payment instrument, no automatic
-renewal) and keeps the Ontario governing-law and jurisdiction terms. The
+renewal) and kept the Ontario governing-law and jurisdiction terms. The
 note at the top of this file restates the same caveat for any reader who
 skipped the preamble. A reviewed version will replace this file in a
 future release. Older versions remain in the git history of this

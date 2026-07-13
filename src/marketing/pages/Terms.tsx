@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Seo } from '../Seo';
 import { breadcrumbJsonLd } from '../seo';
 
@@ -58,8 +59,8 @@ export default function Terms() {
           <p className="mt-4 text-muted-foreground">
             Because nothing renews on its own, you stop a paid plan by not paying the next cycle.
             Your access continues to the end of the billing period you have already paid for. If you
-            want the billing account closed on the record before then, contact support. A monthly
-            cycle is not refundable once it has begun.
+            want the billing account closed on the record before then, write to legal@orangeway.app.
+            A monthly cycle is not refundable once it has begun.
           </p>
           <p className="mt-4 text-muted-foreground">
             Current pricing applies during the beta period. We give at least 30 days written notice
@@ -71,11 +72,11 @@ export default function Terms() {
             Consumers in the EU and the UK have a statutory 14-day right to withdraw from a distance
             contract, starting on the purchase date. That right is forfeited once you have actively
             used the hosted service during the withdrawal window (EU Consumer Rights Directive
-            Article 16(m)). Contact support before the period expires to exercise it.
+            Article 16(m)). Write to legal@orangeway.app before the period expires to exercise it.
           </p>
           <p className="mt-4 text-muted-foreground">
-            Think a charge was made in error? Contact support within 60 days. We investigate and
-            credit or refund confirmed errors.
+            Think a charge was made in error? Write to legal@orangeway.app within 60 days. We
+            investigate and credit or refund confirmed errors.
           </p>
         </Section>
 
@@ -102,7 +103,20 @@ export default function Terms() {
           </p>
         </Section>
 
-        <p className="mt-10 text-xs text-muted-foreground">Questions? Email legal@orangeway.app.</p>
+        <Section title="Contact">
+          <p className="text-muted-foreground">
+            General contact, support, and billing questions: legal@orangeway.app. Bug reports,
+            feature requests, and private security disclosures go through the channels on the{' '}
+            <Link to="/contact" className="underline">
+              Contact page
+            </Link>
+            . Privacy requests are handled through the contact named on the{' '}
+            <Link to="/privacy" className="underline">
+              Privacy page
+            </Link>
+            .
+          </p>
+        </Section>
       </article>
     </>
   );
