@@ -80,13 +80,26 @@ fi
 # The reserved-term list is NOT hardcoded here: committing the list would
 # publish the very strings it exists to keep out of the public tree. It is
 # sourced at runtime from the OW_RESERVED_TERMS environment variable or a
-# gitignored .reserved-terms file (one regex fragment per line; see
-# .reserved-terms.example). The post-merge identity-scan workflow sources
-# the same list from the repository secret, so local and server-side
-# enforcement share one source of truth and cannot drift.
-PRIVATE_PATTERN="${OW_RESERVED_TERMS:-}"
+# gitignored .reserved-terms file (see .reserved-terms.example). The
+# post-merge identity-scan workflow sources the same list from the
+# repository secret, so local and server-side enforcement share one source
+# of truth and cannot drift.
+#
+# Both sources go through the SAME canonicalizer as pre-publish-scan.sh:
+# one fragment per line, blank lines and #-comment lines dropped, the rest
+# joined into a single alternation. A comment line inside the secret is
+# therefore ignored, not compiled into a live regex fragment. A
+# single-line "a|b|c" value passes through unchanged.
+canon_terms() {
+  grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' - | sed -e 's/^|*//' -e 's/|*$//'
+}
+
+PRIVATE_PATTERN=""
+if [ -n "${OW_RESERVED_TERMS:-}" ]; then
+  PRIVATE_PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms || true)"
+fi
 if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
-  PRIVATE_PATTERN="$(grep -vE '^[[:space:]]*(#|$)' "$REPO_ROOT/.reserved-terms" | paste -sd'|' -)"
+  PRIVATE_PATTERN="$(canon_terms < "$REPO_ROOT/.reserved-terms" || true)"
 fi
 
 if [ -z "$PRIVATE_PATTERN" ]; then
