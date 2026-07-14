@@ -85,22 +85,38 @@ EXIT_CODE=0
 # experiment codenames, non-public hostnames, personal names, or private
 # contact strings. The list of such reserved terms is NOT hardcoded here,
 # because committing the list would publish the very strings it exists to
-# keep out of the public tree. It is provided at runtime as a regex
-# alternation, from either source, in this order:
+# keep out of the public tree. It is provided at runtime, from either
+# source, in this order:
 #
 #   1. The OW_RESERVED_TERMS environment variable (CI sources this from a
 #      repository secret: see the leak-check and post-merge identity-scan
 #      workflows).
-#   2. A gitignored .reserved-terms file (one regex fragment per line;
-#      blank lines and #-comments ignored). See .reserved-terms.example.
+#   2. A gitignored .reserved-terms file. See .reserved-terms.example.
+#
+# BOTH sources accept the same format and go through the same
+# canonicalizer below: one regex fragment per line, blank lines and
+# #-comment lines ignored, remaining lines joined into a single regex
+# alternation. A single-line "a|b|c" value passes through unchanged.
 #
 # If neither is configured the reserved-term scan is SKIPPED with a notice
 # (the structural checks below still run). Outside contributors therefore
 # get a working scanner with zero exposure to the internal list.
 
-RESERVED_TERMS="${OW_RESERVED_TERMS:-}"
+# canon_terms: stdin -> one regex alternation on stdout.
+# Drops blank lines and #-comment lines, joins the rest with '|', and
+# trims any leading/trailing separators. Applied to the env value as well
+# as the file, so a comment line inside the secret is IGNORED rather than
+# compiled into a live regex fragment that would match literal text.
+canon_terms() {
+  grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' - | sed -e 's/^|*//' -e 's/|*$//'
+}
+
+RESERVED_TERMS=""
+if [[ -n "${OW_RESERVED_TERMS:-}" ]]; then
+  RESERVED_TERMS="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms)"
+fi
 if [[ -z "$RESERVED_TERMS" && -f .reserved-terms ]]; then
-  RESERVED_TERMS="$(grep -vE '^[[:space:]]*(#|$)' .reserved-terms | paste -sd'|' -)"
+  RESERVED_TERMS="$(canon_terms < .reserved-terms)"
 fi
 
 # ----------------------------------------------------------------------
