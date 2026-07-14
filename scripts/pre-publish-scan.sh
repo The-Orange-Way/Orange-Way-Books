@@ -78,6 +78,21 @@ EXEMPT_GENERIC=(
 EXIT_CODE=0
 
 # ----------------------------------------------------------------------
+# Output redaction
+# ----------------------------------------------------------------------
+#
+# GitHub Actions logs on a PUBLIC repo are public. A finding in the
+# reserved-term category is, by definition, a line containing an
+# internal-only string: printing that line to a CI log would publish the
+# very string the scanner exists to keep out of the tree, and would do it
+# in a searchable place. So in CI we print file:line only and suppress the
+# matched text. Local runs (CI unset) print full context, because the
+# person running it already has the list.
+#
+# GitHub sets CI=true on every runner.
+REDACT_MATCHES="${CI:+1}"
+
+# ----------------------------------------------------------------------
 # Reserved-term list (sourced OUT of this committed file)
 # ----------------------------------------------------------------------
 #
@@ -100,7 +115,10 @@ EXIT_CODE=0
 #
 # If neither is configured the reserved-term scan is SKIPPED with a notice
 # (the structural checks below still run). Outside contributors therefore
-# get a working scanner with zero exposure to the internal list.
+# get a working scanner with zero exposure to the internal list. Note that
+# CI does NOT rely on that skip path: the leak-check and identity-scan
+# workflows hard-fail when the secret is missing, so a missing list can
+# never read as a green scan on a protected branch.
 
 # canon_terms: stdin -> one regex alternation on stdout.
 # Drops blank lines and #-comment lines, joins the rest with '|', and
@@ -128,12 +146,15 @@ fi
 #   $2  grep pattern (extended regex)
 #   $3  grep flags (e.g. -i for case-insensitive). Empty string for none.
 #   $4  extra-exemption pattern (extended regex). Empty string for none.
+#   $5  "1" to redact matched text (print file:line only). Empty for none.
+#       Set for any category whose pattern comes from the internal list.
 
 scan() {
   local name="$1"
   local pattern="$2"
   local flags="$3"
   local extra_exempt="$4"
+  local redact="${5:-}"
 
   local raw
   if [[ -n "$flags" ]]; then
@@ -173,7 +194,16 @@ scan() {
   local count
   count=$(printf '%s\n' "$filtered" | wc -l)
   printf "  \033[31m✗\033[0m  %s (%d findings)\n" "$name" "$count"
-  printf '%s\n' "$filtered" | sed 's/^/      /' | head -30
+
+  if [[ -n "$redact" ]]; then
+    # file:line only. The matched text is an internal string by definition;
+    # never print it to a log that may be public.
+    printf '%s\n' "$filtered" | cut -d: -f1,2 | sed 's/^/      /' | head -30
+    printf "      (matched text redacted; re-run this scan locally to see it)\n"
+  else
+    printf '%s\n' "$filtered" | sed 's/^/      /' | head -30
+  fi
+
   if [[ "$count" -gt 30 ]]; then
     printf "      ... %d more\n" "$((count - 30))"
   fi
@@ -197,7 +227,8 @@ if [[ -n "$RESERVED_TERMS" ]]; then
   scan "Reserved terms (internal list)" \
        "$RESERVED_TERMS" \
        "" \
-       ""
+       "" \
+       "$REDACT_MATCHES"
 else
   printf "  \033[33m–\033[0m  Reserved-term scan skipped (set OW_RESERVED_TERMS or add .reserved-terms)\n"
 fi
@@ -205,11 +236,15 @@ fi
 # ----------------------------------------------------------------------
 # Category 2: Public-safe structural checks
 # ----------------------------------------------------------------------
+#
+# These patterns are hardcoded and contain no internal-only strings, so
+# their findings are safe to print in full, in CI or locally.
 
 printf "\n\033[1m2. Structural naming checks\033[0m\n"
 
 scan "Internal codename: MB / OWM as acronym" \
      "\\(MB\\)|MB —| in MB\\b|MB's|\\bOWM\\b" \
+     "" \
      "" \
      ""
 
@@ -225,30 +260,36 @@ printf "\n\033[1m3. Internal milestone tags + dead PR refs\033[0m\n"
 scan "D-number milestone tags" \
      "\\bD[0-9]{1,3}[:)] |\\(D[0-9]{1,3}\\)|\\bD[0-9]{1,3} —" \
      "" \
+     "" \
      ""
 
 scan "SEC-N audit tags" \
      "\\bSEC-[0-9]+\\b|#SEC-[0-9]+" \
+     "" \
      "" \
      ""
 
 scan "CQ-N code-quality tags" \
      "\\bCQ-[0-9]+\\b|#CQ-[0-9]+" \
      "" \
+     "" \
      ""
 
 scan "DB-N database-audit tags" \
      "\\bDB-[0-9]+\\b|#DB-[0-9]+" \
+     "" \
      "" \
      ""
 
 scan "PERF-N performance-audit tags" \
      "\\bPERF-[0-9]+\\b|#PERF-[0-9]+" \
      "" \
+     "" \
      ""
 
 scan "Dead PR references" \
      "PR #[0-9]+|V[23] PR\\b|OR PR #" \
+     "" \
      "" \
      ""
 
