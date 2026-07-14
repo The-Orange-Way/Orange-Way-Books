@@ -55,18 +55,37 @@ jobs:
           # secret; scripts/pre-push-gate.sh and pre-publish-scan.sh source
           # the same list locally (env var or gitignored .reserved-terms),
           # so local and server-side enforcement cannot drift.
-          PATTERN: ${{ secrets.OW_RESERVED_TERMS }}
+          RAW_PATTERN: ${{ secrets.OW_RESERVED_TERMS }}
           RANGE: ${{ steps.range.outputs.range }}
         run: |
-          set -euo pipefail
-          if [ -z "$PATTERN" ]; then
+          set -uo pipefail
+          if [ -z "$RAW_PATTERN" ]; then
             echo "::error::OW_RESERVED_TERMS repository secret is not set; the identity scan cannot run."
             exit 1
           fi
+
+          # Canonicalize exactly as scripts/pre-publish-scan.sh does: drop
+          # blank lines and #-comment lines, join the rest into one regex
+          # alternation. Without this a comment line in the secret would be
+          # compiled into the regex as a live fragment. A single-line
+          # "a|b|c" secret passes through unchanged.
+          PATTERN="$(printf '%s\n' "$RAW_PATTERN" \
+            | grep -vE '^[[:space:]]*(#|$)' \
+            | paste -sd'|' - \
+            | sed -e 's/^|*//' -e 's/|*$//')"
+
+          if [ -z "$PATTERN" ]; then
+            echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after dropping comments and blank lines."
+            exit 1
+          fi
+          # Count only. The terms themselves are never printed to a public log.
+          TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
+          echo "Reserved-term list loaded: $TERM_COUNT term(s)."
+
           echo "Scanning range: $RANGE"
           MATCHES=0
           while IFS= read -r line; do
-            if echo "$line" | grep -nEi "$PATTERN" >/dev/null; then
+            if printf '%s' "$line" | grep -qEi "$PATTERN"; then
               echo "::error::Reserved-term pattern found in just-pushed commit metadata (redacted; see OW_RESERVED_TERMS)."
               MATCHES=$((MATCHES + 1))
             fi
