@@ -75,6 +75,20 @@ EXEMPT_GENERIC=(
   "CONTRIBUTING.md"
 )
 
+# This file is the one unavoidable special case. It enumerates the
+# structural patterns inline, so a tree-wide grep for a structural pattern
+# always matches the line that defines it: the definition IS the match.
+# Those are definitions, not leaks, and without an exemption the check can
+# never report green on its own source.
+#
+# So this file is exempted from the STRUCTURAL categories ONLY. It stays
+# fully in scope for the reserved-term category above, which is the whole
+# point of sourcing that list out of tree: an internal literal
+# reintroduced into this file must still be caught. Pass this as the
+# extra-exemption argument to structural scans, never to the reserved-term
+# scan.
+SELF_SOURCE_EXEMPT='^\./scripts/pre-publish-scan\.sh:'
+
 EXIT_CODE=0
 
 # ----------------------------------------------------------------------
@@ -220,6 +234,9 @@ printf "  repo: %s\n\n" "$REPO_ROOT"
 # ----------------------------------------------------------------------
 # Category 1: Reserved terms (internal list, sourced at runtime)
 # ----------------------------------------------------------------------
+#
+# No extra exemption here, deliberately: every file in scope is checked,
+# including this one.
 
 printf "\033[1m1. Reserved terms\033[0m\n"
 
@@ -238,14 +255,16 @@ fi
 # ----------------------------------------------------------------------
 #
 # These patterns are hardcoded and contain no internal-only strings, so
-# their findings are safe to print in full, in CI or locally.
+# their findings are safe to print in full, in CI or locally. They are
+# also the categories this file matches against itself, so each one takes
+# SELF_SOURCE_EXEMPT.
 
 printf "\n\033[1m2. Structural naming checks\033[0m\n"
 
 scan "Internal codename: MB / OWM as acronym" \
      "\\(MB\\)|MB —| in MB\\b|MB's|\\bOWM\\b" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 # ----------------------------------------------------------------------
@@ -260,37 +279,37 @@ printf "\n\033[1m3. Internal milestone tags + dead PR refs\033[0m\n"
 scan "D-number milestone tags" \
      "\\bD[0-9]{1,3}[:)] |\\(D[0-9]{1,3}\\)|\\bD[0-9]{1,3} —" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 scan "SEC-N audit tags" \
      "\\bSEC-[0-9]+\\b|#SEC-[0-9]+" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 scan "CQ-N code-quality tags" \
      "\\bCQ-[0-9]+\\b|#CQ-[0-9]+" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 scan "DB-N database-audit tags" \
      "\\bDB-[0-9]+\\b|#DB-[0-9]+" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 scan "PERF-N performance-audit tags" \
      "\\bPERF-[0-9]+\\b|#PERF-[0-9]+" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 scan "Dead PR references" \
      "PR #[0-9]+|V[23] PR\\b|OR PR #" \
      "" \
-     "" \
+     "$SELF_SOURCE_EXEMPT" \
      ""
 
 # ----------------------------------------------------------------------
