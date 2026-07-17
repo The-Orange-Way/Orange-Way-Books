@@ -127,6 +127,12 @@ REDACT_MATCHES="${CI:+1}"
 # #-comment lines ignored, remaining lines joined into a single regex
 # alternation. A single-line "a|b|c" value passes through unchanged.
 #
+# Matching is CASE-INSENSITIVE, and must stay that way: the commit
+# metadata scan in .github/workflows/post-merge-identity-scan.yml matches
+# this same list with grep -qEi. Two guards reading one list must apply
+# one semantics, or the tree scan reports green on content the metadata
+# scan would fail, purely on capitalisation.
+#
 # If neither is configured the reserved-term scan is SKIPPED with a notice
 # (the structural checks below still run). Outside contributors therefore
 # get a working scanner with zero exposure to the internal list. Note that
@@ -237,13 +243,17 @@ printf "  repo: %s\n\n" "$REPO_ROOT"
 #
 # No extra exemption here, deliberately: every file in scope is checked,
 # including this one.
+#
+# -i is REQUIRED, not a preference. It pairs this scan with the
+# case-insensitive commit-metadata scan over the same list. Do not drop
+# it without changing that workflow in the same commit.
 
 printf "\033[1m1. Reserved terms\033[0m\n"
 
 if [[ -n "$RESERVED_TERMS" ]]; then
   scan "Reserved terms (internal list)" \
        "$RESERVED_TERMS" \
-       "" \
+       "-i" \
        "" \
        "$REDACT_MATCHES"
 else
@@ -258,6 +268,10 @@ fi
 # their findings are safe to print in full, in CI or locally. They are
 # also the categories this file matches against itself, so each one takes
 # SELF_SOURCE_EXEMPT.
+#
+# These stay case-SENSITIVE on purpose. The patterns are acronyms and
+# milestone tags where case carries the meaning, and lowering it would
+# match ordinary prose.
 
 printf "\n\033[1m2. Structural naming checks\033[0m\n"
 
