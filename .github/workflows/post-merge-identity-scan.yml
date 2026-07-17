@@ -102,8 +102,11 @@ jobs:
           OW_RESERVED_TERMS: ${{ secrets.OW_RESERVED_TERMS }}
         run: |
           set -euo pipefail
-          if [ -x scripts/pre-publish-scan.sh ]; then
-            bash scripts/pre-publish-scan.sh
-          else
-            echo "scripts/pre-publish-scan.sh missing; skipping tree scan."
+          # Fail closed: an unrunnable scanner is a broken guard, not a
+          # clean tree. If this step cannot execute the scanner it must go
+          # red, never report a green it did not earn.
+          if [ ! -x scripts/pre-publish-scan.sh ]; then
+            echo "::error::scripts/pre-publish-scan.sh is missing or not executable; the tree scan cannot run."
+            exit 1
           fi
+          bash scripts/pre-publish-scan.sh
