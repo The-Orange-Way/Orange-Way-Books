@@ -50,6 +50,21 @@ fi
 
 FAIL=0
 
+# The commits a push actually adds, as a git range. A bare sha means "every
+# commit reachable from here", which for scanning purposes is the entire
+# history, most of it already on the remote. The reserved-term scan, the
+# identity scan, and the gitleaks scan all want only what this push
+# introduces, so they share one definition of the base rather than each
+# computing (and drifting on) its own. A brand-new branch has no upstream, so
+# fall back to origin/dev, then origin/main, then the root commit.
+push_range() {
+  local sha="$1" base
+  base=$(git merge-base "$sha" origin/dev 2>/dev/null ||
+    git merge-base "$sha" origin/main 2>/dev/null ||
+    git rev-list --max-parents=0 "$sha" | head -1)
+  printf '%s..%s' "$base" "$sha"
+}
+
 # ---- Check 1: /pr-this marker fresh ----
 MARKER="$REPO_ROOT/.git/.pr-this-ran"
 HEAD_SHA=$(git rev-parse HEAD)
@@ -108,9 +123,7 @@ if [ -z "$PRIVATE_PATTERN" ]; then
 else
   # Scan commits being pushed: messages + diff
   for sha in "${LOCAL_SHAS[@]}"; do
-    # If pushing a brand-new branch, walk back to origin/dev (or origin/main) for the diff base.
-    BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
-    RANGE="$BASE..$sha"
+    RANGE="$(push_range "$sha")"
     # Commit messages
     if git log --format='%H%n%s%n%b' "$RANGE" 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
       red "✗ Reserved-term leak in commit messages:"
@@ -137,8 +150,7 @@ fi
 # trailers are covered by the reserved-term scan in Check 3.
 ALLOWED_IDENT_RE='@users\.noreply\.github\.com$'
 for sha in "${LOCAL_SHAS[@]}"; do
-  BASE=$(git merge-base "$sha" origin/dev 2>/dev/null || git merge-base "$sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$sha" | head -1)
-  RANGE="$BASE..$sha"
+  RANGE="$(push_range "$sha")"
   BAD_IDENT=$(git log "$RANGE" --format='%H %ae %ce' 2>/dev/null \
     | awk -v re="$ALLOWED_IDENT_RE" '$2 !~ re || $3 !~ re { print }')
   if [ -n "$BAD_IDENT" ]; then
@@ -151,14 +163,29 @@ done
 [ "$FAIL" = "0" ] && green "✓ Commit identities look clean."
 
 # ---- Check 5: gitleaks on the prepared commits (if installed) ----
+# Scans the same range as checks 3 and 4: only what this push adds. Passing a
+# bare sha to --log-opts scanned every commit reachable from HEAD, so any
+# finding anywhere in history refused every push from every branch, no matter
+# what the push contained. Re-reporting a commit already on the remote cannot
+# prevent anything: if it is a real leak it is public already and needs
+# rotation, not a blocked push. Only the first sha was scanned, too, so a
+# multi-branch push checked one branch and waved the rest through.
 if command -v gitleaks >/dev/null; then
   CFG=""
   [ -f .gitleaks.toml ] && CFG="--config .gitleaks.toml"
-  if gitleaks detect $CFG --no-banner --log-opts="${LOCAL_SHAS[0]}" >/tmp/.gl.out 2>&1; then
+  GITLEAKS_FAIL=0
+  for sha in "${LOCAL_SHAS[@]}"; do
+    RANGE="$(push_range "$sha")"
+    # shellcheck disable=SC2086 # CFG is a deliberate two-word flag or empty.
+    if ! gitleaks detect $CFG --no-banner --log-opts="$RANGE" >/tmp/.gl.out 2>&1; then
+      red "✗ gitleaks found secrets in $RANGE:"
+      tail -10 /tmp/.gl.out
+      GITLEAKS_FAIL=1
+    fi
+  done
+  if [ "$GITLEAKS_FAIL" = "0" ]; then
     green "✓ gitleaks clean."
   else
-    red "✗ gitleaks found secrets:"
-    tail -10 /tmp/.gl.out
     FAIL=1
   fi
 fi
