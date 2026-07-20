@@ -55,3 +55,16 @@ root.render(
     <App />
   ),
 );
+
+// Fade out the inline loading splash after React paints. The brief
+// minimum visibility window lets the ZKA framing ("your books,
+// encrypted in this browser") register even on fast connections.
+const splash = document.getElementById('ow-splash');
+if (splash) {
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      splash.classList.add('ow-splash-leaving');
+      splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+    }, 250);
+  });
+}
