@@ -36,11 +36,20 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 # Read pre-push args from stdin: <local-ref> <local-sha> <remote-ref> <remote-sha>
-# We only need the local-shas being pushed.
+# We keep both sides. The local-sha is the tip being pushed; the remote-sha is
+# what the remote already holds for that ref (all-zeros for a brand-new ref),
+# which is the exact base of "what this push adds" for an incremental update.
+ZERO_SHA="0000000000000000000000000000000000000000"
+# git's canonical empty tree. Diffing a commit against it yields the commit's
+# entire content as additions, which lets the reserved-term scan include an
+# orphan root commit that a base..sha range would exclude.
+EMPTY_TREE="$(git hash-object -t tree /dev/null)"
 LOCAL_SHAS=()
+REMOTE_SHAS=()
 while read -r local_ref local_sha remote_ref remote_sha; do
-  [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+  [ "$local_sha" = "$ZERO_SHA" ] && continue
   LOCAL_SHAS+=("$local_sha")
+  REMOTE_SHAS+=("$remote_sha")
 done
 
 if [ ${#LOCAL_SHAS[@]} -eq 0 ]; then
@@ -50,19 +59,30 @@ fi
 
 FAIL=0
 
-# The commits a push actually adds, as a git range. A bare sha means "every
-# commit reachable from here", which for scanning purposes is the entire
-# history, most of it already on the remote. The reserved-term scan, the
-# identity scan, and the gitleaks scan all want only what this push
-# introduces, so they share one definition of the base rather than each
-# computing (and drifting on) its own. A brand-new branch has no upstream, so
-# fall back to origin/dev, then origin/main, then the root commit.
-push_range() {
-  local sha="$1" base
-  base=$(git merge-base "$sha" origin/dev 2>/dev/null ||
+# ---- Shared helper: the base a push is measured against ----
+# The base commit a push is measured against, so a scan sees only the commits
+# this push adds and not history already on the remote. Prints the base sha, or
+# nothing when the pushed tip shares no history with the remote (an orphan or
+# the very first commit) -- callers scan from the root in that case instead of
+# excluding a base. Every history scan below uses this so they cannot drift on
+# what "the base" means.
+#
+# Preference order:
+#   1. The remote ref's current tip (from pre-push stdin), when the remote
+#      already has this branch. That is the precise base of an incremental
+#      push; using the mainline merge-base instead would re-scan the branch's
+#      own earlier commits and could re-trip on a finding already pushed there.
+#   2. The merge-base with origin/dev, then origin/main, for a new remote ref.
+#   3. Nothing (orphan / initial commit): no shared history to subtract.
+push_base() {
+  local sha="$1" remote="${2:-$ZERO_SHA}"
+  if [ "$remote" != "$ZERO_SHA" ] && git cat-file -e "${remote}^{commit}" 2>/dev/null; then
+    printf '%s' "$remote"
+    return
+  fi
+  git merge-base "$sha" origin/dev 2>/dev/null ||
     git merge-base "$sha" origin/main 2>/dev/null ||
-    git rev-list --max-parents=0 "$sha" | head -1)
-  printf '%s..%s' "$base" "$sha"
+    true
 }
 
 # ---- Check 1: /pr-this marker fresh ----
@@ -122,20 +142,33 @@ if [ -z "$PRIVATE_PATTERN" ]; then
   yellow "  The server-side post-merge identity scan still enforces the list."
 else
   # Scan commits being pushed: messages + diff
-  for sha in "${LOCAL_SHAS[@]}"; do
-    RANGE="$(push_range "$sha")"
+  for i in "${!LOCAL_SHAS[@]}"; do
+    sha="${LOCAL_SHAS[$i]}"
+    base="$(push_base "$sha" "${REMOTE_SHAS[$i]}")"
+    if [ -n "$base" ]; then
+      LOG_RANGE="$base..$sha"
+      DIFF_ARGS=("$base..$sha")
+    else
+      # Orphan / initial commit: no shared history, so scan the whole thing,
+      # root included. git log takes the bare sha (every reachable commit);
+      # git diff needs two endpoints, so diff against the empty tree. A
+      # base..sha range would exclude the root and let a reserved term in the
+      # very first commit escape, the same way it did for gitleaks before.
+      LOG_RANGE="$sha"
+      DIFF_ARGS=("$EMPTY_TREE" "$sha")
+    fi
     # Commit messages
-    if git log --format='%H%n%s%n%b' "$RANGE" 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+    if git log --format='%H%n%s%n%b' "$LOG_RANGE" 2>/dev/null | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
       red "✗ Reserved-term leak in commit messages:"
-      git log --format='%H%n%s%n%b' "$RANGE" | grep -nEi --color=always "$PRIVATE_PATTERN"
+      git log --format='%H%n%s%n%b' "$LOG_RANGE" | grep -nEi --color=always "$PRIVATE_PATTERN"
       FAIL=1
     fi
     # Diff content: ADDED lines only. Deletions are how leaks get removed;
     # blocking a push because its diff deletes a reserved term would make
     # cleanups impossible.
-    if git diff "$RANGE" 2>/dev/null | grep -E '^\+' | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
+    if git diff "${DIFF_ARGS[@]}" 2>/dev/null | grep -E '^\+' | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
       red "✗ Reserved-term leak in added diff lines:"
-      git diff "$RANGE" | grep -E '^\+' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
+      git diff "${DIFF_ARGS[@]}" | grep -E '^\+' | grep -nEi --color=always "$PRIVATE_PATTERN" | head -20
       FAIL=1
     fi
   done
@@ -149,9 +182,14 @@ fi
 # public history. This catches it before the next push. Co-authored-by
 # trailers are covered by the reserved-term scan in Check 3.
 ALLOWED_IDENT_RE='@users\.noreply\.github\.com$'
-for sha in "${LOCAL_SHAS[@]}"; do
-  RANGE="$(push_range "$sha")"
-  BAD_IDENT=$(git log "$RANGE" --format='%H %ae %ce' 2>/dev/null \
+for i in "${!LOCAL_SHAS[@]}"; do
+  sha="${LOCAL_SHAS[$i]}"
+  base="$(push_base "$sha" "${REMOTE_SHAS[$i]}")"
+  # With a base, walk base..sha. Orphan / initial commit has no base: the bare
+  # sha lists every reachable commit, root included, so an identity on the very
+  # first commit cannot slip past the way base..sha would by excluding it.
+  if [ -n "$base" ]; then LOG_RANGE="$base..$sha"; else LOG_RANGE="$sha"; fi
+  BAD_IDENT=$(git log "$LOG_RANGE" --format='%H %ae %ce' 2>/dev/null \
     | awk -v re="$ALLOWED_IDENT_RE" '$2 !~ re || $3 !~ re { print }')
   if [ -n "$BAD_IDENT" ]; then
     red "✗ Commit author or committer email is not a GitHub noreply:"
@@ -174,11 +212,18 @@ if command -v gitleaks >/dev/null; then
   CFG=""
   [ -f .gitleaks.toml ] && CFG="--config .gitleaks.toml"
   GITLEAKS_FAIL=0
-  for sha in "${LOCAL_SHAS[@]}"; do
-    RANGE="$(push_range "$sha")"
+  for i in "${!LOCAL_SHAS[@]}"; do
+    sha="${LOCAL_SHAS[$i]}"
+    base="$(push_base "$sha" "${REMOTE_SHAS[$i]}")"
+    # With a base, scan base..sha. Orphan / initial commit has no base: scan
+    # the bare sha, which for --log-opts means every commit reachable from it
+    # (root included). That is exactly this push's new commits when nothing is
+    # shared with the remote, and it keeps the root from slipping through the
+    # way base..sha would by excluding it.
+    if [ -n "$base" ]; then LOGOPTS="$base..$sha"; else LOGOPTS="$sha"; fi
     # shellcheck disable=SC2086 # CFG is a deliberate two-word flag or empty.
-    if ! gitleaks detect $CFG --no-banner --log-opts="$RANGE" >/tmp/.gl.out 2>&1; then
-      red "✗ gitleaks found secrets in $RANGE:"
+    if ! gitleaks detect $CFG --no-banner --log-opts="$LOGOPTS" >/tmp/.gl.out 2>&1; then
+      red "✗ gitleaks found secrets in $LOGOPTS:"
       tail -10 /tmp/.gl.out
       GITLEAKS_FAIL=1
     fi
