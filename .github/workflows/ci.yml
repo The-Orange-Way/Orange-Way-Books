@@ -140,8 +140,7 @@ jobs:
     # functions are Deno, with their own globals and URL/npm: imports, and no
     # step in this workflow ever loaded them. So all 22 functions could stop
     # compiling with CI still fully green -- and deploy-supabase-functions.yml
-    # is workflow_dispatch-only, so nothing else caught it either. Sibling
-    # defect to Orange-The-World/orangerails, found the same day.
+    # is workflow_dispatch-only, so nothing else caught it either.
     #
     # Gate design -- read this before changing it. This is a RATCHET, not a
     # wall: it fails only when the error count goes ABOVE the recorded
@@ -170,9 +169,13 @@ jobs:
           # Pinned, not `latest`. These functions run on Supabase's edge
           # runtime, which the Supabase CLI provisions as edge-runtime v1.74.2
           # == deno 2.1.4; typecheck with the tsc the runtime actually ships.
-          # Floating on latest would also move the number for reasons unrelated
-          # to our code: the orangerails tree reports 19 errors on 2.1.4 and 21
-          # on 2.9.4, purely from the newer bundled tsc.
+          # Do not switch this to `latest`. A newer Deno bundles a newer tsc,
+          # and a newer tsc reports a different set of diagnostics on an
+          # unchanged tree -- it both adds and retires error classes. The
+          # baseline below would then move for reasons unrelated to our code,
+          # and the ratchet would go red on a Deno release rather than on a
+          # code change. Bump the pin deliberately, in its own PR, and record
+          # the new count in the same commit.
           deno-version: v2.1.4
 
       - name: deno check supabase/functions
