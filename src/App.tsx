@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import posthog from 'posthog-js';
+import { PostHogProvider } from 'posthog-js/react';
+import { scrubPostHogEvent } from '@/lib/observability/posthog-scrubber';
+import { isMarketingPath } from '@/lib/observability/analytics-surface';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes, Navigate, useLocation, Link } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -312,8 +316,74 @@ function VaultGate({ session }: { session: Session }) {
   );
 }
 
+/**
+ * Gates PostHog analytics to marketing routes. Defers init until the user
+ * first lands on a marketing path so the SDK is never initialised inside the
+ * authenticated app. Opts out on non-marketing routes if the SDK is already
+ * running (e.g. user navigated marketing -> sign-in). Captures explicit
+ * pageviews rather than relying on PostHog's automatic SPA tracking, which
+ * would fire on app routes the moment the user signs in.
+ *
+ * Must render inside BrowserRouter (needs useLocation).
+ */
+function AnalyticsGate() {
+  const location = useLocation();
+  const analyticsStarted = useRef(false);
+  const posthogKey = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
+  const enabled = typeof posthogKey === 'string' && posthogKey.length > 0;
+
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined') return;
+
+    if (!isMarketingPath(location.pathname)) {
+      // Authenticated app, auth screens, public invoices, and anything
+      // unrecognised. If the user arrived here from marketing the SDK is
+      // already live, so stop capturing rather than leave it running behind
+      // the sign-in wall.
+      if (analyticsStarted.current && !posthog.has_opted_out_capturing()) {
+        posthog.opt_out_capturing();
+      }
+      return;
+    }
+
+    if (!analyticsStarted.current) {
+      // Cookieless PostHog, marketing-only. Memory-only persistence means
+      // no cookies and no localStorage tracking. Each page load is a fresh
+      // anonymous event stream with no cross-session identity.
+      posthog.init(posthogKey, {
+        api_host: import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
+        persistence: 'memory',
+        person_profiles: 'never',
+        // Explicit capture only. Automatic pageviews follow SPA navigation
+        // and would fire on app routes the moment the user signs in.
+        capture_pageview: false,
+        autocapture: false,
+        disable_session_recording: true,
+        respect_dnt: true,
+        before_send: scrubPostHogEvent,
+      });
+      posthog.register({ app: 'orangewaybooks', brand: 'orangewaybooks' });
+      analyticsStarted.current = true;
+    }
+
+    // Opt-out state persists in localStorage under posthog's own key,
+    // independent of persistence: 'memory'. A user who signed in during
+    // an earlier visit loads a later marketing page already opted out;
+    // re-opt-in here so the pageview below is not a silent no-op.
+    // captureEventName: false suppresses the default $opt_in event so the
+    // transition itself emits nothing.
+    if (posthog.has_opted_out_capturing()) {
+      posthog.opt_in_capturing({ captureEventName: false });
+    }
+
+    posthog.capture('$pageview');
+  }, [location.pathname, enabled]);
+
+  return null;
+}
+
 // One-time analytics-notice banner shown once per browser, dismissed via
-// localStorage (UI state, not tracking , exempt from consent under
+// localStorage (UI state, not tracking, exempt from consent under
 // GDPR Article 6 because it's strictly necessary for the banner not to
 // nag). Same wording shipped across every Orange Way Books-family surface.
 function AnalyticsNotice() {
@@ -321,19 +391,10 @@ function AnalyticsNotice() {
   const [show, setShow] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Marketing pages only. The signed-in app, the auth screens, and
-    // public-invoice share links are all transactional surfaces where
-    // the notice is clutter (and on /signup it competes for attention
-    // with the captcha widget). Re-evaluate on every SPA route change
-    // so navigating from marketing → /app hides the banner.
-    const p = location.pathname;
-    const isAppOrAuth =
-      p.startsWith('/app') ||
-      p.startsWith('/login') ||
-      p.startsWith('/signup') ||
-      p.startsWith('/reset-password') ||
-      p.startsWith('/i/');
-    if (isAppOrAuth) {
+    // The notice renders only where analytics runs. isMarketingPath is the
+    // same allowlist the AnalyticsGate uses, so the banner and the behaviour
+    // it describes cannot drift apart: no analytics, no notice.
+    if (!isMarketingPath(location.pathname)) {
       setShow(false);
       return;
     }
@@ -437,10 +498,13 @@ const App = () => (
           <VaultProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
-              <RootRouter />
-              <AnalyticsNotice />
-            </BrowserRouter>
+            <PostHogProvider client={posthog}>
+              <BrowserRouter>
+                <RootRouter />
+                <AnalyticsNotice />
+                <AnalyticsGate />
+              </BrowserRouter>
+            </PostHogProvider>
           </VaultProvider>
         </TooltipProvider>
       </QueryClientProvider>
