@@ -21,6 +21,12 @@ on:
   push:
     branches: [dev, prod]
 
+# This job only reads history and greps commits; it writes nothing to
+# GitHub state. Pin the token to read-only instead of inheriting the
+# repository default scope.
+permissions:
+  contents: read
+
 jobs:
   identity-scan:
     name: Identity + body scan
