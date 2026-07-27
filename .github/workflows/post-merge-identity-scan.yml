@@ -97,7 +97,7 @@ jobs:
               MATCHES=$((MATCHES + 1))
             fi
           done < <(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--' \
-                   | grep -viE '^Co-authored-by:.*<[^>]*noreply@anthropic\.com>')
+                   | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
 
           if [ "$MATCHES" -gt 0 ]; then
             echo "::error::Identity-scan failed: $MATCHES commit(s) carry reserved-term strings."
