@@ -164,7 +164,7 @@ else
     # GitHub injects it on squash/rebase merges, so it cannot be prevented at
     # commit time. This mirrors the server post-merge identity scan so the two
     # cannot drift. Only this exact trailer line is dropped.
-    COAUTHOR_EXEMPT='^[[:space:]]*Co-authored-by:[[:space:]]*Claude[^<]*<noreply@anthropic\.com>[[:space:]]*$'
+    COAUTHOR_EXEMPT='^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$'
     if git log --format='%H%n%s%n%b' "$LOG_RANGE" 2>/dev/null | grep -viE "$COAUTHOR_EXEMPT" | grep -nEi "$PRIVATE_PATTERN" >/dev/null; then
       red "✗ Reserved-term leak in commit messages:"
       git log --format='%H%n%s%n%b' "$LOG_RANGE" | grep -viE "$COAUTHOR_EXEMPT" | grep -nEi --color=always "$PRIVATE_PATTERN"
