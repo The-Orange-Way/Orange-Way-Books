@@ -108,6 +108,21 @@ jobs:
       # OR import wizard spec. The wizard spec auto-skips when its
       # OWB_DEV_E2E_* env vars aren't set, so this is safe on forks /
       # external PRs that don't have the secrets.
+      # Self-heal the E2E fixture before the specs run. The rls-isolation and
+      # owb-full-suite specs sign in as a stable dev user; when that user is
+      # wiped (project reset, data purge) every auth-dependent spec strands at
+      # the login screen and the whole job goes red. This step idempotently
+      # (re)creates the user and walks onboarding so the specs always have a
+      # live fixture. DEV-only by a hard-coded ref allowlist in the script: it
+      # refuses to run against any project ref not in
+      # OWB_E2E_ALLOWED_PROJECT_REFS, pinned here to the dev project.
+      - name: Provision E2E user (DEV only)
+        run: bun tests/e2e/scripts/provision-e2e-user.js
+        env:
+          OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+
       - name: Run Playwright
         run: bunx playwright test
         env:
