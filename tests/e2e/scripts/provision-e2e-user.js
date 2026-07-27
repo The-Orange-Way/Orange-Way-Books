@@ -49,7 +49,16 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
 }
 
 (async () => {
-  const owb = JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
+  // Source the DEV Supabase URL + secret (service) key. In CI both arrive as
+  // env vars from GitHub Actions secrets; locally they fall back to the Jarvis
+  // vault file. The URL is used both to reach the admin API and to derive the
+  // project ref checked against ALLOWED_PROJECT_REFS below.
+  const owb = (() => {
+    const url = process.env.OWB_E2E_SUPABASE_URL;
+    const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+    if (url && secret) return { url, secret };
+    return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
+  })();
   const BASE = 'https://books.orangeway.dev';
 
   // Refuse to run if owb.url targets anything outside the DEV allowlist.
@@ -183,8 +192,10 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   }
   console.log('→ final URL:', url);
 
+  const outDir = '/tmp/owb-pw';
+  fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(
-    '/tmp/owb-pw/e2e-creds.json',
+    `${outDir}/e2e-creds.json`,
     JSON.stringify(
       {
         email: EMAIL,
