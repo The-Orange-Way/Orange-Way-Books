@@ -36,8 +36,7 @@ const MARKETING_PATHS = new Set([
 /** Normalise a pathname so "/features/" and "/features" compare equal. */
 function normalise(pathname: string): string {
   if (!pathname) return '/';
-  const trimmed =
-    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const trimmed = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   return trimmed === '' ? '/' : trimmed;
 }
 
