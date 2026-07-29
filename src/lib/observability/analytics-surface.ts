@@ -18,27 +18,27 @@
 // prefix match: "/security" is marketing, "/settings/security" is not.
 // Exception: "/compare/:slug" compare pages are matched by prefix below.
 const MARKETING_PATHS = new Set([
-  "/",
-  "/about",
-  "/ai",
-  "/compare",
-  "/contact",
-  "/docs",
-  "/faq",
-  "/features",
-  "/pricing",
-  "/privacy",
-  "/privacy-changelog",
-  "/security",
-  "/terms",
+  '/',
+  '/about',
+  '/ai',
+  '/compare',
+  '/contact',
+  '/docs',
+  '/faq',
+  '/features',
+  '/pricing',
+  '/privacy',
+  '/privacy-changelog',
+  '/security',
+  '/terms',
 ]);
 
 /** Normalise a pathname so "/features/" and "/features" compare equal. */
 function normalise(pathname: string): string {
-  if (!pathname) return "/";
+  if (!pathname) return '/';
   const trimmed =
-    pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-  return trimmed === "" ? "/" : trimmed;
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  return trimmed === '' ? '/' : trimmed;
 }
 
 /**
@@ -53,7 +53,7 @@ export function isMarketingPath(pathname: string): boolean {
   const p = normalise(pathname);
   if (MARKETING_PATHS.has(p)) return true;
   // /compare/:slug pages are marketing (product comparison stubs).
-  if (p.startsWith("/compare/")) return true;
+  if (p.startsWith('/compare/')) return true;
   return false;
 }
 
