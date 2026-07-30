@@ -73,11 +73,16 @@ jobs:
     # regardless of which branch triggered the workflow, so dev is
     # the right scope on prod pushes too.
     environment: dev
-    # Runs on every push to dev or prod. Specs target the dev deployment
-    # (books.orangeway.dev). PR events still skip e2e because they
-    # deploy to a Cloudflare Pages preview URL, not the dev deployment.
-    # Targeting the preview URL on PRs is a follow-up.
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
+    # Runs on every push to dev or prod, AND on same-repo pull requests so a PR
+    # that changes the E2E path can prove itself before merge. Fork PRs are
+    # excluded by the head-repo check, so the dev service key in the `dev`
+    # environment never reaches an untrusted runner. A ref gate cannot express
+    # this: a PR run's ref is refs/pull/N/merge, so a refs/heads/dev check would
+    # skip exactly the PR runs we want to prove. Specs always target the live
+    # dev deployment (books.orangeway.dev) regardless of the triggering branch.
+    if: >-
+      (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'))
+      || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -114,14 +119,18 @@ jobs:
       # the login screen and the whole job goes red. This step idempotently
       # (re)creates the user and walks onboarding so the specs always have a
       # live fixture. DEV-only by a hard-coded ref allowlist in the script: it
-      # refuses to run against any project ref not in
-      # OWB_E2E_ALLOWED_PROJECT_REFS, pinned here to the dev project.
+      # pins the OWB DEV project ref as a literal and refuses to run against any
+      # other ref, so a misconfigured URL cannot point it at prod.
       - name: Provision E2E user (DEV only)
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
-          OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+          # Same fixture identity the specs sign in with, so provisioning and
+          # the specs never drift onto two different users.
+          OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
+          OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
+          OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
 
       - name: Run Playwright
         run: bunx playwright test
