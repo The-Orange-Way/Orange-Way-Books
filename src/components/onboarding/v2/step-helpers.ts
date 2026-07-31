@@ -93,15 +93,18 @@ export function pickVerifyPositions() {
  * over-offer, never dead-end, because the fallback stays reachable.
  */
 export function useHasPlatformAuthenticator() {
-  const [available, setAvailable] = useState<boolean | null>(null);
+  // Resolved before the first render rather than inside the effect. A device
+  // with no WebAuthn at all is knowable synchronously, so answering it with a
+  // setState in the effect body would mean rendering the "checking" state once
+  // for nothing and then cascading a re-render, which is what
+  // react-hooks/set-state-in-effect is there to catch.
+  const supported = typeof window !== 'undefined' && Boolean(window.PublicKeyCredential);
+  const [available, setAvailable] = useState<boolean | null>(supported ? null : false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!supported) return;
 
-    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-      setAvailable(false);
-      return;
-    }
+    let cancelled = false;
 
     window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       .then((result) => {
@@ -114,7 +117,7 @@ export function useHasPlatformAuthenticator() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [supported]);
 
   return available;
 }
