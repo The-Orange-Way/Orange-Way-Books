@@ -2,9 +2,8 @@
  * Every user-facing string in the v2 flow, and nothing else. This is the file
  * to hand CX: three objects, no JSX, no logic wrapped around them.
  *
- * ONBOARDING_COPY is locked and must not be edited here. SUCCESS_COPY and
- * VERIFY_COPY are not locked and are waiting on CX; each carries its own note
- * saying why.
+ * ONBOARDING_COPY and VERIFY_COPY are now locked and must not be edited here.
+ * SUCCESS_COPY is not locked and carries its own note saying why.
  *
  * Screen copy below is VERBATIM from the locked specification:
  *
@@ -32,13 +31,17 @@ export const ONBOARDING_COPY = {
     secondary: 'Skip',
   },
   email: {
-    headline: "What's your email address?",
-    body: "We'll send a one-time link to confirm it's you. No password yet.",
+    headline: "What's your email?",
+    body: "We'll send a one-time code. No password needed.",
     cta: 'Send my link',
   },
+  emailCode: {
+    headline: 'Check your inbox.',
+    body: 'We sent a 6-digit code to {email}. It expires in a few minutes.',
+  },
   education: {
-    headline: 'Your money stays yours.',
-    body: 'Orange Way is built so we can never see your balance, your keys, or your transactions. Not us. Not anyone. It lives on your device.',
+    headline: 'Your data stays yours.',
+    body: 'Orange Way is built so we can never read your balances, your keys, or your history. Not us. Not anyone. It lives on your device.',
     cta: 'Got it',
   },
   vaultPassword: {
@@ -88,20 +91,12 @@ export const SUCCESS_COPY = {
 };
 
 /**
- * COPY NOT LOCKED, and this one is on the default path, so it is the shortest
- * open item in the whole flow. CX has never written copy for the recovery
- * verification screen; it appears in DL-0414 only as a mechanism.
- *
- * Unlike the sibling app, this repo already ships wording for exactly this
- * screen: see StepVaultPassword, "Prove you saved it" over "Type the words at
- * the positions below from your saved copy. This protects you from a future
- * lockout." That text has been in front of real users. It is reproduced here so
- * v2 does not quietly regress copy that v1 already got right, and so CX is
- * reviewing a diff against something real rather than approving from scratch.
+ * COPY NOW LOCKED. CX finalized 2026-07-31 (same sign-off as ONBOARDING_COPY).
+ * Do not reword here; change the wiki first and port it down.
  */
 export const VERIFY_COPY = {
-  headline: 'Prove you saved it',
-  body: 'Type the words at the positions below from your saved copy. This protects you from a future lockout.',
+  headline: 'Confirm your recovery phrase.',
+  body: 'Type the words at the positions below from your saved copy.',
   hint: 'Recovery code hidden during verification. Use the link below if you need to see it again.',
   cta: 'Confirm and continue',
   back: 'Back to code',
