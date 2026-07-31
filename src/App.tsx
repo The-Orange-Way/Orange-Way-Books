@@ -14,6 +14,8 @@ import { setSentryUser, addBreadcrumb } from '@/lib/observability/sentry';
 import AppShell from '@/components/layout/AppShell';
 import VaultUnlockScreen from '@/components/layout/VaultUnlockScreen';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
+import OnboardingWizardV2 from '@/components/onboarding/v2/OnboardingWizardV2';
+import { ONBOARDING_V2_ENABLED } from '@/components/onboarding/v2/onboarding-flow';
 import LoginPage from '@/components/auth/LoginPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import SignupPage from '@/components/auth/SignupPage';
@@ -264,11 +266,15 @@ function VaultGate({ session }: { session: Session }) {
     );
   }
 
-  // New user: onboarding wizard (Step 0 = vault password creation)
+  // New user: onboarding wizard (Step 0 = vault password creation).
+  //
+  // The v2 redesign (DL-0429) is dark-shipped behind VITE_ONBOARDING_V2. Unset
+  // or anything other than the exact string "true" leaves every user on v1,
+  // which is the wizard that actually creates the org and the vault. Both take
+  // the same props, so this is the only line either one is reached from.
   if (needsOnboarding) {
-    return (
-      <OnboardingWizard userId={session.user.id} onComplete={() => setNeedsOnboarding(false)} />
-    );
+    const Wizard = ONBOARDING_V2_ENABLED ? OnboardingWizardV2 : OnboardingWizard;
+    return <Wizard userId={session.user.id} onComplete={() => setNeedsOnboarding(false)} />;
   }
 
   // Returning user: vault unlock screen
