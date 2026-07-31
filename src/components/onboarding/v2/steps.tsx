@@ -220,7 +220,12 @@ function StepName(props: OnboardingStepProps) {
   const copy = ONBOARDING_COPY.name;
 
   return (
-    <StepShell {...props} title={copy.headline} nextLabel={copy.cta} secondaryLabel={copy.secondary}>
+    <StepShell
+      {...props}
+      title={copy.headline}
+      nextLabel={copy.cta}
+      secondaryLabel={copy.secondary}
+    >
       <p>{copy.body}</p>
       <Input
         type="text"
@@ -490,7 +495,12 @@ function StepBiometric(props: OnboardingStepProps) {
 
   const copy = ONBOARDING_COPY.biometric;
   return (
-    <StepShell {...props} title={copy.headline} nextLabel={copy.cta} secondaryLabel={copy.secondary}>
+    <StepShell
+      {...props}
+      title={copy.headline}
+      nextLabel={copy.cta}
+      secondaryLabel={copy.secondary}
+    >
       <p>{copy.body}</p>
     </StepShell>
   );
