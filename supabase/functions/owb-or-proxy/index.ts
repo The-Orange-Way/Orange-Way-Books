@@ -108,7 +108,10 @@ Deno.serve(async (req: Request) => {
     // the env var is corrected or the code allowlist is extended via a
     // reviewed PR.
     return jsonResponse(
-      { error: 'Orange Rails endpoint is not in the function allowlist. This is a deploy-side misconfiguration.' },
+      {
+        error:
+          'Orange Rails endpoint is not in the function allowlist. This is a deploy-side misconfiguration.',
+      },
       500,
       cors,
     );
