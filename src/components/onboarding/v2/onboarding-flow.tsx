@@ -34,8 +34,8 @@ export interface OnboardingStep {
  * body and never own navigation, so the container stays the single source of
  * truth for where the user is in the flow.
  *
- * Deliberately the same shape as the sibling app's StepShell — same props, same
- * gate semantics — so a change to the flow contract is one diff read twice, not
+ * Deliberately the same shape as the sibling app's StepShell (same props, same
+ * gate semantics), so a change to the flow contract is one diff read twice, not
  * two designs that drift. The internals use this app's own primitives rather
  * than raw elements, because design twins means the same design, not the same
  * DOM.
