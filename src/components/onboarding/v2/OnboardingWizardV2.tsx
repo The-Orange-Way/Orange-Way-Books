@@ -1,5 +1,5 @@
 import { OnboardingFlow } from './onboarding-flow';
-import { ONBOARDING_STEPS } from './steps';
+import { ONBOARDING_STEPS } from './step-registry';
 
 /**
  * v2 entry point (DL-0429), behind VITE_ONBOARDING_V2.
@@ -21,9 +21,9 @@ interface OnboardingWizardV2Props {
 
 export default function OnboardingWizardV2({ onComplete }: OnboardingWizardV2Props) {
   // TODO(DL-0414): onComplete currently just marks onboarding done. v1 does the
-  // real work here — creates the org with an encrypted name, upserts the
+  // real work here: creates the org with an encrypted name, upserts the
   // org_members OWNER row, writes org_settings and seeds the chart of accounts
   // via initChartOfAccounts. None of that has a home in v2 yet; see the note on
-  // buildOnboardingSteps in steps.tsx. This flag cannot go on until it does.
+  // buildOnboardingSteps in step-registry.ts. This flag cannot go on until it does.
   return <OnboardingFlow steps={ONBOARDING_STEPS} onComplete={onComplete} />;
 }
