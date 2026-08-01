@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
 import type { OnboardingStepProps } from './onboarding-flow';
 import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
+import { StepVerifyOtp } from './StepVerifyOtp';
 import {
   PASSWORD_MIN_LENGTH,
   RECOVERY_GRID_CLASS,
