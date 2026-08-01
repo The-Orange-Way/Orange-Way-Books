@@ -1,52 +1,37 @@
 import type { OnboardingStep } from './onboarding-flow';
-import type { RecoveryVerifyMode } from './step-helpers';
-import { RECOVERY_VERIFY_MODE } from './step-helpers';
-import {
-  StepBiometric,
-  StepEducation,
-  StepEmail,
-  StepName,
-  StepRecovery,
-  StepSuccess,
-  StepVaultPassword,
-  StepVerify,
-} from './steps';
+import { StepEmail, StepVerifyOtp, StepEducation } from './steps';
 
 /**
+ * v2 account-creation steps for DL-0429.
+ *
+ * v2 owns three steps: collect email, verify the 6-digit OTP, and the
+ * trust-moment education screen. After education, OnboardingWizardV2 hands
+ * off to v1 OnboardingWizard for the vault password, recovery code,
+ * biometric, and success screens.
+ *
  * The step ids are the integration contract between the two apps. They are
  * identical to the sibling app's, deliberately and to the character. Renaming
  * one here without renaming it there is how design twins stop being twins.
  *
- * OPEN, and it is this repo's only real gap in the contract: v1 also collects
- * the organization, reporting preferences and fiscal calendar (StepOrganization,
- * StepReporting, StepCalendar), and creates the org and chart of accounts on
- * finish. None of that appears in the locked 7 steps, which were written for a
- * consumer app that has no organization. It has to land somewhere before v2 can
- * replace v1 for real. Three candidates, in the order I would argue for them:
+ * OPEN (load-bearing blocker for VITE_ONBOARDING_V2 going on):
  *
- *   1. After success, as a separate post-onboarding setup surface. Keeps the 7
- *      steps identical across both apps and keeps the aha moment early.
- *   2. Folded into the success step, since DL-0414 already says this step
- *      differs per product.
- *   3. As extra steps inside the wizard, which breaks the shared step count
- *      and is the one option I would not take without a decision.
+ *   v2 is rendered inside AuthGate, which requires a pre-existing Supabase
+ *   session. But the email + OTP steps CREATE the session. The flag cannot
+ *   go on until one of these is resolved:
  *
- * Not choosing here. This PR is dark-shipped and does not remove v1, so the
- * decision is not yet load-bearing, but it blocks the flag ever going on.
+ *     A. A new route outside AuthGate renders OnboardingWizardV2 for
+ *        unauthenticated users, and /signup redirects to it when
+ *        VITE_ONBOARDING_V2 is on.
+ *     B. AuthGate is modified to render the v2 wizard without a session
+ *        when the flag is on, trusting that OTP verification will produce
+ *        one before the v1 hand-off.
+ *
+ *   Option A is cleaner (Auth gate stays unchanged) and is the default
+ *   recommendation. Not choosing here; leaving it for the routing PR that
+ *   turns the flag on.
  */
-export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[] {
-  return [
-    { id: 'name', title: 'Name', Component: StepName },
-    { id: 'email', title: 'Email', Component: StepEmail },
-    { id: 'education', title: 'How Orange Way works', Component: StepEducation },
-    { id: 'vault-password', title: 'Vault password', Component: StepVaultPassword },
-    { id: 'recovery-code', title: 'Recovery code', Component: StepRecovery },
-    ...(mode === 'reentry'
-      ? [{ id: 'verify-recovery-code', title: 'Confirm recovery code', Component: StepVerify }]
-      : []),
-    { id: 'biometric', title: 'Biometric unlock', Component: StepBiometric },
-    { id: 'success', title: 'You are all set', Component: StepSuccess },
-  ];
-}
-
-export const ONBOARDING_STEPS: OnboardingStep[] = buildOnboardingSteps(RECOVERY_VERIFY_MODE);
+export const ONBOARDING_STEPS: OnboardingStep[] = [
+  { id: 'email', title: 'Email', Component: StepEmail },
+  { id: 'otp', title: 'Verify email', Component: StepVerifyOtp },
+  { id: 'education', title: 'How Orange Way works', Component: StepEducation },
+];
