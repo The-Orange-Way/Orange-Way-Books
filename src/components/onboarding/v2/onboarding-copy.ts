@@ -34,7 +34,7 @@ export const ONBOARDING_COPY = {
   email: {
     headline: "What's your email address?",
     body: "We'll send a one-time link to confirm it's you. No password yet.",
-    cta: 'Send my link',
+    cta: 'Send my code',
   },
   education: {
     headline: 'Your money stays yours.',
