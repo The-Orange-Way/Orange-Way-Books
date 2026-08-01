@@ -175,7 +175,7 @@ export default function VaultUnlockScreen() {
             data-testid="forgot-password-link"
             className="w-full text-center text-sm text-primary hover:text-primary-hover mt-4 transition-colors underline-offset-4 hover:underline"
           >
-            Use your recovery kit
+            Forgot your password? Use your recovery kit
           </button>
 
           <button
