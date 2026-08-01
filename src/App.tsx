@@ -69,6 +69,14 @@ import Privacy from '@/marketing/pages/Privacy';
 import PrivacyChangelog from '@/marketing/pages/PrivacyChangelog';
 import Terms from '@/marketing/pages/Terms';
 
+// Compile-time constants: Vite bakes these in at build time and they
+// never change at runtime. Hoisted to module scope so AnalyticsGate's
+// useEffect can reference them without listing them in the dep array
+// (react-hooks/exhaustive-deps only flags component-scope captures,
+// not module-scope references).
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
+const ANALYTICS_ENABLED = typeof POSTHOG_KEY === 'string' && POSTHOG_KEY.length > 0;
+
 const queryClient = new QueryClient();
 
 /**
@@ -335,11 +343,9 @@ function VaultGate({ session }: { session: Session }) {
 function AnalyticsGate() {
   const location = useLocation();
   const analyticsStarted = useRef(false);
-  const posthogKey = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
-  const enabled = typeof posthogKey === 'string' && posthogKey.length > 0;
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return;
+    if (!ANALYTICS_ENABLED || typeof window === 'undefined') return;
 
     if (!isMarketingPath(location.pathname)) {
       // Authenticated app, auth screens, public invoices, and anything
@@ -356,7 +362,7 @@ function AnalyticsGate() {
       // Cookieless PostHog, marketing-only. Memory-only persistence means
       // no cookies and no localStorage tracking. Each page load is a fresh
       // anonymous event stream with no cross-session identity.
-      posthog.init(posthogKey, {
+      posthog.init(POSTHOG_KEY!, {
         api_host: import.meta.env.VITE_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
         persistence: 'memory',
         person_profiles: 'never',
@@ -383,7 +389,7 @@ function AnalyticsGate() {
     }
 
     posthog.capture('$pageview');
-  }, [location.pathname, enabled]);
+  }, [location.pathname]);
 
   return null;
 }
