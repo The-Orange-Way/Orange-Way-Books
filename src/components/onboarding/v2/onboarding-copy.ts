@@ -33,8 +33,23 @@ export const ONBOARDING_COPY = {
   },
   email: {
     headline: "What's your email address?",
-    body: "We'll send a one-time link to confirm it's you. No password yet.",
-    cta: 'Send my link',
+    // TODO(DL-0429): CX PENDING - body originally said "link" (magic-link
+    // mode). Supabase templates were rewritten to {{ .Token }} with
+    // {{ .ConfirmationURL }} removed, so the flow now sends a 6-digit code.
+    // Placeholder below. Do not ship to production without CX sign-off.
+    body: "We'll send a 6-digit code to confirm it's you. No password yet.",
+    // TODO(DL-0429): CX PENDING - 'Send my link' is stale (magic-link dead).
+    // Flagged to SP 1 for CX copy. This placeholder must not ship as final.
+    cta: 'Send code',
+  },
+  // TODO(DL-0429): ALL copy in this block is PLACEHOLDER - CX has not written
+  // the OTP screen. Flagged surfaces: headline, body (email interpolated by
+  // StepVerifyOtp after this string), cta. Do not ship without CX sign-off.
+  otp: {
+    headline: 'Check your email.',
+    // StepVerifyOtp appends the email address after this string.
+    body: 'Enter the 6-digit code we sent to',
+    cta: 'Verify',
   },
   education: {
     headline: 'Your money stays yours.',
