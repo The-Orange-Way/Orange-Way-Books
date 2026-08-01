@@ -98,12 +98,7 @@ export function StepShell({
             Back
           </Button>
         )}
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={nextDisabled || busy}
-          aria-busy={busy}
-        >
+        <Button type="button" onClick={onNext} disabled={nextDisabled || busy} aria-busy={busy}>
           {busy ? (busyLabel ?? 'Working...') : (nextLabel ?? (isLast ? 'Finish' : 'Continue'))}
         </Button>
       </div>
