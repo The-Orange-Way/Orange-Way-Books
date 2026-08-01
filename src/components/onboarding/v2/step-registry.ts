@@ -10,7 +10,6 @@ import {
   StepSuccess,
   StepVaultPassword,
   StepVerify,
-  StepVerifyOtpBridge,
 } from './steps';
 
 /**
@@ -39,7 +38,6 @@ export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[]
   return [
     { id: 'name', title: 'Name', Component: StepName },
     { id: 'email', title: 'Email', Component: StepEmail },
-    { id: 'otp', title: 'Enter your code', Component: StepVerifyOtpBridge },
     { id: 'education', title: 'How Orange Way works', Component: StepEducation },
     { id: 'vault-password', title: 'Vault password', Component: StepVaultPassword },
     { id: 'recovery-code', title: 'Recovery code', Component: StepRecovery },
