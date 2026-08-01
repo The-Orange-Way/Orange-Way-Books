@@ -15,7 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
 import type { OnboardingStepProps } from './onboarding-flow';
+import { useOnboardingState } from './onboarding-state';
 import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
+import { supabase } from '@/lib/supabase';
 import { StepVerifyOtp } from './StepVerifyOtp';
 import {
   PASSWORD_MIN_LENGTH,
@@ -56,15 +58,108 @@ export function StepName(props: OnboardingStepProps) {
   );
 }
 
+/**
+ * Step 2, in two stages: send a one-time code, then verify it.
+ *
+ * A 6-digit code rather than a clickable link, because clicking it opens a new
+ * tab, this component tree is torn down, and the name from step 1 and
+ * everything after it goes with it. A code is typed in place, so the wizard
+ * survives. Copy correction ("one-time link" in ONBOARDING_COPY) is with CX.
+ *
+ * Mirrors OWM StepEmail at fd83d5f exactly. No captcha here: Books v2 does
+ * not yet wire CaptchaWidget. When it does, follow the Turnstile reset dance
+ * in OWM on send error (setCaptchaToken(null) + captchaRef.current?.reset()).
+ */
 export function StepEmail(props: OnboardingStepProps) {
-  // TODO(DL-0414): the CTA sends the one-time link. Advancing is gated on that
-  // round trip, not on the field merely looking well formed.
-  const [email, setEmail] = useState('');
+  const { email, setEmail, setEmailVerified } = useOnboardingState();
+  const [stage, setStage] = useState<'address' | 'code'>('address');
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const copy = ONBOARDING_COPY.email;
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
+  const sendCode = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: sendError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+    setBusy(false);
+    if (sendError) {
+      setError(sendError.message);
+      return;
+    }
+    setStage('code');
+  };
+
+  const confirmCode = async () => {
+    setBusy(true);
+    setError(null);
+    // type 'email' is the code-in-the-body variant. 'magiclink' is the one
+    // that only ever arrives as a clickable URL, which is what we are avoiding.
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: token.trim(),
+      type: 'email',
+    });
+    setBusy(false);
+    if (verifyError || !data.session) {
+      setError(verifyError?.message ?? 'That code did not work. Check it and try again.');
+      return;
+    }
+    setEmailVerified(true);
+    props.onNext();
+  };
+
+  if (stage === 'code') {
+    return (
+      <StepShell
+        {...props}
+        onNext={() => void confirmCode()}
+        title="Enter the code we sent you."
+        nextLabel="Confirm"
+        nextDisabled={token.trim().length < 6}
+        busy={busy}
+        busyLabel="Checking..."
+        error={error}
+        secondaryLabel="Use a different address"
+        onSecondary={() => {
+          setStage('address');
+          setToken('');
+          setError(null);
+        }}
+        hideBack
+      >
+        <p>We sent a 6-digit code to {email.trim()}. It expires in a few minutes.</p>
+        <Input
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          value={token}
+          onChange={(event) =>
+            setToken(event.target.value.replace(/\D/g, '').slice(0, 6))
+          }
+          placeholder="000000"
+          aria-label="One-time code"
+          className="mt-6 tracking-[0.4em]"
+        />
+      </StepShell>
+    );
+  }
+
   return (
-    <StepShell {...props} title={copy.headline} nextLabel={copy.cta} nextDisabled={!looksLikeEmail}>
+    <StepShell
+      {...props}
+      onNext={() => void sendCode()}
+      title={copy.headline}
+      nextLabel={copy.cta}
+      nextDisabled={!looksLikeEmail}
+      busy={busy}
+      busyLabel="Sending..."
+      error={error}
+    >
       <p>{copy.body}</p>
       <Input
         type="email"
