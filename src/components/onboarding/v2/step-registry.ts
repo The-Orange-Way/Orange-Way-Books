@@ -40,9 +40,9 @@ export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[]
     { id: 'email', title: 'Email', Component: StepEmail },
     { id: 'education', title: 'How Orange Way works', Component: StepEducation },
     { id: 'vault-password', title: 'Vault password', Component: StepVaultPassword },
-    { id: 'recovery-code', title: 'Recovery code', Component: StepRecovery },
+    { id: 'recovery-code', title: 'Recovery kit', Component: StepRecovery },
     ...(mode === 'reentry'
-      ? [{ id: 'verify-recovery-code', title: 'Confirm recovery code', Component: StepVerify }]
+      ? [{ id: 'verify-recovery-code', title: 'Confirm recovery kit', Component: StepVerify }]
       : []),
     { id: 'biometric', title: 'Biometric unlock', Component: StepBiometric },
     { id: 'success', title: 'You are all set', Component: StepSuccess },
