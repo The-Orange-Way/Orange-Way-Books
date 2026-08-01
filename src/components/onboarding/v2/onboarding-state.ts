@@ -15,7 +15,7 @@ import { createContext, useContext } from 'react';
  * the duration of the wizard and go away with the tab. Do not move this into
  * localStorage, sessionStorage or a URL param to survive a reload.
  *
- * Mirrors OWM src/features/onboarding/onboarding-state.ts at fd83d5f exactly.
+ * Mirrors the sibling app's onboarding-state.ts exactly.
  * A divergence here is a divergence in the design-twin contract.
  */
 export interface OnboardingData {
