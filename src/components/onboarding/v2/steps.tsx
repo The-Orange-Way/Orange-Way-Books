@@ -65,9 +65,9 @@ export function StepName(props: OnboardingStepProps) {
  * everything after it goes with it. A code is typed in place, so the wizard
  * survives. Copy correction ("one-time link" in ONBOARDING_COPY) is with CX.
  *
- * Mirrors OWM StepEmail at fd83d5f exactly. No captcha here: Books v2 does
+ * Mirrors the sibling app's StepEmail exactly. No captcha here: Books v2 does
  * not yet wire CaptchaWidget. When it does, follow the Turnstile reset dance
- * in OWM on send error (setCaptchaToken(null) + captchaRef.current?.reset()).
+ * in the sibling app on send error (setCaptchaToken(null) + captchaRef.current?.reset()).
  */
 export function StepEmail(props: OnboardingStepProps) {
   const { email, setEmail, setEmailVerified } = useOnboardingState();
@@ -137,9 +137,7 @@ export function StepEmail(props: OnboardingStepProps) {
           inputMode="numeric"
           autoComplete="one-time-code"
           value={token}
-          onChange={(event) =>
-            setToken(event.target.value.replace(/\D/g, '').slice(0, 6))
-          }
+          onChange={(event) => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))}
           placeholder="000000"
           aria-label="One-time code"
           className="mt-6 tracking-[0.4em]"
@@ -415,7 +413,6 @@ export function StepBiometric(props: OnboardingStepProps) {
     </StepShell>
   );
 }
-
 
 export function StepSuccess(props: OnboardingStepProps) {
   // "I'll do this later" opens an empty dashboard. onSecondary defaults to
