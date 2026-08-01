@@ -102,7 +102,7 @@ export const SUCCESS_COPY = {
 export const VERIFY_COPY = {
   headline: 'Prove you saved it',
   body: 'Type the words at the positions below from your saved copy. This protects you from a future lockout.',
-  hint: 'Your recovery kit is hidden during verification. Use the link below if you need to see it again.',
+  hint: 'Recovery kit hidden during verification. Use the link below if you need to see it again.',
   cta: 'Confirm and continue',
-  back: 'Back to recovery kit',
+  back: 'Back to code',
 };
