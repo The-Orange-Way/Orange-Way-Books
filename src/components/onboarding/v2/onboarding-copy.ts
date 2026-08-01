@@ -104,5 +104,5 @@ export const VERIFY_COPY = {
   body: 'Type the words at the positions below from your saved copy. This protects you from a future lockout.',
   hint: 'Recovery kit hidden during verification. Use the link below if you need to see it again.',
   cta: 'Confirm and continue',
-  back: 'Back to code',
+  back: 'Back to my recovery kit',
 };
