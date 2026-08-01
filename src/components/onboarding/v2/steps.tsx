@@ -18,7 +18,6 @@ import type { OnboardingStepProps } from './onboarding-flow';
 import { useOnboardingState } from './onboarding-state';
 import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
 import { supabase } from '@/lib/supabase';
-import { StepVerifyOtp } from './StepVerifyOtp';
 import {
   PASSWORD_MIN_LENGTH,
   RECOVERY_GRID_CLASS,
@@ -118,7 +117,7 @@ export function StepEmail(props: OnboardingStepProps) {
       <StepShell
         {...props}
         onNext={() => void confirmCode()}
-        title="Enter the code we sent you."
+        title="Enter the code from your email"
         nextLabel="Confirm"
         nextDisabled={token.trim().length < 6}
         busy={busy}
@@ -132,7 +131,7 @@ export function StepEmail(props: OnboardingStepProps) {
         }}
         hideBack
       >
-        <p>We sent a 6-digit code to {email.trim()}. It expires in a few minutes.</p>
+        <p>We sent a 6-digit code to {email.trim()}. Enter it below.</p>
         <Input
           type="text"
           inputMode="numeric"
@@ -417,14 +416,6 @@ export function StepBiometric(props: OnboardingStepProps) {
   );
 }
 
-// TODO(DL-0414): email must come from flow state captured in StepEmail. Until
-// that wiring lands, email is an empty string and verifyOtp will fail. This
-// bridge exists solely to satisfy ComponentType<OnboardingStepProps> so the
-// otp step appears in the registry at its correct position (after email, before
-// education). Do not remove the TODO or the flow state gap stays invisible.
-export function StepVerifyOtpBridge(props: OnboardingStepProps) {
-  return <StepVerifyOtp {...props} email="" />;
-}
 
 export function StepSuccess(props: OnboardingStepProps) {
   // "I'll do this later" opens an empty dashboard. onSecondary defaults to
