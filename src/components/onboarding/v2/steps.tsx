@@ -322,6 +322,15 @@ export function StepBiometric(props: OnboardingStepProps) {
   );
 }
 
+// TODO(DL-0414): email must come from flow state captured in StepEmail. Until
+// that wiring lands, email is an empty string and verifyOtp will fail. This
+// bridge exists solely to satisfy ComponentType<OnboardingStepProps> so the
+// otp step appears in the registry at its correct position (after email, before
+// education). Do not remove the TODO or the flow state gap stays invisible.
+export function StepVerifyOtpBridge(props: OnboardingStepProps) {
+  return <StepVerifyOtp {...props} email="" />;
+}
+
 export function StepSuccess(props: OnboardingStepProps) {
   // "I'll do this later" opens an empty dashboard. onSecondary defaults to
   // onNext, and this is the last step, so it completes the wizard either way.
