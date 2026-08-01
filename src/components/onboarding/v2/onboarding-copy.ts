@@ -33,8 +33,21 @@ export const ONBOARDING_COPY = {
   },
   email: {
     headline: "What's your email address?",
-    body: "We'll send a one-time link to confirm it's you. No password yet.",
-    cta: 'Send my link',
+    // TODO(DL-0429): CX copy needed for body and cta. The Supabase template
+    // was rewritten to send a 6-digit code ({{ .Token }}); there is no link.
+    // "We'll send a one-time link" and "Send my link" are wrong. Placeholders
+    // below; flagged to SP 1. Do not ship to users until CX approves.
+    body: "We'll send a 6-digit code to confirm it's you. No password needed.",
+    cta: 'Send code',
+  },
+  otp: {
+    // TODO(DL-0429): CX copy needed for all three strings. Placeholders below;
+    // flagged to SP 1 per standing rule (flag, do not invent). Do not ship to
+    // users until CX approves.
+    headline: 'Check your email.',
+    body: 'Enter the 6-digit code we sent you. It expires in 10 minutes.',
+    cta: 'Verify',
+    error: 'Invalid or expired code. Check your email and try again.',
   },
   education: {
     headline: 'Your money stays yours.',
