@@ -53,6 +53,7 @@ jobs:
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
           VITE_DEPLOY_ENV: ${{ github.ref_name }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_ONBOARDING_V2: ${{ vars.VITE_ONBOARDING_V2 }}
           # Branch-derived Turnstile site key. Site keys are browser-safe
           # by design; the corresponding secret lives on the Supabase Auth
           # config (security_captcha_secret), not on the SPA.
