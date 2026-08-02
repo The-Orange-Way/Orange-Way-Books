@@ -2,23 +2,23 @@
  * Settings → Security → Recovery kit
  *
  * Lets the user rotate their vault recovery kit. The crypto design
- * intentionally throws the original code away after onboarding; only
- * the MEK wrapped under the code's derived KEK is persisted. So there
- * is no "view existing code" affordance; the only operation available
+ * intentionally throws the original recovery kit away after onboarding; only
+ * the MEK wrapped under the recovery kit derived KEK is persisted. So there
+ * is no "view existing recovery kit" affordance; the only operation available
  * is "generate a new one" (which invalidates the old one).
  *
  * Flow:
- *   1. Acknowledge that rotating invalidates the previous code.
+ *   1. Acknowledge that rotating invalidates the previous recovery kit.
  *   2. Click "Generate new recovery kit" → calls rotateRecoveryCode
  *      against the in-memory MEK + PERSISTs the new recovery_ciphertext
  *      to org_settings.
- *   3. Display the new 12-word code with copy-to-clipboard.
+ *   3. Display the new 12-word recovery kit with copy-to-clipboard.
  *   4. Type-back verification: retype 3 random positions to prove save
  *      (same pattern as onboarding S3) before the page lets the user
  *      navigate away.
  *
  * Surfaced by 2026-05-16 security review (combined S4 + S9: viewing
- * the existing code is impossible by design, so this is the only
+ * the existing recovery kit is impossible by design, so this is the only
  * meaningful settings affordance).
  */
 
@@ -87,7 +87,7 @@ export default function RecoveryCode() {
     })();
   }, [navigate]);
 
-  // Warn on navigation while the new code is unverified.
+  // Warn on navigation while the new recovery kit is unverified.
   useEffect(() => {
     if (stage !== 'display' && stage !== 'verify') return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -219,18 +219,22 @@ export default function RecoveryCode() {
           </p>
 
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Why you cannot view the existing kit</p>
+            <p className="font-medium text-foreground">
+              Why you cannot view your existing recovery kit
+            </p>
             <p>
-              By design, only an encrypted form of your kit is stored on the server. The original
-              kit was shown once during setup and never persisted. If you have lost track of it,
-              generate a new one below.
+              By design, only an encrypted form of your recovery kit is stored on the server. The
+              original recovery kit was shown once during setup and never persisted. If you have
+              lost track of it, generate a new one below.
             </p>
           </div>
 
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium mb-1">Generating a new kit invalidates the old one.</p>
+              <p className="font-medium mb-1">
+                Generating a new recovery kit invalidates the old one.
+              </p>
               <p>
                 Any copy of your old recovery kit (in a password manager, on paper, etc.) stops
                 working the moment you click below. Make sure you can save the new one safely before
@@ -246,7 +250,7 @@ export default function RecoveryCode() {
               onCheckedChange={(v) => setConfirmAck(Boolean(v))}
             />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
-              I understand the old kit stops working and I am ready to save the new one
+              I understand the old recovery kit stops working and I am ready to save the new one
               immediately.
             </Label>
           </div>
@@ -387,7 +391,7 @@ export default function RecoveryCode() {
               className="flex-1"
               onClick={() => setStage('display')}
             >
-              Back to kit
+              Back to my recovery kit
             </Button>
             <Button
               type="button"
