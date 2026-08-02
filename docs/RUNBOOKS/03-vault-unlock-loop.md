@@ -52,7 +52,7 @@ the row back to `1` after manually unwrapping the MEK with the
 customer's password.
 
 If `vault_salt` is null, the org row is corrupt and recovery requires
-the customer's recovery code.
+the customer's recovery kit.
 
 ## Immediate actions
 
@@ -75,7 +75,7 @@ the customer's recovery code.
 - Internal: founder on Signal. Vault recovery is irreversible; do
   not act on a customer's vault without the founder's go.
 - The customer themselves is the only person who can hold the
-  password or recovery code. We cannot help past that point.
+  password or recovery kit. We cannot help past that point.
 
 ## Postmortem template
 
@@ -86,5 +86,5 @@ the customer's recovery code.
   state mismatch, or legitimate "customer forgot the password" case?
 - If a regression: which migration introduced it? Did CI miss a path?
 - Did the customer understand that we cannot recover their data
-  without the recovery code? Was the in-app messaging clear?
+  without the recovery kit? Was the in-app messaging clear?
 - Action items with owners, due dates, and tracking location.
