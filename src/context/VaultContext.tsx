@@ -685,7 +685,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
    */
   const rotateRecoveryCode = useCallback(async () => {
     if (!mekRawRef.current) {
-      throw new Error('Vault must be unlocked before rotating the recovery code.');
+      throw new Error('Vault must be unlocked before rotating the recovery kit.');
     }
     const newRecoveryCode = generateRecoveryCode();
     const newRecoveryKek = await deriveRecoveryKek(newRecoveryCode);
@@ -776,7 +776,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       //    silently take precedence over the imported 2-arg helper. Found
       //    by the 2026-05-16 post-hardening audit (A1).
       if (!(await verifyMasterRecoveryCode(masterCode, masterSaltB64, verifierCiphertext))) {
-        throw new Error('Master recovery code is incorrect.');
+        throw new Error('Master recovery key is incorrect.');
       }
 
       // 2. Re-derive the master KEK for the unwrap step. HKDF is cheap;
