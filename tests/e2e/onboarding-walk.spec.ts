@@ -187,13 +187,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       timeout: 15_000,
     });
 
-    // 03 — fill vault password + continue → recovery code screen
+    // 03 — fill vault password + continue → recovery kit screen
     await vaultSetup.fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').first().fill(VAULT_PW);
     await page.locator('button:has-text("Continue")').first().click();
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30_000 });
+    await page.waitForSelector('text=Save Your Recovery Kit', { timeout: 30_000 });
 
-    // 04 — recovery code visible, capture words
+    // 04 — recovery kit visible, capture words
     const wordsByPos: Record<number, string> = await page.evaluate(() => {
       const map: Record<number, string> = {};
       for (const c of Array.from(document.querySelectorAll('div'))) {
@@ -205,7 +205,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       }
       return map;
     });
-    expect(Object.keys(wordsByPos).length, 'recovery code should yield 12 words').toBe(12);
+    expect(Object.keys(wordsByPos).length, 'recovery kit should yield 12 words').toBe(12);
     const cb = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
     if ((await cb.count()) > 0)
       await cb.check({ force: true }).catch(async () => {
@@ -290,7 +290,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await expect(
       page
         .locator('h1, h2')
-        .filter({ hasText: /Master recovery code/i })
+        .filter({ hasText: /Master recovery key/i })
         .first(),
       'master-recovery heading must render — React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
