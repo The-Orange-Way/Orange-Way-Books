@@ -136,7 +136,7 @@ export default function RecoveryCode() {
         action: 'UPDATE',
         entityType: 'org_settings',
         entityId: orgId,
-        summary: 'Rotated vault recovery kit',
+        summary: 'Rotated recovery kit',
         encrypt: encryptText,
       });
       setNewCode(out.newRecoveryCode);
