@@ -46,11 +46,10 @@ technical details and the Known Limitations section.
 ## 3. Account responsibilities
 
 When you create an account, you choose a vault password and accept a
-12-word recovery code shown once in your browser. Both are derived and
+12-word recovery kit shown once in your browser. Both are derived and
 held client-side.
 
-**You are responsible for keeping the vault password and the recovery
-code safe.** Orange Way Books cannot recover, reset, or escrow either.
+**You are responsible for keeping your vault password and recovery kit safe.** Orange Way Books cannot recover, reset, or escrow either.
 If you lose both, the data you encrypted under them is cryptographically
 unrecoverable by design. The same property is what gives the
 zero-knowledge guarantee its weight: we cannot decrypt your books even
