@@ -124,7 +124,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     await page.locator('input[placeholder*="Minimum 14"]').fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').fill(VAULT_PW);
     await page.click('button:has-text("Continue")');
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 15000 });
+    await page.waitForSelector('text=Save Your Recovery Kit', { timeout: 15000 });
     await page.waitForTimeout(1000);
     const wordsByPos = await page.evaluate(() => {
       const map = {};
