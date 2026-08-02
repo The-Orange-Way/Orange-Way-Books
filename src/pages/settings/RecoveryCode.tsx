@@ -219,10 +219,10 @@ export default function RecoveryCode() {
           </p>
 
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Why you cannot view the existing code</p>
+            <p className="font-medium text-foreground">Why you cannot view the existing kit</p>
             <p>
-              By design, only an encrypted form of your code is stored on the server. The original
-              code was shown once during setup and never persisted. If you have lost track of it,
+              By design, only an encrypted form of your kit is stored on the server. The original
+              kit was shown once during setup and never persisted. If you have lost track of it,
               generate a new one below.
             </p>
           </div>
@@ -230,7 +230,7 @@ export default function RecoveryCode() {
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium mb-1">Generating a new code invalidates the old one.</p>
+              <p className="font-medium mb-1">Generating a new kit invalidates the old one.</p>
               <p>
                 Any copy of your old recovery kit (in a password manager, on paper, etc.) stops
                 working the moment you click below. Make sure you can save the new one safely before
@@ -246,7 +246,7 @@ export default function RecoveryCode() {
               onCheckedChange={(v) => setConfirmAck(Boolean(v))}
             />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
-              I understand the old code stops working and I am ready to save the new one
+              I understand the old kit stops working and I am ready to save the new one
               immediately.
             </Label>
           </div>
@@ -387,7 +387,7 @@ export default function RecoveryCode() {
               className="flex-1"
               onClick={() => setStage('display')}
             >
-              Back to code
+              Back to kit
             </Button>
             <Button
               type="button"
