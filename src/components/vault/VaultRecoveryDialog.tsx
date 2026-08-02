@@ -344,8 +344,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               <div>
                 <p className="font-medium mb-1">Save this somewhere offline.</p>
                 <p>
-                  If you forget your password again and lose this recovery kit, your data is unrecoverable.
-                  We cannot reset it for you.
+                  If you forget your password again and lose this recovery kit, your data is
+                  unrecoverable. We cannot reset it for you.
                 </p>
               </div>
             </div>
