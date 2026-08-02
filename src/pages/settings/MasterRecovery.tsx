@@ -301,18 +301,18 @@ export default function MasterRecovery() {
           <p className="text-sm text-muted-foreground">
             You belong to <strong>{memberships.length}</strong> organization
             {memberships.length === 1 ? '' : 's'}. Setting up master recovery will wrap your current
-            org's data key under a new master recovery key. You can enroll additional orgs by unlocking each
-            one and returning here.
+            org's data key under a new master recovery key. You can enroll additional orgs by
+            unlocking each one and returning here.
           </p>
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-medium mb-1">
-                This adds a recovery path, it doesn't replace per-org kits.
+                This adds a recovery path, it doesn't replace per-org recovery kits.
               </p>
               <p>
-                Per-org recovery kits still work for their specific org. The master recovery key is an
-                extra layer that covers all your orgs at once.
+                Per-org recovery kits still work for their specific org. The master recovery key is
+                an extra layer that covers all your orgs at once.
               </p>
             </div>
           </div>
@@ -446,7 +446,7 @@ export default function MasterRecovery() {
             </Button>
           </div>
           <Button className="w-full" onClick={handleStartVerify}>
-            I have saved it. Verify
+            I have saved it, verify
           </Button>
         </section>
       )}
