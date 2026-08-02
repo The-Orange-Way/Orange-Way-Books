@@ -63,7 +63,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
     // If user is in the middle of saving their new code, warn them.
     if (step === 'save-new-code' && !savedCheckbox) {
       const ok = window.confirm(
-        'You have not confirmed that you saved your new recovery code. ' +
+        'You have not confirmed that you saved your new recovery kit. ' +
           'If you close now, you will lose it and could be permanently locked out ' +
           'next time you forget your password. Close anyway?',
       );
@@ -79,7 +79,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
 
   const handleSubmitCode = useCallback(async () => {
     if (!codeLooksValid) {
-      setError('Recovery code must be 12 words.');
+      setError('Recovery kit must be 12 words.');
       return;
     }
     setError('');
@@ -153,7 +153,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         if (!master || !wrapRow) {
           throw new Error(
             'No master recovery code is set up for this organization. ' +
-              'Use your per-org recovery code instead, or contact support.',
+              'Use your per-org recovery kit instead, or contact support.',
           );
         }
         out = await recoverOrgWithMasterCode({
@@ -168,7 +168,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       } else {
         // Per-org recovery code path.
         if (!recoveryCiphertext) {
-          throw new Error('Recovery code is not available for this vault. Contact support.');
+          throw new Error('Recovery kit is not available for this vault. Contact support.');
         }
         out = await recoverWithCode({
           recoveryCode: normalizedCode,
@@ -235,9 +235,9 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-primary" />
-            {step === 'enter-code' && 'Recover with your recovery code'}
+            {step === 'enter-code' && 'Recover with your recovery kit'}
             {step === 'new-password' && 'Set a new vault password'}
-            {step === 'save-new-code' && 'Save your new recovery code'}
+            {step === 'save-new-code' && 'Save your new recovery kit'}
           </DialogTitle>
           <DialogDescription>
             {step === 'enter-code' &&
@@ -266,7 +266,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 Master code (all orgs)
               </button>
             </div>
-            <Label htmlFor="recovery-code">Recovery code (12 words)</Label>
+            <Label htmlFor="recovery-code">Recovery kit (12 words)</Label>
             <Textarea
               id="recovery-code"
               rows={3}
@@ -356,7 +356,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 onCheckedChange={(v) => setSavedCheckbox(Boolean(v))}
               />
               <Label htmlFor="saved" className="text-sm leading-tight cursor-pointer">
-                I have saved my new recovery code in a safe place (password manager, paper backup,
+                I have saved my new recovery kit in a safe place (password manager, paper backup,
                 etc.)
               </Label>
             </div>
