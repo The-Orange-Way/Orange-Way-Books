@@ -202,7 +202,7 @@ export default function Security() {
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-[var(--color-brand-orange)]" />
-          <h3 className="text-base font-semibold text-card-foreground">Master recovery code</h3>
+          <h3 className="text-base font-semibold text-card-foreground">Master recovery key</h3>
         </div>
         <p className="text-sm text-muted-foreground">
           One 12-word phrase that unlocks every organization you belong to. Optional, per-org
