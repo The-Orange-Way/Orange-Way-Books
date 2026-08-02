@@ -48,26 +48,38 @@ export function readReport(reportPath) {
   try {
     raw = fs.readFileSync(reportPath, 'utf8');
   } catch (e) {
-    return { ok: false, reason: `report not found or unreadable at ${reportPath}: ${e.code || e.message}` };
+    return {
+      ok: false,
+      reason: `report not found or unreadable at ${reportPath}: ${e.code || e.message}`,
+    };
   }
 
   let report;
   try {
     report = JSON.parse(raw);
   } catch (e) {
-    return { ok: false, reason: `report at ${reportPath} is not valid JSON: ${e.message}` };
+    return {
+      ok: false,
+      reason: `report at ${reportPath} is not valid JSON: ${e.message}`,
+    };
   }
 
   const stats = report && typeof report === 'object' ? report.stats : undefined;
   if (!stats || typeof stats !== 'object') {
-    return { ok: false, reason: `report at ${reportPath} has no stats object; not a Playwright JSON report` };
+    return {
+      ok: false,
+      reason: `report at ${reportPath} has no stats object; not a Playwright JSON report`,
+    };
   }
 
   // A stats object whose buckets are all non-numeric is a malformed report,
   // not a real run of zero tests. Treat it as "could not check".
   const buckets = ['expected', 'unexpected', 'flaky', 'skipped'];
   if (!buckets.some((k) => typeof stats[k] === 'number')) {
-    return { ok: false, reason: `report at ${reportPath} has a stats object with no numeric counts; not a Playwright JSON report` };
+    return {
+      ok: false,
+      reason: `report at ${reportPath} has a stats object with no numeric counts; not a Playwright JSON report`,
+    };
   }
 
   return { ok: true, stats };
@@ -104,9 +116,7 @@ export function check({ reportPath, expected }) {
     const s = r.stats;
     return {
       code: EXIT_MISMATCH,
-      message:
-        `COUNT MISMATCH: expected ${expected} tests, report executed ${executed} ` +
-        `(expected=${s.expected} unexpected=${s.unexpected} flaky=${s.flaky} skipped=${s.skipped})`,
+      message: `COUNT MISMATCH: expected ${expected} tests, report executed ${executed} (expected=${s.expected} unexpected=${s.unexpected} flaky=${s.flaky} skipped=${s.skipped})`,
     };
   }
 
@@ -119,14 +129,16 @@ function runCli() {
 
   if (expectedRaw === undefined || expectedRaw === '') {
     console.error(
-      'usage: node scripts/monitor-e2e-onboarding.mjs <reportPath> <expectedTestCount>\n' +
-        '   or: E2E_REPORT_PATH=... E2E_EXPECTED_TESTS=... node scripts/monitor-e2e-onboarding.mjs',
+      'usage: node scripts/monitor-e2e-onboarding.mjs <reportPath> <expectedTestCount> (env: E2E_REPORT_PATH, E2E_EXPECTED_TESTS)',
     );
     process.exit(EXIT_UNREADABLE);
   }
 
   const expected = Number.parseInt(String(expectedRaw), 10);
-  const { code, message } = check({ reportPath, expected: Number.isNaN(expected) ? expectedRaw : expected });
+  const { code, message } = check({
+    reportPath,
+    expected: Number.isNaN(expected) ? expectedRaw : expected,
+  });
   (code === EXIT_OK ? console.log : console.error)(message);
   process.exit(code);
 }
