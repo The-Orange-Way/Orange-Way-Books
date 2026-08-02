@@ -152,7 +152,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           .maybeSingle();
         if (!master || !wrapRow) {
           throw new Error(
-            'No master recovery code is set up for this organization. ' +
+            'No master recovery key is set up for this organization. ' +
               'Use your per-org recovery kit instead, or contact support.',
           );
         }
@@ -166,7 +166,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           newPassword,
         });
       } else {
-        // Per-org recovery code path.
+        // Per-org recovery kit path.
         if (!recoveryCiphertext) {
           throw new Error('Recovery kit is not available for this vault. Contact support.');
         }
@@ -212,7 +212,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ignore — user can still hand-copy
+      // ignore, user can still hand-copy
     }
   }, [result]);
 
@@ -263,7 +263,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 onClick={() => setCodeKind('master')}
                 className={`flex-1 px-3 py-2 rounded-md border transition-colors ${codeKind === 'master' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/40'}`}
               >
-                Master code (all orgs)
+                Master recovery key (all orgs)
               </button>
             </div>
             <Label htmlFor="recovery-code">Recovery kit (12 words)</Label>
@@ -278,8 +278,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
             />
             <p className="text-xs text-muted-foreground">
               {codeKind === 'master'
-                ? 'Your master code unlocks any organization you have enrolled.'
-                : 'The 12-word recovery kit shown when you set up this organization.'}
+                ? 'Your master recovery key unlocks all your organizations.'
+                : 'Your recovery kit unlocks this organization only.'
             </p>
             {error && (
               <p className="text-sm text-destructive flex items-start gap-1">
@@ -395,7 +395,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           )}
           {step === 'save-new-code' && (
             <Button type="button" onClick={handleFinish} disabled={!savedCheckbox}>
-              Done — enter vault
+              Done, enter vault
             </Button>
           )}
         </DialogFooter>
