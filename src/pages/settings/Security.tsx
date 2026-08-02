@@ -183,18 +183,18 @@ export default function Security() {
         <Button onClick={() => setWizardOpen(true)}>Refresh security now</Button>
       </section>
 
-      {/* Recovery code section */}
+      {/* Recovery kit section */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-[var(--color-brand-orange)]" />
-          <h3 className="text-base font-semibold text-card-foreground">Recovery code</h3>
+          <h3 className="text-base font-semibold text-card-foreground">Recovery kit</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your recovery code unlocks your vault if you ever forget your vault password. If you've
-          lost track of yours, generate a new one — this invalidates the old one.
+          Your recovery kit unlocks your vault if you ever forget your vault password. If you've
+          lost track of yours, generate a new one, this invalidates the old one.
         </p>
         <Button variant="outline" onClick={() => navigate('/app/settings/recovery-code')}>
-          Manage recovery code
+          Manage recovery kit
         </Button>
       </section>
 
@@ -205,8 +205,8 @@ export default function Security() {
           <h3 className="text-base font-semibold text-card-foreground">Master recovery code</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          One 12-word phrase that unlocks every organization you belong to. Optional — per-org
-          recovery codes still work independently.
+          One 12-word phrase that unlocks every organization you belong to. Optional, per-org
+          recovery kits still work independently.
         </p>
         <Button variant="outline" onClick={() => navigate('/app/settings/master-recovery')}>
           Manage master recovery
