@@ -197,11 +197,11 @@ guarantee its weight: we cannot decrypt your books even if we wanted to,
 and we cannot help an attacker who has compromised one factor unlock
 your vault using a stored second factor.
 
-The recovery code is an **independent** unlock path, not a 2-factor
-add-on. Either the password OR the recovery code is sufficient to derive
+The recovery kit is an **independent** unlock path, not a 2-factor
+add-on. Either the password OR the recovery kit is sufficient to derive
 the MEK wrapping key. They are not combined.
 
-In multi-user orgs, each user also has a personal master recovery code
+In multi-user orgs, each user also has a personal master recovery key
 that unlocks all orgs that user belongs to, using a per-user salt so the
 same 12 English words produce different keys for different users.
 
@@ -254,7 +254,7 @@ who do not want operator-readable chat should not open the widget.
 - Hybrid X25519 + ML-KEM-768 KEM and ML-DSA-65 signatures for multi-user
   invite wraps and signed mutations. Implementation shipped; not yet
   independently audited.
-- 12-word BIP-39 recovery code + per-user-salted master recovery code.
+- 12-word BIP-39 recovery kit + per-user-salted master recovery key.
 - Client-side takeout export (Art. 15 / Art. 20 portability).
 - Test suite: KDF round-trip, verifier, tamper rejection, wrong-password
   rejection.
