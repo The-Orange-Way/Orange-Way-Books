@@ -185,7 +185,7 @@ try {
   await page.waitForURL(/\/app(\/.*)?$/, { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-  // ─── Step 2: Onboarding wizard — vault password + recovery code ──────────
+  // ─── Step 2: Onboarding wizard — vault password + recovery kit ──────────
   await page.locator('input[type="password"]').first().fill(VAULT_PASSWORD);
   const passInputs = await page.locator('input[type="password"]').all();
   if (passInputs.length > 1) await passInputs[1].fill(VAULT_PASSWORD);
@@ -195,9 +195,9 @@ try {
     .click();
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
 
-  await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30000 }).catch(() => {});
+  await page.waitForSelector('text=Save Your Recovery Kit', { timeout: 30000 }).catch(() => {});
   await page
-    .locator('label:has-text("I have saved my recovery code")')
+    .locator('label:has-text("I have saved my recovery kit")')
     .click()
     .catch(() => {});
   await page.waitForTimeout(500);
