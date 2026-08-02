@@ -69,7 +69,7 @@ const SECRET_KEY_PATTERNS = [
   /opk/i,
   /vault_key/i,
   /vault_password/i,
-  /recovery_code/i,
+  /recovery/i,
   /credentials_key/i,
   /transactions_key/i,
   /cred_key/i,
