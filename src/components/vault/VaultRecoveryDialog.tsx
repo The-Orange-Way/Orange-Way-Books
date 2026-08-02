@@ -279,7 +279,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
             <p className="text-xs text-muted-foreground">
               {codeKind === 'master'
                 ? 'Your master recovery key unlocks all your organizations.'
-                : 'Your recovery kit unlocks this organization only.'
+                : 'Your recovery kit unlocks this organization only.'}
             </p>
             {error && (
               <p className="text-sm text-destructive flex items-start gap-1">
