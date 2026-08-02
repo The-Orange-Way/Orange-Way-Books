@@ -244,7 +244,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               'Enter the 12 words you saved when you first set up your vault.'}
             {step === 'new-password' && 'Your data will be re-wrapped under this password.'}
             {step === 'save-new-code' &&
-              'This new code replaces the old one. Save it somewhere safe before closing.'}
+              'This new recovery kit replaces the old one. Save it somewhere safe before closing.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -279,7 +279,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
             <p className="text-xs text-muted-foreground">
               {codeKind === 'master'
                 ? 'Your master code unlocks any organization you have enrolled.'
-                : 'The 12-word code shown when you set up this organization.'}
+                : 'The 12-word recovery kit shown when you set up this organization.'}
             </p>
             {error && (
               <p className="text-sm text-destructive flex items-start gap-1">
@@ -344,7 +344,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               <div>
                 <p className="font-medium mb-1">Save this somewhere offline.</p>
                 <p>
-                  If you forget your password again and lose this code, your data is unrecoverable.
+                  If you forget your password again and lose this recovery kit, your data is unrecoverable.
                   We cannot reset it for you.
                 </p>
               </div>
