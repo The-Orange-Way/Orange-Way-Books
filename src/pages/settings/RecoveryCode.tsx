@@ -1,7 +1,7 @@
 /**
- * Settings → Security → Recovery code
+ * Settings → Security → Recovery kit
  *
- * Lets the user rotate their vault recovery code. The crypto design
+ * Lets the user rotate their vault recovery kit. The crypto design
  * intentionally throws the original code away after onboarding — only
  * the MEK wrapped under the code's derived KEK is persisted. So there
  * is no "view existing code" affordance; the only operation available
@@ -9,7 +9,7 @@
  *
  * Flow:
  *   1. Acknowledge that rotating invalidates the previous code.
- *   2. Click "Generate new recovery code" → calls rotateRecoveryCode
+ *   2. Click "Generate new recovery kit" → calls rotateRecoveryCode
  *      against the in-memory MEK + PERSISTs the new recovery_ciphertext
  *      to org_settings.
  *   3. Display the new 12-word code with copy-to-clipboard.
@@ -93,7 +93,7 @@ export default function RecoveryCode() {
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue =
-        'Your new recovery code has not been verified saved. Closing this page now will lock you out next time you forget your password.';
+        'Your new recovery kit has not been verified saved. Closing this page now will lock you out next time you forget your password.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -103,7 +103,7 @@ export default function RecoveryCode() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm p-6">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading recovery code status…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading recovery kit status…
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function RecoveryCode() {
       <div className="max-w-2xl p-6">
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
-            Unlock your vault to manage your recovery code.
+            Unlock your vault to manage your recovery kit.
           </p>
         </div>
       </div>
@@ -143,7 +143,7 @@ export default function RecoveryCode() {
       setHasRecoveryCipher(true);
       setStage('display');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Recovery code rotation failed.';
+      const msg = err instanceof Error ? err.message : 'Recovery kit rotation failed.';
       setError(msg);
       toast.error(msg);
     } finally {
@@ -178,7 +178,7 @@ export default function RecoveryCode() {
       return;
     }
     setStage('done');
-    toast.success('Recovery code rotated and verified saved.');
+    toast.success('Recovery kit rotated and verified saved.');
   };
 
   const handleCopy = async () => {
@@ -198,10 +198,10 @@ export default function RecoveryCode() {
       <div>
         <h1 className="text-2xl font-bold text-foreground mb-1 flex items-center gap-2">
           <KeyRound className="w-6 h-6 text-primary" />
-          Recovery code
+          Recovery kit
         </h1>
         <p className="text-sm text-muted-foreground">
-          Your recovery code unlocks your vault if you ever forget your vault password. It is the
+          Your recovery kit unlocks your vault if you ever forget your vault password. It is the
           only backup that works without your password — keep it somewhere safe.
         </p>
       </div>
@@ -214,8 +214,8 @@ export default function RecoveryCode() {
           </div>
           <p className="text-sm text-muted-foreground">
             {hasRecoveryCipher
-              ? '✅ A recovery code is set for this organization.'
-              : '⚠️ No recovery code is set yet. Generate one now.'}
+              ? '✅ A recovery kit is set for this organization.'
+              : '⚠️ No recovery kit is set yet. Generate one now.'}
           </p>
 
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
@@ -232,7 +232,7 @@ export default function RecoveryCode() {
             <div>
               <p className="font-medium mb-1">Generating a new code invalidates the old one.</p>
               <p>
-                Any copy of your old recovery code (in a password manager, on paper, etc.) stops
+                Any copy of your old recovery kit (in a password manager, on paper, etc.) stops
                 working the moment you click below. Make sure you can save the new one safely before
                 continuing.
               </p>
@@ -266,8 +266,8 @@ export default function RecoveryCode() {
             {submitting
               ? 'Generating…'
               : hasRecoveryCipher
-                ? 'Generate a new recovery code'
-                : 'Generate recovery code'}
+                ? 'Generate a new recovery kit'
+                : 'Generate recovery kit'}
           </Button>
         </section>
       )}
@@ -276,7 +276,7 @@ export default function RecoveryCode() {
         <section className="rounded-lg border-2 border-primary/40 bg-primary/5 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-card-foreground">Your new recovery code</h2>
+            <h2 className="text-base font-semibold text-card-foreground">Your new recovery kit</h2>
           </div>
           <p className="text-xs text-muted-foreground">Shown once. Copy or write it down now.</p>
 
@@ -405,10 +405,10 @@ export default function RecoveryCode() {
         <section className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-base font-semibold text-card-foreground">Recovery code rotated</h2>
+            <h2 className="text-base font-semibold text-card-foreground">Recovery kit rotated</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Your previous recovery code no longer works. Use the new one if you ever need to recover
+            Your previous recovery kit no longer works. Use the new one if you ever need to recover
             your vault.
           </p>
           <Button variant="outline" onClick={() => navigate('/app/settings/security')}>
