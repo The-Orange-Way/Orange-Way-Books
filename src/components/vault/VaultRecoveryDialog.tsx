@@ -256,7 +256,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 onClick={() => setCodeKind('per-org')}
                 className={`flex-1 px-3 py-2 rounded-md border transition-colors ${codeKind === 'per-org' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/40'}`}
               >
-                This organization's code
+                This organization's recovery kit
               </button>
               <button
                 type="button"
