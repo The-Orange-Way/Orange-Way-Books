@@ -119,7 +119,7 @@ export default function MasterRecovery() {
     void refresh();
   }, []);
 
-  // Warn during display/verify so the code isn't lost on a stray close.
+  // Warn during display/verify so the key isn't lost on a stray close.
   useEffect(() => {
     if (stage !== 'display' && stage !== 'verify') return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -482,7 +482,7 @@ export default function MasterRecovery() {
           )}
           <div className="flex gap-2">
             <Button variant="ghost" className="flex-1" onClick={() => setStage('display')}>
-              Back to code
+              Back to key
             </Button>
             <Button
               className="flex-1"
