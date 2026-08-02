@@ -15,7 +15,7 @@
  *
  * Rotation: re-derive a fresh master KEK and re-wrap every org's MEK.
  * Disable: drop user_master_recovery + all org_master_wraps for the
- * user (per-org recovery codes still work).
+ * user (per-org recovery kits still work).
  *
  * Surfaced by 2026-05-16 security review. Tracked as S14.
  */
@@ -125,7 +125,7 @@ export default function MasterRecovery() {
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue =
-        'Your new master recovery code has not been verified saved. Closing now will lose it.';
+        'Your new master recovery key has not been verified saved. Closing now will lose it.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -144,7 +144,7 @@ export default function MasterRecovery() {
       <div className="p-6">
         <div className="max-w-2xl rounded-lg border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
-            Unlock your vault to manage your master recovery code.
+            Unlock your vault to manage your master recovery key.
           </p>
         </div>
       </div>
@@ -221,7 +221,7 @@ export default function MasterRecovery() {
     if (!userId) return;
     if (
       !window.confirm(
-        'Disable master recovery? Per-org recovery codes still work. Your saved master code stops working immediately.',
+        'Disable master recovery? Per-org recovery kits still work. Your saved master recovery key stops working immediately.',
       )
     )
       return;
@@ -265,7 +265,7 @@ export default function MasterRecovery() {
       return;
     }
     setStage('done');
-    toast.success('Master recovery code set up.');
+    toast.success('Master recovery key set up.');
   };
 
   const handleCopy = async () => {
@@ -284,11 +284,11 @@ export default function MasterRecovery() {
       <div>
         <h1 className="text-2xl font-bold text-foreground mb-1 flex items-center gap-2">
           <KeyRound className="w-6 h-6 text-primary" />
-          Master recovery code
+          Master recovery key
         </h1>
         <p className="text-sm text-muted-foreground">
           A single 12-word phrase that unlocks <strong>every organization</strong> you belong to.
-          Optional — your per-org recovery codes still work independently.
+          Optional. Per-org recovery kits still work independently.
         </p>
       </div>
 
@@ -301,17 +301,17 @@ export default function MasterRecovery() {
           <p className="text-sm text-muted-foreground">
             You belong to <strong>{memberships.length}</strong> organization
             {memberships.length === 1 ? '' : 's'}. Setting up master recovery will wrap your current
-            org's data key under a new master code. You can enroll additional orgs by unlocking each
+            org's data key under a new master recovery key. You can enroll additional orgs by unlocking each
             one and returning here.
           </p>
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
               <p className="font-medium mb-1">
-                This adds a recovery path — it doesn't replace per-org codes.
+                This adds a recovery path, it doesn't replace per-org kits.
               </p>
               <p>
-                Per-org recovery codes still work for their specific org. The master code is an
+                Per-org recovery kits still work for their specific org. The master recovery key is an
                 extra layer that covers all your orgs at once.
               </p>
             </div>
@@ -323,7 +323,7 @@ export default function MasterRecovery() {
               onCheckedChange={(v) => setConfirmAck(Boolean(v))}
             />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
-              I will save my master recovery code immediately and store it offline.
+              I will save my master recovery key immediately and store it offline.
             </Label>
           </div>
           <Button
@@ -331,7 +331,7 @@ export default function MasterRecovery() {
             disabled={!confirmAck || submitting}
             data-testid="generate-master-code"
           >
-            {submitting ? 'Generating…' : 'Generate master recovery code'}
+            {submitting ? 'Generating…' : 'Generate master recovery key'}
           </Button>
         </section>
       )}
@@ -358,13 +358,13 @@ export default function MasterRecovery() {
               </h2>
               <p className="text-sm text-muted-foreground">
                 {unwrappedOrgIds.includes(activeOrgId ?? '')
-                  ? 'This organization is not yet enrolled. Enter your master recovery code to enroll it.'
+                  ? 'This organization is not yet enrolled. Enter your master recovery key to enroll it.'
                   : `Switch to one of these orgs (${unwrappedOrgIds.length} unenrolled) and return here to enroll it.`}
               </p>
               {unwrappedOrgIds.includes(activeOrgId ?? '') && (
                 <>
                   <Input
-                    placeholder="Master recovery code (12 words)"
+                    placeholder="Master recovery key (12 words)"
                     value={enrollCode}
                     onChange={(e) => setEnrollCode(e.target.value)}
                     className="font-mono"
@@ -385,7 +385,7 @@ export default function MasterRecovery() {
               Disable master recovery
             </h2>
             <p className="text-sm text-muted-foreground">
-              Removes the master record and all org wraps. Per-org recovery codes are unaffected.
+              Removes the master record and all org wraps. Per-org recovery kits are unaffected.
             </p>
             <Button variant="outline" onClick={handleDisable} disabled={submitting}>
               <Trash2 className="w-4 h-4 mr-1" /> Disable
@@ -397,7 +397,7 @@ export default function MasterRecovery() {
       {stage === 'display' && newCode && (
         <section className="rounded-lg border-2 border-primary/40 bg-primary/5 p-5 space-y-4">
           <h2 className="text-base font-semibold text-card-foreground flex items-center gap-2">
-            <KeyRound className="w-5 h-5 text-primary" /> Your master recovery code
+            <KeyRound className="w-5 h-5 text-primary" /> Your master recovery key
           </h2>
           <p className="text-xs text-muted-foreground">
             Shown once. Treat it like a key to all your books.
@@ -446,7 +446,7 @@ export default function MasterRecovery() {
             </Button>
           </div>
           <Button className="w-full" onClick={handleStartVerify}>
-            I have saved it — verify
+            I have saved it. Verify
           </Button>
         </section>
       )}
