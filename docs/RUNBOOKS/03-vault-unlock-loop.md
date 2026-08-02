@@ -61,8 +61,7 @@ the customer's recovery kit.
    `user_vault_keys`; this is likely a schema regression rather than
    a per-customer issue.
 2. If one customer: walk them through the in-app recovery flow
-   (Settings, security section). If they have lost the recovery
-   code too, the data is unrecoverable by design; tell them clearly
+   (Settings, security section). If they have lost the recovery kit too, the data is unrecoverable by design; tell them clearly
    and offer to reset their account to a clean state. Confirm any
    reset in writing via the support channel so the consent is
    captured against a later "they wiped my data" dispute.
