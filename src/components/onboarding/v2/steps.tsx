@@ -27,6 +27,8 @@ import {
   pickVerifyPositions,
   useHasPlatformAuthenticator,
 } from './step-helpers';
+import { useOnboardingV2 } from './onboarding-context';
+import { supabase } from '@/integrations/supabase/client';
 
 export function StepName(props: OnboardingStepProps) {
   // TODO(DL-0414): lift to flow state. The name is written to the profile row
@@ -74,6 +76,74 @@ export function StepEmail(props: OnboardingStepProps) {
         aria-label="Email address"
         className="mt-6"
       />
+    </StepShell>
+  );
+}
+
+export function StepVerifyOtp(props: OnboardingStepProps) {
+  // TODO(DL-0429): copy is placeholder, not CX-approved. Do not ship to
+  // users until CX signs off on ONBOARDING_COPY.otp.
+  //
+  // ZKA boundary: this step calls verifyOtp and writes only the resulting
+  // userId to shared context. No key, seed, or vault-password material is
+  // created or stored here. createVault stays in v1 handleFinish.
+  const [otp, setOtp] = useState('');
+  const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const { email, setUserId } = useOnboardingV2();
+  const copy = ONBOARDING_COPY.otp;
+  const isComplete = otp.trim().length === 6;
+
+  const handleVerify = () => {
+    if (!isComplete || isVerifying) return;
+    setError('');
+    setIsVerifying(true);
+    supabase.auth
+      .verifyOtp({ email, token: otp.trim(), type: 'email' })
+      .then(({ data, error: authError }) => {
+        setIsVerifying(false);
+        if (authError || !data.user) {
+          setError(copy.error);
+          return;
+        }
+        setUserId(data.user.id);
+        props.onNext();
+      })
+      .catch(() => {
+        setIsVerifying(false);
+        setError(copy.error);
+      });
+  };
+
+  return (
+    <StepShell
+      {...props}
+      title={copy.headline}
+      nextLabel={copy.cta}
+      nextDisabled={!isComplete || isVerifying}
+      onNext={handleVerify}
+    >
+      <p>{copy.body}</p>
+      <Input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={6}
+        value={otp}
+        onChange={(event) => {
+          setOtp(event.target.value.replace(/\D/g, ''));
+          setError('');
+        }}
+        autoComplete="one-time-code"
+        placeholder="000000"
+        aria-label="6-digit code"
+        className="mt-6 font-mono tracking-widest"
+      />
+      {error ? (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </StepShell>
   );
 }
