@@ -1,0 +1,40 @@
+# .reserved-terms: reserved-term list for the leak scanners.
+#
+# Copy this file to .reserved-terms (gitignored) and fill it with the
+# project's internal-only strings: one extended-regex fragment per line.
+# Blank lines and #-comments are ignored. The fragments are joined with
+# "|" into a single alternation at scan time.
+#
+# The real list is deliberately NOT committed: publishing it would leak
+# the very strings it exists to keep out of the public tree. Maintainers
+# receive it out of band; CI sources it from the OW_RESERVED_TERMS
+# repository secret.
+#
+# Example entries (fictional):
+#
+# internal-hostname\.example
+# @private-domain\.example
+# Secret Project Codename
+# /home/(someuser)/
+#
+# ----------------------------------------------------------------------
+# Known limitation: fork PRs are green but UNSCANNED for reserved terms.
+# ----------------------------------------------------------------------
+#
+# GitHub never exposes repository secrets to a workflow run triggered by
+# a pull request from a fork. OW_RESERVED_TERMS is therefore empty on
+# those runs, and the reserved-term category is skipped by design: the
+# alternative would be shipping the list to untrusted code, which is the
+# exact leak this whole mechanism exists to prevent.
+#
+# The consequence has to be stated plainly, because it is easy to misread
+# a green check as a clean tree:
+#
+#   A green Leak check on a FORK pull request is NOT evidence that the
+#   tree is free of reserved terms. It only means the structural
+#   categories passed. A maintainer MUST read a fork diff by eye before
+#   merging it.
+#
+# The push-triggered run on dev/prod is the backstop, but it is a
+# detection, not a prevention: by the time it fires, the term is already
+# public. Eyes on fork diffs are the control that actually holds.

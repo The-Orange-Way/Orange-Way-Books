@@ -53,6 +53,14 @@ jobs:
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
           VITE_DEPLOY_ENV: ${{ github.ref_name }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          # Onboarding v2 (DL-0429) is a build-time flag, read as the exact
+          # string "true" in onboarding-flow.tsx. It is NOT a Cloudflare Pages
+          # env var: the bundle is built here, in Actions, then shipped to
+          # Pages, so the value must be present at this Build step. Off on all
+          # branches: v2 authenticates but provisions nothing yet (no org, no
+          # vault), so turning it on leaves users stuck. Flip this once
+          # provisioning is complete and tested.
+          VITE_ONBOARDING_V2: 'false'
           # Branch-derived Turnstile site key. Site keys are browser-safe
           # by design; the corresponding secret lives on the Supabase Auth
           # config (security_captcha_secret), not on the SPA.
