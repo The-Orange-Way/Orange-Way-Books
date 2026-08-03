@@ -34,7 +34,7 @@ on:
   workflow_dispatch:
     inputs:
       expected_project_ref:
-        description: "Project ref you intend to deploy to. Must match the configured secret or the run stops."
+        description: "Project ref to deploy to. Must match the secret."
         required: true
         type: string
       dry_run:
