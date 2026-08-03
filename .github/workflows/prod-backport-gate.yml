@@ -2,25 +2,18 @@ name: prod backport gate
 
 # Why this gate exists.
 #
-# Orange Way and Orange Rails developed a loop that took Orange Rails to 384
-# commits of divergence. From orangerails pull request 377, 2026-07-31, in the
-# team's own words (the number is spelled out because the pre-publish hygiene
-# scan rejects the "PR #<n>" form as a dead reference):
+# When a dev to prod promotion is blocked, the fix gets opened directly against
+# prod. Each such fix adds a commit that dev does not have, which deepens the
+# conflict on the blocked promotion, which forces the next fix to go straight to
+# prod as well. That is a loop, and once it is running the divergence only grows.
 #
-#   "prod was 26 commits ahead of dev. It was 15 the same morning... That is the
-#    loop: #314 is conflicted, so the normal dev to prod promote is blocked ->
-#    fixes get opened directly against prod -> each of those adds another
-#    prod-only commit -> which deepens #314's conflict, which forces the next
-#    cherry-pick. 15 to 26 in one day is that loop running."
+# This gate does not forbid hotfixes. It forbids a hotfix that has no path back
+# to dev, which is the single step that regenerates the whole problem.
 #
-# That PR asked for a stop. This is that stop. It does not forbid hotfixes; it
-# forbids a hotfix that has no path back to dev, which is the single step that
-# regenerates the whole problem.
-#
-# Measured 2026-08-02, the standing cost of the loop:
-#   Orange-Way-Me           14 prod-only commits
-#   orangerails-marketing    5 prod-only commits
-#   Orange-Way-Books         3 prod-only commits
+# Measured in this repository on 2026-08-03: 3 commits sit on prod that dev does
+# not have, dev is 197 commits ahead of prod, the open promotion pull request is
+# in a conflicted state with its required checks passing, and nothing has shipped
+# to prod in 37 days. Those prod-only commits ARE the conflict.
 #
 # NOTE: this check is deliberately NOT a required status check yet. See the pull
 # request that introduced it for why (a pull_request workflow only runs if the
@@ -170,12 +163,9 @@ jobs:
           echo "  A prod-only commit with no path back to dev is how branches"
           echo "  permanently diverge: the next dev -> prod promotion conflicts,"
           echo "  so the fix after this one also gets opened straight against prod,"
-          echo "  which deepens the conflict further. Orange Rails reached 384"
-          echo "  commits of divergence this way, and went from 15 to 26 prod-only"
-          echo "  commits in a single day on 2026-07-31. As measured on 2026-08-02"
-          echo "  the backlog still standing is 14 prod-only commits on"
-          echo "  Orange-Way-Me, 5 on orangerails-marketing and 3 on"
-          echo "  Orange-Way-Books."
+          echo "  which deepens the conflict further. As measured on 2026-08-03,"
+          echo "  3 prod-only commits are standing in this repository, dev is 197"
+          echo "  commits ahead of prod, and nothing has shipped in 37 days."
           echo ""
           echo "Why the containment rule did not save you"
           echo "  This check passes automatically when dev already contains every"
