@@ -21,11 +21,27 @@
 # The deploy matrix is discovered from supabase/functions at run time. Do not
 # reintroduce a hand-written list: a function missing from it deploys nowhere
 # and the run still passes.
+#
+# A secret's value cannot be read by a reviewer, so the run has to state its
+# own target. Type the project ref you intend to deploy to into
+# expected_project_ref: it is compared against the configured secret before
+# any function is touched, and a mismatch stops the run. Neither value is
+# printed. Use dry_run to answer "what does this deploy to" without deploying.
 
 name: Deploy Supabase Edge Functions
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_project_ref:
+        description: 'Project ref to deploy to. Must match the secret.'
+        required: true
+        type: string
+      dry_run:
+        description: 'Check the target and stop, deploying nothing.'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: supabase-functions-deploy
@@ -42,7 +58,33 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  assert-target:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run unless the configured target is the intended one
+        env:
+          EXPECTED: ${{ inputs.expected_project_ref }}
+          CONFIGURED: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CONFIGURED" ]; then
+            echo "::error::SUPABASE_PROJECT_REF is not configured. Nothing was deployed."
+            exit 1
+          fi
+          if [ -z "$EXPECTED" ]; then
+            echo "::error::expected_project_ref was empty. Nothing was deployed."
+            exit 1
+          fi
+          # Neither value is echoed. Only the verdict is.
+          if [ "$EXPECTED" != "$CONFIGURED" ]; then
+            echo "::error::The configured project ref is not the one you asked for. Nothing was deployed. Fix the secret or the input and run again."
+            exit 1
+          fi
+          echo "Target confirmed: the configured secret matches the ref you supplied."
+
   discover:
+    needs: assert-target
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     outputs:
       functions: ${{ steps.list.outputs.functions }}
@@ -103,7 +145,7 @@ jobs:
 
   report:
     needs: [discover, deploy]
-    if: always()
+    if: always() && !inputs.dry_run
     runs-on: ubuntu-latest
     steps:
       - name: Say how many functions were deployed
