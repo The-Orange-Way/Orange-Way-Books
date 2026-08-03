@@ -34,11 +34,11 @@ on:
   workflow_dispatch:
     inputs:
       expected_project_ref:
-        description: "Project ref to deploy to. Must match the secret."
+        description: 'Project ref to deploy to. Must match the secret.'
         required: true
         type: string
       dry_run:
-        description: "Check the target and stop, deploying nothing."
+        description: 'Check the target and stop, deploying nothing.'
         required: false
         default: false
         type: boolean
