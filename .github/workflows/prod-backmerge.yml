@@ -186,11 +186,31 @@ jobs:
           } > "${body}"
           echo "path=${body}" >> "$GITHUB_OUTPUT"
 
+      - name: Require FLEET_PAT
+        if: steps.compare.outputs.count != '0'
+        env:
+          FLEET_PAT: ${{ secrets.FLEET_PAT }}
+        run: |
+          set -euo pipefail
+          # Fail here, loudly, rather than two steps later inside gh pr create
+          # where the same failure reads like a permissions bug in this file.
+          if [ -z "${FLEET_PAT:-}" ]; then
+            echo "::error title=FLEET_PAT is not set::There is work to back-merge but this workflow cannot open the pull request."
+            {
+              echo "### FLEET_PAT is missing"
+              echo
+              echo "There are commits on prod that dev does not have, but the repository secret"
+              echo "FLEET_PAT is not set, so the back-merge pull request cannot be opened."
+              echo "Add it under Settings, Secrets and variables, Actions."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - name: Open or update the back-merge pull request
         id: pr
         if: steps.compare.outputs.count != '0'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.FLEET_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -227,7 +247,7 @@ jobs:
       - name: Enable auto-merge when the back-merge is clean
         if: steps.compare.outputs.count != '0' && steps.trial.outputs.clean == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.FLEET_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
