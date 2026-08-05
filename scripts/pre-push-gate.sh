@@ -90,8 +90,8 @@ fi
 # this push adds and not history already on the remote. Prints the base sha, or
 # nothing when the pushed tip shares no history with the remote (an orphan or
 # the very first commit) -- callers scan from the root in that case instead of
-# excluding a base. Both the reserved-term scan and the identity scan use this
-# so they cannot drift on what "the base" means.
+# excluding a base. Every history scan below uses this so they cannot drift on
+# what "the base" means.
 #
 # Preference order:
 #   1. The remote ref's current tip (from pre-push stdin), when the remote
@@ -209,14 +209,36 @@ done
 [ "$FAIL" = "0" ] && green "✓ Commit identities look clean."
 
 # ---- Check 5: gitleaks on the prepared commits (if installed) ----
+# Scans the same range as checks 3 and 4: only what this push adds. Passing a
+# bare sha to --log-opts scanned every commit reachable from HEAD, so any
+# finding anywhere in history refused every push from every branch, no matter
+# what the push contained. Re-reporting a commit already on the remote cannot
+# prevent anything: if it is a real leak it is public already and needs
+# rotation, not a blocked push. Only the first sha was scanned, too, so a
+# multi-branch push checked one branch and waved the rest through.
 if command -v gitleaks >/dev/null; then
   CFG=""
   [ -f .gitleaks.toml ] && CFG="--config .gitleaks.toml"
-  if gitleaks detect $CFG --no-banner --log-opts="${LOCAL_SHAS[0]}" >/tmp/.gl.out 2>&1; then
+  GITLEAKS_FAIL=0
+  for i in "${!LOCAL_SHAS[@]}"; do
+    sha="${LOCAL_SHAS[$i]}"
+    base="$(push_base "$sha" "${REMOTE_SHAS[$i]}")"
+    # With a base, scan base..sha. Orphan / initial commit has no base: scan
+    # the bare sha, which for --log-opts means every commit reachable from it
+    # (root included). That is exactly this push's new commits when nothing is
+    # shared with the remote, and it keeps the root from slipping through the
+    # way base..sha would by excluding it.
+    if [ -n "$base" ]; then LOGOPTS="$base..$sha"; else LOGOPTS="$sha"; fi
+    # shellcheck disable=SC2086 # CFG is a deliberate two-word flag or empty.
+    if ! gitleaks detect $CFG --no-banner --log-opts="$LOGOPTS" >/tmp/.gl.out 2>&1; then
+      red "✗ gitleaks found secrets in $LOGOPTS:"
+      tail -10 /tmp/.gl.out
+      GITLEAKS_FAIL=1
+    fi
+  done
+  if [ "$GITLEAKS_FAIL" = "0" ]; then
     green "✓ gitleaks clean."
   else
-    red "✗ gitleaks found secrets:"
-    tail -10 /tmp/.gl.out
     FAIL=1
   fi
 fi
