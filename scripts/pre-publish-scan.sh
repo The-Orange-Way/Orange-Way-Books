@@ -69,6 +69,10 @@ EXCLUDE_FILES=(
 # one file the scanner would never look at. The list now lives out of
 # tree, so the scripts are scanned like any other file and a
 # reintroduced literal is caught.
+#
+# Entries are repo-relative paths. They are anchored to the path column
+# at filter time (see scan() below), so an entry exempts the file it
+# names and nothing else.
 
 EXEMPT_GENERIC=(
   ".github/PULL_REQUEST_TEMPLATE.md"
@@ -184,10 +188,19 @@ scan() {
     return 0
   fi
 
-  # Always-drop exemptions
+  # Always-drop exemptions.
+  #
+  # Each entry is anchored to the PATH COLUMN of the grep -rnE output,
+  # whose lines are "./path:LINE:text". An unanchored bare filename
+  # matches anywhere on the line, including inside the matched text of an
+  # unrelated file, which silently drops a real finding. Anchor as
+  # ^\./<path>: so an entry exempts only the file it names. This is the
+  # same shape as SELF_SOURCE_EXEMPT.
   local drop_patterns=""
+  local e esc
   for e in "${EXEMPT_GENERIC[@]}"; do
-    drop_patterns+="${drop_patterns:+|}$(printf '%s' "$e" | sed 's/[.[\]*]/\\&/g')"
+    esc=$(printf '%s' "$e" | sed 's/[.[\]*]/\\&/g')
+    drop_patterns+="${drop_patterns:+|}^\\./${esc}:"
   done
   if [[ -n "$extra_exempt" ]]; then
     drop_patterns+="${drop_patterns:+|}$extra_exempt"
