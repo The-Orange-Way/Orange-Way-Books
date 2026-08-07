@@ -467,7 +467,7 @@ export function generateRecoveryCode(): string {
 
 /**
  * Derive an AES-256-GCM wrapping key from a 12-word recovery code via HKDF.
- * No password-stretching: the code already has 96 bits of entropy.
+ * No password-stretching: the code already has 132 bits of entropy.
  */
 export async function deriveRecoveryKek(recoveryCode: string): Promise<CryptoKey> {
   const normalized = recoveryCode.trim().toLowerCase().replace(/\s+/g, ' ');
