@@ -11,12 +11,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import type { BitcoinDisplay } from '@/types';
-import { getAllCurrencies } from '@/lib/exchange';
+import { getFiatCurrencies, getCryptoCurrencies } from '@/lib/exchange';
 
-const currencies = getAllCurrencies().map((c) => ({
-  value: c.code,
-  label: `${c.code} - ${c.name}`,
-}));
+const BITCOIN_CODES = new Set(['BTC', 'SATS']);
+const currencies = [
+  ...getFiatCurrencies(),
+  ...getCryptoCurrencies().filter((c) => BITCOIN_CODES.has(c.code)),
+].map((c) => ({ value: c.code, label: `${c.code} - ${c.name}` }));
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [
   { value: 'btc', label: 'BTC 1.50000000' },
