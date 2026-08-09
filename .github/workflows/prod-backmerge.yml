@@ -93,6 +93,30 @@ jobs:
             echo "${count} commit(s) exist on ${SOURCE_BRANCH} but not on ${BASE_BRANCH}."
           fi
 
+      - name: Require FLEET_PAT
+        if: steps.compare.outputs.count != '0'
+        env:
+          FLEET_PAT: ${{ secrets.FLEET_PAT }}
+        run: |
+          set -euo pipefail
+          # This runs BEFORE the automation branch is pushed, on purpose. It is
+          # the only guard in front of the only write this job makes, so if the
+          # secret is missing the job stops with nothing written. Running it
+          # later pushed a branch at the prod tip and then failed, leaving an
+          # orphan ref with no pull request and no explanation on it.
+          if [ -z "${FLEET_PAT:-}" ]; then
+            echo "::error title=FLEET_PAT is not set::There is work to back-merge but this workflow cannot open the pull request."
+            {
+              echo "### FLEET_PAT is missing"
+              echo
+              echo "There are commits on prod that dev does not have, but the repository secret"
+              echo "FLEET_PAT is not set, so the back-merge pull request cannot be opened."
+              echo "Nothing was pushed. Add the secret under Settings, Secrets and variables,"
+              echo "Actions, and re-run."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - name: Trial-merge prod into dev to detect conflicts
         id: trial
         if: steps.compare.outputs.count != '0'
@@ -185,26 +209,6 @@ jobs:
             echo "  drift count would never go down."
           } > "${body}"
           echo "path=${body}" >> "$GITHUB_OUTPUT"
-
-      - name: Require FLEET_PAT
-        if: steps.compare.outputs.count != '0'
-        env:
-          FLEET_PAT: ${{ secrets.FLEET_PAT }}
-        run: |
-          set -euo pipefail
-          # Fail here, loudly, rather than two steps later inside gh pr create
-          # where the same failure reads like a permissions bug in this file.
-          if [ -z "${FLEET_PAT:-}" ]; then
-            echo "::error title=FLEET_PAT is not set::There is work to back-merge but this workflow cannot open the pull request."
-            {
-              echo "### FLEET_PAT is missing"
-              echo
-              echo "There are commits on prod that dev does not have, but the repository secret"
-              echo "FLEET_PAT is not set, so the back-merge pull request cannot be opened."
-              echo "Add it under Settings, Secrets and variables, Actions."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
 
       - name: Open or update the back-merge pull request
         id: pr
