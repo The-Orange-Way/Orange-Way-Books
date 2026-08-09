@@ -27,7 +27,6 @@ import {
   STRENGTH_LABELS,
   passwordScore,
   pickVerifyPositions,
-  useHasPlatformAuthenticator,
 } from './step-helpers';
 
 export function StepName(props: OnboardingStepProps) {
@@ -379,37 +378,6 @@ export function StepVerify(props: OnboardingStepProps) {
     >
       <p>{VERIFY_COPY.body}</p>
       <RecoveryWordInputs positions={positions} answers={answers} onChange={setAnswers} />
-    </StepShell>
-  );
-}
-
-export function StepBiometric(props: OnboardingStepProps) {
-  const available = useHasPlatformAuthenticator();
-
-  // Probe still running. Show the headline with the CTA held shut rather than
-  // flashing the fallback copy at a device that does support this.
-  if (available === null) {
-    return <StepShell {...props} title={ONBOARDING_COPY.biometric.headline} nextDisabled />;
-  }
-
-  if (!available) {
-    const fallback = ONBOARDING_COPY.biometricFallback;
-    return (
-      <StepShell {...props} title={fallback.headline} nextLabel={fallback.cta}>
-        <p>{fallback.body}</p>
-      </StepShell>
-    );
-  }
-
-  const copy = ONBOARDING_COPY.biometric;
-  return (
-    <StepShell
-      {...props}
-      title={copy.headline}
-      nextLabel={copy.cta}
-      secondaryLabel={copy.secondary}
-    >
-      <p>{copy.body}</p>
     </StepShell>
   );
 }
