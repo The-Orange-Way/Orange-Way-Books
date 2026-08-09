@@ -10,17 +10,14 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BarChart3 } from 'lucide-react';
 import type { BitcoinDisplay } from '@/types';
+import { getAllCurrencies } from '@/lib/exchange';
 
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'BTC', label: 'BTC — Bitcoin' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
+  ...getAllCurrencies().map((c) => ({
+    value: c.code,
+    label: `${c.code} - ${c.name}`,
+  })),
 ];
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [
