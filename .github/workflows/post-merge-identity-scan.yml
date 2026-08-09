@@ -59,8 +59,16 @@ jobs:
             # it first landed on the source branch. The merge commit itself is
             # always new on the receiving branch and is always included.
             if [ "${{ github.ref_name }}" = "dev" ]; then
+              if ! git rev-parse --verify origin/prod >/dev/null 2>&1; then
+                echo "::error::origin/prod does not resolve after fetch; cannot compute exclusion range."
+                exit 1
+              fi
               echo "range=$BEFORE..$AFTER ^origin/prod" >> "$GITHUB_OUTPUT"
             else
+              if ! git rev-parse --verify origin/dev >/dev/null 2>&1; then
+                echo "::error::origin/dev does not resolve after fetch; cannot compute exclusion range."
+                exit 1
+              fi
               echo "range=$BEFORE..$AFTER ^origin/dev" >> "$GITHUB_OUTPUT"
             fi
           fi
@@ -100,28 +108,39 @@ jobs:
           TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
           echo "Reserved-term list loaded: $TERM_COUNT term(s)."
 
-          echo "Scanning range: $RANGE"
+          echo "Walking range: $RANGE"
+          # Collect commit metadata first; a non-zero exit means git could not
+          # walk the range. An empty result from a failed walk must not be
+          # reported as clean -- fail explicitly instead.
+          COMMIT_DATA="$(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')" \
+            || { echo "::error::git log failed walking range '$RANGE'; the scan cannot run."; exit 1; }
+
+          COMMIT_COUNT=$(printf '%s\n' "$COMMIT_DATA" | grep -c '^[0-9a-f]\{40\} AUTHOR' || true)
+          echo "Commits in range: $COMMIT_COUNT"
+
           MATCHES=0
-          # GitHub auto-injects a "Co-authored-by: <name> <noreply@anthropic.com>"
-          # trailer on squash/rebase merge commits. That address is Anthropic's
-          # public GitHub integration email and the trailer carries no
-          # internal-only identifier, yet a publicly known model name can contain
-          # a reserved-term substring and trip the scan. Drop ONLY that trailer
-          # line before matching; author, committer, and the rest of the body
-          # stay fully in scope so no other line gets a free pass.
-          while IFS= read -r line; do
-            if printf '%s' "$line" | grep -qEi "$PATTERN"; then
-              echo "::error::Reserved-term pattern found in just-pushed commit metadata (redacted; see OW_RESERVED_TERMS)."
-              MATCHES=$((MATCHES + 1))
-            fi
-          done < <(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--' \
-                   | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
+          if [ "$COMMIT_COUNT" -gt 0 ]; then
+            # GitHub auto-injects a "Co-authored-by: <name> <noreply@anthropic.com>"
+            # trailer on squash/rebase merge commits. That address is Anthropic's
+            # public GitHub integration email and the trailer carries no
+            # internal-only identifier, yet a publicly known model name can contain
+            # a reserved-term substring and trip the scan. Drop ONLY that trailer
+            # line before matching; author, committer, and the rest of the body
+            # stay fully in scope so no other line gets a free pass.
+            while IFS= read -r line; do
+              if printf '%s' "$line" | grep -qEi "$PATTERN"; then
+                echo "::error::Reserved-term pattern found in just-pushed commit metadata (redacted; see OW_RESERVED_TERMS)."
+                MATCHES=$((MATCHES + 1))
+              fi
+            done < <(printf '%s\n' "$COMMIT_DATA" \
+                     | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
+          fi
 
           if [ "$MATCHES" -gt 0 ]; then
             echo "::error::Identity-scan failed: $MATCHES commit(s) carry reserved-term strings."
             exit 1
           fi
-          echo "Identity-scan clean: 0 commits carry reserved-term strings."
+          echo "Identity-scan clean: scanned $COMMIT_COUNT commit(s), 0 reserved-term matches."
 
       - name: Run repo tree pre-publish leak scan (defense in depth)
         env:
