@@ -10,14 +10,14 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BarChart3 } from 'lucide-react';
 import type { BitcoinDisplay } from '@/types';
-import { getAllCurrencies } from '@/lib/exchange';
+import { getFiatCurrencies, getCryptoCurrencies } from '@/lib/exchange';
 
+const BITCOIN_CODES = new Set(['BTC', 'SATS']);
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
-  ...getAllCurrencies().map((c) => ({
-    value: c.code,
-    label: `${c.code} - ${c.name}`,
-  })),
+  ...[...getFiatCurrencies(), ...getCryptoCurrencies().filter((c) => BITCOIN_CODES.has(c.code))].map(
+    (c) => ({ value: c.code, label: `${c.code} - ${c.name}` })
+  ),
 ];
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [
