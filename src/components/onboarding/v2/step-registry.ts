@@ -2,7 +2,6 @@ import type { OnboardingStep } from './onboarding-flow';
 import type { RecoveryVerifyMode } from './step-helpers';
 import { RECOVERY_VERIFY_MODE } from './step-helpers';
 import {
-  StepBiometric,
   StepEducation,
   StepEmail,
   StepName,
@@ -44,7 +43,6 @@ export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[]
     ...(mode === 'reentry'
       ? [{ id: 'verify-recovery-code', title: 'Confirm recovery kit', Component: StepVerify }]
       : []),
-    { id: 'biometric', title: 'Biometric unlock', Component: StepBiometric },
     { id: 'success', title: 'You are all set', Component: StepSuccess },
   ];
 }
