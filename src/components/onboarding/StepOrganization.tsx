@@ -11,17 +11,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import type { BitcoinDisplay } from '@/types';
+import { getAllCurrencies } from '@/lib/exchange';
 
-const currencies = [
-  { value: 'BTC', label: 'BTC — Bitcoin' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
-];
+const currencies = getAllCurrencies().map((c) => ({
+  value: c.code,
+  label: `${c.code} - ${c.name}`,
+}));
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [
   { value: 'btc', label: 'BTC 1.50000000' },
