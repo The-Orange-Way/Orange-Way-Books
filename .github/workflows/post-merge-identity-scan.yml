@@ -37,6 +37,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch both protected branches for range exclusion
+        run: git fetch origin dev prod --no-tags
+
       - name: Determine range to scan
         id: range
         run: |
@@ -50,7 +53,16 @@ jobs:
           if [ "$BEFORE" = "$ZERO" ]; then
             echo "range=$AFTER -1" >> "$GITHUB_OUTPUT"
           else
-            echo "range=$BEFORE..$AFTER" >> "$GITHUB_OUTPUT"
+            # Exclude commits already reachable from the other protected branch.
+            # This prevents back-merge commits (prod->dev or dev->prod) from
+            # re-scanning the entire merged ancestry that was already checked when
+            # it first landed on the source branch. The merge commit itself is
+            # always new on the receiving branch and is always included.
+            if [ "${{ github.ref_name }}" = "dev" ]; then
+              echo "range=$BEFORE..$AFTER ^origin/prod" >> "$GITHUB_OUTPUT"
+            else
+              echo "range=$BEFORE..$AFTER ^origin/dev" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Scan author + committer + body for reserved-term patterns
