@@ -120,6 +120,7 @@ jobs:
           # frontend build uses, so there is one place to rotate them.
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+          OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Upload Playwright artifacts
         if: always()
