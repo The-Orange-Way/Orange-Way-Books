@@ -2,19 +2,20 @@ name: back-merge prod into dev
 
 # Why this workflow exists (DL-0565, Gate 3).
 #
-# Nothing has ever back-merged prod into dev automatically in this repo. When
-# a promotion from dev to prod is blocked, the fix gets opened directly
-# against prod, so prod accumulates commits that dev does not have. Every one
-# of those commits makes the NEXT promotion harder, and a promotion that is
-# hard to land gets worked around with another direct-to-prod fix. That is a
-# loop, and it is measurable here: as of 2026-08-02 this repository carried 3
-# commits on prod that dev did not have, and the open promotion pull request
-# was in a conflicted state even though its required checks passed. Those
-# prod-only commits ARE the conflict.
+# Nothing has ever back-merged prod into dev automatically. When a promotion
+# from dev to prod is blocked, the fix gets opened directly against prod, so
+# prod accumulates commits that dev does not have. Every one of those commits
+# makes the NEXT promotion harder, and a promotion that is hard to land gets
+# worked around with another direct-to-prod fix. That is a loop, and it is
+# measurable here: as of 2026-08-03 this repository carries 14 commits on prod
+# that dev does not have, dev is 203 commits ahead of prod, and the open
+# promotion pull request has sat 14 days in a conflicted state with its
+# required checks passing and an approval already on it. Those prod-only
+# commits ARE the conflict.
 #
 # This workflow closes the loop by carrying prod back to dev on every prod
-# push, so the drift stays near zero and the next promotion is a clean fast
-# diff instead of a conflict archaeology session.
+# push, so the drift is always near zero and the next promotion is a clean
+# fast diff instead of a conflict archaeology session.
 #
 # Direction is one way, always: prod -> dev. This workflow never pushes to
 # dev, never pushes to prod, never force-pushes, and never merges dev into
