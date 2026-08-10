@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar, Loader2 } from 'lucide-react';
+import { MONTH_NAMES } from '@/lib/months';
 
 interface CalendarData {
   fiscalYearStart: string;
@@ -22,21 +23,6 @@ interface Props {
   progressMessage?: string;
   progressDetail?: string;
 }
-
-const months = [
-  'january',
-  'february',
-  'march',
-  'april',
-  'may',
-  'june',
-  'july',
-  'august',
-  'september',
-  'october',
-  'november',
-  'december',
-];
 
 export default function StepCalendar({
   data,
@@ -66,9 +52,9 @@ export default function StepCalendar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
+              {MONTH_NAMES.map((m) => (
+                <SelectItem key={m} value={m.toLowerCase()}>
+                  {m}
                 </SelectItem>
               ))}
             </SelectContent>
