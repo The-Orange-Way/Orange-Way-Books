@@ -154,16 +154,16 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     await page.locator('input[placeholder*="Minimum 14"]').fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').fill(VAULT_PW);
     await page.click('button:has-text("Continue")');
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 15000 });
+    await page.waitForSelector('[data-testid="recovery-code-grid"]', { timeout: 15000 });
     await page.waitForTimeout(1000);
     const wordsByPos = await page.evaluate(() => {
       const map = {};
-      for (const c of Array.from(document.querySelectorAll('div'))) {
-        const spans = c.querySelectorAll(':scope > span');
-        if (spans.length !== 2) continue;
-        const m = (spans[0].textContent || '').trim().match(/^(\d+)\.?$/);
-        const w = (spans[1].textContent || '').trim();
-        if (m && /^[a-z]+$/.test(w)) map[parseInt(m[1])] = w;
+      for (const el of Array.from(document.querySelectorAll('[data-testid^="recovery-word-"]'))) {
+        const m = (el.getAttribute('data-testid') || '').match(/^recovery-word-(\d+)$/);
+        if (!m) continue;
+        const spans = el.querySelectorAll(':scope > span');
+        const w = (spans[1] ? spans[1].textContent || '' : '').trim();
+        if (/^[a-z]+$/.test(w)) map[parseInt(m[1], 10) + 1] = w;
       }
       return map;
     });
