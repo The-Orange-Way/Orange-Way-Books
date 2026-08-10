@@ -245,8 +245,8 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
-      page.locator('text=Insights').first(),
-      'authenticated shell sidebar after onboarding',
+      page.getByTestId('app-shell').first(),
+      'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
     // 08 — dashboard renders, no "Finishing setup…"
@@ -283,8 +283,8 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     }
     // Wait for sidebar to mount (proves auth shell rendered).
     await expect(
-      page.locator('text=Insights').first(),
-      'sidebar after master-recovery unlock',
+      page.getByTestId('app-shell').first(),
+      'app shell after master-recovery unlock',
     ).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(1_500);
     await expect(
