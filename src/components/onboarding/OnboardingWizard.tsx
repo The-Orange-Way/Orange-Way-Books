@@ -135,13 +135,33 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
             ? reportingData.secondaryBitcoinDisplay
             : 'sats';
 
+      // Map the fiscal-year-start month name collected in StepCalendar to a
+      // 1-based month number. encryptOrgSettings encrypts this into
+      // encrypted_fiscal_month and keeps the plaintext stub NULL, so the value
+      // stays zero-knowledge. Falls back to January (1) if somehow unset.
+      const monthNames = [
+        'january',
+        'february',
+        'march',
+        'april',
+        'may',
+        'june',
+        'july',
+        'august',
+        'september',
+        'october',
+        'november',
+        'december',
+      ];
+      const fiscalStartMonth = monthNames.indexOf(calendarData.fiscalYearStart) + 1 || 1;
+
       const encSettings = await encryptOrgSettings(
         {
           primary_currency: orgData.primaryCurrency,
           secondary_currency: secondaryCurrency,
           bitcoin_display: bitcoinDisplay,
           fiscal_year_type: null,
-          fiscal_start_month: null,
+          fiscal_start_month: fiscalStartMonth,
           date_format: reportingData.dateFormat,
           time_format: reportingData.timeFormat || null,
           number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',
