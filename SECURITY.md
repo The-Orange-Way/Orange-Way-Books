@@ -187,8 +187,14 @@ single appended entry without touching consumers.
 ## Recovery
 
 Vault recovery uses a 12-word recovery code drawn from the BIP-39
-English wordlist (2048 words, ~132 bits of entropy), generated in your
-browser at vault setup. The code is shown once, in your browser only.
+English wordlist (2048 words). Twelve words at 11 bits each give 132
+bits of fully random entropy. The code is generated in your browser at
+vault setup and shown once only.
+
+The phrase uses the same words as a Bitcoin wallet seed phrase but is
+**not** a BIP-39 mnemonic: there is no checksum word, and the phrase
+cannot be imported into a Bitcoin wallet. It is used as HKDF key
+material to unlock the vault.
 
 **Important: Orange Way Books cannot recover, reset, or escrow this
 code.** If you lose both your password and your recovery code, the data
@@ -228,9 +234,16 @@ data-subject rights without server-side decryption:
 
 Orange Way Books uses Supabase as the database, authentication, file
 storage, and edge-function provider; Cloudflare Pages as the static
-frontend host. Both are sub-processors under GDPR / Law 25. Customers
-are notified of any change to this list. The choice of region for each
-project is recorded in the project settings of each environment.
+frontend host; Resend for transactional email; and a self-hosted
+Chatwoot instance at `support.orangeway.app` for the optional in-app
+live-chat widget. All four are sub-processors under GDPR / Law 25.
+Customers are notified of any change to this list. The choice of region
+for each project is recorded in the project settings of each environment.
+
+Chat content sent through the Chatwoot widget is plaintext to the
+operator and is explicitly NOT in the zero-knowledge scope. The
+encryption-at-rest guarantee covers stored books-data only. Customers
+who do not want operator-readable chat should not open the widget.
 
 ---
 
@@ -247,7 +260,8 @@ project is recorded in the project settings of each environment.
 - Hybrid X25519 + ML-KEM-768 KEM and ML-DSA-65 signatures for multi-user
   invite wraps and signed mutations. Implementation shipped; not yet
   independently audited.
-- 12-word BIP-39 recovery code + per-user-salted master recovery code.
+- 12-word recovery code (BIP-39 English wordlist, 132 bits of entropy,
+  no BIP-39 checksum, not wallet-importable) + per-user-salted master recovery code.
 - Client-side takeout export (Art. 15 / Art. 20 portability).
 - Test suite: KDF round-trip, verifier, tamper rejection, wrong-password
   rejection.

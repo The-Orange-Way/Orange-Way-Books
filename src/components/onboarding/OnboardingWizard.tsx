@@ -57,7 +57,6 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   const [calendarData, setCalendarData] = useState({
-    dateFormat: 'MM-DD-YYYY',
     fiscalYearStart: 'january',
   });
   const [vaultVerifier, setVaultVerifier] = useState<string | null>(null);
@@ -143,7 +142,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
           bitcoin_display: bitcoinDisplay,
           fiscal_year_type: null,
           fiscal_start_month: null,
-          date_format: reportingData.dateFormat || calendarData.dateFormat,
+          date_format: reportingData.dateFormat,
           time_format: reportingData.timeFormat || null,
           number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',
           timezone: reportingData.timezone || null,
@@ -172,60 +171,75 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         if (verifierError) throw verifierError;
       }
 
-      // 5. Seed chart of accounts in Postgres. Post-Phase 1: pure DB inserts,
-      // no the ledger roundtrip. Fast enough to run inline (~1-2s for 43 accounts).
-      // We still maintain the organizations.ledger_status state machine
-      // (pending → provisioning → ready/failed) because the dashboard pill
-      // reads from it. Without an explicit write to 'ready' the pill stays
-      // on "Finishing setup…" forever.
-      setProgressMessage('📚 Seeding your chart of accounts…');
+      // 5. Seed chart of accounts in Postgres. Encrypting 43 accounts with
+      // Argon2id+AES-GCM takes ~30s on a typical laptop. Blocking the wizard
+      // on that wait left customers staring at a spinner before they could
+      // touch the app. Now: mark `organizations.ledger_status='provisioning'`
+      // synchronously so the dashboard's LedgerStatusPill picks up the
+      // in-progress state, then dispatch `initChartOfAccounts` as a
+      // fire-and-forget IIFE and call `onComplete()` immediately. The
+      // user lands on the dashboard while encryption continues in the
+      // background; the IIFE updates `ledger_status='ready'|'failed'` when
+      // it finishes, and the pill rerenders. Sonner's toast surface is
+      // root-mounted, so the progress toast survives the navigation.
+      setProgressMessage('📚 Setting up your chart of accounts…');
+      await (supabase as any)
+        .from('organizations')
+        .update({ ledger_status: 'provisioning', ledger_status_error: null })
+        .eq('id', orgId);
+
       const coaToast = toast.loading('📊 Encrypting accounts…', {
-        description: 'Server only sees ciphertext.',
+        description: 'Server only sees ciphertext. Safe to keep using the app.',
         duration: Infinity,
       });
-      try {
-        await (supabase as any)
-          .from('organizations')
-          .update({ ledger_status: 'provisioning', ledger_status_error: null })
-          .eq('id', orgId);
-        await initChartOfAccounts(orgId, encryptText, (done, total) => {
-          toast.loading(`📊 Encrypting accounts (${done}/${total})…`, {
-            id: coaToast,
-            description: 'Server only sees ciphertext.',
-            duration: Infinity,
+
+      // Fire-and-forget. The wizard unmounts after onComplete(); this IIFE
+      // captures `encryptText`, `orgId`, and `coaToast` in its closure.
+      // `encryptText` keeps working because the underlying MEK lives in
+      // VaultContext (a top-level provider that survives the wizard
+      // unmount). If the customer manually locks the vault while seeding
+      // is in flight, encryptText throws → catch arm marks
+      // `ledger_status='failed'` → dashboard pill shows "Retry".
+      // No re-throw, no setState on unmounted wizard, no awaited promise
+      // bubbling into handleFinish's try/catch.
+      void (async () => {
+        try {
+          await initChartOfAccounts(orgId, encryptText, (done, total) => {
+            toast.loading(`📊 Encrypting accounts (${done}/${total})…`, {
+              id: coaToast,
+              description: 'Server only sees ciphertext.',
+              duration: Infinity,
+            });
           });
-        });
-        await (supabase as any)
-          .from('organizations')
-          .update({ ledger_status: 'ready', ledger_status_error: null })
-          .eq('id', orgId);
-        toast.success('✅ Chart of accounts ready', {
-          id: coaToast,
-          duration: 3000,
-        });
-      } catch (coaErr) {
-        const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
-        console.error('Chart of accounts seeding failed:', coaErr);
-        captureException(coaErr, { tags: { source: 'onboarding-coa-seed' } });
-        // Mark the org as failed so the dashboard's LedgerStatusPill can
-        // surface a "Retry" button instead of a perpetual spinner.
-        await (supabase as any)
-          .from('organizations')
-          .update({ ledger_status: 'failed', ledger_status_error: errMsg })
-          .eq('id', orgId)
-          .then(
-            () => undefined,
-            () => undefined,
-          );
-        toast.error('Chart of accounts setup hit an issue', {
-          id: coaToast,
-          description: errMsg || 'You can retry from the dashboard.',
-          duration: 10000,
-        });
-        // Re-throw so the user lands back on the wizard for a retry instead
-        // of an empty dashboard.
-        throw coaErr;
-      }
+          await (supabase as any)
+            .from('organizations')
+            .update({ ledger_status: 'ready', ledger_status_error: null })
+            .eq('id', orgId);
+          toast.success('✅ Chart of accounts ready', {
+            id: coaToast,
+            duration: 3000,
+          });
+        } catch (coaErr) {
+          const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
+          console.error('Chart of accounts seeding failed:', coaErr);
+          captureException(coaErr, { tags: { source: 'onboarding-coa-seed' } });
+          // Mark the org as failed so the dashboard's LedgerStatusPill can
+          // surface a "Retry" button instead of a perpetual spinner.
+          await (supabase as any)
+            .from('organizations')
+            .update({ ledger_status: 'failed', ledger_status_error: errMsg })
+            .eq('id', orgId)
+            .then(
+              () => undefined,
+              () => undefined,
+            );
+          toast.error('Chart of accounts setup hit an issue', {
+            id: coaToast,
+            description: errMsg || 'You can retry from the dashboard.',
+            duration: 10000,
+          });
+        }
+      })();
 
       setProgressMessage('✅ Done — your data is encrypted before it ever leaves your browser');
       setProgressDetail('');
@@ -292,7 +306,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         </div>
         <Progress value={progress} className="h-1.5 mb-6" />
 
-        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm overflow-hidden">
           {currentStep === 0 && (
             <StepVaultPassword
               onNext={(result) => {

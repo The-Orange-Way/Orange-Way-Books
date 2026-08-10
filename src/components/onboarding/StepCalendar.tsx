@@ -10,7 +10,6 @@ import {
 import { Calendar, Loader2 } from 'lucide-react';
 
 interface CalendarData {
-  dateFormat: string;
   fiscalYearStart: string;
 }
 
@@ -23,12 +22,6 @@ interface Props {
   progressMessage?: string;
   progressDetail?: string;
 }
-
-const dateFormats = [
-  { value: 'MM-DD-YYYY', label: 'MM-DD-YYYY' },
-  { value: 'DD-MM-YYYY', label: 'DD-MM-YYYY' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-];
 
 const months = [
   'january',
@@ -60,30 +53,9 @@ export default function StepCalendar({
         <Calendar className="w-5 h-5 text-primary" />
         <h3 className="text-base font-semibold text-card-foreground">Calendar & Fiscal Year</h3>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Set your preferred date format and when your fiscal year starts.
-      </p>
+      <p className="text-sm text-muted-foreground">Set when your fiscal year starts.</p>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label>Date Format</Label>
-          <Select
-            value={data.dateFormat}
-            onValueChange={(v) => onChange({ ...data, dateFormat: v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {dateFormats.map((f) => (
-                <SelectItem key={f.value} value={f.value}>
-                  {f.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="space-y-2">
           <Label>Fiscal Year Starts</Label>
           <Select

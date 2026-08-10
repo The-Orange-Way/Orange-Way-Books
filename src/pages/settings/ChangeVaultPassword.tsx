@@ -1,12 +1,12 @@
 /**
- * ChangeVaultPassword — two-step settings page for rotating the vault password.
+ * ChangeVaultPassword: two-step settings page for rotating the vault password.
  *
  * Step 1: current + new + confirm password form. Submits to
  *   VaultContext.changeVaultPassword which unwraps the MEK with the current
  *   password, re-wraps it with the new password, and rotates the recovery
  *   code. The MEK itself is unchanged so no data re-encryption happens.
  *
- * Step 2: reveal the new recovery code. User must acknowledge saving it
+ * Step 2: reveal the new recovery kit. User must acknowledge saving it
  *   before leaving the page.
  */
 
@@ -163,23 +163,23 @@ export default function ChangeVaultPassword() {
     );
   }
 
-  // Step 2 — new recovery code reveal.
+  // Step 2: new recovery kit reveal.
   if (newRecoveryCode) {
     const words = newRecoveryCode.split(' ');
     return (
       <div className="max-w-md mx-auto p-6 space-y-5">
         <div className="flex items-center gap-2">
           <KeyRound className="w-5 h-5 text-primary" />
-          <h1 className="text-lg font-semibold">Save Your New Recovery Code</h1>
+          <h1 className="text-lg font-semibold">Save Your New Recovery Kit</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your old recovery code has been invalidated. Save this new one — it will
+          Your old recovery kit has been invalidated. Save this new one, it will
           <strong> not </strong> be shown again.
         </p>
 
         <div className="rounded-md border-2 border-orange-500/40 bg-orange-500/5 p-4 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
-            New recovery code
+            New recovery kit
           </p>
           <div className="grid grid-cols-3 gap-2">
             {words.map((word, i) => (
@@ -229,7 +229,7 @@ export default function ChangeVaultPassword() {
             className="mt-0.5"
           />
           <span className="text-sm">
-            I have saved my new recovery code. I understand the old code no longer works.
+            I have saved my new recovery kit. I understand the old recovery kit no longer works.
           </span>
         </label>
 
@@ -245,7 +245,7 @@ export default function ChangeVaultPassword() {
     );
   }
 
-  // Step 1 — change password form.
+  // Step 1: change password form.
   return (
     <div className="max-w-md mx-auto p-6 space-y-5">
       <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ export default function ChangeVaultPassword() {
 
       <p className="text-sm text-muted-foreground">
         Changing your vault password does not re-encrypt your data. Only the key wrapping is
-        rotated, and a fresh recovery code is generated.
+        rotated, and a fresh recovery kit is generated.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -300,7 +300,7 @@ export default function ChangeVaultPassword() {
         <div className="flex items-start gap-2 p-3 rounded-md bg-muted">
           <AlertTriangle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            A new 12-word recovery code will be generated after the change. Your old recovery code
+            A new 12-word recovery kit will be generated after the change. Your old recovery kit
             will stop working.
           </p>
         </div>

@@ -179,6 +179,12 @@ The active branches are `dev` for integration and `prod` for releases. Open work
 
 ---
 
+## House style for body copy
+
+- **No em-dashes (U+2014) in body copy or code comments.** Use commas, parens, or colons instead. The pre-commit hook installed by `bash scripts/install-hooks.sh` rejects the commit if any added line in the staged diff contains one. The `/pr-this` skill re-checks at gauntlet time. If your commit fails the gate, replace the character and re-stage. A typographic placeholder (e.g. an "n/a" in a comparison table) should be written as `n/a` or `-`, not the dash glyph.
+- **No private hostnames** (internal wikis, Tailscale IPs, personal home paths, internal email domains) in any committed file or commit message. The pre-push gate's `scripts/pre-push-gate.sh` carries the canonical list.
+- **Prettier-clean.** The pre-commit hook auto-formats staged files; if you commit without the hook installed, CI will reject the PR on the format check. Run `bun run format` locally to catch it before pushing.
+
 ## How to report a security issue
 
 Do **not** open a public issue for security-sensitive findings. See [`SECURITY.md`](./SECURITY.md) for the disclosure address and our response commitment. Credit for verified findings is offered.
@@ -187,7 +193,7 @@ Do **not** open a public issue for security-sensitive findings. See [`SECURITY.m
 
 ## Code of conduct
 
-We have not adopted a formal Code of Conduct yet. The unwritten rule is: be the kind of contributor you would want others to be. Disagreement is fine; condescension is not. If something feels off, write to the address in [`SECURITY.md`](./SECURITY.md) (we re-use it for conduct issues until we have a proper channel) and a maintainer will respond.
+We follow the [Contributor Covenant](./CODE_OF_CONDUCT.md). In short: be the kind of contributor you would want others to be. Disagreement is fine; condescension is not. If something feels off, write to the address in [`SECURITY.md`](./SECURITY.md) (we re-use it for conduct issues until we have a proper channel) and a maintainer will respond.
 
 ---
 

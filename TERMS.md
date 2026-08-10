@@ -7,22 +7,22 @@
 > prospective customer with a real budget, ask the maintainers for the
 > reviewed version.
 
-Last updated: 2026-06-22. Effective on the same date.
+Last updated: 2026-07-13. Effective on the same date.
 
 ---
 
 ## 1. Who we are
 
-Orange Way Books is operated by Morning Revolution, a Quebec-domiciled
+Orange Way Books is operated by Morning Revolution, an Ontario-domiciled
 operator. References to "we", "us", or "Orange Way Books" in this
 document mean the operator. References to "you" mean the individual or
 organisation creating an account or self-hosting the software.
 
-The privacy officer (responsable de la protection des renseignements
-personnels under Quebec Law 25) is the founder of Morning Revolution;
-the privacy contact email is published in the public site's footer
-alongside the general contact address. A reviewed version of this
-document will replace the footer-indirection with a literal address.
+General and legal contact is `legal@orangeway.app`, the same address
+printed on the public Terms page at `/terms`. Privacy requests go to the
+contact named in the Contact section of the public Privacy page at
+`/privacy`. The public Contact page at `/contact` lists the other
+channels (public issue tracker, private security advisories).
 
 ## 2. The service
 
@@ -46,11 +46,10 @@ technical details and the Known Limitations section.
 ## 3. Account responsibilities
 
 When you create an account, you choose a vault password and accept a
-12-word recovery code shown once in your browser. Both are derived and
+12-word recovery kit shown once in your browser. Both are derived and
 held client-side.
 
-**You are responsible for keeping the vault password and the recovery
-code safe.** Orange Way Books cannot recover, reset, or escrow either.
+**You are responsible for keeping your vault password and recovery kit safe.** Orange Way Books cannot recover, reset, or escrow either.
 If you lose both, the data you encrypted under them is cryptographically
 unrecoverable by design. The same property is what gives the
 zero-knowledge guarantee its weight: we cannot decrypt your books even
@@ -78,14 +77,48 @@ You will not use the service to:
 The hosted service may suspend or terminate an account that violates
 this section.
 
-## 5. Pricing and payments
+## 5. Pricing, billing, and refunds
 
-Pricing for hosted plans is on the Pricing page. Paid plans renew per
-billing cycle until cancelled. Cancellation takes effect at the end of
-the then-current cycle; pro-rated refunds are not offered by default
-but may be granted on case-by-case for material service failures.
+Prices are in Canadian dollars (CAD) and exclude applicable taxes. You
+are responsible for any sales tax, GST, HST, or VAT that applies in
+your jurisdiction. The plans on offer are listed on the public Pricing
+page.
 
-Self-hosted use carries no fee.
+**How billing works today.** Paid plans are billed monthly. We do not
+store a payment instrument and nothing is charged to you automatically.
+At the end of each cycle the billing page shows a payment link (Bitcoin
+Lightning or fiat, through our payment provider) and the subscription
+continues only if you choose to pay it. Annual plans and automatic
+renewal are not offered today.
+
+**Stopping a paid plan.** Because nothing renews automatically, you stop
+a paid plan by not paying the next cycle's payment link. Your access
+continues to the end of the billing period you have already paid for. If
+you want the billing account closed on the record before then, write to
+`legal@orangeway.app`.
+
+**Refunds.** A monthly billing cycle is non-refundable once it has
+begun.
+
+**Beta pricing.** Current pricing applies during the beta period. We
+will give at least 30 days written notice by email before any price
+increase takes effect at or after general availability.
+
+**New billing options.** If we introduce annual plans, automatic
+renewal, or any other billing mechanism, this section will be updated
+before that mechanism goes live and the notice period in section 11
+applies.
+
+**EU and UK consumers.** You have a statutory 14-day right to withdraw
+from a distance contract. The period begins on the purchase date. The
+right is forfeited once you have actively used the hosted service
+during the withdrawal window (EU Consumer Rights Directive Art. 16(m)).
+Write to `legal@orangeway.app` before the period expires to exercise
+this right.
+
+**Disputed charges.** Write to `legal@orangeway.app` within 60 days of
+any charge you believe was made in error. We will investigate and credit
+or refund confirmed errors.
 
 ## 6. Data and privacy
 
@@ -97,11 +130,18 @@ key (dates, row counts, identifiers).
 
 The full privacy posture, including the list of sub-processors
 (currently Supabase for database and authentication, Cloudflare Pages
-for the static frontend, and Resend for transactional email), data
-residency notes, and how to exercise data-subject rights, is on the
-public **Privacy** page at `/privacy` and in `SECURITY.md`. Both apply.
+for the static frontend, Resend for transactional email, and Chatwoot
+for the optional in-app live-chat widget), data residency notes, and
+how to exercise data-subject rights, is on the public **Privacy** page
+at `/privacy` and in `SECURITY.md`. Both apply.
 
-**Cross-border data transfer.** Supabase, Cloudflare, and Resend may
+Chat messages sent through the Chatwoot widget are plaintext to the
+operator and are explicitly outside the zero-knowledge scope; the
+"the server cannot read your books" guarantee covers stored books-data
+only, never chat content.
+
+**Cross-border data transfer.** Supabase, Cloudflare, Resend, and the
+operator's self-hosted Chatwoot instance may
 store or process some metadata outside Quebec and Canada (typically
 in the United States or the European Union, depending on the region
 configured for each project). The encrypted fields (`enc_*` columns)
@@ -115,9 +155,15 @@ presents a risk of serious injury to data subjects, we will notify
 the Commission d'accès à l'information (CAI) and affected individuals
 as required by Quebec Law 25 §3.5 and, where applicable, supervisory
 authorities under GDPR Article 33 (within 72 hours of becoming aware
-where feasible). We target a 72-hour acknowledgment window for any
-inbound vulnerability report on the same channel; see `SECURITY.md`
-for the disclosure address and timeline.
+where feasible). As an organization subject to the Personal
+Information Protection and Electronic Documents Act (PIPEDA), we will
+report any breach of security safeguards that creates a real risk of
+significant harm to the Office of the Privacy Commissioner of Canada
+(OPC) as soon as feasible, and notify affected individuals as required
+under the Breach of Security Safeguards Regulations (SOR/2018-64). We
+target a 72-hour acknowledgment window for any inbound vulnerability
+report on the same channel; see `SECURITY.md` for the disclosure
+address and timeline.
 
 We do not sell customer data, do not run an ad business, and do not
 build personal profiles on the analytics side (self-hosted builds run
@@ -175,11 +221,11 @@ the service after a change takes effect constitutes acceptance.
 
 ## 12. Governing law and dispute resolution
 
-These terms are governed by the laws of the Province of Quebec and the
+These terms are governed by the laws of the Province of Ontario and the
 applicable laws of Canada, without regard to conflict-of-laws rules.
-Each party submits to the exclusive jurisdiction of the courts located
-in Montreal, Quebec for any dispute arising out of or in connection
-with these terms or the service.
+Each party submits to the exclusive jurisdiction of the courts of
+competent jurisdiction in the Province of Ontario for any dispute
+arising out of or in connection with these terms or the service.
 
 If you are a consumer resident in a jurisdiction whose mandatory
 consumer-protection laws grant you broader rights, those rights
@@ -187,17 +233,29 @@ prevail.
 
 ## 13. Contact
 
-- General contact and support: the email address on the public site's
-  footer.
+- General contact, support, and billing: `legal@orangeway.app`. The same
+  address is printed on the public Terms page at `/terms`, so the page
+  and this document agree on where to write.
+- Other channels: the public Contact page at `/contact` (public issue
+  tracker for bugs and feature requests, private security advisories for
+  anything sensitive).
+- Privacy requests: the contact named in the Contact section of the
+  public Privacy page at `/privacy`.
 - Security disclosure: see `SECURITY.md` for the responsible-disclosure
-  contact and timeline.
+  contact and timeline. Do not open a public issue for a vulnerability.
 
 ## 14. Document version
 
-This is the placeholder draft dated 2026-06-22 (version 0.1, marked
-"placeholder, lawyer review pending"). The note at the top of this
-file restates the same caveat for any reader who skipped the preamble.
-A reviewed version will replace this file in a future release. Older
-versions remain in the git history of this repository for reference.
-The PR that lands the reviewed version will reference this document
-by commit hash for an unambiguous audit trail.
+This is the placeholder draft dated 2026-07-13 (version 0.4, marked
+"placeholder, lawyer review pending"). Version 0.4 replaces the
+footer-indirection in sections 1, 5, and 13 with the literal contact
+address the public Terms page already prints, so a reader of either
+document is told the same thing. Version 0.3 scoped the pricing,
+billing, and refund clause to the billing flow that ships today (monthly,
+per-cycle payment link, no stored payment instrument, no automatic
+renewal) and kept the Ontario governing-law and jurisdiction terms. The
+note at the top of this file restates the same caveat for any reader who
+skipped the preamble. A reviewed version will replace this file in a
+future release. Older versions remain in the git history of this
+repository for reference. The PR that lands the reviewed version will
+reference this document by commit hash for an unambiguous audit trail.

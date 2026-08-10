@@ -1,6 +1,7 @@
 // Provision a stable OWB DEV E2E test user with full onboarding (vault pw + org).
 // Idempotent: if the user already exists, signs in and either confirms onboarding
-// is complete OR finishes onboarding. Outputs creds to /tmp/owb-pw/e2e-creds.json.
+// is complete OR finishes onboarding. Writes the fixture creds to a job-private
+// temp dir (RUNNER_TEMP in CI), never a shared world-readable path.
 //
 // **DEV-ONLY by hard-coded guard.** The credentials below are committed in
 // plaintext to a public repository and MUST NEVER be used to create a user
@@ -10,16 +11,36 @@
 const { chromium } = require('@playwright/test');
 const fs = require('fs');
 const https = require('https');
+const os = require('os');
+const path = require('path');
 
-const EMAIL = 'e2e@orangewaybooks.test';
-const PASSWORD = 'OwbE2E-Stable-2026!Pw';
-const VAULT_PW = 'OwbE2EVault-Stable-2026!';
+// Where transient creds live. On a CI runner /tmp is world-readable and shared;
+// RUNNER_TEMP is a job-private dir GitHub wipes after the job, so prefer it.
+// Allow an explicit override and only fall back to an OS temp dir for a purely
+// local run. This keeps the fixture creds off a shared world-readable path.
+const CREDS_DIR =
+  process.env.OWB_E2E_CREDS_DIR ||
+  (process.env.RUNNER_TEMP
+    ? path.join(process.env.RUNNER_TEMP, 'owb-e2e')
+    : path.join(os.tmpdir(), 'owb-e2e'));
 
-// Hard-coded allowlist of project refs this script may target. Lock to the
-// OWB DEV ref. Adding any production ref here is a security incident.
-const ALLOWED_PROJECT_REFS = new Set(
-  (process.env.OWB_E2E_ALLOWED_PROJECT_REFS ?? '').split(',').filter(Boolean),
-);
+// Read the fixture creds from the same OWB_DEV_E2E_* secrets the Playwright
+// specs use, so provisioning and the specs are one source of truth. The
+// plaintext literals are DEV-only fallbacks for a local run; in CI the secrets
+// win. If these drift from the secrets, provisioning makes one user and the
+// specs sign in as another, the exact failure this consolidates away.
+const EMAIL = process.env.OWB_DEV_E2E_EMAIL || 'e2e@orangewaybooks.test';
+const PASSWORD = process.env.OWB_DEV_E2E_PASSWORD || 'OwbE2E-Stable-2026!Pw';
+const VAULT_PW = process.env.OWB_DEV_E2E_VAULT_PASSWORD || 'OwbE2EVault-Stable-2026!';
+
+// Hard-coded allowlist of project refs this script may target, pinned as a
+// LITERAL to the OWB DEV ref. This is the real guard: `ref` is derived below
+// from the Supabase URL and must equal this constant. The previous version
+// sourced the allowlist from an env var, which let the target validate itself,
+// so a misconfig pointing at prod would have passed. Adding any production ref
+// here is a security incident. To rotate DEV, change this one literal.
+const OWB_DEV_PROJECT_REF = 'kbjvvhjkaanvyibjezsv';
+const ALLOWED_PROJECT_REFS = new Set([OWB_DEV_PROJECT_REF]);
 
 function adminCreateUser(supaUrl, secretKey, email, password) {
   return new Promise((res, rej) => {
@@ -49,7 +70,16 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
 }
 
 (async () => {
-  const owb = JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
+  // Source the DEV Supabase URL + secret (service) key. In CI both arrive as
+  // env vars from GitHub Actions secrets; locally they fall back to the Jarvis
+  // vault file. The URL is used both to reach the admin API and to derive the
+  // project ref checked against ALLOWED_PROJECT_REFS below.
+  const owb = (() => {
+    const url = process.env.OWB_E2E_SUPABASE_URL;
+    const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+    if (url && secret) return { url, secret };
+    return JSON.parse(fs.readFileSync(path.join(CREDS_DIR, 'owb-dev-supabase.json'), 'utf8'));
+  })();
   const BASE = 'https://books.orangeway.dev';
 
   // Refuse to run if owb.url targets anything outside the DEV allowlist.
@@ -124,16 +154,16 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     await page.locator('input[placeholder*="Minimum 14"]').fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').fill(VAULT_PW);
     await page.click('button:has-text("Continue")');
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 15000 });
+    await page.waitForSelector('[data-testid="recovery-code-grid"]', { timeout: 15000 });
     await page.waitForTimeout(1000);
     const wordsByPos = await page.evaluate(() => {
       const map = {};
-      for (const c of Array.from(document.querySelectorAll('div'))) {
-        const spans = c.querySelectorAll(':scope > span');
-        if (spans.length !== 2) continue;
-        const m = (spans[0].textContent || '').trim().match(/^(\d+)\.?$/);
-        const w = (spans[1].textContent || '').trim();
-        if (m && /^[a-z]+$/.test(w)) map[parseInt(m[1])] = w;
+      for (const el of Array.from(document.querySelectorAll('[data-testid^="recovery-word-"]'))) {
+        const m = (el.getAttribute('data-testid') || '').match(/^recovery-word-(\d+)$/);
+        if (!m) continue;
+        const spans = el.querySelectorAll(':scope > span');
+        const w = (spans[1] ? spans[1].textContent || '' : '').trim();
+        if (/^[a-z]+$/.test(w)) map[parseInt(m[1], 10) + 1] = w;
       }
       return map;
     });
@@ -183,8 +213,10 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   }
   console.log('→ final URL:', url);
 
+  fs.mkdirSync(CREDS_DIR, { recursive: true });
+  const credsPath = path.join(CREDS_DIR, 'e2e-creds.json');
   fs.writeFileSync(
-    '/tmp/owb-pw/e2e-creds.json',
+    credsPath,
     JSON.stringify(
       {
         email: EMAIL,
@@ -195,7 +227,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
       2,
     ),
   );
-  console.log('→ wrote /tmp/owb-pw/e2e-creds.json');
+  console.log('→ wrote', credsPath);
   await browser.close();
 })().catch((e) => {
   console.error('ERR:', e.stack || e);

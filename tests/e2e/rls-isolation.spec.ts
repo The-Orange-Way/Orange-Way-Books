@@ -66,7 +66,7 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
       .first()
       .waitFor({ state: 'hidden', timeout: 30_000 });
   }
-  await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('app-shell').first()).toBeVisible({ timeout: 15_000 });
 
   // Pull the active session token + the publishable apikey + the
   // supabase URL out of the page context. The SDK stores the session in

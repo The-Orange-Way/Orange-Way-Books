@@ -59,7 +59,6 @@ jobs:
 
       - name: Test
         run: bun run test
-        continue-on-error: true
 
       - name: Build
         run: bun run build
@@ -74,11 +73,16 @@ jobs:
     # regardless of which branch triggered the workflow, so dev is
     # the right scope on prod pushes too.
     environment: dev
-    # Runs on every push to dev or prod. Specs target the dev deployment
-    # (books.orangeway.dev). PR events still skip e2e because they
-    # deploy to a Cloudflare Pages preview URL, not the dev deployment.
-    # Targeting the preview URL on PRs is a follow-up.
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
+    # Runs on every push to dev or prod, AND on same-repo pull requests so a PR
+    # that changes the E2E path can prove itself before merge. Fork PRs are
+    # excluded by the head-repo check, so the dev service key in the `dev`
+    # environment never reaches an untrusted runner. A ref gate cannot express
+    # this: a PR run's ref is refs/pull/N/merge, so a refs/heads/dev check would
+    # skip exactly the PR runs we want to prove. Specs always target the live
+    # dev deployment (books.orangeway.dev) regardless of the triggering branch.
+    if: >-
+      (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'))
+      || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -95,7 +99,7 @@ jobs:
       # `playwright install` per run on a cache hit.
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package.json', 'bun.lock') }}
@@ -109,6 +113,32 @@ jobs:
       # OR import wizard spec. The wizard spec auto-skips when its
       # OWB_DEV_E2E_* env vars aren't set, so this is safe on forks /
       # external PRs that don't have the secrets.
+      # Self-heal the E2E fixture before the specs run. The rls-isolation and
+      # owb-full-suite specs sign in as a stable dev user; when that user is
+      # wiped (project reset, data purge) every auth-dependent spec strands at
+      # the login screen and the whole job goes red. This step idempotently
+      # (re)creates the user and walks onboarding so the specs always have a
+      # live fixture. DEV-only by a hard-coded ref allowlist in the script: it
+      # pins the OWB DEV project ref as a literal and refuses to run against any
+      # other ref, so a misconfigured URL cannot point it at prod.
+      - name: Provision E2E user (DEV only)
+        # Only materialize the DEV service key on trusted push events to dev or
+        # prod. The e2e job still runs on same-repo pull requests (see the job
+        # `if:` above) so a PR can prove E2E path changes, but provisioning is
+        # skipped there, so the secret never reaches a runner built from an
+        # unmerged branch. On PR runs the specs sign in against the existing dev
+        # fixture; the self-heal that (re)creates it only runs post-merge.
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
+        run: bun tests/e2e/scripts/provision-e2e-user.js
+        env:
+          OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          # Same fixture identity the specs sign in with, so provisioning and
+          # the specs never drift onto two different users.
+          OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
+          OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
+          OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
+
       - name: Run Playwright
         run: bunx playwright test
         env:
@@ -121,6 +151,7 @@ jobs:
           # frontend build uses, so there is one place to rotate them.
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+          OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Upload Playwright artifacts
         if: always()
@@ -132,3 +163,120 @@ jobs:
             test-results/
             tests/e2e/__or-shots__/
           retention-days: 14
+
+  deno-typecheck:
+    name: Typecheck edge functions (Deno)
+    runs-on: ubuntu-latest
+    # Why this job exists: until 2026-07-26 CI never looked at supabase/functions
+    # at all. Lint, test and build above all run over the Vite app; the edge
+    # functions are Deno, with their own globals and URL/npm: imports, and no
+    # step in this workflow ever loaded them. So all 22 functions could stop
+    # compiling with CI still fully green -- and deploy-supabase-functions.yml
+    # is workflow_dispatch-only, so nothing else caught it either.
+    #
+    # Gate design -- read this before changing it. This is a RATCHET, not a
+    # wall: it fails only when the error count goes ABOVE the recorded
+    # baseline. A plain `deno check` gate would go red on day one and block
+    # every open PR in the repo; a `continue-on-error: true` advisory would
+    # reproduce the exact blindness this job exists to end. The ratchet does
+    # neither -- new type errors cannot land, the existing backlog is printed
+    # in the job summary on every run, and the number only moves down.
+    #
+    # Making this check REQUIRED in the branch ruleset is a FOUNDER DECISION
+    # and has deliberately NOT been done here. Nothing in this PR touches
+    # branch protection.
+    env:
+      # Errors present on dev when this job was added, measured 2026-07-26 with
+      # the pinned Deno below. Lower it in the same PR that fixes errors -- the
+      # job prints the new value when the count drops. At 0, delete the ratchet
+      # and let `deno check` fail on its own.
+      DENO_CHECK_BASELINE: '15'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          # Pinned, not `latest`. These functions run on Supabase's edge
+          # runtime, which the Supabase CLI provisions as edge-runtime v1.74.2
+          # == deno 2.1.4; typecheck with the tsc the runtime actually ships.
+          # Do not switch this to `latest`. A newer Deno bundles a newer tsc,
+          # and a newer tsc reports a different set of diagnostics on an
+          # unchanged tree -- it both adds and retires error classes. The
+          # baseline below would then move for reasons unrelated to our code,
+          # and the ratchet would go red on a Deno release rather than on a
+          # code change. Bump the pin deliberately, in its own PR, and record
+          # the new count in the same commit.
+          deno-version: v2.1.4
+
+      - name: deno check supabase/functions
+        shell: bash
+        env:
+          # Deno colourises its diagnostics even when stdout+stderr are
+          # redirected to a file on the runner. The first version of this step
+          # counted "[ERROR]" fine but its per-class breakdown grepped for
+          # 'TS1234 [ERROR]' and matched nothing, because the real bytes are
+          # 'TS1234 <ESC>[0m[ERROR]'. Under `-e -o pipefail` that zero-match
+          # grep killed the step, so the job went red while reporting exactly
+          # the baseline count. NO_COLOR removes the escapes at the source; the
+          # sed below strips them anyway, because a parser that only works when
+          # the output happens to be plain is the same class of unreliable
+          # control this job exists to replace.
+          NO_COLOR: '1'
+        run: |
+          set -u
+
+          # Scoped to the edge functions only. The rest of the repo is
+          # Bun/Vite and is covered by the lint-and-build job.
+          mapfile -t FILES < <(find supabase/functions -name '*.ts' -type f | sort)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "::error::No .ts files found under supabase/functions -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+          echo "Checking ${#FILES[@]} file(s) with $(deno --version | head -1)"
+
+          # --node-modules-dir=auto: the repo has a root package.json, so Deno
+          # otherwise refuses npm: specifiers with "run deno install first".
+          RC=0
+          deno check --node-modules-dir=auto "${FILES[@]}" > "$RUNNER_TEMP/deno-check.raw" 2>&1 || RC=$?
+          sed -e 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/deno-check.raw" > "$RUNNER_TEMP/deno-check.log"
+          cat "$RUNNER_TEMP/deno-check.log"
+
+          # One "[ERROR]" marker per diagnostic (the last is additionally
+          # prefixed "error: "). Counting markers is stable; Deno's
+          # "Found N errors." line is not printed when N == 1.
+          ERRORS=$(grep -c '\[ERROR\]' "$RUNNER_TEMP/deno-check.log" || true)
+
+          # A non-zero exit with no diagnostics means the check itself broke
+          # (network, unresolvable import, bad flag). That must never be scored
+          # as "0 errors, under baseline, pass" -- a check that silently stops
+          # checking is the precise failure this job exists to eliminate.
+          if [ "$RC" -ne 0 ] && [ "$ERRORS" -eq 0 ]; then
+            echo "::error::deno check exited $RC without reporting any type diagnostic. The check is broken, not passing."
+            exit 1
+          fi
+
+          {
+            echo "## Deno typecheck: supabase/functions"
+            echo
+            echo "**${ERRORS} error(s)** across ${#FILES[@]} file(s) (ratchet baseline: ${DENO_CHECK_BASELINE})"
+            if [ "$ERRORS" -gt 0 ]; then
+              echo
+              echo "By error class:"
+              echo '```'
+              grep -oE 'TS[0-9]+ \[ERROR\]' "$RUNNER_TEMP/deno-check.log" | sort | uniq -c | sort -rn || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "deno check: ${ERRORS} error(s); ratchet baseline ${DENO_CHECK_BASELINE}"
+
+          if [ "$ERRORS" -gt "$DENO_CHECK_BASELINE" ]; then
+            echo "::error::Edge-function type errors went UP: ${ERRORS} > baseline ${DENO_CHECK_BASELINE}. Fix the new errors listed above. Do not raise the baseline."
+            exit 1
+          fi
+
+          if [ "$ERRORS" -lt "$DENO_CHECK_BASELINE" ]; then
+            echo "::notice::Error count dropped to ${ERRORS}. Lower DENO_CHECK_BASELINE to ${ERRORS} in .github/workflows/ci.yml in this PR so the ratchet holds the ground you just took."
+          fi

@@ -188,6 +188,18 @@ vi.mock('@/lib/supabase', () => {
       rpc: vi.fn(async () => ({ data: 'INV-005', error: null })),
       auth: { getUser: vi.fn(async () => ({ data: { user: { id: 'u1' } } })) },
       functions: { invoke: vi.fn(async () => ({ data: { sent: true }, error: null })) },
+      // Realtime stub. Invoices renders useCapability, which opens a channel
+      // (.channel().on().on().subscribe()) and tears it down on unmount via
+      // removeChannel(). Without these, those calls throw an async
+      // "supabase.channel is not a function" that vitest surfaces as an
+      // unhandled error, failing the run (exit 1) even though every assertion
+      // passes. The stub returns a chainable no-op handle.
+      channel: vi.fn(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ch: any = { on: vi.fn(() => ch), subscribe: vi.fn(() => ch) };
+        return ch;
+      }),
+      removeChannel: vi.fn(() => Promise.resolve('ok')),
     },
   };
 });

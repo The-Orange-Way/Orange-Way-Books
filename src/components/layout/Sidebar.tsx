@@ -37,7 +37,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   // App is mounted at /app/*; all sidebar paths must be absolute under /app.
   // Path /app/wallets is retained for URL stability — the visible label is "Accounts".
-  { title: 'Insights', path: '/app', icon: Home, exact: true },
+  { title: 'Dashboard', path: '/app', icon: Home, exact: true },
   { title: 'Accounts', path: '/app/accounts', icon: Wallet, exact: false },
   {
     title: 'Transactions',
@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
   { title: 'Payments', path: '/app/payments', icon: CreditCard, exact: false },
   { title: 'Contacts', path: '/app/contacts', icon: UsersRound, exact: false },
   { title: 'Connections', path: '/app/connections', icon: Zap, exact: false },
-  { title: 'Admin', path: '/app/admin', icon: Settings, exact: false },
+  { title: 'Settings', path: '/app/admin', icon: Settings, exact: false },
 ];
 
 export interface SidebarProps {
@@ -178,7 +178,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
       {/* Logo */}
       <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center gap-2">
-          <span style={{ color: 'var(--color-brand-orange)', fontSize: 18 }}>🔒</span>
+          <img src="/icon-192.png" alt="" width={20} height={20} style={{ borderRadius: 4 }} />
           <span
             style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif",

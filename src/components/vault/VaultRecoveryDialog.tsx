@@ -63,7 +63,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
     // If user is in the middle of saving their new code, warn them.
     if (step === 'save-new-code' && !savedCheckbox) {
       const ok = window.confirm(
-        'You have not confirmed that you saved your new recovery code. ' +
+        'You have not confirmed that you saved your new recovery kit. ' +
           'If you close now, you will lose it and could be permanently locked out ' +
           'next time you forget your password. Close anyway?',
       );
@@ -79,7 +79,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
 
   const handleSubmitCode = useCallback(async () => {
     if (!codeLooksValid) {
-      setError('Recovery code must be 12 words.');
+      setError('Recovery kit must be 12 words.');
       return;
     }
     setError('');
@@ -152,8 +152,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           .maybeSingle();
         if (!master || !wrapRow) {
           throw new Error(
-            'No master recovery code is set up for this organization. ' +
-              'Use your per-org recovery code instead, or contact support.',
+            'No master recovery key is set up for this organization. ' +
+              'Use your per-org recovery kit instead, or contact support.',
           );
         }
         out = await recoverOrgWithMasterCode({
@@ -166,9 +166,9 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           newPassword,
         });
       } else {
-        // Per-org recovery code path.
+        // Per-org recovery kit path.
         if (!recoveryCiphertext) {
-          throw new Error('Recovery code is not available for this vault. Contact support.');
+          throw new Error('Recovery kit is not available for this vault. Contact support.');
         }
         out = await recoverWithCode({
           recoveryCode: normalizedCode,
@@ -212,7 +212,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ignore — user can still hand-copy
+      // ignore, user can still hand-copy
     }
   }, [result]);
 
@@ -235,16 +235,16 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-primary" />
-            {step === 'enter-code' && 'Recover with your recovery code'}
+            {step === 'enter-code' && 'Recover with your recovery kit'}
             {step === 'new-password' && 'Set a new vault password'}
-            {step === 'save-new-code' && 'Save your new recovery code'}
+            {step === 'save-new-code' && 'Save your new recovery kit'}
           </DialogTitle>
           <DialogDescription>
             {step === 'enter-code' &&
               'Enter the 12 words you saved when you first set up your vault.'}
             {step === 'new-password' && 'Your data will be re-wrapped under this password.'}
             {step === 'save-new-code' &&
-              'This new code replaces the old one. Save it somewhere safe before closing.'}
+              'This new recovery kit replaces the old one. Save it somewhere safe before closing.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -256,17 +256,17 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 onClick={() => setCodeKind('per-org')}
                 className={`flex-1 px-3 py-2 rounded-md border transition-colors ${codeKind === 'per-org' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/40'}`}
               >
-                This organization's code
+                This organization's recovery kit
               </button>
               <button
                 type="button"
                 onClick={() => setCodeKind('master')}
                 className={`flex-1 px-3 py-2 rounded-md border transition-colors ${codeKind === 'master' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/40'}`}
               >
-                Master code (all orgs)
+                Master recovery key (all orgs)
               </button>
             </div>
-            <Label htmlFor="recovery-code">Recovery code (12 words)</Label>
+            <Label htmlFor="recovery-code">Recovery kit (12 words)</Label>
             <Textarea
               id="recovery-code"
               rows={3}
@@ -278,8 +278,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
             />
             <p className="text-xs text-muted-foreground">
               {codeKind === 'master'
-                ? 'Your master code unlocks any organization you have enrolled.'
-                : 'The 12-word code shown when you set up this organization.'}
+                ? 'Your master recovery key unlocks all your organizations.'
+                : 'Your recovery kit unlocks this organization only.'}
             </p>
             {error && (
               <p className="text-sm text-destructive flex items-start gap-1">
@@ -344,8 +344,8 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
               <div>
                 <p className="font-medium mb-1">Save this somewhere offline.</p>
                 <p>
-                  If you forget your password again and lose this code, your data is unrecoverable.
-                  We cannot reset it for you.
+                  If you forget your password again and lose this recovery kit, your data is
+                  unrecoverable. We cannot reset it for you.
                 </p>
               </div>
             </div>
@@ -356,7 +356,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
                 onCheckedChange={(v) => setSavedCheckbox(Boolean(v))}
               />
               <Label htmlFor="saved" className="text-sm leading-tight cursor-pointer">
-                I have saved my new recovery code in a safe place (password manager, paper backup,
+                I have saved my new recovery kit in a safe place (password manager, paper backup,
                 etc.)
               </Label>
             </div>
@@ -395,7 +395,7 @@ export default function VaultRecoveryDialog({ open, onClose }: Props) {
           )}
           {step === 'save-new-code' && (
             <Button type="button" onClick={handleFinish} disabled={!savedCheckbox}>
-              Done — enter vault
+              Done, enter vault
             </Button>
           )}
         </DialogFooter>

@@ -3,7 +3,7 @@ import { useVault } from '@/context/VaultContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, ShieldCheck, Bitcoin, AlertTriangle } from 'lucide-react';
+import { Lock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import VaultRecoveryDialog from '@/components/vault/VaultRecoveryDialog';
@@ -97,7 +97,7 @@ export default function VaultUnlockScreen() {
             <Lock className="w-10 h-10 text-primary" />
           </div>
           <div className="flex items-center gap-2 mb-1">
-            <Bitcoin className="w-5 h-5 text-primary" />
+            <img src="/icon-192.png" alt="" className="w-6 h-6 rounded" />
             <h1 className="text-xl font-bold text-foreground">Orange Way Books</h1>
           </div>
           <p className="text-muted-foreground text-sm">Unlock your encrypted vault</p>
@@ -126,7 +126,7 @@ export default function VaultUnlockScreen() {
                 <p className="font-medium text-destructive">Too many failed attempts</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Try again in <span className="font-mono">{fmtCooldown()}</span>. If you've
-                  forgotten your password, use the recovery code link below.
+                  forgotten your password, use the recovery kit link below.
                 </p>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function VaultUnlockScreen() {
             data-testid="forgot-password-link"
             className="w-full text-center text-sm text-primary hover:text-primary-hover mt-4 transition-colors underline-offset-4 hover:underline"
           >
-            Forgot your password? Use your recovery code
+            Forgot your password? Use your recovery kit
           </button>
 
           <button

@@ -18,7 +18,7 @@ export default function Security() {
         <header className="mb-10">
           <h1 className="text-4xl font-bold mb-4">Security &amp; Zero-Knowledge Architecture</h1>
           <p className="text-muted-foreground">
-            Orange Way Books is built so that the server cannot read your data — even if subpoenaed,
+            Orange Way Books is built so that the server cannot read your data, even if subpoenaed,
             even if breached. Here is exactly how.
           </p>
         </header>
@@ -78,7 +78,7 @@ export default function Security() {
           <p>
             A guided rekey workflow rotates DEK and signing-key versions across every row of
             business data, with rollback windows and progress visibility. Old wrapped keys are
-            purged on a schedule. There is no password reset — losing your vault password means
+            purged on a schedule. There is no password reset, losing your vault password means
             losing your data, which is the point.
           </p>
         </Section>
