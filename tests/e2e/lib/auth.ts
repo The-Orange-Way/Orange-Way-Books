@@ -68,9 +68,7 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   // returns false (reporting already-unlocked) without ever unlocking and the
   // caller then asserts on a lock screen it was told was absent. Wait for
   // whichever state settles first, then decide.
-  await expect(lockHeading.or(authedShell))
-    .toBeVisible({ timeout: 15_000 })
-    .catch(() => undefined);
+  await expect(lockHeading.or(authedShell)).toBeVisible({ timeout: 15_000 });
   const visible = await lockHeading.isVisible().catch(() => false);
   if (!visible) return false;
 
