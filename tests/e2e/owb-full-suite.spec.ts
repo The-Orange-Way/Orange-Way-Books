@@ -217,7 +217,7 @@ test.describe('C-E. Authenticated journey', () => {
           await expect(
             sharedPage
               .locator('h1, h2')
-              .filter({ hasText: /Master recovery code/i })
+              .filter({ hasText: /Master recovery key/i })
               .first(),
             'master-recovery heading should be visible — React error #310 regression',
           ).toBeVisible({ timeout: 5_000 });

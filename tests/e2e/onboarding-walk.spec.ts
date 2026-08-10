@@ -290,7 +290,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await expect(
       page
         .locator('h1, h2')
-        .filter({ hasText: /Master recovery code/i })
+        .filter({ hasText: /Master recovery key/i })
         .first(),
       'master-recovery heading must render — React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
