@@ -59,7 +59,17 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
 
   const lockHeading = page.locator('text="Unlock your encrypted vault"').first();
   const unlockBtn = page.locator('button:has-text("Unlock Vault")').first();
-  const visible = await lockHeading.isVisible({ timeout: 4000 }).catch(() => false);
+  const authedShell = page.getByTestId('app-shell').first();
+
+  // After a page.goto the SPA is still hydrating: the lock screen and the
+  // authenticated shell are the two possible settled states. Deciding on a
+  // fixed 4s probe of the lock heading alone races hydration, a slow hydrate
+  // makes the heading appear just after the probe gives up, so this helper
+  // returns false (reporting already-unlocked) without ever unlocking and the
+  // caller then asserts on a lock screen it was told was absent. Wait for
+  // whichever state settles first, then decide.
+  await expect(lockHeading.or(authedShell)).toBeVisible({ timeout: 15_000 });
+  const visible = await lockHeading.isVisible().catch(() => false);
   if (!visible) return false;
 
   const pwInput = page.locator('input[type="password"]').first();
@@ -82,10 +92,11 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   // Wait for the post-unlock app shell to actually render. The lock heading
   // disappearing only tells us the unlock RPC succeeded — the SPA still has to
   // hydrate the dashboard. Screenshots taken between unlock and hydration
-  // capture a blank spinner page. The sidebar "Insights" nav item is the
-  // first stable element of the authenticated shell.
+  // capture a blank spinner page. The app shell root (data-testid="app-shell")
+  // is the first stable element of the authenticated shell and renders on every
+  // authenticated route, so a copy change cannot silently break it.
   await page
-    .locator('text=Insights')
+    .getByTestId('app-shell')
     .first()
     .waitFor({ state: 'visible', timeout: 15_000 })
     .catch(() => undefined);
