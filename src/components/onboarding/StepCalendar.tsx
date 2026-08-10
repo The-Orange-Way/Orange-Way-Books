@@ -51,13 +51,9 @@ export default function StepCalendar({
     <div className="space-y-5">
       <div className="flex items-center gap-2 mb-1">
         <Calendar className="w-5 h-5 text-primary" />
-        <h3 className="text-base font-semibold text-card-foreground">
-          Calendar & Fiscal Year
-        </h3>
+        <h3 className="text-base font-semibold text-card-foreground">Calendar & Fiscal Year</h3>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Set when your fiscal year starts.
-      </p>
+      <p className="text-sm text-muted-foreground">Set when your fiscal year starts.</p>
 
       <div className="space-y-4">
         <div className="space-y-2">
