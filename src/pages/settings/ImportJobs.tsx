@@ -297,23 +297,22 @@ export default function ImportJobs() {
                       >
                         Details
                       </Button>
-                      {(r.status === 'committed' ||
-                        r.status === 'failed') && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePurge(r.id)}
-                            disabled={purgingId === r.id}
-                            title="Delete JEs created by this job"
-                          >
-                            {purgingId === r.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
+                      {(r.status === 'committed' || r.status === 'failed') && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handlePurge(r.id)}
+                          disabled={purgingId === r.id}
+                          title="Delete JEs created by this job"
+                        >
+                          {purgingId === r.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -415,23 +414,21 @@ export default function ImportJobs() {
             </div>
           )}
           <DialogFooter>
-            {detailRow &&
-              (detailRow.status === 'committed' ||
-                detailRow.status === 'failed') && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => {
-                    if (detailRow) {
-                      void handlePurge(detailRow.id);
-                      setDetailRow(null);
-                    }
-                  }}
-                  disabled={purgingId === detailRow.id}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" /> Purge artifacts
-                </Button>
-              )}
+            {detailRow && (detailRow.status === 'committed' || detailRow.status === 'failed') && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (detailRow) {
+                    void handlePurge(detailRow.id);
+                    setDetailRow(null);
+                  }
+                }}
+                disabled={purgingId === detailRow.id}
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Purge artifacts
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={() => setDetailRow(null)}>
               Close
             </Button>
