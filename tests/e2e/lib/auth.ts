@@ -76,7 +76,13 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   await pwInput.fill(vaultPw);
   await unlockBtn.click();
 
-  const err = page.locator('text=/incorrect|wrong|invalid|failed/i').first();
+  // Scope the error probe to the unlock form itself. A document-wide regex also
+  // matched incidental words like "failed" elsewhere on the page (an import job
+  // status, say), which would misread a successful unlock as a rejection. The
+  // #vault-password input id is unique to this form and stable across the
+  // loading state, so it is the reliable anchor.
+  const unlockForm = page.locator('form:has(input#vault-password)');
+  const err = unlockForm.locator('text=/incorrect|wrong|invalid|failed/i').first();
   await Promise.race([
     lockHeading.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => undefined),
     err.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined),
