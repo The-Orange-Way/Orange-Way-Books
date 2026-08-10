@@ -83,10 +83,24 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   // loading state, so it is the reliable anchor.
   const unlockForm = page.locator('form:has(input#vault-password)');
   const err = unlockForm.locator('text=/incorrect|wrong|invalid|failed/i').first();
+  // The rate-limit banner ("Too many failed attempts") renders OUTSIDE the form,
+  // and when locked out handleUnlock returns before setting any in-form error, so
+  // the scoped probe above cannot see it. Add it as its own terminal outcome:
+  // without this a rate-limited run falls through to the 30s lock-heading wait and
+  // reports a generic timeout instead of the true cause. The cooldown trips at 5
+  // failed attempts and this suite unlocks on nearly every test, so it is a case
+  // the probe will actually hit.
+  const rateLimited = page.getByTestId('vault-rate-limited').first();
   await Promise.race([
     lockHeading.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => undefined),
     err.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined),
+    rateLimited.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined),
   ]);
+
+  if (await rateLimited.isVisible().catch(() => false)) {
+    const text = await rateLimited.textContent();
+    throw new Error(`Vault unlock rate-limited: ${text?.trim() ?? 'too many failed attempts'}`);
+  }
 
   if (await err.isVisible().catch(() => false)) {
     const text = await err.textContent();
