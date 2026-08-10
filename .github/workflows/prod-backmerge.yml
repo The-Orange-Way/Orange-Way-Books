@@ -7,11 +7,9 @@ name: back-merge prod into dev
 # prod accumulates commits that dev does not have. Every one of those commits
 # makes the NEXT promotion harder, and a promotion that is hard to land gets
 # worked around with another direct-to-prod fix. That is a loop, and it is
-# measurable here: as of 2026-08-03 this repository carries 14 commits on prod
-# that dev does not have, dev is 203 commits ahead of prod, and the open
-# promotion pull request has sat 14 days in a conflicted state with its
-# required checks passing and an approval already on it. Those prod-only
-# commits ARE the conflict.
+# measurable: prod-only commits are exactly what makes the next promotion
+# conflict, and a conflicted promotion is exactly what produces more
+# direct-to-prod fixes. Those prod-only commits ARE the conflict.
 #
 # This workflow closes the loop by carrying prod back to dev on every prod
 # push, so the drift is always near zero and the next promotion is a clean
