@@ -59,7 +59,19 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
 
   const lockHeading = page.locator('text="Unlock your encrypted vault"').first();
   const unlockBtn = page.locator('button:has-text("Unlock Vault")').first();
-  const visible = await lockHeading.isVisible({ timeout: 4000 }).catch(() => false);
+  const authedShell = page.locator('text=Insights').first();
+
+  // After a page.goto the SPA is still hydrating: the lock screen and the
+  // authenticated shell are the two possible settled states. Deciding on a
+  // fixed 4s probe of the lock heading alone races hydration, a slow hydrate
+  // makes the heading appear just after the probe gives up, so this helper
+  // returns false (reporting already-unlocked) without ever unlocking and the
+  // caller then asserts on a lock screen it was told was absent. Wait for
+  // whichever state settles first, then decide.
+  await expect(lockHeading.or(authedShell))
+    .toBeVisible({ timeout: 15_000 })
+    .catch(() => undefined);
+  const visible = await lockHeading.isVisible().catch(() => false);
   if (!visible) return false;
 
   const pwInput = page.locator('input[type="password"]').first();
