@@ -1,0 +1,51 @@
+name: backmerge-run
+
+# One-shot back-merge of prod into dev for DL-0723. Triggered by the push of
+# this file to ops/backmerge-run (a builder credential push, so it fires; the
+# runner GITHUB_TOKEN push to ops/backmerge-result below fires nothing, which
+# is intended). Delete this branch after ops/backmerge-result is merged.
+on:
+  push:
+    branches: [ops/backmerge-run]
+
+permissions:
+  contents: write
+
+jobs:
+  backmerge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: back-merge prod into dev, dev content wins, assert, then push
+        run: |
+          set -euo pipefail
+          git config user.name "backmerge-bot"
+          git config user.email "backmerge-bot@users.noreply.github.com"
+
+          git fetch --no-tags origin \
+            +refs/heads/dev:refs/remotes/origin/dev \
+            +refs/heads/prod:refs/remotes/origin/prod
+
+          git checkout -B ops/backmerge-result origin/dev
+          git merge -X ours origin/prod \
+            -m "backmerge(prod into dev): carry the prod tip into dev ancestry, dev content wins every conflict"
+
+          # 1. two parents, or it is not a merge commit at all
+          git rev-parse -q --verify HEAD^2 >/dev/null || { echo "FAIL: not a merge commit"; exit 1; }
+
+          # 2. prod is genuinely in the ancestry, which is the entire point
+          git merge-base --is-ancestor origin/prod HEAD || { echo "FAIL: prod not an ancestor"; exit 1; }
+
+          # 3. the diff vs dev is exactly one file. If this ever grows, STOP and post it,
+          #    do not push. It means prod gained content since Bridge measured it at 12:01 EDT.
+          CHANGED="$(git diff --name-only origin/dev HEAD)"
+          [ "$CHANGED" = ".github/workflows/ci.yml" ] || { printf 'FAIL: unexpected diff:\n%s\n' "$CHANGED"; exit 1; }
+
+          # 4. nothing on dev is discarded, which is the real risk of -X ours
+          echo "discard check (should be empty):"
+          git diff --stat HEAD origin/dev
+
+          git push origin ops/backmerge-result
