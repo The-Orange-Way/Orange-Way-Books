@@ -297,8 +297,8 @@ export default function ImportJobs() {
                       >
                         Details
                       </Button>
-                      {r.status === 'committed' ||
-                        (r.status === 'failed' && (
+                      {(r.status === 'committed' ||
+                        r.status === 'failed') && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -313,7 +313,7 @@ export default function ImportJobs() {
                               <Trash2 className="w-4 h-4" />
                             )}
                           </Button>
-                        ))}
+                        )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -415,8 +415,9 @@ export default function ImportJobs() {
             </div>
           )}
           <DialogFooter>
-            {(detailRow && detailRow.status === 'committed') ||
-              (detailRow.status === 'failed' && (
+            {detailRow &&
+              (detailRow.status === 'committed' ||
+                detailRow.status === 'failed') && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -430,7 +431,7 @@ export default function ImportJobs() {
                 >
                   <Trash2 className="w-4 h-4 mr-1" /> Purge artifacts
                 </Button>
-              ))}
+              )}
             <Button type="button" variant="outline" onClick={() => setDetailRow(null)}>
               Close
             </Button>
