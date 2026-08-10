@@ -45,8 +45,8 @@ async function gotoAuthed(page: Page, url: string) {
     .isVisible({ timeout: 500 })
     .catch(() => false);
   expect(stillLocked, `still on Unlock Vault screen after gotoAuthed(${url})`).toBe(false);
-  // Wait for the authenticated shell sidebar to be present.
-  await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 10_000 });
+  // Wait for the authenticated shell to be present.
+  await expect(page.getByTestId('app-shell').first()).toBeVisible({ timeout: 10_000 });
   // Wait for the content-area "data loading" spinner to disappear so screenshots
   // capture actual page content. Pages use the w-6 h-6 size for full-page
   // loading indicators (Dashboard's `py-20` wrapper, Periods' `min-h-screen`
