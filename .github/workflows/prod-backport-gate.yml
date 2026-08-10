@@ -10,11 +10,6 @@ name: prod backport gate
 # This gate does not forbid hotfixes. It forbids a hotfix that has no path back
 # to dev, which is the single step that regenerates the whole problem.
 #
-# Measured in this repository on 2026-08-03: 3 commits sit on prod that dev does
-# not have, dev is 197 commits ahead of prod, the open promotion pull request is
-# in a conflicted state with its required checks passing, and nothing has shipped
-# to prod in 37 days. Those prod-only commits ARE the conflict.
-#
 # NOTE: this check is deliberately NOT a required status check yet. See the pull
 # request that introduced it for why (a pull_request workflow only runs if the
 # file exists on the PR's head branch, so branches cut before this landed would
@@ -163,17 +158,7 @@ jobs:
           echo "  A prod-only commit with no path back to dev is how branches"
           echo "  permanently diverge: the next dev -> prod promotion conflicts,"
           echo "  so the fix after this one also gets opened straight against prod,"
-          echo "  which deepens the conflict further. As measured on 2026-08-03,"
-          echo "  3 prod-only commits are standing in this repository, dev is 197"
-          echo "  commits ahead of prod, and nothing has shipped in 37 days."
-          echo ""
-          echo "Why the containment rule did not save you"
-          echo "  This check passes automatically when dev already contains every"
-          echo "  commit on your branch, because merging such a branch into prod"
-          echo "  cannot add anything prod-only; your branch has ${AHEAD:-some}"
-          echo "  commit(s) that dev does not have, so it does not qualify."
-          echo "  Renaming the branch will not change this: the rule reads the"
-          echo "  commit graph, not the branch name."
+          echo "  which deepens the conflict further."
           echo ""
           echo "How to fix it, exactly"
           echo "  1. Open a second pull request from this SAME branch"
