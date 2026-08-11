@@ -78,8 +78,8 @@ jobs:
     # excluded by the head-repo check, so the dev service key in the `dev`
     # environment never reaches an untrusted runner. A ref gate cannot express
     # this: a PR run's ref is refs/pull/N/merge, so a refs/heads/dev check would
-    # skip exactly the PR runs we want to prove. Specs always target the live
-    # dev deployment (books.orangeway.dev) regardless of the triggering branch.
+    # skip exactly the PR runs we want to prove. Specs target the locally
+    # served build of the triggering ref (127.0.0.1:4173), not the live site.
     if: >-
       (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'))
       || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
