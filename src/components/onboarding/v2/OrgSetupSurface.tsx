@@ -10,7 +10,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useVault } from '@/context/VaultContext';
-import { encryptOrgSettings } from '@/lib/crypto-fields';
+import { encryptOrgSettings, FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
 import { captureException } from '@/lib/observability/sentry';
 import type { BitcoinDisplay } from '@/types';
@@ -165,7 +165,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
       const encOrgName = await encryptText(name);
       const { error: orgError } = await supabase
         .from('organizations')
-        .insert({ id: orgId, name: encOrgName, key_version: 2 });
+        .insert({ id: orgId, name: encOrgName, key_version: FIELD_KEY_VERSION });
       if (orgError) throw orgError;
 
       // 2. Guarantee the creator's OWNER row. A post-insert trigger on
