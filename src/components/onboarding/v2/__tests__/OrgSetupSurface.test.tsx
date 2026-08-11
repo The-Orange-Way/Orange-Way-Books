@@ -45,7 +45,8 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-vi.mock('@/lib/crypto-fields', () => ({
+vi.mock('@/lib/crypto-fields', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/crypto-fields')>()),
   encryptOrgSettings: async () => ({ key_version: 2 }),
 }));
 
