@@ -18,6 +18,23 @@ import { createContext, useContext } from 'react';
  * Mirrors the sibling app's onboarding-state.ts exactly.
  * A divergence here is a divergence in the design-twin contract.
  */
+/**
+ * The persistable output of createVault (setupVault in VaultContext), minus the
+ * recoveryCode, which the flow keeps separately in recoveryCode so the recovery
+ * and verify steps can read it. These five fields are exactly what org_settings
+ * stores, and none of them lets the server read the user's data: verifier is a
+ * password check value, vaultSalt is public, and both wrapped-MEK ciphertexts
+ * are useless without the password or the recovery code. Held in memory and
+ * handed to the org-setup phase, never written to storage by the wizard.
+ */
+export interface OnboardingVaultSetup {
+  verifier: string;
+  vaultSalt: string;
+  vaultKeyVersion: number;
+  encMekCiphertext: string;
+  recoveryCiphertext: string;
+}
+
 export interface OnboardingData {
   /** Optional, step 1. Encrypted and written to user_profiles on finish. */
   name: string;
@@ -37,6 +54,19 @@ export interface OnboardingData {
    * compares against this rather than merely checking the boxes are non-empty.
    */
   recoveryCode: string | null;
+  /**
+   * The authenticated user id, captured the moment StepEmail's verifyOtp
+   * returns a session. It is a Supabase user id, not a secret. The org-setup
+   * phase needs it to create the organization and the org_members OWNER row.
+   * Null until email is verified.
+   */
+  userId: string | null;
+  /**
+   * Step 4 output. The persistable material setupVault returns, handed to the
+   * org-setup phase so it can write org_settings. Null until the vault is
+   * created. The MEK and the recovery code themselves are never stored here.
+   */
+  vaultSetup: OnboardingVaultSetup | null;
 }
 
 export interface OnboardingStateValue extends OnboardingData {
@@ -45,6 +75,8 @@ export interface OnboardingStateValue extends OnboardingData {
   setEmailVerified: (value: boolean) => void;
   setVaultPassword: (value: string) => void;
   setRecoveryCode: (value: string) => void;
+  setUserId: (value: string | null) => void;
+  setVaultSetup: (value: OnboardingVaultSetup | null) => void;
 }
 
 export const OnboardingStateContext = createContext<OnboardingStateValue | null>(null);
