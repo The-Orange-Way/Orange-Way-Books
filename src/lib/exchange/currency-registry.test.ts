@@ -40,6 +40,17 @@ describe('getSymbol', () => {
     expect(getSymbol('XYZ')).not.toBe('$');
     expect(getSymbol('UNKNOWN')).toBe('UNKNOWN');
   });
+
+  it('renders stablecoins as their code, not $', () => {
+    // Stablecoins are registered with symbol = code. Rendering '$1,000' for
+    // USDC/USDT implies a US dollar balance it is not -- decided in DL-0722.
+    expect(getSymbol('USDT')).toBe('USDT');
+    expect(getSymbol('USDC')).toBe('USDC');
+    expect(getSymbol('DAI')).toBe('DAI');
+    expect(getSymbol('USDT')).not.toBe('$');
+    expect(getSymbol('USDC')).not.toBe('$');
+    expect(getSymbol('DAI')).not.toBe('$');
+  });
 });
 
 describe('getDecimals', () => {
