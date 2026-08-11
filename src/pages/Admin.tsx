@@ -881,7 +881,7 @@ function OrganizationTab({
                     setSettings((p) => ({ ...p, fiscal_start_month: Number(v) }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="admin-fiscal-month">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1023,7 +1023,7 @@ function OrganizationTab({
             value={settings.timezone}
             onValueChange={(v) => setSettings((p) => ({ ...p, timezone: v }))}
           >
-            <SelectTrigger className="max-w-xs">
+            <SelectTrigger className="max-w-xs" data-testid="admin-timezone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
