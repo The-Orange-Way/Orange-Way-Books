@@ -69,9 +69,9 @@ jobs:
     needs: lint-and-build
     # Bind to the dev environment scope so vars.VITE_SUPABASE_URL,
     # vars.VITE_SUPABASE_PROJECT_ID, etc. resolve to the dev values.
-    # The Playwright specs always hit books.orangeway.dev
-    # regardless of which branch triggered the workflow, so dev is
-    # the right scope on prod pushes too.
+    # This job builds the app from the triggering ref and serves it on
+    # loopback, so the specs exercise the code under review; the dev scope
+    # supplies the Supabase vars that build needs, on prod pushes too.
     environment: dev
     # Runs on every push to dev or prod, AND on same-repo pull requests so a PR
     # that changes the E2E path can prove itself before merge. Fork PRs are
@@ -94,6 +94,38 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # Build the app from THIS ref's code so the E2E suite exercises the code
+      # under review, not the already-deployed dev site. The build needs the
+      # dev Supabase vars because src/integrations/supabase/client.ts throws at
+      # build time when VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY are
+      # unset; both resolve from the dev environment scope this job binds.
+      - name: Build app under test
+        run: bun run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      # Serve the freshly built bundle on loopback and block until the port
+      # answers. A preview that has not finished starting is the same timing
+      # race in a new costume, so the health check is not optional: it fails
+      # the job loudly if the server never comes up rather than letting every
+      # spec strand at a connection error. nohup + & detaches the server so it
+      # survives this step and stays up for the Playwright step.
+      - name: Serve built app on 127.0.0.1:4173
+        run: |
+          nohup bunx vite preview --host 127.0.0.1 --port 4173 > /tmp/vite-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173 > /dev/null 2>&1; then
+              echo "preview is up on 127.0.0.1:4173"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::vite preview did not answer on 127.0.0.1:4173 within 30s"
+          cat /tmp/vite-preview.log || true
+          exit 1
 
       # Cache Playwright browser binaries between runs — saves ~25s of
       # `playwright install` per run on a cache hit.
@@ -142,7 +174,7 @@ jobs:
       - name: Run Playwright
         run: bunx playwright test
         env:
-          PLAYWRIGHT_BASE_URL: https://books.orangeway.dev
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
           OWB_DEV_E2E_EMAIL: ${{ secrets.OWB_DEV_E2E_EMAIL }}
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
