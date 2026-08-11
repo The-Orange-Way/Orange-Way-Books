@@ -26,6 +26,7 @@
  *   08 — Dashboard renders with NO "Finishing setup…" pill
  *   09 — chart_of_accounts page lists 43 default accounts
  *   10 — master-recovery page renders the heading (React #310 regression)
+ *   11 (DL-0720/0721): admin settings reads back April fiscal start and Eastern timezone
  *
  * Read-only environment: only OWB DEV (project ref allowlisted in the
  * provision script). Refuses to run on PROD.
