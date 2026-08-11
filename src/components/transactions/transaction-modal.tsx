@@ -49,6 +49,7 @@ import {
   TRANSFER_CLEARING_NAME,
 } from '@/lib/transactions/transfer-clearing';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { getSymbol } from '@/lib/exchange/currency-registry';
 import { useExchangeRate } from '@/lib/exchange/hooks';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { InvoiceMatchPanel } from '@/components/transactions/InvoiceMatchPanel';
@@ -171,26 +172,6 @@ interface ReceiptDraft {
 let splitCounter = 0;
 const nextSplitId = () => `split-${++splitCounter}`;
 
-function getCurrencySymbol(currency: string): string {
-  switch (currency.toUpperCase()) {
-    case 'EUR':
-      return '€';
-    case 'GBP':
-      return '£';
-    case 'CAD':
-      return 'C$';
-    case 'AUD':
-      return 'A$';
-    case 'BTC':
-      return '₿';
-    case 'ETH':
-      return 'Ξ';
-    case 'USDC':
-    case 'USD':
-    default:
-      return '$';
-  }
-}
 
 function parseAmount(raw: string): number | null {
   const trimmed = raw.trim().replace(/,/g, '');
@@ -441,7 +422,7 @@ export default function TransactionModal({
   );
 
   const primaryCurrency = selectedWallet?.asset || 'USD';
-  const amountPrefix = getCurrencySymbol(primaryCurrency);
+  const amountPrefix = getSymbol(primaryCurrency);
 
   const transferSentWallet =
     mode === 'transfer' ? (direction === 'OUT' ? selectedWallet : counterpartyWallet) : null;
@@ -1834,7 +1815,7 @@ export default function TransactionModal({
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getCurrencySymbol(transferSentWallet?.asset || 'USD')}
+                        {getSymbol(transferSentWallet?.asset || 'USD')}
                       </span>
                       <Input
                         type="text"
@@ -1859,7 +1840,7 @@ export default function TransactionModal({
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getCurrencySymbol(transferReceivedWallet?.asset || 'USD')}
+                        {getSymbol(transferReceivedWallet?.asset || 'USD')}
                       </span>
                       <Input
                         type="text"
@@ -1968,7 +1949,7 @@ export default function TransactionModal({
                               </Label>
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                  {getCurrencySymbol(feeCurrency)}
+                                  {getSymbol(feeCurrency)}
                                 </span>
                                 <Input
                                   type="text"
