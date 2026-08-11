@@ -15,6 +15,7 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import OrgSetupSurface from '../OrgSetupSurface';
 
 // Hoisted so the vi.mock factories below (hoisted above the imports) can close
@@ -154,6 +155,12 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(insertOrg).toHaveBeenCalledTimes(1);
+    expect(insertOrg).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'enc:Acme',
+        key_version: FIELD_KEY_VERSION,
+      }),
+    );
     expect(upsertMember).toHaveBeenCalledTimes(1);
     expect(insertSettings).toHaveBeenCalledTimes(1);
   });
