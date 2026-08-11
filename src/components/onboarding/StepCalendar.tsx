@@ -48,7 +48,7 @@ export default function StepCalendar({
             value={data.fiscalYearStart}
             onValueChange={(v) => onChange({ ...data, fiscalYearStart: v })}
           >
-            <SelectTrigger>
+            <SelectTrigger data-testid="onboarding-fiscal-month">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
