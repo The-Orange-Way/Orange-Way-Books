@@ -28,6 +28,7 @@ import {
   encryptJournalEntry,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { getSymbol } from '@/lib/exchange/currency-registry';
 import { StatementPopup } from '@/components/accounts/statement-popup';
 import { formatCrypto, formatFiat } from '@/lib/formatters';
 import { resolvePinnedRate } from '@/lib/exchange/rate-resolver';
@@ -1237,7 +1238,7 @@ export default function Accounts() {
                   <Label>Beginning Balance *</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">
-                      {asset === 'BTC' ? '₿' : '$'}
+                      {getSymbol(asset)}
                     </span>
                     <Input
                       type="number"
