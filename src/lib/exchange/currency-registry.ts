@@ -302,6 +302,26 @@ const CURRENCIES: CurrencyInfo[] = [
   },
   { code: 'XRP', name: 'XRP', symbol: '✕', decimals: 6, type: 'crypto', coingeckoId: 'ripple' },
   { code: 'SOL', name: 'Solana', symbol: '◎', decimals: 9, type: 'crypto', coingeckoId: 'solana' },
+  // ── Stablecoins ─────────────────────────────────────────────────────────
+  // Symbol is the currency code, not '$': stablecoins are not US dollars.
+  // Rendering '$1,000' for USDC/USDT implies a dollar balance it is not.
+  {
+    code: 'USDT',
+    name: 'Tether USD',
+    symbol: 'USDT',
+    decimals: 2,
+    type: 'crypto',
+    coingeckoId: 'tether',
+  },
+  {
+    code: 'USDC',
+    name: 'USD Coin',
+    symbol: 'USDC',
+    decimals: 2,
+    type: 'crypto',
+    coingeckoId: 'usd-coin',
+  },
+  { code: 'DAI', name: 'Dai', symbol: 'DAI', decimals: 2, type: 'crypto', coingeckoId: 'dai' },
 ];
 
 const REGISTRY = new Map<string, CurrencyInfo>(CURRENCIES.map((c) => [c.code, c]));
