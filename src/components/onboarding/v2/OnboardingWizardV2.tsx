@@ -10,18 +10,17 @@ import OrgSetupSurface from './OrgSetupSurface';
  * App.tsx is a single expression and either wizard can be dropped in without
  * touching the caller.
  *
- * userId is accepted and currently unused. It is what v1 needs to create the
- * organization and the org_members row on finish; v2 will need it for the same
- * reason once DL-0414 wires the real vault creation, and taking it now keeps
- * the two signatures interchangeable rather than making the switch site
- * conditional.
+ * userId is threaded into OrgSetupSurface, which uses it to create the
+ * organization and the org_members OWNER row on finish (v1 parity). No key
+ * material crosses this boundary: only userId is passed down; encryption stays
+ * inside OrgSetupSurface via encryptText from VaultContext.
  */
 interface OnboardingWizardV2Props {
   userId: string;
   onComplete: () => void;
 }
 
-export default function OnboardingWizardV2({ onComplete }: OnboardingWizardV2Props) {
+export default function OnboardingWizardV2({ userId, onComplete }: OnboardingWizardV2Props) {
   // Two phases: the shared 7-step wizard, then the organization setup surface.
   // The surface renders AFTER success rather than as an extra wizard step so
   // the step count stays identical to the sibling app (step-registry option 1).
@@ -31,11 +30,11 @@ export default function OnboardingWizardV2({ onComplete }: OnboardingWizardV2Pro
     return <OnboardingFlow steps={ONBOARDING_STEPS} onComplete={() => setPhase('org-setup')} />;
   }
 
-  // TODO(DL-0414 / later slices): this surface collects the organization name
-  // only. The real work v1 does on finish, creating the org with an encrypted
-  // name, upserting the org_members OWNER row, writing org_settings and seeding
-  // the chart of accounts via initChartOfAccounts, lands in later slices gated
-  // on the vault-precondition work. Until then onComplete only marks onboarding
-  // done and this flag cannot go on.
-  return <OrgSetupSurface onComplete={onComplete} />;
+  // Slice 3 (DL-0718): OrgSetupSurface now creates the org with an encrypted
+  // name, upserts the org_members OWNER row, writes client-encrypted
+  // org_settings and seeds the chart of accounts via initChartOfAccounts, all
+  // mirroring v1's finish path. Vault verifier persistence (v1 step 4) and the
+  // calendar/reporting screens are later slices. VITE_ONBOARDING_V2 stays off
+  // until the recovery-code display gap is closed and verified.
+  return <OrgSetupSurface userId={userId} onComplete={onComplete} />;
 }
