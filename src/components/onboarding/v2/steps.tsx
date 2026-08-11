@@ -18,6 +18,7 @@ import type { OnboardingStepProps } from './onboarding-flow';
 import { useOnboardingState } from './onboarding-state';
 import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
 import { supabase } from '@/lib/supabase';
+import { useVault } from '@/context/VaultContext';
 import {
   PASSWORD_MIN_LENGTH,
   RECOVERY_GRID_CLASS,
@@ -69,7 +70,7 @@ export function StepName(props: OnboardingStepProps) {
  * in the sibling app on send error (setCaptchaToken(null) + captchaRef.current?.reset()).
  */
 export function StepEmail(props: OnboardingStepProps) {
-  const { email, setEmail, setEmailVerified } = useOnboardingState();
+  const { email, setEmail, setEmailVerified, setUserId } = useOnboardingState();
   const [stage, setStage] = useState<'address' | 'code'>('address');
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
@@ -107,6 +108,7 @@ export function StepEmail(props: OnboardingStepProps) {
       setError(verifyError?.message ?? 'That code did not work. Check it and try again.');
       return;
     }
+    setUserId(data.session.user.id);
     setEmailVerified(true);
     props.onNext();
   };
@@ -183,23 +185,56 @@ export function StepEducation(props: OnboardingStepProps) {
 }
 
 export function StepVaultPassword(props: OnboardingStepProps) {
-  // TODO(DL-0414): this password never leaves the device. It is the input to
-  // Argon2id (64 MiB, 3 iterations, parallelism 4, client-generated CSPRNG
-  // salt) and the derived KEK wraps the MEK. All of that already exists in
-  // src/lib/vault.ts: wire this to createVault rather than re-deriving here.
+  // This password never leaves the device. It is the input to setupVault (an
+  // Argon2id-derived KEK wrapping a random MEK), which already lives in
+  // VaultContext and is the exact call v1 makes. We do not re-derive anything
+  // here: we call setupVault, keep the recovery code and the persistable
+  // material in flow state for the recovery step and the org-setup phase, and
+  // only then advance. Nothing is persisted from this component.
+  const { setupVault } = useVault();
+  const { setRecoveryCode, setVaultSetup } = useOnboardingState();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const copy = ONBOARDING_COPY.vaultPassword;
   const score = passwordScore(password);
   const matches = password.length > 0 && password === confirm;
   const strongEnough = password.length >= PASSWORD_MIN_LENGTH && score >= 3;
 
+  const createVault = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await setupVault(password);
+      setRecoveryCode(result.recoveryCode);
+      setVaultSetup({
+        verifier: result.verifier,
+        vaultSalt: result.vaultSalt,
+        vaultKeyVersion: result.vaultKeyVersion,
+        encMekCiphertext: result.encMekCiphertext,
+        recoveryCiphertext: result.recoveryCiphertext,
+      });
+      // Leave busy set: the container unmounts this step on advance, so there is
+      // no state to reset, and keeping the button disabled until then stops a
+      // double tap from creating a second vault.
+      props.onNext();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create your vault. Try again.');
+      setBusy(false);
+    }
+  };
+
   return (
     <StepShell
       {...props}
+      onNext={() => void createVault()}
       title={copy.headline}
       nextLabel={copy.cta}
       nextDisabled={!strongEnough || !matches}
+      busy={busy}
+      busyLabel="Creating your vault..."
+      error={error}
     >
       <p>{copy.body}</p>
       <Input

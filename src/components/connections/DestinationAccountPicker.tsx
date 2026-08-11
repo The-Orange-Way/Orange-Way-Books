@@ -51,6 +51,7 @@ import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { decryptWallet, encryptWallet, encryptTransaction } from '@/lib/crypto-fields';
 import { resolvePinnedRate } from '@/lib/exchange/rate-resolver';
+import { getSymbol } from '@/lib/exchange/currency-registry';
 
 /** Account types matching the existing Accounts.tsx UI. */
 const WALLET_TYPES = ['Exchange', 'Hardware', 'Software', 'Bank', 'Custodial'] as const;
@@ -600,7 +601,7 @@ function CreateWalletInlineDialog({
               <Label htmlFor="cw-new-balance">Opening balance</Label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">
-                  {asset === 'BTC' ? '₿' : '$'}
+                  {getSymbol(asset)}
                 </span>
                 <Input
                   id="cw-new-balance"

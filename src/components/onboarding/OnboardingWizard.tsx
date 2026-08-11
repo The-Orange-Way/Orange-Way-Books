@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useVault } from '@/context/VaultContext';
 import { encryptOrgSettings } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
+import { monthNumber } from '@/lib/months';
 import type { BitcoinDisplay } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -135,13 +136,27 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
             ? reportingData.secondaryBitcoinDisplay
             : 'sats';
 
+      // Map the fiscal-year-start month name collected in StepCalendar to a
+      // 1-based month number via the shared month list. encryptOrgSettings
+      // encrypts this into encrypted_fiscal_month and keeps the plaintext stub
+      // NULL, so the value stays zero-knowledge. monthNumber returns 0 for an
+      // unrecognized name, so we fail loudly rather than silently defaulting.
+      const fiscalStartMonth = monthNumber(calendarData.fiscalYearStart);
+      if (fiscalStartMonth === 0) {
+        throw new Error(`Unrecognized fiscal year start month: ${calendarData.fiscalYearStart}`);
+      }
+      // A start month other than January means the org keeps a fiscal (non
+      // calendar) year. That is what makes the Settings screen surface and
+      // apply the month; January is a plain calendar year.
+      const fiscalYearType = fiscalStartMonth === 1 ? 'calendar' : 'fiscal';
+
       const encSettings = await encryptOrgSettings(
         {
           primary_currency: orgData.primaryCurrency,
           secondary_currency: secondaryCurrency,
           bitcoin_display: bitcoinDisplay,
-          fiscal_year_type: null,
-          fiscal_start_month: null,
+          fiscal_year_type: fiscalYearType,
+          fiscal_start_month: fiscalStartMonth,
           date_format: reportingData.dateFormat,
           time_format: reportingData.timeFormat || null,
           number_format: reportingData.numberFormat === 'EU' ? 'eu' : 'us',

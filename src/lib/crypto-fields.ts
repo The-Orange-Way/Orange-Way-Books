@@ -1271,6 +1271,7 @@ export interface EncryptedOrgSettings {
   date_format: string | null;
   time_format: string | null;
   number_format: string | null;
+  timezone: string | null;
   encrypted_approval_threshold_amount: string | null;
   encrypted_approval_threshold_currency: string | null;
   key_version: number;
@@ -1289,6 +1290,7 @@ export async function encryptOrgSettings(
     date_format,
     time_format,
     number_format,
+    timezone,
     encrypted_approval_threshold_amount,
     encrypted_approval_threshold_currency,
   ] = await Promise.all([
@@ -1300,6 +1302,7 @@ export async function encryptOrgSettings(
     encryptNullable(fields.date_format, encrypt),
     encryptNullable(fields.time_format, encrypt),
     encryptNullable(fields.number_format, encrypt),
+    encryptNullable(fields.timezone, encrypt),
     encryptNumber(fields.approval_threshold_amount ?? null, encrypt),
     encryptNullable(fields.approval_threshold_currency ?? null, encrypt),
   ]);
@@ -1313,6 +1316,7 @@ export async function encryptOrgSettings(
     date_format,
     time_format,
     number_format,
+    timezone,
     encrypted_approval_threshold_amount,
     encrypted_approval_threshold_currency,
     key_version: L2,
