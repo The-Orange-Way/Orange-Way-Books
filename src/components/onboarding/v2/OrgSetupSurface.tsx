@@ -7,6 +7,14 @@ import {
   getCryptoCurrencies,
   getSymbol,
 } from '@/lib/exchange/currency-registry';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { useVault } from '@/context/VaultContext';
+import { encryptOrgSettings } from '@/lib/crypto-fields';
+import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
+import { captureException } from '@/lib/observability/sentry';
+import type { BitcoinDisplay } from '@/types';
+import type { User } from '@supabase/supabase-js';
 
 /**
  * Post-onboarding organization setup surface (DL-0718, DEC-0280/0281/0282).
@@ -35,6 +43,7 @@ import {
  * deterministically testable is the right trade here.
  */
 interface OrgSetupSurfaceProps {
+  userId: string;
   onComplete: () => void;
 }
 
@@ -85,8 +94,10 @@ function CurrencyOptions() {
   );
 }
 
-export default function OrgSetupSurface({ onComplete }: OrgSetupSurfaceProps) {
+export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceProps) {
+  const { encryptText } = useVault();
   const [screen, setScreen] = useState<0 | 1>(0);
+  const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState('');
   const [primaryCurrency, setPrimaryCurrency] = useState('');
@@ -104,6 +115,151 @@ export default function OrgSetupSurface({ onComplete }: OrgSetupSurfaceProps) {
   // to BTC. SATS is intentionally not a trigger: it is one of the display
   // formats below, not a separate currency choice that needs one.
   const showBitcoinDisplay = primaryCurrency === 'BTC' || secondaryCurrency === 'BTC';
+
+  // Mirror of v1 OnboardingWizard.waitForAuthenticatedUser: the org insert
+  // needs the authenticated user, which may still be settling right after
+  // sign-up. Resolve as soon as the session matches the userId we were given.
+  const waitForAuthenticatedUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.user?.id === userId) {
+      return session.user;
+    }
+
+    return await new Promise<User>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        subscription.unsubscribe();
+        reject(new Error('Authentication is still loading. Please wait a moment and try again.'));
+      }, 5000);
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        if (nextSession?.user?.id === userId) {
+          window.clearTimeout(timeoutId);
+          subscription.unsubscribe();
+          resolve(nextSession.user);
+        }
+      });
+    });
+  };
+
+  // Create the organization on the final CTA. This mirrors the v1 finish path
+  // (OnboardingWizard.handleFinish) so behaviour matches the live app. All
+  // client-side encryption: the server only ever stores ciphertext.
+  const handleFinish = async () => {
+    setSaving(true);
+    try {
+      const user = await waitForAuthenticatedUser();
+      const orgId = crypto.randomUUID();
+
+      // 1. Insert organization with a client-encrypted name.
+      const encOrgName = await encryptText(name);
+      const { error: orgError } = await supabase
+        .from('organizations')
+        .insert({ id: orgId, name: encOrgName, key_version: 2 });
+      if (orgError) throw orgError;
+
+      // 2. Guarantee the creator's OWNER row. A post-insert trigger on
+      // organizations already inserts it, so this upsert is idempotent.
+      const { error: memberError } = await supabase
+        .from('org_members')
+        .upsert(
+          { org_id: orgId, user_id: user.id, role: 'OWNER' },
+          { onConflict: 'user_id,org_id' },
+        );
+      if (memberError) throw memberError;
+
+      // 3. Insert org_settings, every field client-encrypted. Fields this
+      // surface does not yet collect take the v2 defaults: a calendar fiscal
+      // year (start month 1), US number format, and null date/time/timezone.
+      const secondary = secondaryCurrency.length > 0 ? secondaryCurrency : null;
+      const btcDisplay: BitcoinDisplay =
+        primaryCurrency === 'BTC' || secondary === 'BTC'
+          ? (bitcoinDisplay as BitcoinDisplay)
+          : 'sats';
+      const encSettings = await encryptOrgSettings(
+        {
+          primary_currency: primaryCurrency,
+          secondary_currency: secondary,
+          bitcoin_display: btcDisplay,
+          fiscal_year_type: 'calendar',
+          fiscal_start_month: 1,
+          date_format: null,
+          time_format: null,
+          number_format: 'us',
+          timezone: null,
+        },
+        encryptText,
+      );
+      const { error: settingsError } = await supabase.from('org_settings').insert({
+        org_id: orgId,
+        ...encSettings,
+      } as any);
+      if (settingsError) throw settingsError;
+
+      // 4. Seed the chart of accounts in the background (v1 parity): mark the
+      // org provisioning, dispatch initChartOfAccounts fire-and-forget, and let
+      // the user into the app immediately. The IIFE closes over encryptText,
+      // which keeps working after this surface unmounts because the MEK lives
+      // in VaultContext.
+      await (supabase as any)
+        .from('organizations')
+        .update({ ledger_status: 'provisioning', ledger_status_error: null })
+        .eq('id', orgId);
+
+      const coaToast = toast.loading('Encrypting accounts...', {
+        description: 'Server only sees ciphertext. Safe to keep using the app.',
+        duration: Infinity,
+      });
+
+      void (async () => {
+        try {
+          await initChartOfAccounts(orgId, encryptText, (done, total) => {
+            toast.loading(`Encrypting accounts (${done}/${total})...`, {
+              id: coaToast,
+              description: 'Server only sees ciphertext.',
+              duration: Infinity,
+            });
+          });
+          await (supabase as any)
+            .from('organizations')
+            .update({ ledger_status: 'ready', ledger_status_error: null })
+            .eq('id', orgId);
+          toast.success('Chart of accounts ready', { id: coaToast, duration: 3000 });
+        } catch (coaErr) {
+          const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
+          console.error('Chart of accounts seeding failed:', coaErr);
+          captureException(coaErr, { tags: { source: 'onboarding-v2-coa-seed' } });
+          await (supabase as any)
+            .from('organizations')
+            .update({ ledger_status: 'failed', ledger_status_error: errMsg })
+            .eq('id', orgId)
+            .then(
+              () => undefined,
+              () => undefined,
+            );
+          toast.error('Chart of accounts setup hit an issue', {
+            id: coaToast,
+            description: errMsg || 'You can retry from the dashboard.',
+            duration: 10000,
+          });
+        }
+      })();
+
+      toast.success('Organization created successfully!');
+      onComplete();
+    } catch (err) {
+      console.error('Onboarding failed:', err);
+      const message =
+        err instanceof Error ? err.message : 'Failed to create organization. Please try again.';
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -135,12 +291,12 @@ export default function OrgSetupSurface({ onComplete }: OrgSetupSurfaceProps) {
       ) : (
         <StepShell
           title="Your currencies"
-          onNext={onComplete}
+          onNext={handleFinish}
           onBack={() => setScreen(0)}
           isFirst={false}
           isLast
           nextLabel="Open my books"
-          nextDisabled={!currencyValid}
+          nextDisabled={!currencyValid || saving}
         >
           <p className="mb-6">
             Pick the currency your books are kept in. You can add a second display currency now or
