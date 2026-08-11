@@ -16,22 +16,17 @@ import {
  * identical to the sibling app's, deliberately and to the character. Renaming
  * one here without renaming it there is how design twins stop being twins.
  *
- * OPEN, and it is this repo's only real gap in the contract: v1 also collects
- * the organization, reporting preferences and fiscal calendar (StepOrganization,
- * StepReporting, StepCalendar), and creates the org and chart of accounts on
- * finish. None of that appears in the locked 7 steps, which were written for a
- * consumer app that has no organization. It has to land somewhere before v2 can
- * replace v1 for real. Three candidates, in the order I would argue for them:
+ * v1 also collects the organization, reporting preferences and fiscal calendar
+ * (StepOrganization, StepReporting, StepCalendar), and creates the org and
+ * chart of accounts on finish. None of that appears in the locked 7 steps,
+ * which were written for a consumer app that has no organization. It has to
+ * land somewhere before v2 can replace v1 for real.
  *
- *   1. After success, as a separate post-onboarding setup surface. Keeps the 7
- *      steps identical across both apps and keeps the aha moment early.
- *   2. Folded into the success step, since DL-0414 already says this step
- *      differs per product.
- *   3. As extra steps inside the wizard, which breaks the shared step count
- *      and is the one option I would not take without a decision.
- *
- * Not choosing here. This PR is dark-shipped and does not remove v1, so the
- * decision is not yet load-bearing, but it blocks the flag ever going on.
+ * DEC-0280 chose where: after success, as a separate post-onboarding setup
+ * surface, so the 7 steps stay identical across both apps and the aha moment
+ * stays early. That surface is built: OrgSetupSurface.tsx (DL-0718), dark
+ * behind VITE_ONBOARDING_V2. The org + chart-of-accounts creation that v1 does
+ * on finish is a later slice, gated on the vault-precondition work (DL-0414).
  */
 export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[] {
   return [
