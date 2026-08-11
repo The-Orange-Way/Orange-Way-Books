@@ -315,5 +315,32 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
         .first(),
       'master-recovery heading must render — React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
+
+    // 11 (DL-0720/0721): admin settings readback. The fiscal-year-start and
+    // timezone chosen during onboarding must survive the client-side
+    // encrypt/decrypt round-trip and render on the Admin settings page. This
+    // is a UI readback: the values are decrypted in the browser. A
+    // service-role DB read would only ever see ciphertext, so it cannot
+    // prove this.
+    await page.goto(`${baseURL}/app/admin`, { waitUntil: 'networkidle' });
+    const adminLock = page.locator('text="Unlock your encrypted vault"').first();
+    if (await adminLock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await page.locator('input[type="password"]').first().fill(VAULT_PW);
+      await page.locator('button:has-text("Unlock Vault")').first().click();
+      await adminLock.waitFor({ state: 'hidden', timeout: 30_000 });
+    }
+    await expect(
+      page.getByTestId('app-shell').first(),
+      'app shell on admin page',
+    ).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(2_000);
+    await expect(
+      page.getByTestId('admin-fiscal-month'),
+      'admin fiscal-month readback must show April (DL-0720)',
+    ).toContainText('April', { timeout: 15_000 });
+    await expect(
+      page.getByTestId('admin-timezone'),
+      'admin timezone readback must show Eastern (DL-0721)',
+    ).toContainText('Eastern', { timeout: 15_000 });
   });
 });
