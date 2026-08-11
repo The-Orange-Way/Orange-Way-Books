@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { OnboardingStateContext } from './onboarding-state';
-import type { OnboardingStateValue } from './onboarding-state';
+import type { OnboardingStateValue, OnboardingVaultSetup } from './onboarding-state';
 
 /**
  * Feature flag for the v2 typeform-style onboarding (DL-0429).
@@ -120,16 +120,28 @@ export function StepShell({
 }
 
 /**
+ * What the flow hands its parent when the last step completes: the material the
+ * org-setup phase needs and nothing it does not. The vault password is
+ * deliberately NOT carried out of the flow, only the persistable vault material
+ * and the authenticated user id.
+ */
+export interface OnboardingResult {
+  userId: string | null;
+  vaultSetup: OnboardingVaultSetup | null;
+}
+
+/**
  * OnboardingFlow is the container/router for the whole flow. It walks the
  * ordered step registry, tracks the active index, and hands each step its
- * navigation callbacks. onComplete fires once the last step calls onNext.
+ * navigation callbacks. onComplete fires once the last step calls onNext, and
+ * carries the collected vault material and user id to the org-setup phase.
  */
 export function OnboardingFlow({
   steps,
   onComplete,
 }: {
   steps: OnboardingStep[];
-  onComplete: () => void;
+  onComplete: (result: OnboardingResult) => void;
 }) {
   const [index, setIndex] = useState(0);
 
@@ -142,6 +154,8 @@ export function OnboardingFlow({
   const [emailVerified, setEmailVerified] = useState(false);
   const [vaultPassword, setVaultPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [vaultSetup, setVaultSetup] = useState<OnboardingVaultSetup | null>(null);
 
   const state = useMemo<OnboardingStateValue>(
     () => ({
@@ -150,13 +164,17 @@ export function OnboardingFlow({
       emailVerified,
       vaultPassword,
       recoveryCode,
+      userId,
+      vaultSetup,
       setName,
       setEmail,
       setEmailVerified,
       setVaultPassword,
       setRecoveryCode,
+      setUserId,
+      setVaultSetup,
     }),
-    [name, email, emailVerified, vaultPassword, recoveryCode],
+    [name, email, emailVerified, vaultPassword, recoveryCode, userId, vaultSetup],
   );
 
   const total = steps.length;
@@ -171,7 +189,7 @@ export function OnboardingFlow({
 
   const onNext = () => {
     if (isLast) {
-      onComplete();
+      onComplete({ userId, vaultSetup });
       return;
     }
     setIndex((current) => Math.min(current + 1, total - 1));
