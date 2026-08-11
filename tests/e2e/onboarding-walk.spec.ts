@@ -223,25 +223,46 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     }
     await page.locator('button:has-text("Confirm")').first().click({ force: true });
 
-    // 06 — org name
+    // 06: org name (StepOrganization). Fill the name, then Continue to
+    // advance to StepReporting.
     await page.waitForTimeout(2_000);
     const orgIn = page.locator('input:visible').first();
     await expect(orgIn, 'org name input').toBeVisible({ timeout: 10_000 });
     await orgIn.fill(ORG_NAME);
-    // Click through any remaining "Continue / Create organization / Finish" buttons
-    for (let i = 0; i < 6; i++) {
-      await page.waitForTimeout(1_000);
-      const btn = page
-        .locator('button:visible:not([disabled])')
-        .filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i })
-        .first();
-      if ((await btn.count()) === 0) break;
-      try {
-        await btn.click({ force: true, timeout: 1_500 });
-      } catch {
-        /* may have left the screen */
-      }
-    }
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Continue|Next/i })
+      .first()
+      .click({ force: true });
+
+    // 06b (DL-0721): StepReporting. Set the reporting timezone to Eastern
+    // through the onboarding picker and assert the trigger reflects it, then
+    // Continue. This is the value read back on the Admin page in step 11 to
+    // prove the encrypt/decrypt round-trip.
+    const onbTimezone = page.getByTestId('onboarding-timezone');
+    await expect(onbTimezone, 'onboarding timezone picker').toBeVisible({ timeout: 15_000 });
+    await onbTimezone.click();
+    await page.getByRole('option', { name: 'Eastern Time (US)', exact: true }).click();
+    await expect(onbTimezone, 'onboarding timezone set to Eastern').toContainText('Eastern');
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Continue|Next/i })
+      .first()
+      .click({ force: true });
+
+    // 06c (DL-0720): StepCalendar. Set the fiscal year start to April through
+    // the onboarding picker, assert the trigger reflects it, then Create
+    // Organization (the final wizard step, which runs handleFinish).
+    const onbFiscal = page.getByTestId('onboarding-fiscal-month');
+    await expect(onbFiscal, 'onboarding fiscal-month picker').toBeVisible({ timeout: 15_000 });
+    await onbFiscal.click();
+    await page.getByRole('option', { name: 'April', exact: true }).click();
+    await expect(onbFiscal, 'onboarding fiscal month set to April').toContainText('April');
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Create Organization|Finish|Done/i })
+      .first()
+      .click({ force: true });
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
