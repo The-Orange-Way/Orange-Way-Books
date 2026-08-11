@@ -332,6 +332,10 @@ export function getDecimals(code: string): number {
   return getCurrency(code)?.decimals ?? 2;
 }
 
+export function getSymbol(code: string): string {
+  return getCurrency(code)?.symbol ?? code;
+}
+
 export function getAllCurrencies(): CurrencyInfo[] {
   return CURRENCIES;
 }
