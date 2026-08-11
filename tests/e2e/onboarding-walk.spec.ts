@@ -163,7 +163,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
 
   test('walks full onboarding with per-step asserts', async ({ page }) => {
     test.setTimeout(180_000);
-    const baseURL = 'https://books.orangeway.dev';
+    const baseURL = '';
 
     // 01 — /login renders + sign in (user already created by admin-create
     // in beforeAll with email_confirm=true; going to /signup fails because
