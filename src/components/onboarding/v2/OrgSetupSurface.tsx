@@ -29,11 +29,17 @@ import type { User } from '@supabase/supabase-js';
  *   2. Currency: a required primary, an optional secondary, and a Bitcoin
  *      display preference that appears only while a picker is set to BTC.
  *
- * Nothing is persisted here: no createVault, no org or chart-of-accounts
- * creation, no schema change, and no v1 path is touched. onComplete carries no
- * value on purpose. The real org creation (client encrypted, after the vault
- * precondition DL-0414) is a later slice. This stays dark behind
- * VITE_ONBOARDING_V2 with the rest of v2.
+ * Slice 3 (DL-0718): the final CTA now creates the organization, mirroring the
+ * v1 OnboardingWizard.handleFinish path (insert organizations with an encrypted
+ * name, upsert the OWNER org_members row, insert client-encrypted org_settings,
+ * then seed the chart of accounts in the background). Zero-knowledge holds by
+ * construction: the org name and every settings field are encrypted in the
+ * browser via encryptText, a closure over the MEK held in VaultContext, and no
+ * key material crosses a prop boundary (only userId is threaded in).
+ * encryptOrgSettings is reused verbatim from v1, so there is no new derivation,
+ * salt, or KDF. Fields this surface does not yet collect (calendar, reporting)
+ * take the v2 defaults. Vault verifier persistence (v1 step 4) is a later slice.
+ * This stays dark behind VITE_ONBOARDING_V2 with the rest of v2.
  *
  * The two currency pickers are native select elements on purpose. The v1 step
  * uses the Radix Select, but this repo's vitest setup has no pointer polyfills,
