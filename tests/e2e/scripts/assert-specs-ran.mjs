@@ -44,8 +44,7 @@ if (!stats || typeof stats.expected !== 'number') {
   fail(`report at ${reportPath} has no stats block to count executed specs`);
 }
 
-const executed =
-  (stats.expected || 0) + (stats.unexpected || 0) + (stats.flaky || 0);
+const executed = (stats.expected || 0) + (stats.unexpected || 0) + (stats.flaky || 0);
 const skipped = stats.skipped || 0;
 
 if (executed < MIN_EXECUTED) {
