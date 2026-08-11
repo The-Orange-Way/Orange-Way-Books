@@ -31,8 +31,15 @@ export default function OrgSetupSurface({ onComplete }: OrgSetupSurfaceProps) {
   // Same rule as v1 StepOrganization: a name is present once it is non-blank.
   const isValid = name.trim().length > 0;
 
+  // Slice 1 keeps the name in local state only and does not persist it, so
+  // onComplete carries no value on purpose. The later slice lifts the name to
+  // the caller and creates the org + chart of accounts, client encrypted, once
+  // the vault precondition (DL-0414) lands.
   return (
     <div className="min-h-screen bg-background">
+      {/* isLast + "Finish setup" is terminal only for this one-screen slice.
+          When the currency screen lands this stops being terminal and the CTA
+          becomes "Open my books" on that screen, per the DL-0718 brief. */}
       <StepShell
         title="Your organization"
         onNext={onComplete}
