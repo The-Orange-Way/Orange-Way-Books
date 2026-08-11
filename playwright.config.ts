@@ -15,7 +15,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL;
 if (!baseURL) {
   throw new Error(
     'PLAYWRIGHT_BASE_URL must be set to the target under test. Refusing to default: ' +
-    'a default would silently test the deployed site instead of the code under review.',
+      'a default would silently test the deployed site instead of the code under review.',
   );
 }
 
