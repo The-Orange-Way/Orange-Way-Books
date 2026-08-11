@@ -203,7 +203,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
       const { error: settingsError } = await supabase.from('org_settings').insert({
         org_id: orgId,
         ...encSettings,
-      } as any);
+      });
       if (settingsError) throw settingsError;
 
       // 4. Seed the chart of accounts in the background (v1 parity): mark the
@@ -211,7 +211,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
       // the user into the app immediately. The IIFE closes over encryptText,
       // which keeps working after this surface unmounts because the MEK lives
       // in VaultContext.
-      await (supabase as any)
+      await supabase
         .from('organizations')
         .update({ ledger_status: 'provisioning', ledger_status_error: null })
         .eq('id', orgId);
@@ -230,7 +230,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
               duration: Infinity,
             });
           });
-          await (supabase as any)
+          await supabase
             .from('organizations')
             .update({ ledger_status: 'ready', ledger_status_error: null })
             .eq('id', orgId);
@@ -239,7 +239,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
           const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
           console.error('Chart of accounts seeding failed:', coaErr);
           captureException(coaErr, { tags: { source: 'onboarding-v2-coa-seed' } });
-          await (supabase as any)
+          await supabase
             .from('organizations')
             .update({ ledger_status: 'failed', ledger_status_error: errMsg })
             .eq('id', orgId)
