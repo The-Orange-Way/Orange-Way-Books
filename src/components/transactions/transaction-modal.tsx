@@ -172,7 +172,6 @@ interface ReceiptDraft {
 let splitCounter = 0;
 const nextSplitId = () => `split-${++splitCounter}`;
 
-
 function parseAmount(raw: string): number | null {
   const trimmed = raw.trim().replace(/,/g, '');
   if (!trimmed) return null;
