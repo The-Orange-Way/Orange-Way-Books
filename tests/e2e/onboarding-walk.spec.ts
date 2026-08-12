@@ -330,10 +330,9 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       await page.locator('button:has-text("Unlock Vault")').first().click();
       await adminLock.waitFor({ state: 'hidden', timeout: 30_000 });
     }
-    await expect(
-      page.getByTestId('app-shell').first(),
-      'app shell on admin page',
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('app-shell').first(), 'app shell on admin page').toBeVisible({
+      timeout: 15_000,
+    });
     await page.waitForTimeout(2_000);
     await expect(
       page.getByTestId('admin-fiscal-month'),
