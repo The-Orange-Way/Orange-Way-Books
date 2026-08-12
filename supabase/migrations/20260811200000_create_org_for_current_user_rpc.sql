@@ -35,7 +35,7 @@ set search_path = public
 as $$
 declare
   v_caller uuid := auth.uid();
-  v_org_id uuid;
+  v_org_id uuid := gen_random_uuid();
 begin
   if v_caller is null then
     raise exception 'create_org_for_current_user requires an authenticated user'
@@ -47,9 +47,15 @@ begin
       using errcode = '23514';
   end if;
 
-  insert into public.organizations (name, key_version)
-    values (p_name, p_key_version)
-    returning id into v_org_id;
+  -- Insert with a locally-minted id instead of RETURNING the id back.
+  -- org_select (the SELECT policy) only admits organizations the caller
+  -- already belongs to via org_members, and the OWNER membership row is
+  -- seeded by the AFTER INSERT trigger trg_auto_insert_org_owner, which has
+  -- not fired yet when a RETURNING clause is projected. So RETURNING id would
+  -- be filtered out for an ordinary authenticated caller and the RPC would
+  -- fail. Minting the id here keeps the single write and avoids the readback.
+  insert into public.organizations (id, name, key_version)
+    values (v_org_id, p_name, p_key_version);
 
   return v_org_id;
 end
