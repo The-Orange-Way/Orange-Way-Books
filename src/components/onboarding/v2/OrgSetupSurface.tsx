@@ -159,14 +159,24 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
     setSaving(true);
     try {
       const user = await waitForAuthenticatedUser();
-      const orgId = crypto.randomUUID();
 
-      // 1. Insert organization with a client-encrypted name.
+      // 1. Create the organization via the server-side bootstrap RPC
+      // (create_org_for_current_user, DL-0718). It is SECURITY INVOKER, so the
+      // existing org_insert WITH CHECK still governs the write and no RLS is
+      // bypassed; it mints the org id server-side and returns it. ZKA holds:
+      // the name is encrypted in the browser first, so the server stores only
+      // ciphertext. p_key_version is passed explicitly rather than relying on
+      // the function default so the two constants cannot drift.
       const encOrgName = await encryptText(name);
-      const { error: orgError } = await supabase
-        .from('organizations')
-        .insert({ id: orgId, name: encOrgName, key_version: FIELD_KEY_VERSION });
+      const { data: orgId, error: orgError } = await supabase.rpc(
+        'create_org_for_current_user',
+        { p_name: encOrgName, p_key_version: FIELD_KEY_VERSION },
+      );
       if (orgError) throw orgError;
+      // Load bearing: orgId is now an RPC return value. A null return with no
+      // error would carry undefined into the org_settings insert and the
+      // organizations update below, so fail loudly instead.
+      if (!orgId) throw new Error('Organization was not created. Please try again.');
 
       // 2. Guarantee the creator's OWNER row. A post-insert trigger on
       // organizations already inserts it, so this upsert is idempotent.
