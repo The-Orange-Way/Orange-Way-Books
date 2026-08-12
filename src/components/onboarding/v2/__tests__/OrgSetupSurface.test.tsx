@@ -14,17 +14,18 @@
  * would require and this repo's vitest setup does not provide.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import OrgSetupSurface from '../OrgSetupSurface';
 
 // Hoisted so the vi.mock factories below (hoisted above the imports) can close
 // over the same spy instances the assertions read.
-const { insertOrg, upsertMember, insertSettings, updateEq } = vi.hoisted(() => ({
+const { insertOrg, upsertMember, insertSettings, updateEq, rpcCreateOrg } = vi.hoisted(() => ({
   insertOrg: vi.fn(async () => ({ error: null })),
   upsertMember: vi.fn(async () => ({ error: null })),
   insertSettings: vi.fn(async () => ({ error: null })),
   updateEq: vi.fn(async () => ({ error: null })),
+  rpcCreateOrg: vi.fn(async () => ({ data: 'org-rpc-1', error: null })),
 }));
 
 vi.mock('@/context/VaultContext', () => ({
@@ -37,6 +38,7 @@ vi.mock('@/lib/supabase', () => ({
       getSession: async () => ({ data: { session: { user: { id: 'user-1' } } } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
+    rpc: rpcCreateOrg,
     from: (table: string) => {
       if (table === 'org_members') return { upsert: upsertMember };
       if (table === 'org_settings') return { insert: insertSettings };
@@ -62,6 +64,13 @@ vi.mock('sonner', () => ({
     error: () => {},
   }),
 }));
+
+// Call history is asserted per test (counts and args), so reset it between
+// tests. clearAllMocks resets calls and results but keeps each spy's default
+// implementation, so the hoisted resolved values survive.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 // Screen 1 is the organization name; a non-blank name is required before the
 // Continue button advances to the currency screen.
