@@ -149,7 +149,7 @@ describe('OrgSetupSurface screen 2 (currencies)', () => {
 });
 
 describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
-  it('creates the org, the OWNER member and settings, then fires onComplete', async () => {
+  it('creates the org via the RPC, seeds the OWNER member and settings, then fires onComplete', async () => {
     const onComplete = vi.fn();
     render(<OrgSetupSurface userId="user-1" onComplete={onComplete} />);
 
@@ -163,14 +163,52 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
-    expect(insertOrg).toHaveBeenCalledTimes(1);
-    expect(insertOrg).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'enc:Acme',
-        key_version: FIELD_KEY_VERSION,
-      }),
+
+    // The org is created through the server-side bootstrap RPC, once, with the
+    // active key version passed explicitly (not left to the function default).
+    expect(rpcCreateOrg).toHaveBeenCalledTimes(1);
+    expect(rpcCreateOrg).toHaveBeenCalledWith(
+      'create_org_for_current_user',
+      expect.objectContaining({ p_key_version: FIELD_KEY_VERSION }),
     );
+
+    // ZKA lock: the name reaches the RPC as ciphertext, never the plaintext the
+    // user typed. This is the assertion that catches someone later passing
+    // `name` instead of `encOrgName`.
+    const rpcArgs = rpcCreateOrg.mock.calls[0][1];
+    expect(rpcArgs.p_name).toBe('enc:Acme');
+    expect(rpcArgs.p_name).not.toBe('Acme');
+
+    // The direct client write to organizations is gone, not duplicated.
+    expect(insertOrg).not.toHaveBeenCalled();
+
+    // Downstream writes use the id the RPC returned, not a locally minted one.
     expect(upsertMember).toHaveBeenCalledTimes(1);
     expect(insertSettings).toHaveBeenCalledTimes(1);
+    expect(insertSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ org_id: 'org-rpc-1' }),
+    );
+  });
+
+  it('surfaces an error and never writes settings when the RPC returns no id', async () => {
+    // A null return with no error is the one way this path can be worse than
+    // the direct insert it replaced: undefined would flow into the org_settings
+    // insert. The guard must stop before any downstream write.
+    rpcCreateOrg.mockResolvedValueOnce({ data: null, error: null });
+    const onComplete = vi.fn();
+    render(<OrgSetupSurface userId="user-1" onComplete={onComplete} />);
+
+    fireEvent.change(screen.getByLabelText('Organization Name'), {
+      target: { value: 'Acme' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Primary currency'), {
+      target: { value: 'USD' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
+
+    await waitFor(() => expect(rpcCreateOrg).toHaveBeenCalledTimes(1));
+    expect(insertSettings).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
   });
 });
