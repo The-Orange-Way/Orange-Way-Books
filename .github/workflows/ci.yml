@@ -333,3 +333,110 @@ jobs:
           if [ "$ERRORS" -lt "$DENO_CHECK_BASELINE" ]; then
             echo "::notice::Error count dropped to ${ERRORS}. Lower DENO_CHECK_BASELINE to ${ERRORS} in .github/workflows/ci.yml in this PR so the ratchet holds the ground you just took."
           fi
+
+  frontend-typecheck:
+    name: Typecheck frontend (tsc)
+    runs-on: ubuntu-latest
+    # Why this job exists: until DL-0782 CI never typechecked the Vite app.
+    # lint-and-build runs format:check, lint, test and build; `build` is
+    # `vite build`, and esbuild transpiles + strips types without checking
+    # them. So the entire frontend could stop typechecking with CI fully
+    # green, and 46 type errors sat on dev invisible to every passing PR.
+    #
+    # Gate design -- read this before changing it. Same RATCHET as
+    # deno-typecheck above: it fails only when the error count goes ABOVE the
+    # recorded baseline. A plain `tsc` gate would go red on day one and block
+    # every open PR; a `continue-on-error: true` advisory would reproduce the
+    # exact blindness this job exists to end. New type errors cannot land, the
+    # existing backlog is printed in the job summary on every run, and the
+    # number only moves down.
+    #
+    # Making this check REQUIRED in the branch ruleset is a FOUNDER DECISION
+    # and has deliberately NOT been done here. Nothing in this PR touches
+    # branch protection.
+    #
+    # Scope: tsconfig.app.json (the `src` tree), where the 46 errors live. The
+    # repo-root tsconfig has files:[] and project references, so a bare
+    # `tsc --noEmit` there checks nothing; and the referenced projects are not
+    # `composite`, so `tsc -b` does not apply. Pointing tsc straight at the app
+    # project is the invocation that actually sees the source.
+    env:
+      # Errors present on dev when this job was added (DL-0782). Lower it in
+      # the same PR that fixes errors -- the job prints the new value when the
+      # count drops. At 0, delete the ratchet and let `tsc` fail on its own.
+      TSC_CHECK_BASELINE: '46'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: tsc --noEmit (frontend app)
+        shell: bash
+        env:
+          # tsc colourises diagnostics; strip colour at the source so the
+          # per-class grep below matches the real bytes, not escape-wrapped
+          # ones. Same trap the deno job documents.
+          NO_COLOR: '1'
+        run: |
+          set -u
+
+          # Guard against checking nothing: the app project must resolve to
+          # real source files, or a green result means nothing. This is the
+          # silent-success shape the deno job also guards.
+          FILE_COUNT=$(find src -type f \( -name '*.ts' -o -name '*.tsx' \) | wc -l | tr -d ' ')
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No .ts/.tsx files found under src -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+          echo "Typechecking ${FILE_COUNT} source file(s) with tsc $(bunx tsc --version)"
+
+          # --pretty false: deterministic one-line-per-diagnostic output on the
+          # runner, so the marker count below is stable.
+          RC=0
+          bun run typecheck -- --pretty false > "$RUNNER_TEMP/tsc.log" 2>&1 || RC=$?
+          cat "$RUNNER_TEMP/tsc.log"
+
+          # One "error TSxxxx" token per diagnostic. The trailing
+          # "Found N errors in M files." summary carries no "TS" token, so it
+          # is not double-counted.
+          ERRORS=$(grep -cE 'error TS[0-9]+' "$RUNNER_TEMP/tsc.log" || true)
+
+          # A non-zero exit with zero diagnostics means tsc itself broke (bad
+          # flag, unresolvable config, crash). That must never be scored as
+          # "0 errors, under baseline, pass" -- a check that silently stops
+          # checking is the precise failure this job exists to eliminate.
+          if [ "$RC" -ne 0 ] && [ "$ERRORS" -eq 0 ]; then
+            echo "::error::tsc exited $RC without reporting any type diagnostic. The check is broken, not passing."
+            exit 1
+          fi
+
+          {
+            echo "## Frontend typecheck: tsc --noEmit -p tsconfig.app.json"
+            echo
+            echo "**${ERRORS} error(s)** across ${FILE_COUNT} source file(s) (ratchet baseline: ${TSC_CHECK_BASELINE})"
+            if [ "$ERRORS" -gt 0 ]; then
+              echo
+              echo "By error class:"
+              echo '```'
+              grep -oE 'error TS[0-9]+' "$RUNNER_TEMP/tsc.log" | sort | uniq -c | sort -rn || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "tsc: ${ERRORS} error(s); ratchet baseline ${TSC_CHECK_BASELINE}"
+
+          if [ "$ERRORS" -gt "$TSC_CHECK_BASELINE" ]; then
+            echo "::error::Frontend type errors went UP: ${ERRORS} > baseline ${TSC_CHECK_BASELINE}. Fix the new errors listed above. Do not raise the baseline."
+            exit 1
+          fi
+
+          if [ "$ERRORS" -lt "$TSC_CHECK_BASELINE" ]; then
+            echo "::notice::Error count dropped to ${ERRORS}. Lower TSC_CHECK_BASELINE to ${ERRORS} in .github/workflows/ci.yml in this PR so the ratchet holds the ground you just took."
+          fi
