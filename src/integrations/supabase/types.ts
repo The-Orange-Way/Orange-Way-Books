@@ -2683,6 +2683,10 @@ export type Database = {
           window_minutes: number
         }[]
       }
+      create_org_for_current_user: {
+        Args: { p_key_version?: number; p_name: string }
+        Returns: string
+      }
       current_user_org_rank: { Args: { org: string }; Returns: number }
       expire_time_boxed_roles: {
         Args: never
