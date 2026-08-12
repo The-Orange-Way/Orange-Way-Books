@@ -408,15 +408,6 @@ jobs:
           # is not double-counted.
           ERRORS=$(grep -cE 'error TS[0-9]+' "$RUNNER_TEMP/tsc.log" || true)
 
-          # A non-zero exit with zero diagnostics means tsc itself broke (bad
-          # flag, unresolvable config, crash). That must never be scored as
-          # "0 errors, under baseline, pass" -- a check that silently stops
-          # checking is the precise failure this job exists to eliminate.
-          if [ "$RC" -ne 0 ] && [ "$ERRORS" -eq 0 ]; then
-            echo "::error::tsc exited $RC without reporting any type diagnostic. The check is broken, not passing."
-            exit 1
-          fi
-
           {
             echo "## Frontend typecheck: tsc --noEmit -p tsconfig.app.json"
             echo
@@ -430,13 +421,46 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "tsc: ${ERRORS} error(s); ratchet baseline ${TSC_CHECK_BASELINE}"
+          # Ratchet decision, extracted to scripts/tsc-ratchet.sh so the proof
+          # step below drives the SAME guards with synthetic inputs. It prints
+          # the count and runs the three RED branches: src resolves, tsc did not
+          # silently break, and the count is not above baseline.
+          bash scripts/tsc-ratchet.sh src "$RUNNER_TEMP/tsc.log" "$TSC_CHECK_BASELINE" "$RC"
 
-          if [ "$ERRORS" -gt "$TSC_CHECK_BASELINE" ]; then
-            echo "::error::Frontend type errors went UP: ${ERRORS} > baseline ${TSC_CHECK_BASELINE}. Fix the new errors listed above. Do not raise the baseline."
+      - name: Prove the tsc ratchet and its guards fire (DL-0782)
+        shell: bash
+        run: |
+          # A ratchet nobody has watched go red is a green light with no bulb
+          # behind it. Drive the SAME decision script through each RED branch
+          # with synthetic inputs and assert every one exits non-zero. If any
+          # guard ever stops failing, this step goes red instead, so the proof
+          # is re-verified on every run rather than a one-off transient red.
+          FAIL=0
+
+          # Guard 1: an empty source tree means the check is checking nothing.
+          EMPTY_DIR="$RUNNER_TEMP/empty-src"
+          mkdir -p "$EMPTY_DIR"
+          : > "$RUNNER_TEMP/tsc-empty.log"
+          if bash scripts/tsc-ratchet.sh "$EMPTY_DIR" "$RUNNER_TEMP/tsc-empty.log" 46 0; then
+            echo "::error::src-resolves guard did NOT fail on an empty source tree"
+            FAIL=1
+          fi
+
+          # Guard 2: tsc exited non-zero but printed no diagnostic (it broke).
+          : > "$RUNNER_TEMP/tsc-broken.log"
+          if bash scripts/tsc-ratchet.sh src "$RUNNER_TEMP/tsc-broken.log" 46 2; then
+            echo "::error::broken-check guard did NOT fail on a non-zero exit with zero diagnostics"
+            FAIL=1
+          fi
+
+          # Guard 3: the ratchet, a diagnostic count above baseline.
+          printf 'error TS0001: synthetic\nerror TS0002: synthetic\n' > "$RUNNER_TEMP/tsc-over.log"
+          if bash scripts/tsc-ratchet.sh src "$RUNNER_TEMP/tsc-over.log" 1 0; then
+            echo "::error::ratchet did NOT fail on a count (2) above baseline (1)"
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -ne 0 ]; then
             exit 1
           fi
-
-          if [ "$ERRORS" -lt "$TSC_CHECK_BASELINE" ]; then
-            echo "::notice::Error count dropped to ${ERRORS}. Lower TSC_CHECK_BASELINE to ${ERRORS} in .github/workflows/ci.yml in this PR so the ratchet holds the ground you just took."
-          fi
+          echo "tsc ratchet and both guards correctly went red on synthetic inputs"
