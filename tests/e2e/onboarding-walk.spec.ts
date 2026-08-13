@@ -54,7 +54,13 @@ interface SupaCreds {
 }
 
 function readSupaCreds(): SupaCreds | null {
-  // Provision script wrote this; reuse rather than re-derive.
+  // In CI the URL and service key arrive as env vars (see the e2e job in
+  // ci.yml), the same source the provision script reads. Env wins. Locally
+  // the file below is the fallback for a dev laptop. If neither is present,
+  // return null and let the caller decide (skip vs throw).
+  const url = process.env.OWB_E2E_SUPABASE_URL;
+  const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+  if (url && secret) return { url, secret };
   try {
     return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
   } catch {
