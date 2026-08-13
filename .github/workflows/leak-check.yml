@@ -19,15 +19,26 @@ jobs:
 
       - name: Verify the reserved-term list is configured
         # Trusted runs only: a push to a protected branch, or a PR from a
-        # branch in this repository. Fork PRs never receive secrets, so the
+        # branch in this repository that was opened by a real account.
+        #
+        # Fork PRs and Dependabot PRs never receive Actions secrets, so the
         # value is expected to be empty there and the scan skips the
         # reserved-term category by design.
+        #
+        # The Dependabot test keys off the ACTOR, never the branch name. A
+        # branch prefix is chosen by whoever pushes it, so gating on a
+        # "dependabot/" prefix would let anyone with write access skip this
+        # hard fail at will. GitHub sets the actor.
         #
         # On a trusted run an empty value means the list is not configured on
         # this repository, and the scan would report green while checking for
         # nothing. Fail loudly instead. The term count is printed; the terms
         # themselves never are.
-        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        if: >-
+          github.actor != 'dependabot[bot]'
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+          && (github.event_name == 'push'
+              || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           OW_RESERVED_TERMS: ${{ secrets.OW_RESERVED_TERMS }}
         run: |
@@ -38,6 +49,19 @@ jobs:
           fi
           COUNT=$(printf '%s\n' "$OW_RESERVED_TERMS" | grep -cvE '^[[:space:]]*(#|$)' || true)
           echo "Reserved-term list is configured on this repository ($COUNT terms)."
+
+      - name: Report that the reserved-term category cannot run here
+        # A green check on these runs covers the structural checks only. In
+        # the scan script the skip is one dim line in the log, so without
+        # this notice a green reads as "the full scan passed" when category
+        # 1 never ran.
+        if: >-
+          github.actor == 'dependabot[bot]'
+          || github.event.pull_request.user.login == 'dependabot[bot]'
+          || (github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name != github.repository)
+        run: |
+          echo "::notice title=Reserved-term scan skipped::Category 1, reserved terms, did not run on this pull request. GitHub withholds Actions secrets from Dependabot runs and from fork runs, so OW_RESERVED_TERMS is empty here and category 1 has nothing to check against. A green check on this run means the structural checks passed, not the full scan. The full scan runs on the push to dev after merge."
 
       - name: Run pre-publish leak scan
         # Fails the job (and the required check) if any leak is found.

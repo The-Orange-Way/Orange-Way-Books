@@ -167,7 +167,7 @@ export default function StepReporting({ data, onChange, onNext, onBack }: Props)
         <div className="space-y-2">
           <Label>Timezone</Label>
           <Select value={data.timezone} onValueChange={(v) => onChange({ ...data, timezone: v })}>
-            <SelectTrigger>
+            <SelectTrigger data-testid="onboarding-timezone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
