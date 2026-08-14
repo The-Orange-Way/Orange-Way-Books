@@ -157,6 +157,13 @@ const OR_LINK_WIDGET_URL =
   (import.meta.env.VITE_OR_LINK_WIDGET_URL as string | undefined) ??
   'https://orangerails.com/connect';
 
+// Bank-connect feature flag. The or-link-mint-token edge function and the
+// platform-slug registration on the OR side must both be confirmed live
+// before setting this to 'true'. Off by default so merge does not expose
+// a broken button while those dependencies are still unconfirmed.
+const BANK_CONNECT_ENABLED =
+  (import.meta.env.VITE_BANK_CONNECT_ENABLED as string | undefined) === 'true';
+
 // TODO: OR's provider catalog should drive this list dynamically
 // (filtered to bank-category providers) so OWB never diverges from what
 // OR actually offers, same as V2, which holds zero hardcoded providers.
@@ -303,6 +310,9 @@ export default function Connections() {
   const bankPopupRef = useRef<Window | null>(null);
   const bankPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bankPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks the active postMessage handler so stopBankConnectWatchers can
+  // remove it on error, unmount, and popup-closed paths, not just success.
+  const onMessageRef = useRef<((event: MessageEvent) => void) | null>(null);
 
   // Resolve org + subaccount on mount.
   useEffect(() => {
@@ -651,6 +661,10 @@ export default function Connections() {
       clearTimeout(bankPollTimeoutRef.current);
       bankPollTimeoutRef.current = null;
     }
+    if (onMessageRef.current) {
+      window.removeEventListener('message', onMessageRef.current);
+      onMessageRef.current = null;
+    }
     if (bankPopupRef.current && !bankPopupRef.current.closed) {
       bankPopupRef.current.close();
     }
@@ -692,18 +706,18 @@ export default function Connections() {
         throw new Error('Orange Rails returned an empty widget token. Please retry in a moment.');
       }
 
-      const credentialsKeyB64 = await exportOrCredsKey();
-
       const url = new URL(BANK_PROVIDER.connectPath, OR_LINK_WIDGET_URL);
       url.searchParams.set('platform', 'orange-way-books');
       url.searchParams.set('app_user_id', orgId);
       url.searchParams.set('provider', BANK_PROVIDER.slug);
       url.searchParams.set('return_to', window.location.href);
-      // Fragment so neither the credentials key nor the widget token reach
-      // OR's server logs; only the widget's JS reads window.location.hash.
-      url.hash =
-        `cred_key=${encodeURIComponent(credentialsKeyB64)}` +
-        `&widget_token=${encodeURIComponent(mint.widget_token)}`;
+      // Fragment keeps the widget token out of OR's server logs;
+      // only the widget's JS reads window.location.hash.
+      // The credentials key is intentionally NOT passed here: the widget
+      // only needs widget_token to authenticate with Quiltt. The key is
+      // re-exported inside finishConnectionSetup when or-discover-wallets
+      // needs it, so it never crosses into the widget's browsing context.
+      url.hash = `widget_token=${encodeURIComponent(mint.widget_token)}`;
 
       const popup = window.open(url.toString(), 'or-link-quiltt', 'width=520,height=720');
       if (!popup) {
@@ -742,6 +756,7 @@ export default function Connections() {
           '[Connections] OR_LINK_WIDGET_URL is not a valid URL, postMessage path disabled, relying on the poll fallback only.',
         );
       } else {
+        onMessageRef.current = onMessage;
         window.addEventListener('message', onMessage);
       }
 
@@ -780,7 +795,6 @@ export default function Connections() {
   }, [
     subaccountId,
     orgId,
-    exportOrCredsKey,
     finishConnectionSetup,
     stopBankConnectWatchers,
     refreshList,
@@ -1224,19 +1238,21 @@ export default function Connections() {
                 Sync all
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => void handleConnectBank()}
-              disabled={bankConnectBusy}
-              data-testid="connections-connect-bank"
-            >
-              {bankConnectBusy ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Landmark className="w-4 h-4 mr-2" />
-              )}
-              Connect a bank
-            </Button>
+            {BANK_CONNECT_ENABLED && (
+              <Button
+                variant="outline"
+                onClick={() => void handleConnectBank()}
+                disabled={bankConnectBusy}
+                data-testid="connections-connect-bank"
+              >
+                {bankConnectBusy ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Landmark className="w-4 h-4 mr-2" />
+                )}
+                Connect a bank
+              </Button>
+            )}
             <Button onClick={() => setAddOpen(true)} data-testid="connections-add">
               + Add connection
             </Button>
