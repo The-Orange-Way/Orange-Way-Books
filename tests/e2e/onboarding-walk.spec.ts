@@ -38,9 +38,9 @@ import fs from 'node:fs';
 
 const OPT_IN = process.env.E2E_ONBOARDING_WALK === '1';
 
-const EMAIL = 'e2e@orangewaybooks.test';
-const PASSWORD = 'OwbE2E-Stable-2026!Pw';
-const VAULT_PW = 'OwbE2EVault-Stable-2026!';
+const EMAIL = process.env.OWB_DEV_E2E_EMAIL || 'e2e@orangewaybooks.test';
+const PASSWORD = process.env.OWB_DEV_E2E_PASSWORD || 'OwbE2E-Stable-2026!Pw';
+const VAULT_PW = process.env.OWB_DEV_E2E_VAULT_PASSWORD || 'OwbE2EVault-Stable-2026!';
 const ORG_NAME = 'OWB E2E Org';
 
 // Pin to OWB DEV ref. Refuses to run if env points elsewhere.
