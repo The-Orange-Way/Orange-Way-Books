@@ -213,6 +213,14 @@ jobs:
           fi
           echo "zero-spec guard correctly failed on a zero-executed report"
 
+      # DL-0947: on a red E2E run, write the failing assertion label into the
+      # run summary so it is readable on the run page without downloading and
+      # unzipping the artifact. Pairs with the github reporter in
+      # playwright.config.ts, which emits ::error:: annotations per failure.
+      - name: Summarize E2E failures
+        if: failure()
+        run: bun tests/e2e/scripts/summarize-failures.mjs playwright-report/results.json
+
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
