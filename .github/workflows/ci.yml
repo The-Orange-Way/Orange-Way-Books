@@ -185,12 +185,13 @@ jobs:
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          # DL-0720/0721: run the onboarding walk (fiscal-start + timezone
-          # readback) ONLY on trusted post-merge push to dev or prod, the same
-          # guard the provision step above uses so the walk's fixture is seeded
-          # exactly when it runs. On PR runs this is '0' and the walk skips,
+          # DL-0947 TEMPORARY: hardcoded to '1' so the onboarding walk EXECUTES
+          # on this PR run and QA can confirm it passes, not merely skips. REVERT
+          # in the merge commit to the push-guarded expression:
+          #   ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')) && '1' || '0' }}
+          # which runs the walk ONLY on trusted post-merge push to dev or prod,
           # keeping its org-delete-and-rewalk side effects off the PR suite.
-          E2E_ONBOARDING_WALK: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')) && '1' || '0' }}
+          E2E_ONBOARDING_WALK: '1'
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
