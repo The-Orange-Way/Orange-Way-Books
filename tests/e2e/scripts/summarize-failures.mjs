@@ -34,7 +34,9 @@ const reportPath = process.argv[2];
 const heading = '### E2E failing assertions (DL-0947)';
 
 if (!reportPath || !fs.existsSync(reportPath)) {
-  emit(`${heading}\n\n_no Playwright JSON report at ${reportPath || '<none>'}; nothing to summarize_`);
+  const where = reportPath || '<none>';
+  const note = `${heading}\n\n_no Playwright JSON report at ${where}; nothing to summarize_`;
+  emit(note);
   process.exit(0);
 }
 
@@ -49,7 +51,14 @@ try {
 const lines = [];
 
 function firstLine(text) {
-  return String(text || '').split('\n')[0].trim();
+  const str = String(text || '');
+  return str.split('\n')[0].trim();
+}
+
+function collectErrors(result) {
+  if (result.errors && result.errors.length) return result.errors;
+  if (result.error) return [result.error];
+  return [];
 }
 
 function walk(suite) {
@@ -58,10 +67,9 @@ function walk(suite) {
     for (const test of spec.tests || []) {
       for (const result of test.results || []) {
         if (result.status === 'failed' || result.status === 'timedOut') {
-          const errors = result.errors && result.errors.length
-            ? result.errors
-            : (result.error ? [result.error] : []);
-          const msg = errors.map((e) => firstLine(e.message)).filter(Boolean).join(' | ');
+          const errors = collectErrors(result);
+          const parts = errors.map((e) => firstLine(e.message));
+          const msg = parts.filter(Boolean).join(' | ');
           lines.push(`- **${spec.title || 'spec'}** (${result.status})${msg ? ': ' + msg : ''}`);
         }
       }
@@ -72,9 +80,7 @@ function walk(suite) {
 
 for (const suite of report.suites || []) walk(suite);
 
-const body = lines.length
-  ? lines.join('\n')
-  : '_no failing spec found in the report_';
+const body = lines.length ? lines.join('\n') : '_no failing spec found in the report_';
 
 emit(`${heading}\n\n${body}`);
 process.exit(0);
