@@ -52,9 +52,9 @@ describe('vaultGateBlocker', () => {
   it('does not blame strength for a short password', () => {
     // A five-character password used to be told it needed to be stronger,
     // when what it needed was to be longer.
-    expect(vaultGateBlocker({ ...READY, password: 'abc', confirm: 'abc', strongEnough: false })).toBe(
-      'length',
-    );
+    expect(
+      vaultGateBlocker({ ...READY, password: 'abc', confirm: 'abc', strongEnough: false }),
+    ).toBe('length');
   });
 
   it('reports mismatch, which previously showed nothing at all', () => {

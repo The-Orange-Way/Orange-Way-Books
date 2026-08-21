@@ -303,7 +303,9 @@ export function StepVaultPassword(props: OnboardingStepProps) {
         >
           <p className="font-medium">{VAULT_GATE_COPY.strength}</p>
           {strength?.warning ? <p>{strength.warning}</p> : null}
-          {strength?.suggestions.map((suggestion) => <p key={suggestion}>{suggestion}</p>)}
+          {strength?.suggestions.map((suggestion) => (
+            <p key={suggestion}>{suggestion}</p>
+          ))}
         </div>
       ) : null}
       <Input

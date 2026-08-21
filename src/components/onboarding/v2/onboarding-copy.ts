@@ -111,10 +111,10 @@ export const VERIFY_COPY = {
  * What the vault password step says when the Continue button is disabled, one
  * string per blocking condition, plus the acknowledgement label.
  *
- * NOT locked and not from the 2026-07-30 spec: the spec predates the sibling
- * app's PR #322, which was filed because a real beta user met a greyed-out
- * button with no message and could not tell what to change. Wording is ported
- * from that shipped fix so both apps say the same thing, and it is CX's to
+ * NOT locked and not from the 2026-07-30 spec: the spec predates the fix this
+ * wording comes from, which was written after a beta user met a greyed-out
+ * button with no message and could not tell what to change. Ported from the
+ * sibling app's shipped version so both say the same thing, and it is CX's to
  * reword. If CX changes it, change the sibling app in the same breath.
  *
  * Which of these shows is decided in src/lib/vault-gate.ts, never here, and
@@ -129,7 +129,6 @@ export const VAULT_GATE_COPY = {
   mismatch: "Passwords don't match. Re-type to confirm.",
   acknowledgement:
     'Confirm you understand that losing your password means losing access to your books.',
-  acknowledgementLabel:
-    'I understand this password cannot be recovered without my recovery kit.',
+  acknowledgementLabel: 'I understand this password cannot be recovered without my recovery kit.',
   emptyMeter: 'Enter a password',
 };

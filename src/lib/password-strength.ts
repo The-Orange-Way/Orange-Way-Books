@@ -29,8 +29,8 @@ export type ZxcvbnScore = 0 | 1 | 2 | 3 | 4;
 /**
  * Minimum acceptable zxcvbn score. 4 is "very strong".
  *
- * Ruled by the CTO and concurred by Security on the sibling app's PR #322 and
- * deliberately not lowered for convenience: vaults derive with Argon2id, and
+ * Settled by a security review on the sibling app and deliberately not
+ * lowered for convenience: vaults derive with Argon2id, and
  * against a memory-hard KDF a score-3 passphrase is still a real weakness on a
  * self-custody surface. v1's onboarding step already gates at 4. Do not lower
  * this to make a screen easier to pass.
