@@ -195,9 +195,9 @@ try {
     .click();
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
 
-  await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30000 }).catch(() => {});
+  await page.waitForSelector('text=Save your recovery kit', { timeout: 30000 }).catch(() => {});
   await page
-    .locator('label:has-text("I have saved my recovery code")')
+    .locator('label:has-text("I have saved my recovery kit")')
     .click()
     .catch(() => {});
   await page.waitForTimeout(500);
