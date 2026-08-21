@@ -69,6 +69,44 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   });
 }
 
+// Read back through PostgREST with the service key, which bypasses RLS. That is
+// the point: it answers "does this row exist" rather than "can this caller see
+// it", so a row hidden by a policy and a row that was never written stop looking
+// the same. Distinguishing those two is exactly what this script could not do
+// before, and it is why a broken fixture read as a healthy one for eight days.
+function restGetJson(supaUrl, secretKey, pathAndQuery) {
+  return new Promise((res, rej) => {
+    const u = new URL(supaUrl + pathAndQuery);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'GET',
+        headers: {
+          apikey: secretKey,
+          Authorization: `Bearer ${secretKey}`,
+          Accept: 'application/json',
+        },
+      },
+      (r) => {
+        let b = '';
+        r.on('data', (c) => (b += c));
+        r.on('end', () => {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(b);
+          } catch {
+            parsed = null;
+          }
+          res({ status: r.statusCode, body: b, json: parsed });
+        });
+      },
+    );
+    req.on('error', rej);
+    req.end();
+  });
+}
+
 (async () => {
   // Source the DEV Supabase URL + secret (service) key. In CI both arrive as
   // env vars from GitHub Actions secrets; locally they fall back to the Jarvis
@@ -112,6 +150,23 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   const page = await ctx.newPage();
 
+  // Collect the two signals that actually explain a failed onboarding: browser
+  // console errors, and non-2xx replies from Supabase. Previously both were
+  // discarded, so when the org insert failed the run printed nothing about it
+  // and exited 0. These are printed only on failure, so a healthy run stays quiet.
+  const consoleErrors = [];
+  const httpFailures = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300));
+  });
+  page.on('response', async (r) => {
+    if (r.status() < 400 || !/supabase\.co/.test(r.url())) return;
+    const body = await r.text().catch(() => '');
+    httpFailures.push(
+      `${r.status()} ${r.request().method()} ${new URL(r.url()).pathname} ${body.slice(0, 300)}`,
+    );
+  });
+
   console.log('→ sign in');
   await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
   await page.fill('input[type="email"]', EMAIL);
@@ -123,9 +178,9 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   await page.waitForTimeout(2000);
 
   // Three possible states:
-  //   (a) onboarding wizard — first-time user
-  //   (b) vault unlock screen — already onboarded
-  //   (c) dashboard — already onboarded + unlocked (unlikely on fresh session)
+  //   (a) onboarding wizard: first-time user
+  //   (b) vault unlock screen: already onboarded
+  //   (c) dashboard: already onboarded + unlocked (unlikely on fresh session)
   const onboardVisible = await page
     .locator('text=Set Up Orange Way Books')
     .isVisible({ timeout: 3000 })
@@ -145,7 +200,7 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
       .isVisible()
       .catch(() => false);
     if (stillLocked) {
-      console.error('  unlock rejected — vault pw drift');
+      console.error('  unlock rejected, vault pw drift');
       process.exit(2);
     }
     console.log('  unlock OK');
@@ -186,21 +241,48 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     await page.waitForTimeout(2000);
     const orgIn = page.locator('input:visible').first();
     if ((await orgIn.count()) > 0) await orgIn.fill('OWB E2E Org').catch(() => {});
-    for (let i = 0; i < 6; i++) {
+
+    // Step through Organization, Reporting and Calendar to the commit button.
+    // Every iteration says which step it is on and which button it pressed. The
+    // previous version swallowed each click in an empty catch and broke out of
+    // the loop without a word when no enabled button matched, so a walk that
+    // stalled on step 2 was indistinguishable from one that finished.
+    let committed = false;
+    for (let i = 0; i < 8; i++) {
       await page.waitForTimeout(1000);
+      const stepLabel = await page
+        .locator('text=/Step \\d of \\d/')
+        .first()
+        .innerText()
+        .catch(() => '(no step marker)');
       const btn = page
         .locator('button:visible:not([disabled])')
         .filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i })
         .first();
-      if ((await btn.count()) === 0) break;
+      if ((await btn.count()) === 0) {
+        console.log(`  stalled on ${stepLabel}: no enabled button to advance`);
+        break;
+      }
+      const label = (await btn.innerText().catch(() => '')).trim();
+      console.log(`  ${stepLabel}: clicking "${label}"`);
       try {
-        await btn.click({ force: true, timeout: 1500 });
-      } catch {}
+        await btn.click({ force: true, timeout: 5000 });
+      } catch (e) {
+        console.log(`  click on "${label}" failed: ${String(e.message || e).slice(0, 160)}`);
+        break;
+      }
+      if (/create organization|finish|get started|done/i.test(label)) {
+        committed = true;
+        break;
+      }
+    }
+    if (!committed) {
+      console.log('  never reached the commit button');
     }
     console.log('  waiting 25s for ledger bootstrap');
     await page.waitForTimeout(25000);
   } else {
-    console.log('→ neither onboarding nor unlock visible — assume already authenticated');
+    console.log('→ neither onboarding nor unlock visible, assume already authenticated');
   }
 
   // Sanity: at the end we should be able to reach /app without bouncing back to /login
@@ -208,10 +290,73 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   await page.waitForTimeout(2000);
   const url = page.url();
   if (url.includes('/login')) {
-    console.error('  ended up at /login — session lost');
+    console.error('  ended up at /login, session lost');
     process.exit(3);
   }
   console.log('→ final URL:', url);
+
+  // The real check. Reaching /app proves nothing on its own: App.tsx renders the
+  // onboarding wizard for ANY route while the user has no org membership, so a
+  // user who never got an organization still lands on /app looking healthy. That
+  // is precisely how this script reported success on every run from 2026-08-13
+  // while the fixture had no org, and why three specs failed for eight days with
+  // a fifteen second timeout that named none of this.
+  //
+  // So ask the database the same question App.tsx asks, with the service key so
+  // RLS cannot mask the answer, and refuse to exit 0 unless the row is there.
+  console.log('→ verifying the fixture really is onboarded');
+  // Resolve the id from the auth admin API rather than from the browser. The
+  // session in localStorage would also answer, but that blob carries the access
+  // and refresh tokens, and the safe way to handle a secret is not to read it in
+  // the first place. This asks by email and gets back only what is needed.
+  const listed = await restGetJson(owb.url, owb.secret, `/auth/v1/admin/users?page=1&per_page=200`);
+  // GoTrue has returned both {users: [...]} and a bare array across versions, so
+  // accept either rather than reading a shape and calling a mismatch a failure.
+  const users = Array.isArray(listed.json)
+    ? listed.json
+    : listed.json && Array.isArray(listed.json.users)
+      ? listed.json.users
+      : null;
+  if (listed.status >= 400 || users === null) {
+    // Exit 4 means this check could not run. Exit 5 below means it ran and the
+    // fixture is genuinely broken. Keeping those apart matters: a checker that
+    // reddens a run by malfunctioning is the same failure this commit removes.
+    console.error(`✗ auth admin lookup failed: HTTP ${listed.status}, unexpected body shape`);
+    process.exit(4);
+  }
+  const found = users.find((u) => (u.email || '').toLowerCase() === EMAIL.toLowerCase());
+  const userId = found && found.id;
+  if (!userId) {
+    console.error(`✗ auth admin lookup returned ${users.length} users, none matching the fixture`);
+    process.exit(4);
+  }
+
+  const membership = await restGetJson(
+    owb.url,
+    owb.secret,
+    `/rest/v1/org_members?select=org_id,role&user_id=eq.${encodeURIComponent(userId)}`,
+  );
+  const rows = Array.isArray(membership.json) ? membership.json : [];
+  if (membership.status >= 400 || rows.length === 0) {
+    console.error('');
+    console.error('✗ PROVISIONING FAILED: the fixture user has no organization.');
+    console.error(`  org_members lookup: HTTP ${membership.status}, ${rows.length} row(s)`);
+    console.error('  The specs that sign in and unlock a vault CANNOT pass in this state:');
+    console.error('  with no membership the app renders onboarding, so there is no vault');
+    console.error('  to unlock and no app shell to find.');
+    if (httpFailures.length) {
+      console.error('  Supabase replies that failed during the walk:');
+      for (const f of httpFailures.slice(0, 10)) console.error('    ' + f);
+    } else {
+      console.error('  No failing Supabase reply was seen during the walk.');
+    }
+    if (consoleErrors.length) {
+      console.error('  Browser console errors during the walk:');
+      for (const c of consoleErrors.slice(0, 10)) console.error('    ' + c);
+    }
+    process.exit(5);
+  }
+  console.log(`  onboarded: ${rows.length} org membership row(s), role ${rows[0].role}`);
 
   fs.mkdirSync(CREDS_DIR, { recursive: true });
   const credsPath = path.join(CREDS_DIR, 'e2e-creds.json');
