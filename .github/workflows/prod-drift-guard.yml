@@ -1,0 +1,98 @@
+name: prod-drift-guard
+
+# Fails loud when this repo's prod branch has drifted from dev.
+# Two independent conditions, either one fails the job:
+#   1. prod leads dev: any commit in prod that is not in dev. Never allowed.
+#   2. dev runs too far ahead of prod: unpromoted commits over the divergence
+#      limit (50 commits, or the oldest unpromoted commit older than 3 days).
+# A branch that cannot be resolved exits non-zero. "Could not check" is never green.
+
+on:
+  push:
+    branches: [dev, prod]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  drift-guard:
+    runs-on: ubuntu-latest
+    env:
+      BASE_BRANCH: dev
+      HEAD_BRANCH: prod
+      BEHIND_COMMIT_LIMIT: '50'
+      BEHIND_DAYS_LIMIT: '3'
+    steps:
+      - name: Check prod vs dev drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "repo: $REPO  base(dev): $BASE_BRANCH  head(prod): $HEAD_BRANCH"
+
+          # Resolve both refs. A missing branch must exit non-zero, never pass.
+          for ref in "$BASE_BRANCH" "$HEAD_BRANCH"; do
+            if ! sha="$(gh api "repos/${REPO}/git/ref/heads/${ref}" --jq '.object.sha' 2>reserr.log)"; then
+              echo "::error::could not resolve branch '${ref}' in ${REPO}. Refusing to report green." >&2
+              cat reserr.log >&2
+              exit 1
+            fi
+            echo "resolved ${ref} = ${sha}"
+          done
+
+          fail=0
+
+          # 1. prod ahead of dev: commits in prod not in dev. Must be 0.
+          ahead_json="$(gh api "repos/${REPO}/compare/${BASE_BRANCH}...${HEAD_BRANCH}")"
+          prod_ahead="$(echo "$ahead_json" | jq -r '.ahead_by')"
+          if [ "$prod_ahead" = "null" ] || [ -z "$prod_ahead" ]; then
+            echo "::error::compare returned no ahead_by; refusing to pass." >&2
+            exit 1
+          fi
+          echo "prod is ahead of dev by ${prod_ahead} commit(s)"
+          if [ "$prod_ahead" -gt 0 ]; then
+            echo "::error::prod has ${prod_ahead} commit(s) that are NOT in dev. prod must never lead dev." >&2
+            echo "$ahead_json" | jq -r '.commits[] | "  prod-only \(.sha[0:9]) \(.commit.message | split("\n")[0])"' >&2
+            fail=1
+          fi
+
+          # 2. dev ahead of prod: unpromoted commits over the divergence limit.
+          behind_json="$(gh api "repos/${REPO}/compare/${HEAD_BRANCH}...${BASE_BRANCH}")"
+          unpromoted="$(echo "$behind_json" | jq -r '.ahead_by')"
+          if [ "$unpromoted" = "null" ] || [ -z "$unpromoted" ]; then
+            echo "::error::compare returned no ahead_by for unpromoted count; refusing to pass." >&2
+            exit 1
+          fi
+          echo "dev has ${unpromoted} unpromoted commit(s) ahead of prod"
+
+          if [ "$unpromoted" -gt "$BEHIND_COMMIT_LIMIT" ]; then
+            echo "::error::dev is ${unpromoted} commits ahead of prod, over the ${BEHIND_COMMIT_LIMIT}-commit limit. Promote dev to prod." >&2
+            fail=1
+          fi
+
+          if [ "$unpromoted" -gt 0 ]; then
+            oldest_date="$(echo "$behind_json" | jq -r '.commits[0].commit.committer.date')"
+            if [ "$oldest_date" = "null" ] || [ -z "$oldest_date" ]; then
+              echo "::error::have unpromoted commits but could not read the oldest commit date; refusing to pass." >&2
+              exit 1
+            fi
+            oldest_epoch="$(date -u -d "$oldest_date" +%s)"
+            now_epoch="$(date -u +%s)"
+            age_days=$(( (now_epoch - oldest_epoch) / 86400 ))
+            echo "oldest unpromoted commit is ${age_days} day(s) old (${oldest_date})"
+            if [ "$age_days" -gt "$BEHIND_DAYS_LIMIT" ]; then
+              echo "::error::oldest unpromoted commit is ${age_days} days old, over the ${BEHIND_DAYS_LIMIT}-day limit. Promote dev to prod." >&2
+              fail=1
+            fi
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "prod-drift-guard: FAIL (see errors above)"
+            exit 1
+          fi
+          echo "prod-drift-guard: PASS (prod within limits of dev)"
