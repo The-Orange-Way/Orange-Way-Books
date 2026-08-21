@@ -198,7 +198,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await vaultSetup.fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').first().fill(VAULT_PW);
     await page.locator('button:has-text("Continue")').first().click();
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30_000 });
+    await page.waitForSelector('text=Save your recovery kit', { timeout: 30_000 });
 
     // 04 — recovery code visible, capture words
     const wordsByPos: Record<number, string> = await page.evaluate(() => {
