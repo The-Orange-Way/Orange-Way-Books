@@ -74,6 +74,174 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
 // it", so a row hidden by a policy and a row that was never written stop looking
 // the same. Distinguishing those two is exactly what this script could not do
 // before, and it is why a broken fixture read as a healthy one for eight days.
+/**
+ * Walk onboarding v2.
+ *
+ * Kept separate from the v1 walk below rather than merged into it. The two
+ * flows share a purpose and almost no selectors: every step differs from v1 in
+ * either its heading, its input placeholder, or its button label, so a single
+ * walk that tried to satisfy both would be one that quietly matches neither.
+ *
+ * The wizard is seven steps (name, email, education, vault password, recovery
+ * kit with a staged verify, success) and is followed by a SEPARATE two screen
+ * organization surface. That surface, not the wizard, is what writes the
+ * organization and the org_members OWNER row, so it is the only part the
+ * fixture actually depends on. Everything before it is preamble.
+ *
+ * Every step is clicked by its exact button label and every wait is on the
+ * thing the next action needs, never a fixed sleep. When a button never
+ * becomes clickable the walk exits non-zero and names the screen it stopped
+ * on, because the failure this whole script exists to remove is the silent
+ * one: a walk that stalls halfway and still reports success.
+ *
+ * Exit codes used here, kept distinct so a run says what broke:
+ *   6  the email step asked for a one time code, which this script cannot read
+ *   7  the recovery kit rendered no words, so no vault was created
+ *   8  the organization surface never finished, so no organization exists
+ *   9  some other wizard step never offered a clickable button
+ */
+async function walkOnboardingV2(page, vaultPw) {
+  // Exact match, not substring: Playwright's has-text is a case insensitive
+  // substring test, and "Continue" is a substring of "Confirm and continue".
+  // Waits for enabled, not merely visible, because half of this flow's buttons
+  // start disabled and a click on a disabled button is a silent no-op.
+  const clickCta = async (label, screen, code) => {
+    const btn = page.getByRole('button', { name: label, exact: true }).first();
+    const deadline = Date.now() + 20000;
+    for (;;) {
+      const ready =
+        (await btn.isVisible().catch(() => false)) && (await btn.isEnabled().catch(() => false));
+      if (ready) break;
+      if (Date.now() > deadline) {
+        console.error(`  v2 stopped on ${screen}: the "${label}" button never became clickable.`);
+        process.exit(code);
+      }
+      await page.waitForTimeout(500);
+    }
+    console.log(`  ${screen}: clicking "${label}"`);
+    await btn.click();
+  };
+
+  // Step 1, name. Optional, but fill it rather than skipping: a provisioned
+  // user that looks like a real one exercises the path a customer takes.
+  const nameInput = page.locator('input[placeholder="First name"]').first();
+  if ((await nameInput.count()) > 0) await nameInput.fill('OWB E2E');
+  await clickCta('Continue', 'v2 step 1 (name)', 9);
+
+  // Step 2, email. This wizard mounts post-auth, so the step should recognise
+  // the session it is already inside and offer a plain Continue. If it instead
+  // shows the one time code stage, stop here and say so: this script has no
+  // inbox, so there is no code it could ever type, and every later step would
+  // then fail on a selector that has nothing to do with the real cause.
+  const signedIn = await page
+    .locator('text=Signed in as')
+    .isVisible({ timeout: 10000 })
+    .catch(() => false);
+  if (!signedIn) {
+    console.error('  v2 stopped on step 2 (email): it asked an already authenticated user');
+    console.error('  for a one time code. This script cannot receive email.');
+    process.exit(6);
+  }
+  await clickCta('Continue', 'v2 step 2 (email)', 9);
+
+  // Step 3, education. A single acknowledgement.
+  await clickCta('Got it', 'v2 step 3 (education)', 9);
+
+  // Step 4, vault password. Argon2id at 64 MiB runs on the click, so the wait
+  // for the recovery kit that follows is deliberately generous.
+  await page.locator('input[placeholder="Vault password"]').fill(vaultPw);
+  await page.locator('input[placeholder="Confirm vault password"]').fill(vaultPw);
+  await clickCta('Set my password', 'v2 step 4 (vault password)', 9);
+
+  // Step 5a, recovery kit. v2 renders the words as list items carrying no
+  // per word test id, so read them positionally: each item is the position
+  // label followed by the word. Keyed from 1 to match the verify inputs, which
+  // are indexed from 0 against the same word list.
+  await page.waitForSelector('[data-testid="recovery-words"]', { timeout: 30000 });
+  const wordsByPos = await page.evaluate(() => {
+    const map = {};
+    const items = document.querySelectorAll('[data-testid="recovery-words"] > li');
+    items.forEach((li, index) => {
+      const spans = li.querySelectorAll(':scope > span');
+      const word = (spans[1] ? spans[1].textContent || '' : '').trim();
+      if (/^[a-z]+$/.test(word)) map[index + 1] = word;
+    });
+    return map;
+  });
+  const captured = Object.keys(wordsByPos).length;
+  console.log('  words captured:', captured);
+  if (captured === 0) {
+    console.error('  v2 stopped on step 5 (recovery kit): it rendered no words,');
+    console.error('  which means the vault was never created.');
+    process.exit(7);
+  }
+  const ack = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
+  if ((await ack.count()) > 0)
+    await ack.check({ force: true }).catch(async () => {
+      await ack.click({ force: true }).catch(() => {});
+    });
+  await clickCta("I've written it down", 'v2 step 5 (recovery kit)', 9);
+
+  // Step 5b, the staged verify. Same step, second stage, and its Confirm stays
+  // disabled until the typed words actually match, so a wrong capture above
+  // surfaces here as a stall rather than as a pass.
+  await page.waitForSelector('[data-testid="recovery-verify-block"]', { timeout: 15000 });
+  for (const input of await page.locator('[data-testid^="verify-word-"]').all()) {
+    const testId = await input.getAttribute('data-testid');
+    const position = parseInt(testId.match(/verify-word-(\d+)$/)[1], 10);
+    const word = wordsByPos[position + 1];
+    if (word) await input.fill(word);
+  }
+  await clickCta('Confirm and continue', 'v2 step 5b (verify recovery words)', 9);
+
+  // Step 6, success. The wizard is not finished until this is clicked: it is
+  // the last step, so its Next is what hands control to the organization
+  // surface. Skipping it was why the walk previously arrived at the org screens
+  // that were never mounted.
+  await clickCta('Make my first entry', 'v2 step 6 (success)', 9);
+
+  // Organization setup. TWO screens, not one, and this is the phase that
+  // actually writes the organization and the org_members OWNER row.
+  const orgName = page.locator('#org-name');
+  try {
+    await orgName.waitFor({ state: 'visible', timeout: 20000 });
+  } catch {
+    console.error('  v2 stopped after the wizard: the organization name field never rendered,');
+    console.error('  so the organization surface did not mount.');
+    process.exit(8);
+  }
+  await orgName.fill('OWB E2E Org');
+  await clickCta('Continue', 'org setup screen 1 of 2 (name)', 8);
+
+  const currency = page.locator('#primary-currency');
+  try {
+    await currency.waitFor({ state: 'visible', timeout: 15000 });
+  } catch {
+    console.error('  v2 stopped on org setup screen 1 of 2: the currency screen never arrived.');
+    process.exit(8);
+  }
+  // The final button stays disabled until a primary currency is chosen, and the
+  // select opens on a disabled placeholder, so this has to be set explicitly.
+  // The value is read out of the DOM rather than named here: the list comes
+  // from the currency registry, and a walk that hardcodes one code is a walk
+  // that breaks the day that entry moves.
+  const currencyValue = await page.$eval('#primary-currency', (el) => {
+    const option = Array.from(el.options).find((o) => !o.disabled && o.value);
+    return option ? option.value : '';
+  });
+  if (!currencyValue) {
+    console.error('  v2 stopped on org setup screen 2 of 2: the primary currency select');
+    console.error('  offered no enabled option, so its button can never enable.');
+    process.exit(8);
+  }
+  await page.selectOption('#primary-currency', currencyValue);
+  console.log(`  primary currency: ${currencyValue}`);
+  await clickCta('Open my books', 'org setup screen 2 of 2 (currencies)', 8);
+
+  console.log('  waiting 25s for ledger bootstrap');
+  await page.waitForTimeout(25000);
+}
+
 function restGetJson(supaUrl, secretKey, pathAndQuery) {
   return new Promise((res, rej) => {
     const u = new URL(supaUrl + pathAndQuery);
@@ -185,6 +353,23 @@ function restGetJson(supaUrl, secretKey, pathAndQuery) {
     .locator('text=Set Up Orange Way Books')
     .isVisible({ timeout: 3000 })
     .catch(() => false);
+  // Onboarding v2 (VITE_ONBOARDING_V2) is a different wizard, not a reskin of
+  // v1, so it needs its own walk. It opens on the name step instead of the
+  // vault password, its password inputs carry different placeholders, its
+  // buttons are labelled per step rather than all "Continue", and it publishes
+  // the recovery words as plain list items without the per-word test ids v1
+  // exposes. Detect it by the heading of its first step.
+  //
+  // Worth a separate check rather than a looser selector, because getting it
+  // wrong is not a loud failure: the v1 heading never appears under v2, so the
+  // walk would fall through to the "already authenticated" branch, reach /app
+  // (where the wizard renders for a user with no organization) and report
+  // success having created nothing.
+  const v2Visible = await page
+    .locator('text=What should we call you?')
+    .isVisible({ timeout: 3000 })
+    .catch(() => false);
+
   const unlockVisible = await page
     .locator('text="Unlock your encrypted vault"')
     .isVisible({ timeout: 1500 })
@@ -204,6 +389,9 @@ function restGetJson(supaUrl, secretKey, pathAndQuery) {
       process.exit(2);
     }
     console.log('  unlock OK');
+  } else if (v2Visible) {
+    console.log('\u2192 walking onboarding v2');
+    await walkOnboardingV2(page, VAULT_PW);
   } else if (onboardVisible) {
     console.log('→ walking onboarding');
     await page.locator('input[placeholder*="Minimum 14"]').fill(VAULT_PW);
