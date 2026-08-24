@@ -1,12 +1,16 @@
 import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  CaptchaWidget,
+  CAPTCHA_REQUIRED,
+  type TurnstileInstance,
+} from '@/components/auth/CaptchaWidget';
 
 // Onboarding v2 creates accounts through signInWithOtp({ shouldCreateUser:
 // true }), so those users never get a Supabase password. Password sign-in is
@@ -16,27 +20,18 @@ import { useToast } from '@/hooks/use-toast';
 //
 // Adapted, not copied: the sibling REPLACED its password form, because it
 // could branch on a flag and had no password users to strand. Here the code
-// path is additive and password sign-in is untouched. Two reasons. Accounts
-// predating v2 still have a password and nothing else would let them in, and
-// six e2e specs sign in through input[type="password"] on this page (see
-// tests/e2e/lib/auth.ts and the /login render assertion in the full suite).
-// Removing the field would redden all of them for no user-visible gain.
+// path is additive and the password path keeps its behaviour. Two reasons.
+// Accounts predating v2 still have a password and nothing else would let them
+// in, and six e2e specs sign in through input[type="password"] on this page
+// (see tests/e2e/lib/auth.ts and the /login render assertion in the full
+// suite). The default view gains one text link; what those specs depend on is
+// that the password field is still here and that the form still offers exactly
+// one submit control, and both hold.
 type OtpStage = 'address' | 'code';
 
 // Matches the onboarding code input, which is capped at six digits. Auth must
 // be configured to issue codes of the same length or the two disagree.
 const OTP_LENGTH = 6;
-
-// Same key the signup page uses. Unset in local dev, which is why every use
-// below is guarded: with no key we render no widget and send no token, and
-// the page behaves exactly as it did before.
-//
-// This is the BUILD-time Turnstile key, which is a different thing from the
-// captcha switch in the Supabase Auth dashboard. Auth only enforces a token
-// when that switch is on. Sending one while it is off is harmless, so this
-// is safe to ship ahead of the switch being flipped and it has to be: with
-// the switch on and no token, every send fails.
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -54,9 +49,38 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // A captcha token is single use: Auth spends it on the request whether that
+  // request succeeded or failed. Clear it and reset the widget after every
+  // attempt so the next one can acquire a fresh token. Without this a mistyped
+  // password would leave the form permanently unsubmittable, and "Resend code"
+  // could never obtain the token its own send requires.
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
+  };
+
+  // The submit controls are already disabled without a token, so this is the
+  // belt to that braces: it keeps a programmatic submit (Enter in a field, a
+  // test, a password manager) from firing a request Auth will only reject.
+  const captchaMissing = () => {
+    if (!CAPTCHA_REQUIRED || captchaToken) return false;
+    toast({
+      title: 'Complete the challenge',
+      description: 'Please complete the captcha challenge before continuing.',
+      variant: 'destructive',
+    });
+    return true;
+  };
+
   const handleLogin = async () => {
+    if (captchaMissing()) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken ?? undefined },
+    });
+    resetCaptcha();
     setLoading(false);
     if (error) {
       // Intentionally generic: Supabase's raw error distinguishes "user not
@@ -84,14 +108,7 @@ export default function LoginPage() {
       });
       return;
     }
-    if (TURNSTILE_SITE_KEY && !captchaToken) {
-      toast({
-        title: 'Finish the challenge',
-        description: 'Please complete the captcha challenge before continuing.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (captchaMissing()) return;
     setOtpLoading(true);
     // shouldCreateUser stays false on every sign-in path. The signup flow is
     // the only place allowed to bring an account into existence; if this were
@@ -102,13 +119,7 @@ export default function LoginPage() {
       options: { shouldCreateUser: false, captchaToken: captchaToken ?? undefined },
     });
     setOtpLoading(false);
-    // A Turnstile token is single use and Auth spends it on the call above,
-    // so the widget has to re-issue before "Resend code" can work. Clear it
-    // on every outcome, success included: keeping a spent token would leave
-    // the resend button enabled and the retry would fail for a reason the
-    // user cannot see.
-    setCaptchaToken(null);
-    captchaRef.current?.reset();
+    resetCaptcha();
     if (error) {
       // Same reasoning as handleResetPassword below: the outcome is reported
       // identically whether or not an account exists, so this page cannot be
@@ -130,6 +141,10 @@ export default function LoginPage() {
 
   const handleVerifyCode = async () => {
     setOtpLoading(true);
+    // No captchaToken here on purpose: Auth does not challenge the verify
+    // step, and the send above already spent the one the widget issued. See
+    // the table in CaptchaWidget.
+    //
     // type 'email' is the code-in-the-body variant. 'magiclink' is the one
     // that only ever arrives as a clickable URL, which is what we are
     // avoiding. Same choice the onboarding step makes.
@@ -160,13 +175,16 @@ export default function LoginPage() {
       });
       return;
     }
+    if (captchaMissing()) return;
     setResetLoading(true);
     // Supabase's resetPasswordForEmail() is safe to show identically for
     // existing and non-existing addresses: the provider silently no-ops on
     // unknown emails. So we always display the same success toast.
     await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
+      captchaToken: captchaToken ?? undefined,
     });
+    resetCaptcha();
     setResetLoading(false);
     setResetMode(false);
     toast({
@@ -179,10 +197,9 @@ export default function LoginPage() {
     setOtpMode(false);
     setOtpStage('address');
     setOtpToken('');
-    // The widget unmounts with the code path, so drop the token with it
-    // rather than letting a stale one survive into the next visit.
-    setCaptchaToken(null);
-    captchaRef.current?.reset();
+    // Leaving the code path abandons whatever token is in hand, so drop it
+    // rather than letting a stale one survive into the next attempt.
+    resetCaptcha();
   };
 
   // One submit handler so the Enter key does the same thing as the visible
@@ -289,23 +306,17 @@ export default function LoginPage() {
                 />
               </div>
             )}
-            {otpMode && TURNSTILE_SITE_KEY && (
-              <div className="flex justify-center">
-                <Turnstile
-                  ref={captchaRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken(null)}
-                  onError={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
+            {/* Mounted on every mode, not just the code path. All four sending
+                calls this page can make are challenged, "Resend code"
+                included, and the widget renders nothing when no site key is
+                configured. */}
+            <CaptchaWidget ref={captchaRef} onToken={setCaptchaToken} />
             {resetMode ? (
               <div className="flex flex-col gap-2">
                 <Button
                   type="button"
                   className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-                  disabled={resetLoading}
+                  disabled={resetLoading || (CAPTCHA_REQUIRED && !captchaToken)}
                   onClick={handleResetPassword}
                 >
                   {resetLoading ? 'Sending…' : 'Send reset link'}
@@ -325,7 +336,7 @@ export default function LoginPage() {
                   <Button
                     type="button"
                     className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-                    disabled={otpLoading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
+                    disabled={otpLoading || (CAPTCHA_REQUIRED && !captchaToken)}
                     onClick={handleSendCode}
                   >
                     {otpLoading ? 'Sending…' : 'Send code'}
@@ -344,9 +355,7 @@ export default function LoginPage() {
                       type="button"
                       variant="outline"
                       className="w-full"
-                      disabled={
-                        otpLoading || resendLocked || (!!TURNSTILE_SITE_KEY && !captchaToken)
-                      }
+                      disabled={otpLoading || resendLocked || (CAPTCHA_REQUIRED && !captchaToken)}
                       onClick={handleSendCode}
                     >
                       {resendLocked ? 'Resend code in a moment' : 'Resend code'}
@@ -362,7 +371,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-                  disabled={loading}
+                  disabled={loading || (CAPTCHA_REQUIRED && !captchaToken)}
                 >
                   {loading ? 'Signing in…' : 'Sign In'}
                 </Button>
