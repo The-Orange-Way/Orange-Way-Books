@@ -69,6 +69,124 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   });
 }
 
+/**
+ * Walk onboarding v2.
+ *
+ * Kept separate from the v1 walk above rather than merged into it. The two
+ * flows share a purpose and almost no selectors, and a single walk that tried
+ * to satisfy both would be one that quietly matches neither: every step here
+ * differs from v1 in either its heading, its input placeholder, or its button
+ * label.
+ *
+ * Step order is name, email, education, vault password, recovery kit, verify.
+ * Every wait below is on the thing the next action needs, not a fixed sleep,
+ * so a step that never arrives fails where it happened rather than several
+ * steps later on a mystery selector.
+ */
+async function walkOnboardingV2(page, vaultPw) {
+  const clickCta = async (label) => {
+    const btn = page.locator(`button:has-text("${label}")`).first();
+    await btn.waitFor({ state: 'visible', timeout: 15000 });
+    await btn.click({ force: true });
+  };
+
+  // Step 1, name. Optional, but fill it rather than skipping: a provisioned
+  // user that looks like a real one exercises the same path a customer takes.
+  console.log('  v2 step: name');
+  const nameInput = page.locator('input[placeholder="First name"]').first();
+  if ((await nameInput.count()) > 0) await nameInput.fill('OWB E2E');
+  await clickCta('Continue');
+
+  // Step 2, email. The wizard mounts post-auth, so this step should recognise
+  // the session it is already inside and offer a plain Continue. If it instead
+  // shows the one-time code stage, stop here and say so: this script has no
+  // inbox, so there is no code it could ever type, and every later step would
+  // fail on a selector that has nothing to do with the real cause.
+  console.log('  v2 step: email');
+  const signedIn = await page
+    .locator('text=Signed in as')
+    .isVisible({ timeout: 10000 })
+    .catch(() => false);
+  if (!signedIn) {
+    console.error('  v2 email step asked for a one-time code for an already authenticated user.');
+    console.error('  This script cannot receive email, so the walk cannot continue.');
+    process.exit(6);
+  }
+  await clickCta('Continue');
+
+  // Step 3, education. A single acknowledgement.
+  console.log('  v2 step: education');
+  await clickCta('Got it');
+
+  // Step 4, vault password. Argon2id at 64 MiB runs on the click, so the wait
+  // for the recovery kit that follows is deliberately generous.
+  console.log('  v2 step: vault password');
+  await page.locator('input[placeholder="Vault password"]').fill(vaultPw);
+  await page.locator('input[placeholder="Confirm vault password"]').fill(vaultPw);
+  await clickCta('Set my password');
+
+  // Step 5, recovery kit. v2 renders the words as list items carrying no
+  // per-word test id, so read them positionally: each item is the position
+  // label followed by the word. Keyed from 1 to match the verify inputs below,
+  // which are indexed from 0 against the same word list.
+  console.log('  v2 step: recovery kit');
+  await page.waitForSelector('[data-testid="recovery-words"]', { timeout: 30000 });
+  const wordsByPos = await page.evaluate(() => {
+    const map = {};
+    const items = document.querySelectorAll('[data-testid="recovery-words"] > li');
+    items.forEach((li, index) => {
+      const spans = li.querySelectorAll(':scope > span');
+      const word = (spans[1] ? spans[1].textContent || '' : '').trim();
+      if (/^[a-z]+$/.test(word)) map[index + 1] = word;
+    });
+    return map;
+  });
+  const captured = Object.keys(wordsByPos).length;
+  console.log('  words captured:', captured);
+  if (captured === 0) {
+    console.error('  recovery kit rendered no words. The vault was not created.');
+    process.exit(7);
+  }
+  const ack = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
+  if ((await ack.count()) > 0)
+    await ack.check({ force: true }).catch(async () => {
+      await ack.click({ force: true }).catch(() => {});
+    });
+  await clickCta("I've written it down");
+
+  // Step 6, verify. Same test ids as v1, indexed from 0 into the word list.
+  console.log('  v2 step: verify recovery words');
+  await page.waitForSelector('[data-testid="recovery-verify-block"]', { timeout: 15000 });
+  for (const input of await page.locator('[data-testid^="verify-word-"]').all()) {
+    const testId = await input.getAttribute('data-testid');
+    const position = parseInt(testId.match(/verify-word-(\d+)$/)[1], 10);
+    const word = wordsByPos[position + 1];
+    if (word) await input.fill(word);
+  }
+  await clickCta('Confirm and continue');
+
+  // Organization setup, which is where the org and the org_members row are
+  // actually written. Everything above this point is preamble as far as the
+  // fixture is concerned.
+  console.log('  v2 step: organization setup');
+  await page.waitForTimeout(2000);
+  const orgInput = page.locator('input:visible').first();
+  if ((await orgInput.count()) > 0) await orgInput.fill('OWB E2E Org').catch(() => {});
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(1000);
+    const btn = page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i })
+      .first();
+    if ((await btn.count()) === 0) break;
+    try {
+      await btn.click({ force: true, timeout: 1500 });
+    } catch {}
+  }
+  console.log('  waiting 25s for ledger bootstrap');
+  await page.waitForTimeout(25000);
+}
+
 (async () => {
   // Source the DEV Supabase URL + secret (service) key. In CI both arrive as
   // env vars from GitHub Actions secrets; locally they fall back to the Jarvis
@@ -130,6 +248,23 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
     .locator('text=Set Up Orange Way Books')
     .isVisible({ timeout: 3000 })
     .catch(() => false);
+  // Onboarding v2 (VITE_ONBOARDING_V2) is a different wizard, not a reskin of
+  // v1, so it needs its own walk. It opens on the name step instead of the
+  // vault password, its password inputs carry different placeholders, its
+  // buttons are labelled per step rather than all "Continue", and it publishes
+  // the recovery words as plain list items without the per-word test ids v1
+  // exposes. Detect it by the heading of its first step.
+  //
+  // Getting this wrong is not a loud failure, which is why it is worth a
+  // separate check rather than a looser selector: the v1 heading below simply
+  // never appears under v2, so the walk would fall through to the "already
+  // authenticated" branch, reach /app (where the wizard renders for a user
+  // with no organization), and report success having created nothing.
+  const v2Visible = await page
+    .locator('text=What should we call you?')
+    .isVisible({ timeout: 3000 })
+    .catch(() => false);
+
   const unlockVisible = await page
     .locator('text="Unlock your encrypted vault"')
     .isVisible({ timeout: 1500 })
@@ -149,6 +284,9 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
       process.exit(2);
     }
     console.log('  unlock OK');
+  } else if (v2Visible) {
+    console.log('→ walking onboarding v2');
+    await walkOnboardingV2(page, VAULT_PW);
   } else if (onboardVisible) {
     console.log('→ walking onboarding');
     await page.locator('input[placeholder*="Minimum 14"]').fill(VAULT_PW);
