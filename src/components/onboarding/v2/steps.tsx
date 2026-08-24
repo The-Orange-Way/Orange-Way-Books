@@ -10,7 +10,7 @@
  * this flow does not re-implement it, it will call it. Every seam is marked
  * TODO(DL-0414).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
@@ -75,8 +75,24 @@ export function StepEmail(props: OnboardingStepProps) {
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Non-null when a live Supabase session exists on mount. OWB mounts this
+  // wizard post-auth (VaultGate requires a session), so the OTP round trip
+  // is a re-verification of an email the user already authenticated with.
+  // When this is set we skip OTP entirely and show a Continue button instead.
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const copy = ONBOARDING_COPY.email;
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      const se = data.session?.user?.email ?? null;
+      if (se) {
+        setSessionEmail(se);
+        setEmail(se);
+        setEmailVerified(true);
+      }
+    });
+  }, [setEmail, setEmailVerified]);
 
   const sendCode = async () => {
     setBusy(true);
@@ -112,6 +128,16 @@ export function StepEmail(props: OnboardingStepProps) {
     setEmailVerified(true);
     props.onNext();
   };
+
+  if (sessionEmail) {
+    return (
+      <StepShell {...props} title="Email">
+        <p>
+          Signed in as <strong>{sessionEmail}</strong>
+        </p>
+      </StepShell>
+    );
+  }
 
   if (stage === 'code') {
     return (
