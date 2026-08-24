@@ -138,4 +138,10 @@ GRANT EXECUTE ON FUNCTION public.create_org_for_current_user(
   text, text, integer, text, text
 ) TO authenticated;
 
+GRANT EXECUTE ON FUNCTION public.create_org_for_current_user(
+  text, integer,
+  text, text, text, text, text, text, text, text, text, integer,
+  text, text, integer, text, text
+) TO service_role;
+
 NOTIFY pgrst, 'reload schema';
