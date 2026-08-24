@@ -82,7 +82,7 @@ describe('recovery code entropy', () => {
 
     const expected = DRAWS / N;
     let chi = 0;
-    for (const c of counts) chi += ((c - expected) ** 2) / expected;
+    for (const c of counts) chi += (c - expected) ** 2 / expected;
 
     // df = 2047, sd = sqrt(2*df) ~= 64. Six sigma either side. The lower
     // bound matters too: a chi-square far below df means the output is too
