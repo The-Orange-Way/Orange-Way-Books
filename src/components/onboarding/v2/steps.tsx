@@ -10,13 +10,13 @@
  * this flow does not re-implement it, it will call it. Every seam is marked
  * TODO(DL-0414).
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
 import type { OnboardingStepProps } from './onboarding-flow';
 import { useOnboardingState, verifyRecoveryWords } from './onboarding-state';
-import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
+import { ONBOARDING_COPY, SUCCESS_COPY, VAULT_GATE_COPY, VERIFY_COPY } from './onboarding-copy';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import {
@@ -25,10 +25,10 @@ import {
   RECOVERY_VERIFY_MODE,
   RECOVERY_WORD_COUNT,
   VERIFY_WORD_COUNT,
-  STRENGTH_LABELS,
-  passwordScore,
   pickVerifyPositions,
 } from './step-helpers';
+import { vaultGateBlocker } from '@/lib/vault-gate';
+import { MIN_ZXCVBN_SCORE, STRENGTH_LABELS, scorePassword } from '@/lib/password-strength';
 
 export function StepName(props: OnboardingStepProps) {
   // TODO(DL-0414): lift to flow state. The name is written to the profile row
@@ -195,12 +195,34 @@ export function StepVaultPassword(props: OnboardingStepProps) {
   const { setRecoveryCode, setVaultSetup } = useOnboardingState();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const copy = ONBOARDING_COPY.vaultPassword;
-  const score = passwordScore(password);
-  const matches = password.length > 0 && password === confirm;
-  const strongEnough = password.length >= PASSWORD_MIN_LENGTH && score >= 3;
+
+  // zxcvbn, the same scorer and the same threshold v1 already gates on. It is
+  // fast enough to run per keystroke without a debounce.
+  const strength = useMemo(() => scorePassword(password), [password]);
+  const strongEnough = strength !== null && strength.score >= MIN_ZXCVBN_SCORE;
+  const longEnough = password.length >= PASSWORD_MIN_LENGTH;
+  const canContinue = longEnough && strongEnough && password === confirm && understood;
+
+  // Which of those conditions to say out loud, decided in one place.
+  //
+  // The button used to be disabled by a bare conjunction with a single
+  // "Strength: Good" line beside it and nothing else. Someone who typed a
+  // fourteen-character password that scored 3 got a dead button and no way to
+  // learn what to change; someone who typed five characters was told to make
+  // it stronger rather than longer. Keeping the choice in a tested function
+  // means the disabled state and the explanation cannot drift apart, which is
+  // the failure the sibling app shipped a fix for. See src/lib/vault-gate.ts.
+  const blocker = vaultGateBlocker({
+    password,
+    confirm,
+    strongEnough,
+    understood,
+    minLength: PASSWORD_MIN_LENGTH,
+  });
 
   const createVault = async () => {
     setBusy(true);
@@ -231,7 +253,7 @@ export function StepVaultPassword(props: OnboardingStepProps) {
       onNext={() => void createVault()}
       title={copy.headline}
       nextLabel={copy.cta}
-      nextDisabled={!strongEnough || !matches}
+      nextDisabled={!canContinue}
       busy={busy}
       busyLabel="Creating your vault..."
       error={error}
@@ -246,6 +268,46 @@ export function StepVaultPassword(props: OnboardingStepProps) {
         aria-label="Vault password"
         className="mt-6"
       />
+      <div className="mt-2 flex justify-between text-xs">
+        <span
+          className={longEnough ? 'text-muted-foreground' : 'text-destructive'}
+          data-testid="vault-password-length"
+        >
+          {password.length}/{PASSWORD_MIN_LENGTH} characters
+        </span>
+        <span
+          className={
+            strength === null
+              ? 'text-muted-foreground'
+              : strength.score >= MIN_ZXCVBN_SCORE
+                ? 'text-green-600 dark:text-green-400'
+                : strength.score >= 2
+                  ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-destructive'
+          }
+          aria-live="polite"
+          data-testid="vault-password-strength"
+        >
+          {strength === null ? VAULT_GATE_COPY.emptyMeter : STRENGTH_LABELS[strength.score]}
+        </span>
+      </div>
+      {blocker === 'length' ? (
+        <p className="mt-2 text-xs text-destructive" data-testid="vault-gate-length">
+          {VAULT_GATE_COPY.length}
+        </p>
+      ) : null}
+      {blocker === 'strength' ? (
+        <div
+          className="mt-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2 text-xs text-yellow-900 dark:text-yellow-200"
+          data-testid="vault-gate-strength"
+        >
+          <p className="font-medium">{VAULT_GATE_COPY.strength}</p>
+          {strength?.warning ? <p>{strength.warning}</p> : null}
+          {strength?.suggestions.map((suggestion) => (
+            <p key={suggestion}>{suggestion}</p>
+          ))}
+        </div>
+      ) : null}
       <Input
         type="password"
         value={confirm}
@@ -255,10 +317,24 @@ export function StepVaultPassword(props: OnboardingStepProps) {
         aria-label="Confirm vault password"
         className="mt-3"
       />
-      <p className="mt-3 text-sm" aria-live="polite">
-        Strength: {STRENGTH_LABELS[score]}
-        {password.length > 0 && !matches ? ' (passwords do not match yet)' : ''}
-      </p>
+      {blocker === 'mismatch' ? (
+        <p className="mt-2 text-xs text-destructive" data-testid="vault-gate-mismatch">
+          {VAULT_GATE_COPY.mismatch}
+        </p>
+      ) : null}
+      <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm">
+        <Checkbox
+          checked={understood}
+          onCheckedChange={(value) => setUnderstood(value === true)}
+          className="mt-0.5"
+        />
+        <span>{VAULT_GATE_COPY.acknowledgementLabel}</span>
+      </label>
+      {blocker === 'acknowledgement' ? (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="vault-gate-acknowledgement">
+          {VAULT_GATE_COPY.acknowledgement}
+        </p>
+      ) : null}
     </StepShell>
   );
 }

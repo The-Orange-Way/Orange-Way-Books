@@ -127,7 +127,7 @@ jobs:
           cat /tmp/vite-preview.log || true
           exit 1
 
-      # Cache Playwright browser binaries between runs — saves ~25s of
+      # Cache Playwright browser binaries between runs, saves ~25s of
       # `playwright install` per run on a cache hit.
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -185,12 +185,26 @@ jobs:
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          # DL-0720/0721: run the onboarding walk (fiscal-start + timezone
-          # readback) ONLY on trusted post-merge push to dev or prod, the same
-          # guard the provision step above uses so the walk's fixture is seeded
-          # exactly when it runs. On PR runs this is '0' and the walk skips,
-          # keeping its org-delete-and-rewalk side effects off the PR suite.
-          E2E_ONBOARDING_WALK: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')) && '1' || '0' }}
+          # Held at '0' on every event. This previously read '1' on pushes to
+          # dev and prod, and that one character is what has kept dev E2E red
+          # since 2026-08-13.
+          #
+          # onboarding-walk.spec.ts deletes the SHARED e2e fixture user's
+          # organizations in beforeAll, on purpose, so it can walk a fresh
+          # signup. Its own walk then fails, so the org is never recreated, and
+          # every spec that sorts after it (owb-full-suite B3 vault unlock,
+          # rls-isolation) finds a user with no org and no vault. Provisioning
+          # is skipped on pull_request runs, so nothing restores the fixture and
+          # the next PR is red too, which is why no PR has been able to recover.
+          #
+          # The spec's own header already says "Skipped by default ... run
+          # manually before promotes". Turning it on for automated pushes
+          # contradicted that contract. This restores it.
+          #
+          # Re-enabling needs two things first: the walk must stop touching the
+          # shared fixture (its own dedicated user), and its own failure must be
+          # fixed. Until both land, running it costs three other specs.
+          E2E_ONBOARDING_WALK: '0'
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
