@@ -85,7 +85,15 @@ export function StepEmail(props: OnboardingStepProps) {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
-      const se = data.session?.user?.email ?? null;
+      const session = data.session;
+      // Only auto-advance on a session that is present AND still live. A stale
+      // token left in storage is truthy, and must not skip verification for
+      // someone who is no longer signed in. expires_at is unix seconds.
+      const live =
+        !!session &&
+        typeof session.expires_at === 'number' &&
+        session.expires_at * 1000 > Date.now();
+      const se = live ? (session.user?.email ?? null) : null;
       if (se) {
         setSessionEmail(se);
         setEmail(se);
