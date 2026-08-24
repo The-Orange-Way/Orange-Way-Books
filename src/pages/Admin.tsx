@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import { useVault } from '@/context/VaultContext';
+import { MONTH_NAMES } from '@/lib/months';
 import {
   Settings,
   Users,
@@ -60,6 +62,14 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { toast } from 'sonner';
 import { ImportPopup } from '@/components/ui/import-popup';
 import type { ImportPreviewRow, ImportResult } from '@/components/ui/import-popup';
@@ -167,21 +177,6 @@ const CURRENCIES = [
   'ZAR',
   'NZD',
 ];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
 const IE_GROUPS = [
   { name: 'Sales', type: 'INCOME' },
   { name: 'Other Income', type: 'INCOME' },
@@ -886,11 +881,11 @@ function OrganizationTab({
                     setSettings((p) => ({ ...p, fiscal_start_month: Number(v) }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="admin-fiscal-month">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MONTHS.map((m, i) => (
+                    {MONTH_NAMES.map((m, i) => (
                       <SelectItem key={m} value={String(i + 1)}>
                         {m}
                       </SelectItem>
@@ -900,7 +895,7 @@ function OrganizationTab({
               </div>
               <div className="flex-1">
                 <Label className="text-xs text-muted-foreground">End Month</Label>
-                <Input disabled value={MONTHS[fiscalEnd]} />
+                <Input disabled value={MONTH_NAMES[fiscalEnd]} />
               </div>
             </div>
           )}
@@ -1028,7 +1023,7 @@ function OrganizationTab({
             value={settings.timezone}
             onValueChange={(v) => setSettings((p) => ({ ...p, timezone: v }))}
           >
-            <SelectTrigger className="max-w-xs">
+            <SelectTrigger className="max-w-xs" data-testid="admin-timezone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

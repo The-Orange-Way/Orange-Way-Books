@@ -1,7 +1,7 @@
 name: Post-merge identity + leak scan
 
-# Scans every commit that just landed on a protected branch for private-
-# host strings in:
+# Scans every commit that just landed on a protected branch for
+# reserved-term strings in:
 #   - commit message body (Co-authored-by trailers, body text)
 #   - author name + email
 #   - committer name + email
@@ -9,12 +9,10 @@ name: Post-merge identity + leak scan
 # This catches the class of leak the pre-push gate cannot see: GitHub
 # auto-adds Co-authored-by trailers to squash / rebase merge commits at
 # merge time, and the trailer email comes from each contributor's local
-# git config. If a contributor's user.email contains a Tailscale tail-net
-# hostname or any other internal-only string, the merge commit silently
-# carries that string into public history.
+# git config. If a contributor's user.email contains an internal-only
+# string, the merge commit silently carries that string into public
+# history.
 #
-# We learned this the hard way on 2026-06-19, when ~91 commits had to be
-# rewritten because a local git config carried `.ts.net` in user.email.
 # The pre-push gate at scripts/pre-push-gate.sh blocks the same class of
 # leak at push time on the contributor's laptop, but only if the gate is
 # installed. This workflow is the server-side belt to that suspenders.
@@ -22,6 +20,12 @@ name: Post-merge identity + leak scan
 on:
   push:
     branches: [dev, prod]
+
+# This job only reads history and greps commits; it writes nothing to
+# GitHub state. Pin the token to read-only instead of inheriting the
+# repository default scope.
+permissions:
+  contents: read
 
 jobs:
   identity-scan:
@@ -32,6 +36,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Fetch both protected branches for range exclusion
+        run: git fetch origin dev prod --no-tags
 
       - name: Determine range to scan
         id: range
@@ -46,69 +53,105 @@ jobs:
           if [ "$BEFORE" = "$ZERO" ]; then
             echo "range=$AFTER -1" >> "$GITHUB_OUTPUT"
           else
-            echo "range=$BEFORE..$AFTER" >> "$GITHUB_OUTPUT"
+            # Exclude commits already reachable from the other protected branch.
+            # This prevents back-merge commits (prod->dev or dev->prod) from
+            # re-scanning the entire merged ancestry that was already checked when
+            # it first landed on the source branch. The merge commit itself is
+            # always new on the receiving branch and is always included.
+            if [ "${{ github.ref_name }}" = "dev" ]; then
+              if ! git rev-parse --verify origin/prod >/dev/null 2>&1; then
+                echo "::error::origin/prod does not resolve after fetch; cannot compute exclusion range."
+                exit 1
+              fi
+              echo "range=$BEFORE..$AFTER ^origin/prod" >> "$GITHUB_OUTPUT"
+            else
+              if ! git rev-parse --verify origin/dev >/dev/null 2>&1; then
+                echo "::error::origin/dev does not resolve after fetch; cannot compute exclusion range."
+                exit 1
+              fi
+              echo "range=$BEFORE..$AFTER ^origin/dev" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
-      - name: Scan author + committer + body for private-host patterns
+      - name: Scan author + committer + body for reserved-term patterns
         env:
-          # Pattern must stay in lockstep with scripts/pre-push-gate.sh's
-          # PRIVATE_PATTERN. The two scanners answer the same question on
-          # different surfaces (local diff vs server-side commit metadata);
-          # any drift means one of them reports clean for a string the
-          # other would flag. When adding or removing a term here, change
-          # it there too.
-          PATTERN: 'tail[a-z0-9]+\.ts\.net|\.tailnet|\.local\b|wiki\.abascal|wiki\.bitbooks|bb-support|jarvis\.local|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+|@bitbooks\.com|@abascal\.ca|pop-os'
-          # Documentation strip-patterns. Each token is a thing that ONLY
-          # appears in regex / network documentation, never as part of an
-          # accidental leak. A line is checked twice: first against
-          # PATTERN, and if any token here is found in the same line, that
-          # token is replaced with a placeholder and the line is re-scanned
-          # against PATTERN. If the stripped line is clean, the line was
-          # describing the regex (e.g., "widened CIDR from 100.(91|94) to
-          # 100.64.0.0/10 CGNAT block"); if it still matches PATTERN, a real
-          # leak co-exists with the docs (e.g., "the CGNAT block is
-          # 100.64.0.0/10 and our internal server is 100.64.50.20").
-          # Stays in lockstep with scripts/pre-push-gate.sh DOC_STRIP_*.
-          # Examples:
-          #   - "100.64.0.0/10" matches the canonical CGNAT block notation
-          #   - "(91|94)" matches the literal regex-alternation syntax
-          #     ONLY ever used in regex-pattern descriptions
-          DOC_STRIP_CGNAT: '100\.64\.0\.0/10'
-          DOC_STRIP_REGEX_ALT: '\([0-9]+(\|[0-9]+)+\)'
+          # The reserved-term list is NOT hardcoded here: committing it
+          # would publish the very strings it exists to keep out of the
+          # public repo. It lives in the OW_RESERVED_TERMS repository
+          # secret; scripts/pre-push-gate.sh and pre-publish-scan.sh source
+          # the same list locally (env var or gitignored .reserved-terms),
+          # so local and server-side enforcement cannot drift.
+          RAW_PATTERN: ${{ secrets.OW_RESERVED_TERMS }}
           RANGE: ${{ steps.range.outputs.range }}
         run: |
-          set -euo pipefail
-          echo "Scanning range: $RANGE"
-          MATCHES=0
-          while IFS= read -r line; do
-            if echo "$line" | grep -nEi "$PATTERN" >/dev/null; then
-              # Strip the documentation tokens and re-scan the cleaned line.
-              # If the cleaned line is still tripping PATTERN, a real leak
-              # co-exists with the documentation tokens (the docs alone do
-              # not suppress a real co-occurring leak on the same line).
-              cleaned=$(echo "$line" | sed -E "s|${DOC_STRIP_CGNAT}|[CGNAT-BLOCK]|g; s|${DOC_STRIP_REGEX_ALT}|[REGEX-ALT]|g")
-              if ! echo "$cleaned" | grep -nEi "$PATTERN" >/dev/null; then
-                echo "::notice::Allowlisted documentation line (CGNAT block or regex syntax):"
-                echo "  $line"
-                continue
-              fi
-              echo "::error::Private-host pattern found in just-pushed commit metadata:"
-              echo "$line" | grep -nEi --color=never "$PATTERN" || true
-              MATCHES=$((MATCHES + 1))
-            fi
-          done < <(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')
-
-          if [ "$MATCHES" -gt 0 ]; then
-            echo "::error::Identity-scan failed: $MATCHES commit(s) carry private-host strings."
+          set -uo pipefail
+          if [ -z "$RAW_PATTERN" ]; then
+            echo "::error::OW_RESERVED_TERMS repository secret is not set; the identity scan cannot run."
             exit 1
           fi
-          echo "Identity-scan clean: 0 commits carry private-host strings."
+
+          # Canonicalize exactly as scripts/pre-publish-scan.sh does: drop
+          # blank lines and #-comment lines, join the rest into one regex
+          # alternation. Without this a comment line in the secret would be
+          # compiled into the regex as a live fragment. A single-line
+          # "a|b|c" secret passes through unchanged.
+          PATTERN="$(printf '%s\n' "$RAW_PATTERN" \
+            | grep -vE '^[[:space:]]*(#|$)' \
+            | paste -sd'|' - \
+            | sed -e 's/^|*//' -e 's/|*$//')"
+
+          if [ -z "$PATTERN" ]; then
+            echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after dropping comments and blank lines."
+            exit 1
+          fi
+          # Count only. The terms themselves are never printed to a public log.
+          TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
+          echo "Reserved-term list loaded: $TERM_COUNT term(s)."
+
+          echo "Walking range: $RANGE"
+          # Collect commit metadata first; a non-zero exit means git could not
+          # walk the range. An empty result from a failed walk must not be
+          # reported as clean -- fail explicitly instead.
+          COMMIT_DATA="$(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')" \
+            || { echo "::error::git log failed walking range '$RANGE'; the scan cannot run."; exit 1; }
+
+          COMMIT_COUNT=$(printf '%s\n' "$COMMIT_DATA" | grep -c '^[0-9a-f]\{40\} AUTHOR' || true)
+          echo "Commits in range: $COMMIT_COUNT"
+
+          MATCHES=0
+          if [ "$COMMIT_COUNT" -gt 0 ]; then
+            # GitHub auto-injects a "Co-authored-by: <name> <noreply@anthropic.com>"
+            # trailer on squash/rebase merge commits. That address is Anthropic's
+            # public GitHub integration email and the trailer carries no
+            # internal-only identifier, yet a publicly known model name can contain
+            # a reserved-term substring and trip the scan. Drop ONLY that trailer
+            # line before matching; author, committer, and the rest of the body
+            # stay fully in scope so no other line gets a free pass.
+            while IFS= read -r line; do
+              if printf '%s' "$line" | grep -qEi "$PATTERN"; then
+                echo "::error::Reserved-term pattern found in just-pushed commit metadata (redacted; see OW_RESERVED_TERMS)."
+                MATCHES=$((MATCHES + 1))
+              fi
+            done < <(printf '%s\n' "$COMMIT_DATA" \
+                     | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
+          fi
+
+          if [ "$MATCHES" -gt 0 ]; then
+            echo "::error::Identity-scan failed: $MATCHES commit(s) carry reserved-term strings."
+            exit 1
+          fi
+          echo "Identity-scan clean: scanned $COMMIT_COUNT commit(s), 0 reserved-term matches."
 
       - name: Run repo tree pre-publish leak scan (defense in depth)
+        env:
+          OW_RESERVED_TERMS: ${{ secrets.OW_RESERVED_TERMS }}
         run: |
           set -euo pipefail
-          if [ -x scripts/pre-publish-scan.sh ]; then
-            bash scripts/pre-publish-scan.sh
-          else
-            echo "scripts/pre-publish-scan.sh missing; skipping tree scan."
+          # Fail closed: an unrunnable scanner is a broken guard, not a
+          # clean tree. If this step cannot execute the scanner it must go
+          # red, never report a green it did not earn.
+          if [ ! -x scripts/pre-publish-scan.sh ]; then
+            echo "::error::scripts/pre-publish-scan.sh is missing or not executable; the tree scan cannot run."
+            exit 1
           fi
+          bash scripts/pre-publish-scan.sh

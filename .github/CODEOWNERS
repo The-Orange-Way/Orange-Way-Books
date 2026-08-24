@@ -1,29 +1,21 @@
-# CODEOWNERS — who gets auto-requested as a reviewer for each area.
-# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# CODEOWNERS - who gets auto-requested as a reviewer on pull requests.
+#
+# The branch rulesets on this repo do not require code owner review
+# (require_code_owner_review=false on both dev and prod). This file only
+# controls who receives automatic review requests. It is deliberately scoped
+# to security-sensitive paths where a second set of eyes matters under the
+# two-party rule. All other paths produce no automatic request.
 #
 # Format: <pattern>  <owner> [<owner> ...]
-# Match precedence: LAST matching line wins. Catch-all goes first.
 
-# Default owner — every path, unless overridden below.
-*                               @MorningRevolution
-
-# Cryptography and vault primitives — require a crypto-aware reviewer.
+# Cryptography and vault primitives
 /src/lib/vault.ts               @MorningRevolution
 /src/lib/crypto-fields.ts       @MorningRevolution
 /src/context/VaultContext.tsx   @MorningRevolution
 
-# Supabase schema + RLS — migrations are the source of truth.
+# Supabase schema + RLS - migrations are the source of truth.
 /supabase/migrations/           @MorningRevolution
 /supabase/functions/            @MorningRevolution
 
-# vendored ledger fork (Rust) — changes here affect ledger semantics.
-/legacy/                          @MorningRevolution
-
-# Docs — narrative surface of the project.
-/README.md                      @MorningRevolution
-/docs/                          @MorningRevolution
+# Security disclosure surface.
 /SECURITY.md                    @MorningRevolution
-/CODE_OF_CONDUCT.md             @MorningRevolution
-
-# GitHub workflows + community health files.
-/.github/                       @MorningRevolution

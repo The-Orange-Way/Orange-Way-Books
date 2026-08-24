@@ -34,17 +34,30 @@ import { rateLimit } from '../_shared/rate-limit.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-// Canonical Orange Rails API gateway. The Cloudflare Worker at
-// api.orangerails.com proxies /functions/v1/or-* to the live OR
-// project and survives any future OR backend migration without
-// requiring OWB to redeploy. Keep OR_SUPABASE_URL as an override
-// knob for one-off / staging integrations only.
+// Canonical Orange Rails API gateways.
 //
-// Previous comment: the silent empty default routed Connections requests
-// to a dead project ref and surfaced as a
-// confusing 401. The canonical URL fixes that root cause; the gateway
-// re-targets internally if the underlying OR project ever moves.
-const OR_SUPABASE_URL = Deno.env.get('OR_SUPABASE_URL') ?? 'https://api.orangerails.com';
+// OR_URL_ALLOWLIST: the complete set of hosts OR_SUPABASE_URL may take.
+// An operator who tries to point this function at an unrecognized host
+// (for example via a compromised secret store) cannot redirect proxy
+// traffic, and the OR_PLATFORM_API_KEY it carries, to an attacker
+// controlled endpoint. New allowed values require a code-review pass,
+// not just an env-var edit. This mirrors the control ow-or-proxy already
+// enforces in Orange-Way-Me (design-twin parity).
+//
+// Entries:
+//   api.orangerails.com  -- OR production API gateway
+//   api.orangerails.dev  -- OR development API gateway
+const OR_URL_ALLOWLIST = new Set<string>([
+  'https://api.orangerails.com',
+  'https://api.orangerails.dev',
+]);
+const OR_SUPABASE_URL_RAW = Deno.env.get('OR_SUPABASE_URL') ?? 'https://api.orangerails.com';
+const OR_SUPABASE_URL = OR_URL_ALLOWLIST.has(OR_SUPABASE_URL_RAW) ? OR_SUPABASE_URL_RAW : null;
+if (!OR_SUPABASE_URL) {
+  console.error(
+    `[owb-or-proxy] OR_SUPABASE_URL=${OR_SUPABASE_URL_RAW} is not in the allowlist; all requests will 500 until the env var is corrected or the code allowlist is extended.`,
+  );
+}
 const OR_PLATFORM_API_KEY = Deno.env.get('OR_PLATFORM_API_KEY');
 
 // Service-role client used ONLY for rate-limit bookkeeping. All OR
@@ -96,7 +109,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'OR_PLATFORM_API_KEY secret not configured' }, 500, cors);
   }
   if (!OR_SUPABASE_URL) {
-    return jsonResponse({ error: 'OR_SUPABASE_URL secret not configured' }, 500, cors);
+    // OR_SUPABASE_URL was set to a value outside OR_URL_ALLOWLIST (see the
+    // allowlist near the top of the file). Refuse all proxy traffic until
+    // the env var is corrected or the code allowlist is extended via a
+    // reviewed PR.
+    return jsonResponse(
+      {
+        error:
+          'Orange Rails endpoint is not in the function allowlist. This is a deploy-side misconfiguration.',
+      },
+      500,
+      cors,
+    );
   }
 
   try {

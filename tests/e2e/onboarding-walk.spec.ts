@@ -26,6 +26,7 @@
  *   08 — Dashboard renders with NO "Finishing setup…" pill
  *   09 — chart_of_accounts page lists 43 default accounts
  *   10 — master-recovery page renders the heading (React #310 regression)
+ *   11 (DL-0720/0721): admin settings reads back April fiscal start and Eastern timezone
  *
  * Read-only environment: only OWB DEV (project ref allowlisted in the
  * provision script). Refuses to run on PROD.
@@ -53,7 +54,13 @@ interface SupaCreds {
 }
 
 function readSupaCreds(): SupaCreds | null {
-  // Provision script wrote this; reuse rather than re-derive.
+  // In CI the URL and service key arrive as env vars (see the e2e job in
+  // ci.yml), the same source the provision script reads. Env wins. Locally
+  // the file below is the fallback for a dev laptop. If neither is present,
+  // return null and let the caller decide (skip vs throw).
+  const url = process.env.OWB_E2E_SUPABASE_URL;
+  const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+  if (url && secret) return { url, secret };
   try {
     return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
   } catch {
@@ -102,6 +109,12 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
   let supa: SupaCreds | null = null;
 
   test.beforeAll(async () => {
+    // Belt-and-suspenders: the file-level test.skip(!OPT_IN) should prevent
+    // this hook from running when the opt-in env var is absent, but some
+    // Playwright versions execute beforeAll even for skipped tests. Guard
+    // explicitly so the org DELETE never fires without an explicit opt-in.
+    if (!OPT_IN) return;
+
     supa = readSupaCreds();
     if (!supa)
       throw new Error(
@@ -163,7 +176,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
 
   test('walks full onboarding with per-step asserts', async ({ page }) => {
     test.setTimeout(180_000);
-    const baseURL = 'https://books.orangeway.dev';
+    const baseURL = '';
 
     // 01 — /login renders + sign in (user already created by admin-create
     // in beforeAll with email_confirm=true; going to /signup fails because
@@ -191,7 +204,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await vaultSetup.fill(VAULT_PW);
     await page.locator('input[placeholder*="Re-enter"]').first().fill(VAULT_PW);
     await page.locator('button:has-text("Continue")').first().click();
-    await page.waitForSelector('text=Save Your Recovery Code', { timeout: 30_000 });
+    await page.waitForSelector('[data-testid="recovery-code-grid"]', { timeout: 30_000 });
 
     // 04 — recovery code visible, capture words
     const wordsByPos: Record<number, string> = await page.evaluate(() => {
@@ -223,30 +236,51 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     }
     await page.locator('button:has-text("Confirm")').first().click({ force: true });
 
-    // 06 — org name
+    // 06: org name (StepOrganization). Fill the name, then Continue to
+    // advance to StepReporting.
     await page.waitForTimeout(2_000);
     const orgIn = page.locator('input:visible').first();
     await expect(orgIn, 'org name input').toBeVisible({ timeout: 10_000 });
     await orgIn.fill(ORG_NAME);
-    // Click through any remaining "Continue / Create organization / Finish" buttons
-    for (let i = 0; i < 6; i++) {
-      await page.waitForTimeout(1_000);
-      const btn = page
-        .locator('button:visible:not([disabled])')
-        .filter({ hasText: /Continue|Create organization|Finish|Get started|Done|Next/i })
-        .first();
-      if ((await btn.count()) === 0) break;
-      try {
-        await btn.click({ force: true, timeout: 1_500 });
-      } catch {
-        /* may have left the screen */
-      }
-    }
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Continue|Next/i })
+      .first()
+      .click({ force: true });
+
+    // 06b (DL-0721): StepReporting. Set the reporting timezone to Eastern
+    // through the onboarding picker and assert the trigger reflects it, then
+    // Continue. This is the value read back on the Admin page in step 11 to
+    // prove the encrypt/decrypt round-trip.
+    const onbTimezone = page.getByTestId('onboarding-timezone');
+    await expect(onbTimezone, 'onboarding timezone picker').toBeVisible({ timeout: 15_000 });
+    await onbTimezone.click();
+    await page.getByRole('option', { name: 'Eastern Time (US)', exact: true }).click();
+    await expect(onbTimezone, 'onboarding timezone set to Eastern').toContainText('Eastern');
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Continue|Next/i })
+      .first()
+      .click({ force: true });
+
+    // 06c (DL-0720): StepCalendar. Set the fiscal year start to April through
+    // the onboarding picker, assert the trigger reflects it, then Create
+    // Organization (the final wizard step, which runs handleFinish).
+    const onbFiscal = page.getByTestId('onboarding-fiscal-month');
+    await expect(onbFiscal, 'onboarding fiscal-month picker').toBeVisible({ timeout: 15_000 });
+    await onbFiscal.click();
+    await page.getByRole('option', { name: 'April', exact: true }).click();
+    await expect(onbFiscal, 'onboarding fiscal month set to April').toContainText('April');
+    await page
+      .locator('button:visible:not([disabled])')
+      .filter({ hasText: /Create Organization|Finish|Done/i })
+      .first()
+      .click({ force: true });
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
-      page.locator('text=Insights').first(),
-      'authenticated shell sidebar after onboarding',
+      page.getByTestId('app-shell').first(),
+      'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
     // 08 — dashboard renders, no "Finishing setup…"
@@ -283,16 +317,42 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     }
     // Wait for sidebar to mount (proves auth shell rendered).
     await expect(
-      page.locator('text=Insights').first(),
-      'sidebar after master-recovery unlock',
+      page.getByTestId('app-shell').first(),
+      'app shell after master-recovery unlock',
     ).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(1_500);
     await expect(
       page
         .locator('h1, h2')
-        .filter({ hasText: /Master recovery code/i })
+        .filter({ hasText: /Master recovery key/i })
         .first(),
       'master-recovery heading must render — React #310 regression',
     ).toBeVisible({ timeout: 15_000 });
+
+    // 11 (DL-0720/0721): admin settings readback. The fiscal-year-start and
+    // timezone chosen during onboarding must survive the client-side
+    // encrypt/decrypt round-trip and render on the Admin settings page. This
+    // is a UI readback: the values are decrypted in the browser. A
+    // service-role DB read would only ever see ciphertext, so it cannot
+    // prove this.
+    await page.goto(`${baseURL}/app/admin`, { waitUntil: 'networkidle' });
+    const adminLock = page.locator('text="Unlock your encrypted vault"').first();
+    if (await adminLock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await page.locator('input[type="password"]').first().fill(VAULT_PW);
+      await page.locator('button:has-text("Unlock Vault")').first().click();
+      await adminLock.waitFor({ state: 'hidden', timeout: 30_000 });
+    }
+    await expect(page.getByTestId('app-shell').first(), 'app shell on admin page').toBeVisible({
+      timeout: 15_000,
+    });
+    await page.waitForTimeout(2_000);
+    await expect(
+      page.getByTestId('admin-fiscal-month'),
+      'admin fiscal-month readback must show April (DL-0720)',
+    ).toContainText('April', { timeout: 15_000 });
+    await expect(
+      page.getByTestId('admin-timezone'),
+      'admin timezone readback must show Eastern (DL-0721)',
+    ).toContainText('Eastern', { timeout: 15_000 });
   });
 });

@@ -20,7 +20,7 @@
  *
  * What gets scrubbed before send:
  *   - object keys matching SECRET_KEY_PATTERNS (password, mek, opk, vault_*,
- *     recovery_code, cred_key, txn_key, seed, private_key, api_key,
+ *     recovery (any recovery* field), cred_key, txn_key, seed, private_key, api_key,
  *     access_token, refresh_token, authorization, jwt, service_role,
  *     decrypted_*, plus plaintext field names like merchant/description)
  *   - string fields run through TOKEN_PATTERNS (URL fragments, query strings,
@@ -57,7 +57,7 @@ const SECRET_KEY_PATTERNS = [
   /opk/i,
   /vault_key/i,
   /vault_password/i,
-  /recovery_code/i,
+  /recovery/i,
   /credentials_key/i,
   /transactions_key/i,
   /cred_key/i,

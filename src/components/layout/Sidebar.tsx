@@ -178,7 +178,7 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
       {/* Logo */}
       <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center gap-2">
-          <span style={{ color: 'var(--color-brand-orange)', fontSize: 18 }}>🔒</span>
+          <img src="/icon-192.png" alt="" width={20} height={20} style={{ borderRadius: 4 }} />
           <span
             style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif",

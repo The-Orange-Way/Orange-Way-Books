@@ -1682,6 +1682,7 @@ export type Database = {
           recovery_ciphertext: string | null
           secondary_currency: string | null
           time_format: string | null
+          timezone: string | null
           vault_key_version: number | null
           vault_salt: string | null
           vault_verifier: string | null
@@ -1713,6 +1714,7 @@ export type Database = {
           recovery_ciphertext?: string | null
           secondary_currency?: string | null
           time_format?: string | null
+          timezone?: string | null
           vault_key_version?: number | null
           vault_salt?: string | null
           vault_verifier?: string | null
@@ -1744,6 +1746,7 @@ export type Database = {
           recovery_ciphertext?: string | null
           secondary_currency?: string | null
           time_format?: string | null
+          timezone?: string | null
           vault_key_version?: number | null
           vault_salt?: string | null
           vault_verifier?: string | null
