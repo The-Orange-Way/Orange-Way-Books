@@ -69,6 +69,47 @@ function adminCreateUser(supaUrl, secretKey, email, password) {
   });
 }
 
+// Delete an auth user by id. Used only to repair a stranded fixture on DEV
+// (see the self-heal block below); the caller runs this strictly after the
+// ALLOWED_PROJECT_REFS guard, so it can never reach a non-dev project.
+function adminDeleteUser(supaUrl, secretKey, userId) {
+  return new Promise((res, rej) => {
+    const u = new URL(supaUrl + '/auth/v1/admin/users/' + userId);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname,
+        method: 'DELETE',
+        headers: {
+          apikey: secretKey,
+          Authorization: `Bearer ${secretKey}`,
+        },
+      },
+      (r) => {
+        let b = '';
+        r.on('data', (c) => (b += c));
+        r.on('end', () => res({ status: r.statusCode, body: b }));
+      },
+    );
+    req.on('error', rej);
+    req.end();
+  });
+}
+
+// Resolve a fixture user's id by email through the auth admin API. Returns
+// null when no user matches. GoTrue has returned both {users: [...]} and a
+// bare array across versions, so accept either shape.
+async function lookupUserId(supaUrl, secretKey, email) {
+  const listed = await restGetJson(supaUrl, secretKey, `/auth/v1/admin/users?page=1&per_page=200`);
+  const users = Array.isArray(listed.json)
+    ? listed.json
+    : listed.json && Array.isArray(listed.json.users)
+      ? listed.json.users
+      : [];
+  const found = users.find((u) => (u.email || '').toLowerCase() === email.toLowerCase());
+  return found ? found.id : null;
+}
+
 // Read back through PostgREST with the service key, which bypasses RLS. That is
 // the point: it answers "does this row exist" rather than "can this caller see
 // it", so a row hidden by a policy and a row that was never written stop looking
@@ -312,6 +353,42 @@ function restGetJson(supaUrl, secretKey, pathAndQuery) {
   } else if (cr.status >= 400) {
     console.error('  user create failed:', cr.body);
     process.exit(1);
+  }
+
+  // Self-heal a stranded fixture. A 422 means the user already existed, and an
+  // existing user cannot be trusted: a previous run may have created the auth
+  // user and a vault but stranded before writing the organization. In that
+  // state sign-in shows the unlock screen, the unlock branch below unlocks the
+  // vault, and the run then falls through to the final membership check and
+  // exits 5 every time without ever repairing the user. So ask the database
+  // up front whether this user has any org membership; if it existed but has
+  // none, delete it and recreate it clean so the onboarding walk runs from a
+  // guaranteed first-time state. This runs after the ALLOWED_PROJECT_REFS
+  // guard above, so the delete can only ever target OWB dev.
+  if (cr.status === 422) {
+    const existingId = await lookupUserId(owb.url, owb.secret, EMAIL);
+    if (existingId) {
+      const m = await restGetJson(
+        owb.url,
+        owb.secret,
+        `/rest/v1/org_members?select=org_id&user_id=eq.${encodeURIComponent(existingId)}`,
+      );
+      const memberRows = Array.isArray(m.json) ? m.json : [];
+      if (m.status < 400 && memberRows.length === 0) {
+        console.log('→ existing fixture has no organization; deleting to re-onboard clean');
+        const del = await adminDeleteUser(owb.url, owb.secret, existingId);
+        if (del.status >= 400) {
+          console.error(`✗ could not delete stranded fixture user: HTTP ${del.status} ${del.body}`);
+          process.exit(1);
+        }
+        const recr = await adminCreateUser(owb.url, owb.secret, EMAIL, PASSWORD);
+        if (recr.status >= 400 && recr.status !== 422) {
+          console.error('  recreate after delete failed:', recr.body);
+          process.exit(1);
+        }
+        console.log('  recreated a clean fixture user');
+      }
+    }
   }
 
   const browser = await chromium.launch({ headless: true });
