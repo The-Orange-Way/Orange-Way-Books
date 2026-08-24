@@ -14,9 +14,24 @@
  * would require and this repo's vitest setup does not provide.
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import OrgSetupSurface from '../OrgSetupSurface';
+import type { OnboardingVaultSetup } from '../onboarding-state';
+
+/**
+ * What the wizard hands over. Not the MEK, not the password, not the recovery
+ * code: a verifier, a public salt, a key version and two wrapped-MEK
+ * ciphertexts. Values are obvious placeholders so an assertion failure names
+ * the field that went missing.
+ */
+const VAULT_SETUP: OnboardingVaultSetup = {
+  verifier: 'verifier-abc',
+  vaultSalt: 'salt-abc',
+  vaultKeyVersion: 1,
+  encMekCiphertext: 'enc-mek-abc',
+  recoveryCiphertext: 'recovery-abc',
+};
 
 // Hoisted so the vi.mock factories below (hoisted above the imports) can close
 // over the same spy instances the assertions read.
@@ -55,11 +70,13 @@ vi.mock('@/lib/init-chart-of-accounts', () => ({
   initChartOfAccounts: async () => {},
 }));
 
+const toastError = vi.hoisted(() => vi.fn());
+
 vi.mock('sonner', () => ({
   toast: Object.assign(() => {}, {
     loading: () => 'toast-id',
     success: () => {},
-    error: () => {},
+    error: toastError,
   }),
 }));
 
@@ -67,7 +84,7 @@ vi.mock('sonner', () => ({
 // Continue button advances to the currency screen.
 function renderAtCurrencyScreen() {
   const onComplete = vi.fn();
-  render(<OrgSetupSurface userId="user-1" onComplete={onComplete} />);
+  render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
   fireEvent.change(screen.getByLabelText('Organization Name'), {
     target: { value: 'Satoshi Holdings Ltd' },
   });
@@ -77,7 +94,7 @@ function renderAtCurrencyScreen() {
 
 describe('OrgSetupSurface screen 1 (organization name)', () => {
   it('keeps Continue disabled until a non-blank name is entered', () => {
-    render(<OrgSetupSurface userId="user-1" onComplete={vi.fn()} />);
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
     const cta = screen.getByRole('button', { name: 'Continue' });
     expect(cta).toBeDisabled();
 
@@ -142,7 +159,7 @@ describe('OrgSetupSurface screen 2 (currencies)', () => {
 describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
   it('creates the org, the OWNER member and settings, then fires onComplete', async () => {
     const onComplete = vi.fn();
-    render(<OrgSetupSurface userId="user-1" onComplete={onComplete} />);
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
 
     fireEvent.change(screen.getByLabelText('Organization Name'), {
       target: { value: 'Acme' },
@@ -163,5 +180,77 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
     );
     expect(upsertMember).toHaveBeenCalledTimes(1);
     expect(insertSettings).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The lockout gap.
+ *
+ * v2 created the vault in the wizard and then dropped the result on the floor
+ * at the phase boundary, so org_settings was written without a verifier, a
+ * salt, a key version or either wrapped-MEK ciphertext. Nothing failed. The
+ * customer finished onboarding, landed on a working dashboard, and could not
+ * open their books on the next login, because the unlock screen reads those
+ * columns by org_id and there was nothing to read. No repair path exists: the
+ * MEK lives only inside the ciphertexts that were never stored.
+ *
+ * The suite above did not catch it because it asserted that the settings
+ * insert HAPPENED, never what it carried. So these assert the payload.
+ */
+describe('OrgSetupSurface persists the vault material (lockout regression)', () => {
+  beforeEach(() => {
+    insertOrg.mockClear();
+    upsertMember.mockClear();
+    insertSettings.mockClear();
+    toastError.mockClear();
+  });
+
+  async function finish(vaultSetup: OnboardingVaultSetup | null) {
+    const onComplete = vi.fn();
+    render(<OrgSetupSurface userId="user-1" vaultSetup={vaultSetup} onComplete={onComplete} />);
+    fireEvent.change(screen.getByLabelText('Organization Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Primary currency'), { target: { value: 'BTC' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
+    return onComplete;
+  }
+
+  it('writes all five vault columns on the org_settings insert', async () => {
+    await finish(VAULT_SETUP);
+
+    await waitFor(() => expect(insertSettings).toHaveBeenCalledTimes(1));
+    expect(insertSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vault_verifier: 'verifier-abc',
+        vault_salt: 'salt-abc',
+        vault_key_version: 1,
+        enc_mek_ciphertext: 'enc-mek-abc',
+        recovery_ciphertext: 'recovery-abc',
+      }),
+    );
+  });
+
+  it('writes them in the same statement as the settings, leaving no window without a verifier', async () => {
+    await finish(VAULT_SETUP);
+
+    // One insert, not an insert followed by an update. If this ever splits in
+    // two, a failure between them leaves an organization nobody can open while
+    // the customer is told everything worked.
+    await waitFor(() => expect(insertSettings).toHaveBeenCalledTimes(1));
+    expect(insertSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ org_id: expect.any(String), vault_verifier: 'verifier-abc' }),
+    );
+  });
+
+  it('refuses to create anything at all when the vault material is missing', async () => {
+    const onComplete = await finish(null);
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    // Nothing was written, so there is no half-made organization to clean up
+    // and no dashboard the customer cannot unlock.
+    expect(insertOrg).not.toHaveBeenCalled();
+    expect(upsertMember).not.toHaveBeenCalled();
+    expect(insertSettings).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
   });
 });

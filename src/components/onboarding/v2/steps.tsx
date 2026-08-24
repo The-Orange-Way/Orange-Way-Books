@@ -10,13 +10,13 @@
  * this flow does not re-implement it, it will call it. Every seam is marked
  * TODO(DL-0414).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
 import type { OnboardingStepProps } from './onboarding-flow';
-import { useOnboardingState } from './onboarding-state';
-import { ONBOARDING_COPY, SUCCESS_COPY, VERIFY_COPY } from './onboarding-copy';
+import { useOnboardingState, verifyRecoveryWords } from './onboarding-state';
+import { ONBOARDING_COPY, SUCCESS_COPY, VAULT_GATE_COPY, VERIFY_COPY } from './onboarding-copy';
 import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import {
@@ -25,10 +25,10 @@ import {
   RECOVERY_VERIFY_MODE,
   RECOVERY_WORD_COUNT,
   VERIFY_WORD_COUNT,
-  STRENGTH_LABELS,
-  passwordScore,
   pickVerifyPositions,
 } from './step-helpers';
+import { vaultGateBlocker } from '@/lib/vault-gate';
+import { MIN_ZXCVBN_SCORE, STRENGTH_LABELS, scorePassword } from '@/lib/password-strength';
 
 export function StepName(props: OnboardingStepProps) {
   // TODO(DL-0414): lift to flow state. The name is written to the profile row
@@ -221,12 +221,34 @@ export function StepVaultPassword(props: OnboardingStepProps) {
   const { setRecoveryCode, setVaultSetup } = useOnboardingState();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const copy = ONBOARDING_COPY.vaultPassword;
-  const score = passwordScore(password);
-  const matches = password.length > 0 && password === confirm;
-  const strongEnough = password.length >= PASSWORD_MIN_LENGTH && score >= 3;
+
+  // zxcvbn, the same scorer and the same threshold v1 already gates on. It is
+  // fast enough to run per keystroke without a debounce.
+  const strength = useMemo(() => scorePassword(password), [password]);
+  const strongEnough = strength !== null && strength.score >= MIN_ZXCVBN_SCORE;
+  const longEnough = password.length >= PASSWORD_MIN_LENGTH;
+  const canContinue = longEnough && strongEnough && password === confirm && understood;
+
+  // Which of those conditions to say out loud, decided in one place.
+  //
+  // The button used to be disabled by a bare conjunction with a single
+  // "Strength: Good" line beside it and nothing else. Someone who typed a
+  // fourteen-character password that scored 3 got a dead button and no way to
+  // learn what to change; someone who typed five characters was told to make
+  // it stronger rather than longer. Keeping the choice in a tested function
+  // means the disabled state and the explanation cannot drift apart, which is
+  // the failure the sibling app shipped a fix for. See src/lib/vault-gate.ts.
+  const blocker = vaultGateBlocker({
+    password,
+    confirm,
+    strongEnough,
+    understood,
+    minLength: PASSWORD_MIN_LENGTH,
+  });
 
   const createVault = async () => {
     setBusy(true);
@@ -257,7 +279,7 @@ export function StepVaultPassword(props: OnboardingStepProps) {
       onNext={() => void createVault()}
       title={copy.headline}
       nextLabel={copy.cta}
-      nextDisabled={!strongEnough || !matches}
+      nextDisabled={!canContinue}
       busy={busy}
       busyLabel="Creating your vault..."
       error={error}
@@ -272,6 +294,46 @@ export function StepVaultPassword(props: OnboardingStepProps) {
         aria-label="Vault password"
         className="mt-6"
       />
+      <div className="mt-2 flex justify-between text-xs">
+        <span
+          className={longEnough ? 'text-muted-foreground' : 'text-destructive'}
+          data-testid="vault-password-length"
+        >
+          {password.length}/{PASSWORD_MIN_LENGTH} characters
+        </span>
+        <span
+          className={
+            strength === null
+              ? 'text-muted-foreground'
+              : strength.score >= MIN_ZXCVBN_SCORE
+                ? 'text-green-600 dark:text-green-400'
+                : strength.score >= 2
+                  ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-destructive'
+          }
+          aria-live="polite"
+          data-testid="vault-password-strength"
+        >
+          {strength === null ? VAULT_GATE_COPY.emptyMeter : STRENGTH_LABELS[strength.score]}
+        </span>
+      </div>
+      {blocker === 'length' ? (
+        <p className="mt-2 text-xs text-destructive" data-testid="vault-gate-length">
+          {VAULT_GATE_COPY.length}
+        </p>
+      ) : null}
+      {blocker === 'strength' ? (
+        <div
+          className="mt-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2 text-xs text-yellow-900 dark:text-yellow-200"
+          data-testid="vault-gate-strength"
+        >
+          <p className="font-medium">{VAULT_GATE_COPY.strength}</p>
+          {strength?.warning ? <p>{strength.warning}</p> : null}
+          {strength?.suggestions.map((suggestion) => (
+            <p key={suggestion}>{suggestion}</p>
+          ))}
+        </div>
+      ) : null}
       <Input
         type="password"
         value={confirm}
@@ -281,10 +343,24 @@ export function StepVaultPassword(props: OnboardingStepProps) {
         aria-label="Confirm vault password"
         className="mt-3"
       />
-      <p className="mt-3 text-sm" aria-live="polite">
-        Strength: {STRENGTH_LABELS[score]}
-        {password.length > 0 && !matches ? ' (passwords do not match yet)' : ''}
-      </p>
+      {blocker === 'mismatch' ? (
+        <p className="mt-2 text-xs text-destructive" data-testid="vault-gate-mismatch">
+          {VAULT_GATE_COPY.mismatch}
+        </p>
+      ) : null}
+      <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm">
+        <Checkbox
+          checked={understood}
+          onCheckedChange={(value) => setUnderstood(value === true)}
+          className="mt-0.5"
+        />
+        <span>{VAULT_GATE_COPY.acknowledgementLabel}</span>
+      </label>
+      {blocker === 'acknowledgement' ? (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="vault-gate-acknowledgement">
+          {VAULT_GATE_COPY.acknowledgement}
+        </p>
+      ) : null}
     </StepShell>
   );
 }
@@ -323,17 +399,33 @@ function RecoveryWordInputs({
   );
 }
 
-// TODO(DL-0414): the 12 words come from generateRecoveryCode() in
-// src/lib/vault.ts, on this device. Rendering blank slots is deliberate.
-// Faking plausible words would invite someone to treat a placeholder as a real
-// code.
-function RecoveryCodeSlots() {
+/**
+ * The real recovery words, read from flow state.
+ *
+ * These are generated on this device by generateRecoveryCode() in
+ * src/lib/vault.ts, reach flow state when the vault step calls setRecoveryCode,
+ * and are never transmitted. This component previously rendered twelve blank
+ * bars with a TODO saying the words did not exist yet. They did: the vault step
+ * runs first and stores them. The screen telling the customer to write down
+ * their only way back into their books was showing them nothing to write.
+ *
+ * Still renders blanks when there is no code, rather than placeholder words. A
+ * plausible-looking fake is worse than an obvious gap, because someone might
+ * write it down. In the real flow that branch is unreachable.
+ */
+function RecoveryCodeSlots({ recoveryCode }: { recoveryCode: string | null }) {
+  const words = recoveryCode ? recoveryCode.trim().split(/\s+/) : [];
+
   return (
-    <ol className={RECOVERY_GRID_CLASS}>
+    <ol className={RECOVERY_GRID_CLASS} data-testid="recovery-words">
       {Array.from({ length: RECOVERY_WORD_COUNT }, (_, index) => (
         <li key={index} className="flex items-center gap-2">
           <span className="w-4 text-right text-muted-foreground">{index + 1}</span>
-          <span className="h-4 flex-1 rounded bg-muted" />
+          {words[index] ? (
+            <span className="flex-1 font-mono text-sm">{words[index]}</span>
+          ) : (
+            <span className="h-4 flex-1 rounded bg-muted" />
+          )}
         </li>
       ))}
     </ol>
@@ -348,6 +440,7 @@ export function StepRecovery(props: OnboardingStepProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [positions, setPositions] = useState<number[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
+  const { recoveryCode } = useOnboardingState();
   const copy = ONBOARDING_COPY.recovery;
   const staged = RECOVERY_VERIFY_MODE === 'staged';
 
@@ -365,13 +458,21 @@ export function StepRecovery(props: OnboardingStepProps) {
   // The code itself is hidden while verifying, matching v1: leaving it on
   // screen turns typing it back into copying it off, which proves nothing.
   if (staged && stage === 'verify') {
+    // The words have to be RIGHT, not merely present. This gated on
+    // "every box is non-empty", so twelve letter As passed a screen whose
+    // entire purpose is proving the customer holds their own written copy.
+    // verifyRecoveryWords compares case-insensitively and ignores surrounding
+    // whitespace, because people retype from paper and a trailing space is not
+    // a failed recovery. It returns false when there is no code, so the button
+    // stays disabled rather than passing vacuously.
     const allFilled = answers.every((answer) => answer.trim().length > 0);
+    const correct = verifyRecoveryWords(recoveryCode, positions, answers);
     return (
       <StepShell
         {...props}
         title={VERIFY_COPY.headline}
         nextLabel={VERIFY_COPY.cta}
-        nextDisabled={!allFilled}
+        nextDisabled={!correct}
         secondaryLabel={VERIFY_COPY.back}
         onSecondary={() => setStage('display')}
         hideBack
@@ -384,6 +485,13 @@ export function StepRecovery(props: OnboardingStepProps) {
           {VERIFY_COPY.hint}
         </div>
         <RecoveryWordInputs positions={positions} answers={answers} onChange={setAnswers} />
+        {/* Say why the button is dead, for the same reason the vault password
+            step does: a disabled control with no explanation reads as broken. */}
+        {allFilled && !correct ? (
+          <p className="mt-3 text-xs text-destructive" data-testid="recovery-verify-error">
+            {recoveryCode ? VERIFY_COPY.mismatch : VERIFY_COPY.missing}
+          </p>
+        ) : null}
       </StepShell>
     );
   }
@@ -398,7 +506,7 @@ export function StepRecovery(props: OnboardingStepProps) {
       hideBack
     >
       <p>{copy.body}</p>
-      <RecoveryCodeSlots />
+      <RecoveryCodeSlots recoveryCode={recoveryCode} />
       <p className="mt-4 text-sm">{copy.instruction}</p>
       <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm">
         <Checkbox
@@ -415,30 +523,39 @@ export function StepRecovery(props: OnboardingStepProps) {
 // Only mounted when RECOVERY_VERIFY_MODE is "reentry", the reading that makes
 // the flow 8 steps.
 export function StepVerify(props: OnboardingStepProps) {
-  // TODO(DL-0414): compare against the code generated in StepRecovery. v1
-  // already does exactly this in StepVaultPassword, matching the words case
-  // insensitively against the real code; reuse that check rather than writing
-  // a second one. The spec adds a loop back to the recovery screen with a
-  // regenerated code on failure and a 5 second cooldown after 3 failures.
-  // Note that v1 does NOT regenerate, and regenerating after someone has
-  // written 12 words on paper is the more hostile of the two behaviours. Worth
-  // settling before this branch is ever the default.
+  // Same check as the staged stage above, via the same shared function, so the
+  // two readings of the flow cannot diverge on what counts as a pass.
+  //
+  // Still open and deliberately NOT decided here: the spec adds a loop back to
+  // the recovery screen with a regenerated code after a failure, plus a 5
+  // second cooldown after three. v1 does not regenerate, and regenerating after
+  // someone has written 12 words on paper is the more hostile of the two
+  // behaviours. That needs settling before this branch is ever the default; it
+  // is a question about what happens after a failure, not about whether a
+  // failure is detected, which is what this change fixes.
+  const { recoveryCode } = useOnboardingState();
   const [positions] = useState(pickVerifyPositions);
   const [answers, setAnswers] = useState<string[]>(() =>
     Array.from({ length: VERIFY_WORD_COUNT }, () => ''),
   );
   const allFilled = answers.every((answer) => answer.trim().length > 0);
+  const correct = verifyRecoveryWords(recoveryCode, positions, answers);
 
   return (
     <StepShell
       {...props}
       title={VERIFY_COPY.headline}
       nextLabel={VERIFY_COPY.cta}
-      nextDisabled={!allFilled}
+      nextDisabled={!correct}
       hideBack
     >
       <p>{VERIFY_COPY.body}</p>
       <RecoveryWordInputs positions={positions} answers={answers} onChange={setAnswers} />
+      {allFilled && !correct ? (
+        <p className="mt-3 text-xs text-destructive" data-testid="recovery-verify-error">
+          {recoveryCode ? VERIFY_COPY.mismatch : VERIFY_COPY.missing}
+        </p>
+      ) : null}
     </StepShell>
   );
 }

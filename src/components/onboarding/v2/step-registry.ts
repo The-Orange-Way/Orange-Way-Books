@@ -29,10 +29,11 @@ import {
  * on finish is a later slice, gated on the vault-precondition work (DL-0414).
  *
  * Auth boundary: OWB mounts this wizard POST-auth. VaultGate only renders it
- * for a live session whose org_members count is zero. OWM mounts it PRE-auth:
- * it IS the signup flow (signInWithOtp with shouldCreateUser:true). Same 7
- * step ids, opposite auth context. Do not restore parity by copying StepEmail
- * between the apps -- they handle different situations by design.
+ * for a live session whose org_members count is zero. The sibling app mounts
+ * it PRE-auth: there it IS the signup flow (signInWithOtp with
+ * shouldCreateUser:true). Same 7 step ids, opposite auth context. Do not
+ * restore parity by copying StepEmail between the apps, they handle different
+ * situations by design.
  */
 export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[] {
   return [
