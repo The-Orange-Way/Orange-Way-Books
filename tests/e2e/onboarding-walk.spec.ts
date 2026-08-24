@@ -109,6 +109,12 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
   let supa: SupaCreds | null = null;
 
   test.beforeAll(async () => {
+    // Belt-and-suspenders: the file-level test.skip(!OPT_IN) should prevent
+    // this hook from running when the opt-in env var is absent, but some
+    // Playwright versions execute beforeAll even for skipped tests. Guard
+    // explicitly so the org DELETE never fires without an explicit opt-in.
+    if (!OPT_IN) return;
+
     supa = readSupaCreds();
     if (!supa)
       throw new Error(
