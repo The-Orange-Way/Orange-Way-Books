@@ -792,13 +792,7 @@ export default function Connections() {
       stopBankConnectWatchers();
       toast.error(err instanceof Error ? err.message : "Couldn't start the bank connection.");
     }
-  }, [
-    subaccountId,
-    orgId,
-    finishConnectionSetup,
-    stopBankConnectWatchers,
-    refreshList,
-  ]);
+  }, [subaccountId, orgId, finishConnectionSetup, stopBankConnectWatchers, refreshList]);
 
   // Belt-and-suspenders cleanup if the component unmounts mid-flow.
   useEffect(() => stopBankConnectWatchers, [stopBankConnectWatchers]);
