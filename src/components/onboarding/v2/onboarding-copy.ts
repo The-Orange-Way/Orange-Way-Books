@@ -105,6 +105,22 @@ export const VERIFY_COPY = {
   hint: 'Recovery kit hidden during verification. Use the link below if you need to see it again.',
   cta: 'Confirm and continue',
   back: 'Back to my recovery kit',
+  /**
+   * Shown once every box is filled and the words do not match. Not locked and
+   * CX's to reword.
+   *
+   * Deliberately does not say WHICH word is wrong. The screen exists to prove
+   * the customer has their own written copy, and naming the wrong position
+   * turns it into a guessing game that can be walked to a pass without ever
+   * looking at the paper.
+   */
+  mismatch: 'Those words do not match your recovery kit. Check your written copy and try again.',
+  /**
+   * Shown when the step is somehow reached with no recovery code in flow
+   * state. Should be unreachable in the real flow, since the vault step runs
+   * first; the button stays disabled rather than passing vacuously.
+   */
+  missing: 'Your recovery kit is not ready yet. Please restart onboarding.',
 };
 
 /**
