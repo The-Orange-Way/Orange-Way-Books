@@ -28,6 +28,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
     ? [
+        ['github'],
         ['html', { open: 'never' }],
         ['json', { outputFile: 'playwright-report/results.json' }],
         ['list'],

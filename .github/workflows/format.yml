@@ -1,0 +1,124 @@
+name: Format
+
+# Auto-format a pull request's head branch with prettier and push the result.
+#
+# This is a manual, write-access-gated tool, not an automatic CI step. It exists
+# so a maintainer can fix a red "Format check" on a PR from the Actions tab in
+# one click, instead of asking the author to run `bun run format` locally and
+# push again.
+#
+# Why workflow_dispatch and nothing else: dispatching a workflow already requires
+# write access to the repo, so the trigger IS the authorization gate. There is no
+# pull_request trigger here on purpose: we never want an untrusted fork PR to be
+# able to make this job run with a writable token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number whose head branch should be formatted
+        required: true
+        type: string
+
+concurrency:
+  group: format-${{ github.event.inputs.pr }}
+  cancel-in-progress: true
+
+# The job checks out and pushes a branch, so it needs contents: write. It reads
+# PR metadata, so pull-requests: read. Nothing else.
+permissions:
+  contents: write
+  pull-requests: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  format:
+    name: Auto-format PR head
+    runs-on: ubuntu-latest
+    steps:
+      # Resolve the PR into a concrete head branch and refuse the two cases we
+      # cannot safely handle: a non-open PR (nothing to format) and a fork PR
+      # (we cannot push to a head branch we do not own). Both fail loudly.
+      - name: Resolve PR head branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.inputs.pr }}
+        run: |
+          set -euo pipefail
+          data=$(gh pr view "$PR" --repo "$REPO" \
+            --json headRefName,isCrossRepository,state)
+          state=$(echo "$data" | jq -r .state)
+          cross=$(echo "$data" | jq -r .isCrossRepository)
+          branch=$(echo "$data" | jq -r .headRefName)
+          if [ "$state" != "OPEN" ]; then
+            echo "::error::PR #$PR is $state. Refusing to format a PR that is not open."
+            exit 1
+          fi
+          if [ "$cross" = "true" ]; then
+            echo "::error::PR #$PR is from a fork. This job cannot push to a fork head branch; format the branch locally instead."
+            exit 1
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Will format head branch: $branch"
+
+      # Prefer a maintainer-supplied PAT so the eventual push emits a real
+      # pull_request event and CI re-runs on its own. Fall back to the default
+      # token, which pushes fine but will not re-trigger CI (GitHub's recursion
+      # guard). The chosen source is recorded so the behaviour is never a
+      # mystery.
+      - name: Select push token
+        id: token
+        env:
+          FORMAT_PAT: ${{ secrets.FORMAT_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -n "${FORMAT_PAT:-}" ]; then
+            echo "source=pat" >> "$GITHUB_OUTPUT"
+            echo "Using FORMAT_PAT: a push will re-trigger CI on the PR."
+          else
+            echo "source=github_token" >> "$GITHUB_OUTPUT"
+            echo "Using GITHUB_TOKEN: a push will NOT re-trigger CI (recursion guard)."
+          fi
+
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.source == 'pat' && secrets.FORMAT_PAT || github.token }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run formatter
+        run: bun run format
+
+      # Commit and push only if prettier actually changed something. A no-op is
+      # reported explicitly, never scored as work that did not happen.
+      - name: Commit and push if changed
+        env:
+          BRANCH: ${{ steps.pr.outputs.branch }}
+          TOKEN_SOURCE: ${{ steps.token.outputs.source }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Tree is already prettier-clean. Nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: bun run format (automated, DL-0829)"
+          git push origin "HEAD:$BRANCH"
+          echo "Pushed a formatting commit to $BRANCH."
+          if [ "$TOKEN_SOURCE" = "github_token" ]; then
+            echo "::notice::Formatting commit pushed with GITHUB_TOKEN, so CI did not re-run automatically. Re-run the CI checks on the PR (or push any commit) to see them go green."
+          fi
