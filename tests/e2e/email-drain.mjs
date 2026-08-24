@@ -8,7 +8,7 @@
  *   V3_DEV_SUPABASE_URL
  *   V3_DEV_SUPABASE_SERVICE_KEY
  *   FLASH_CRON_SECRET           (matches CRON_SECRET on the edge function)
- *   DRAIN_TEST_TO_EMAIL         (where the test email goes — your inbox)
+ *   DRAIN_TEST_TO_EMAIL         (required; where the test email goes, your inbox)
  *
  * Usage:
  *   node tests/e2e/email-drain.mjs
@@ -17,11 +17,11 @@
 const SUPABASE_URL = process.env.V3_DEV_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.V3_DEV_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const CRON_SECRET = process.env.FLASH_CRON_SECRET || process.env.CRON_SECRET;
-const TO_EMAIL = process.env.DRAIN_TEST_TO_EMAIL || 'miguel@orangeway.app';
+const TO_EMAIL = process.env.DRAIN_TEST_TO_EMAIL;
 
-if (!SUPABASE_URL || !SERVICE_KEY || !CRON_SECRET) {
+if (!SUPABASE_URL || !SERVICE_KEY || !CRON_SECRET || !TO_EMAIL) {
   console.error(
-    'Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET.',
+    'Missing env. Need V3_DEV_SUPABASE_URL, V3_DEV_SUPABASE_SERVICE_KEY, FLASH_CRON_SECRET, DRAIN_TEST_TO_EMAIL.',
   );
   process.exit(2);
 }
