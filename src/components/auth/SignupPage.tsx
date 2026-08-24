@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// Site key is browser-safe by design (sent to the captcha vendor as-is).
-// Stored as VITE_TURNSTILE_SITE_KEY at build time; missing value disables
-// the widget gracefully (signup still works for local dev where you don't
-// want the captcha challenge in the loop).
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+import {
+  CaptchaWidget,
+  CAPTCHA_REQUIRED,
+  type TurnstileInstance,
+} from '@/components/auth/CaptchaWidget';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -22,12 +20,19 @@ export default function SignupPage() {
   const captchaRef = useRef<TurnstileInstance | null>(null);
   const { toast } = useToast();
 
+  // Single use: Auth spends the token on the request whether it succeeded or
+  // failed, so every exit path clears it and asks the widget for a new one.
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     // Require a fresh captcha token whenever the widget is in play.
-    if (TURNSTILE_SITE_KEY && !captchaToken) {
+    if (CAPTCHA_REQUIRED && !captchaToken) {
       setLoading(false);
       toast({
         title: 'Captcha required',
@@ -37,7 +42,7 @@ export default function SignupPage() {
       return;
     }
 
-    // D7 beta gate — short-circuit before Supabase signup if the email
+    // D7 beta gate: short-circuit before Supabase signup if the email
     // isn't on the allowlist. RPC is SECURITY DEFINER, returns boolean,
     // doesn't leak the list. Fails CLOSED: any error denies signup.
     try {
@@ -59,8 +64,7 @@ export default function SignupPage() {
       }
     } catch {
       setLoading(false);
-      captchaRef.current?.reset();
-      setCaptchaToken(null);
+      resetCaptcha();
       toast({
         title: 'Signup unavailable',
         description: 'Could not verify beta access. Please try again later.',
@@ -74,16 +78,13 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        // Supabase verifies this against the configured hCaptcha secret on
-        // the server side. captchaToken is single-use and tied to this signup.
+        // Auth verifies this against the captcha secret configured on the
+        // project. The token is single use and tied to this request.
         captchaToken: captchaToken ?? undefined,
       },
     });
     setLoading(false);
-    // Always reset the widget after a submit, success or fail — tokens
-    // are single-use and must not be replayed if the user retries.
-    captchaRef.current?.reset();
-    setCaptchaToken(null);
+    resetCaptcha();
 
     if (error) {
       toast({ title: 'Signup failed', description: error.message, variant: 'destructive' });
@@ -137,21 +138,11 @@ export default function SignupPage() {
                 required
               />
             </div>
-            {TURNSTILE_SITE_KEY && (
-              <div className="flex justify-center">
-                <Turnstile
-                  ref={captchaRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={(token) => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken(null)}
-                  onError={() => setCaptchaToken(null)}
-                />
-              </div>
-            )}
+            <CaptchaWidget ref={captchaRef} onToken={setCaptchaToken} />
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-              disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
+              disabled={loading || (CAPTCHA_REQUIRED && !captchaToken)}
             >
               {loading ? 'Creating account…' : 'Create Account'}
             </Button>
