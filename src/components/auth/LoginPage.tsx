@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,17 @@ type OtpStage = 'address' | 'code';
 // be configured to issue codes of the same length or the two disagree.
 const OTP_LENGTH = 6;
 
+// Same key the signup page uses. Unset in local dev, which is why every use
+// below is guarded: with no key we render no widget and send no token, and
+// the page behaves exactly as it did before.
+//
+// This is the BUILD-time Turnstile key, which is a different thing from the
+// captcha switch in the Supabase Auth dashboard. Auth only enforces a token
+// when that switch is on. Sending one while it is off is harmless, so this
+// is safe to ship ahead of the switch being flipped and it has to be: with
+// the switch on and no token, every send fails.
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +49,8 @@ export default function LoginPage() {
   const [otpToken, setOtpToken] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileInstance | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -70,6 +84,14 @@ export default function LoginPage() {
       });
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      toast({
+        title: 'Finish the challenge',
+        description: 'Please complete the captcha challenge before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setOtpLoading(true);
     // shouldCreateUser stays false on every sign-in path. The signup flow is
     // the only place allowed to bring an account into existence; if this were
@@ -77,9 +99,16 @@ export default function LoginPage() {
     // of failing.
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, captchaToken: captchaToken ?? undefined },
     });
     setOtpLoading(false);
+    // A Turnstile token is single use and Auth spends it on the call above,
+    // so the widget has to re-issue before "Resend code" can work. Clear it
+    // on every outcome, success included: keeping a spent token would leave
+    // the resend button enabled and the retry would fail for a reason the
+    // user cannot see.
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
     if (error) {
       // Same reasoning as handleResetPassword below: the outcome is reported
       // identically whether or not an account exists, so this page cannot be
@@ -150,6 +179,10 @@ export default function LoginPage() {
     setOtpMode(false);
     setOtpStage('address');
     setOtpToken('');
+    // The widget unmounts with the code path, so drop the token with it
+    // rather than letting a stale one survive into the next visit.
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
   };
 
   // One submit handler so the Enter key does the same thing as the visible
@@ -256,6 +289,17 @@ export default function LoginPage() {
                 />
               </div>
             )}
+            {otpMode && TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center">
+                <Turnstile
+                  ref={captchaRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
             {resetMode ? (
               <div className="flex flex-col gap-2">
                 <Button
@@ -281,7 +325,7 @@ export default function LoginPage() {
                   <Button
                     type="button"
                     className="w-full bg-primary hover:bg-primary-hover text-primary-foreground"
-                    disabled={otpLoading}
+                    disabled={otpLoading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
                     onClick={handleSendCode}
                   >
                     {otpLoading ? 'Sending…' : 'Send code'}
@@ -300,7 +344,9 @@ export default function LoginPage() {
                       type="button"
                       variant="outline"
                       className="w-full"
-                      disabled={otpLoading || resendLocked}
+                      disabled={
+                        otpLoading || resendLocked || (!!TURNSTILE_SITE_KEY && !captchaToken)
+                      }
                       onClick={handleSendCode}
                     >
                       {resendLocked ? 'Resend code in a moment' : 'Resend code'}
