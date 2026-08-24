@@ -10,7 +10,7 @@
  * this flow does not re-implement it, it will call it. Every seam is marked
  * TODO(DL-0414).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StepShell } from './onboarding-flow';
@@ -29,6 +29,11 @@ import {
 } from './step-helpers';
 import { vaultGateBlocker } from '@/lib/vault-gate';
 import { MIN_ZXCVBN_SCORE, STRENGTH_LABELS, scorePassword } from '@/lib/password-strength';
+import {
+  CaptchaWidget,
+  CAPTCHA_REQUIRED,
+  type TurnstileInstance,
+} from '@/components/auth/CaptchaWidget';
 
 export function StepName(props: OnboardingStepProps) {
   // TODO(DL-0414): lift to flow state. The name is written to the profile row
@@ -65,9 +70,9 @@ export function StepName(props: OnboardingStepProps) {
  * everything after it goes with it. A code is typed in place, so the wizard
  * survives. Copy correction ("one-time link" in ONBOARDING_COPY) is with CX.
  *
- * Mirrors the sibling app's StepEmail exactly. No captcha here: Books v2 does
- * not yet wire CaptchaWidget. When it does, follow the Turnstile reset dance
- * in the sibling app on send error (setCaptchaToken(null) + captchaRef.current?.reset()).
+ * Mirrors the sibling app's StepEmail, captcha included. The send carries a
+ * token and the widget is reset after every attempt; the verify deliberately
+ * carries none. See CaptchaWidget for why the two halves differ.
  */
 export function StepEmail(props: OnboardingStepProps) {
   const { email, setEmail, setEmailVerified, setUserId } = useOnboardingState();
@@ -80,6 +85,8 @@ export function StepEmail(props: OnboardingStepProps) {
   // is a re-verification of an email the user already authenticated with.
   // When this is set we skip OTP entirely and show a Continue button instead.
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileInstance | null>(null);
   const copy = ONBOARDING_COPY.email;
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -107,8 +114,16 @@ export function StepEmail(props: OnboardingStepProps) {
     setError(null);
     const { error: sendError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        captchaToken: captchaToken ?? undefined,
+      },
     });
+    // Single use: Auth spends the token on the send whether it succeeded or
+    // failed. Reset here rather than on the success path only, or the "use a
+    // different address" route back to this stage has no token to send with.
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
     setBusy(false);
     if (sendError) {
       setError(sendError.message);
@@ -122,6 +137,9 @@ export function StepEmail(props: OnboardingStepProps) {
     setError(null);
     // type 'email' is the code-in-the-body variant. 'magiclink' is the one
     // that only ever arrives as a clickable URL, which is what we are avoiding.
+    // No captcha token here on purpose. Auth does not challenge the verify
+    // step, and the token from the send is already spent, so requiring one
+    // would break the second half of a sign in that is otherwise working.
     const { data, error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: token.trim(),
@@ -187,7 +205,7 @@ export function StepEmail(props: OnboardingStepProps) {
       onNext={() => void sendCode()}
       title={copy.headline}
       nextLabel={copy.cta}
-      nextDisabled={!looksLikeEmail}
+      nextDisabled={!looksLikeEmail || (CAPTCHA_REQUIRED && !captchaToken)}
       busy={busy}
       busyLabel="Sending..."
       error={error}
@@ -202,6 +220,9 @@ export function StepEmail(props: OnboardingStepProps) {
         aria-label="Email address"
         className="mt-6"
       />
+      <div className="mt-6">
+        <CaptchaWidget ref={captchaRef} onToken={setCaptchaToken} />
+      </div>
     </StepShell>
   );
 }
