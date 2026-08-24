@@ -27,6 +27,12 @@ import {
  * stays early. That surface is built: OrgSetupSurface.tsx (DL-0718), dark
  * behind VITE_ONBOARDING_V2. The org + chart-of-accounts creation that v1 does
  * on finish is a later slice, gated on the vault-precondition work (DL-0414).
+ *
+ * Auth boundary: OWB mounts this wizard POST-auth. VaultGate only renders it
+ * for a live session whose org_members count is zero. OWM mounts it PRE-auth:
+ * it IS the signup flow (signInWithOtp with shouldCreateUser:true). Same 7
+ * step ids, opposite auth context. Do not restore parity by copying StepEmail
+ * between the apps -- they handle different situations by design.
  */
 export function buildOnboardingSteps(mode: RecoveryVerifyMode): OnboardingStep[] {
   return [
