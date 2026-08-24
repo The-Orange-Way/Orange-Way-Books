@@ -35,6 +35,8 @@ import { useEffect, useState } from 'react';
  * constant is the whole change: no id changes, no copy rewrites, no
  * renumbering above step 4.
  */
+import { MIN_VAULT_PASSWORD_LENGTH } from '@/lib/vault';
+
 export type RecoveryVerifyMode = 'staged' | 'checkbox' | 'reentry';
 
 export const RECOVERY_VERIFY_MODE: RecoveryVerifyMode = 'staged';
@@ -42,27 +44,29 @@ export const RECOVERY_VERIFY_MODE: RecoveryVerifyMode = 'staged';
 export const RECOVERY_GRID_CLASS =
   'mt-6 grid grid-cols-3 gap-x-4 gap-y-2 rounded-md border border-dashed border-input p-4 font-mono text-sm';
 
-// MIN_VAULT_PASSWORD_LENGTH in src/lib/vault.ts, which enforces it in the
-// crypto layer rather than only in the UI. Imported rather than restated once
-// the wiring lands (TODO(DL-0414)); stated here so the skeleton cannot gate
-// looser than the crypto will accept. Do not lower this.
-export const PASSWORD_MIN_LENGTH = 14;
+// Re-exported from src/lib/vault.ts, which enforces it in the crypto layer
+// rather than only in the UI. It used to be restated here as a literal 14 with
+// a TODO to import it once the wiring landed; the wiring has landed, and two
+// copies of a security constant is exactly how a UI ends up gating looser than
+// the crypto accepts. Do not lower this.
+export const PASSWORD_MIN_LENGTH = MIN_VAULT_PASSWORD_LENGTH;
 
 export const RECOVERY_WORD_COUNT = 12;
 
 export const VERIFY_WORD_COUNT = 3;
 
-export const STRENGTH_LABELS = ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'] as const;
-
-export function passwordScore(value: string) {
-  let score = 0;
-  if (value.length >= PASSWORD_MIN_LENGTH) score += 1;
-  if (value.length >= 16) score += 1;
-  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
-  if (/\d/.test(value)) score += 1;
-  if (/[^\w\s]/.test(value)) score += 1;
-  return score;
-}
+// STRENGTH_LABELS and passwordScore used to live here: a six-point
+// character-class heuristic (has an uppercase, has a digit, has a symbol) that
+// the vault password step gated on at >= 3.
+//
+// Both are gone. The heuristic rewarded shape rather than entropy, so
+// "Password123!" cleared it while a six-word diceware passphrase, which is
+// orders of magnitude harder to guess, did not. It also scored on a different
+// scale from v1's screen, which already used zxcvbn, so the two onboarding
+// paths in this one app disagreed about what a strong password is and the v2
+// path was the looser of the two.
+//
+// Scoring now lives in src/lib/password-strength.ts, shared and on one scale.
 
 /**
  * Pick which words the parent has to type back.

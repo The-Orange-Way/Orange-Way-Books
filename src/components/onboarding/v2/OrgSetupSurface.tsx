@@ -13,6 +13,7 @@ import { useVault } from '@/context/VaultContext';
 import { encryptOrgSettings, FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
 import { captureException } from '@/lib/observability/sentry';
+import type { OnboardingVaultSetup } from './onboarding-state';
 import type { BitcoinDisplay } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -38,7 +39,14 @@ import type { User } from '@supabase/supabase-js';
  * key material crosses a prop boundary (only userId is threaded in).
  * encryptOrgSettings is reused verbatim from v1, so there is no new derivation,
  * salt, or KDF. Fields this surface does not yet collect (calendar, reporting)
- * take the v2 defaults. Vault verifier persistence (v1 step 4) is a later slice.
+ * take the v2 defaults.
+ *
+ * The org_settings insert also carries the five vault fields the wizard
+ * produced. In this product the vault is per-organization: org_settings is
+ * where the verifier, the salt, the key version and both wrapped-MEK
+ * ciphertexts live, and the unlock screen reads them from that row by org_id.
+ * The row therefore has to be written with them, because the organization it
+ * keys does not exist until this function runs.
  * This stays dark behind VITE_ONBOARDING_V2 with the rest of v2.
  *
  * The two currency pickers are native select elements on purpose. The v1 step
@@ -50,6 +58,14 @@ import type { User } from '@supabase/supabase-js';
  */
 interface OrgSetupSurfaceProps {
   userId: string;
+  /**
+   * The persistable output of the wizard's vault creation. Not the MEK, not
+   * the password, not the recovery code: a verifier, a public salt, a key
+   * version and two wrapped-MEK ciphertexts, all of which v1 stores in this
+   * same table. Null only if this surface is rendered outside the wizard,
+   * which handleFinish refuses rather than working around.
+   */
+  vaultSetup: OnboardingVaultSetup | null;
   onComplete: () => void;
 }
 
@@ -100,7 +116,7 @@ function CurrencyOptions() {
   );
 }
 
-export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceProps) {
+export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgSetupSurfaceProps) {
   const { encryptText } = useVault();
   const [screen, setScreen] = useState<0 | 1>(0);
   const [saving, setSaving] = useState(false);
@@ -158,6 +174,22 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
   const handleFinish = async () => {
     setSaving(true);
     try {
+      // Refuse before writing anything, rather than degrading. Without the
+      // vault fields every insert below still succeeds and the customer lands
+      // on a working dashboard, so the failure is completely silent until
+      // their next login, at which point the unlock screen has no verifier to
+      // check the password against and the books cannot be opened by anyone,
+      // including us. There is no repair path: the MEK exists only inside the
+      // two ciphertexts we would have failed to store. Checking here rather
+      // than at the settings insert also means a refusal leaves no orphaned
+      // organization behind. An error costs a retry; continuing costs the
+      // customer their books.
+      if (!vaultSetup) {
+        throw new Error(
+          'Your vault was not set up. Please restart onboarding rather than continuing, so your books stay openable.',
+        );
+      }
+
       const user = await waitForAuthenticatedUser();
       const orgId = crypto.randomUUID();
 
@@ -181,6 +213,7 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
       // 3. Insert org_settings, every field client-encrypted. Fields this
       // surface does not yet collect take the v2 defaults: a calendar fiscal
       // year (start month 1), US number format, and null date/time/timezone.
+
       const secondary = secondaryCurrency.length > 0 ? secondaryCurrency : null;
       const btcDisplay: BitcoinDisplay =
         primaryCurrency === 'BTC' || secondary === 'BTC'
@@ -200,9 +233,21 @@ export default function OrgSetupSurface({ userId, onComplete }: OrgSetupSurfaceP
         },
         encryptText,
       );
+      // The vault fields go in on the insert rather than in a follow-up
+      // update. v1 inserts and then updates, which leaves a window where the
+      // settings row exists without a verifier; if the update fails there, the
+      // org is already unopenable and the customer is told everything worked.
+      // One statement removes the window. The five values are stored verbatim
+      // in both flows, so nothing about the ciphertext or the derivation
+      // changes, only when it is written.
       const { error: settingsError } = await supabase.from('org_settings').insert({
         org_id: orgId,
         ...encSettings,
+        vault_verifier: vaultSetup.verifier,
+        vault_salt: vaultSetup.vaultSalt,
+        vault_key_version: vaultSetup.vaultKeyVersion,
+        enc_mek_ciphertext: vaultSetup.encMekCiphertext,
+        recovery_ciphertext: vaultSetup.recoveryCiphertext,
       });
       if (settingsError) throw settingsError;
 
