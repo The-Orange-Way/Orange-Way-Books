@@ -99,6 +99,20 @@ describe('LoginPage code sign-in', () => {
     expect(screen.queryByText(/signups not allowed/i)).toBeNull();
   });
 
+  it('does not spend a verify attempt when Enter is pressed on a short code', async () => {
+    const { container } = mount();
+    await reachCodeStage(container);
+    const code = container.querySelector('#otp-code') as HTMLInputElement;
+    fireEvent.change(code, { target: { value: '123' } });
+    // The Sign In button is disabled below OTP_LENGTH, so Enter is the only
+    // way to reach verifyOtp early. It must carry the same guard.
+    fireEvent.submit(code.closest('form') as HTMLFormElement);
+    expect(auth.verifyOtp).not.toHaveBeenCalled();
+    fireEvent.change(code, { target: { value: '123456' } });
+    fireEvent.submit(code.closest('form') as HTMLFormElement);
+    expect(auth.verifyOtp).toHaveBeenCalledTimes(1);
+  });
+
   it('leaves password sign-in reachable and untouched', async () => {
     const { container } = mount();
     fireEvent.click(screen.getByRole('button', { name: /email me a sign-in code/i }));

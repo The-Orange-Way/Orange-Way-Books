@@ -163,7 +163,14 @@ export default function LoginPage() {
       return;
     }
     if (otpMode) {
-      void (otpStage === 'address' ? handleSendCode() : handleVerifyCode());
+      if (otpStage === 'address') {
+        void handleSendCode();
+        return;
+      }
+      // Same guard the Sign In button carries. Enter on a short code would
+      // otherwise spend a verify attempt that can only fail.
+      if (otpToken.length < OTP_LENGTH) return;
+      void handleVerifyCode();
       return;
     }
     void handleLogin();
