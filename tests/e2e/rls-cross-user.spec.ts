@@ -180,7 +180,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
 
     // Sign in as user A (the existing e2e user).
     await signIn(page);
-    await page.goto('https://books.orangeway.dev/app', { waitUntil: 'networkidle' });
+    await page.goto('/app', { waitUntil: 'networkidle' });
     await unlockVaultIfNeeded(page);
     const stillLocked = await page
       .locator('text="Unlock your encrypted vault"')
@@ -198,7 +198,7 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
         .first()
         .waitFor({ state: 'hidden', timeout: 30_000 });
     }
-    await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('app-shell').first()).toBeVisible({ timeout: 15_000 });
 
     // Pull A's session token.
     const ctx = await page.evaluate(() => {

@@ -44,10 +44,8 @@ const ORG_SCOPED_TABLES = [
 
 test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   test.setTimeout(60_000);
-  const baseURL = 'https://books.orangeway.dev';
-
   await signIn(page);
-  await page.goto(`${baseURL}/app`, { waitUntil: 'networkidle' });
+  await page.goto('/app', { waitUntil: 'networkidle' });
   await unlockVaultIfNeeded(page);
   // Belt-and-suspenders: if helper missed the lock screen, re-check + fill manually.
   const stillLocked = await page
@@ -66,7 +64,7 @@ test('RLS isolation — every returned row has my org_id', async ({ page }) => {
       .first()
       .waitFor({ state: 'hidden', timeout: 30_000 });
   }
-  await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('app-shell').first()).toBeVisible({ timeout: 15_000 });
 
   // Pull the active session token + the publishable apikey + the
   // supabase URL out of the page context. The SDK stores the session in

@@ -33,11 +33,31 @@ ALTER TABLE public.withdrawal_consents
 ALTER TABLE public.withdrawal_consents
   DROP COLUMN IF EXISTS consent_flag;
 
--- 2. The retention clock. NOT NULL is safe here: the table has zero rows, and
--- the BEFORE INSERT trigger below fills the column before the constraint is
--- checked, so no writer ever has to supply it.
+-- 2. The retention clock. Added in three steps so it is correct whether the
+-- table is empty or already holds rows: add the column nullable, backfill each
+-- existing row from its own consented_at, then enforce NOT NULL. On an empty
+-- table (DEV) the backfill touches nothing, so DEV behaviour is unchanged. A
+-- bare NOT NULL add with no default only succeeds on an empty table, which is
+-- not a migration. The v1 append-only trigger raises on any UPDATE, so it is
+-- disabled for the single server-side backfill and re-enabled immediately; DDL
+-- is transactional, so a mid-migration failure rolls the disable back. Every
+-- future write still gets expires_at from the BEFORE INSERT trigger below, so
+-- no caller ever supplies it.
 ALTER TABLE public.withdrawal_consents
-  ADD COLUMN IF NOT EXISTS expires_at timestamptz NOT NULL;
+  ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+
+ALTER TABLE public.withdrawal_consents
+  DISABLE TRIGGER withdrawal_consents_no_mutation;
+
+UPDATE public.withdrawal_consents
+  SET expires_at = consented_at + interval '5 years'
+  WHERE expires_at IS NULL;
+
+ALTER TABLE public.withdrawal_consents
+  ENABLE TRIGGER withdrawal_consents_no_mutation;
+
+ALTER TABLE public.withdrawal_consents
+  ALTER COLUMN expires_at SET NOT NULL;
 
 COMMENT ON COLUMN public.withdrawal_consents.expires_at IS
   'When this evidence may be deleted: consented_at + 5 years. Set server side at insert. A value supplied by the caller is overwritten.';

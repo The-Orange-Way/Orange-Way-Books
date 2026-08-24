@@ -96,7 +96,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   const [generated, setGenerated] = useState<string | null>(null);
   const [savedConfirmed, setSavedConfirmed] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Recovery code step — shown after vault is created, before onNext fires.
+  // Recovery kit step, shown after vault is created, before onNext fires.
   const [pendingResult, setPendingResult] = useState<VaultSetupResult | null>(null);
   const [recoveryCodeSaved, setRecoveryCodeSaved] = useState(false);
   const [recoveryCodeCopied, setRecoveryCodeCopied] = useState(false);
@@ -109,7 +109,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
   const [verifyError, setVerifyError] = useState('');
 
   // Warn the user if they try to close/refresh the tab while the recovery
-  // code is on screen — once they close, the code is gone forever.
+  // kit is on screen, once they close, the kit is gone forever.
   useEffect(() => {
     if (!pendingResult) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -117,7 +117,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
       // Modern browsers ignore the custom string and show their own message,
       // but we still need preventDefault + returnValue for the prompt to fire.
       e.returnValue =
-        'Your recovery code has not been verified saved. If you leave now, you may be permanently locked out of your vault.';
+        'Your recovery kit has not been verified saved. If you leave now, you may be permanently locked out of your vault.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -183,7 +183,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     setLoading(true);
     try {
       const result = await setupVault(password);
-      // Show recovery code before proceeding — user must confirm they saved it.
+      // Show recovery kit before proceeding, user must confirm they saved it.
       setPendingResult(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create vault.';
@@ -192,13 +192,13 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
     setLoading(false);
   };
 
-  // Recovery code screen — shown after vault creation, before proceeding.
+  // Recovery kit screen, shown after vault creation, before proceeding.
   if (pendingResult) {
     const words = pendingResult.recoveryCode.split(' ');
     return (
       <div className="space-y-4">
         <div className="space-y-1 pb-2">
-          <h3 className="text-lg font-semibold text-card-foreground">Save your recovery code</h3>
+          <h3 className="text-lg font-semibold text-card-foreground">Save your recovery kit</h3>
           <p className="text-sm text-muted-foreground">Shown once. Store it somewhere safe.</p>
         </div>
 
@@ -210,9 +210,9 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
           </p>
         </div>
 
-        {/* Hide the actual 12-word code during the verify stage so the user
+        {/* Hide the actual 12-word kit during the verify stage so the user
             cannot just read it off the screen, defeats "prove you saved it".
-            "Back to code" toggles confirmStage back to 'display'. */}
+            "Back to kit" toggles confirmStage back to 'display'. */}
         {confirmStage === 'display' && (
           <div className="rounded-xl border bg-muted/40 p-3">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="recovery-code-grid">
@@ -284,11 +284,11 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
                   )
                   .join('');
                 w.document.write(`
-                  <html><head><title>Orange Way Books, Vault Recovery Code</title></head>
+                  <html><head><title>Orange Way Books Vault Recovery Kit</title></head>
                   <body style="font-family:system-ui;padding:32px;max-width:560px;margin:auto">
-                    <h1 style="font-size:18px">Orange Way Books, Vault recovery code</h1>
+                    <h1 style="font-size:18px">Orange Way Books Vault Recovery Kit</h1>
                     <p style="color:#666;font-size:13px">Generated: ${ts}</p>
-                    <p style="font-size:13px"><strong>Keep this somewhere safe.</strong> Anyone with this code can reset your vault password.</p>
+                    <p style="font-size:13px"><strong>Keep this somewhere safe.</strong> Anyone with this recovery kit can reset your vault password.</p>
                     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:16px">${grid}</div>
                   </body></html>
                 `);
@@ -305,7 +305,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
 
         {confirmStage === 'verify' && (
           <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            Recovery code hidden during verification. Use "Back to code" below if you need to see it
+            Recovery kit hidden during verification. Use "Back to kit" below if you need to see it
             again.
           </div>
         )}
@@ -319,7 +319,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
                 className="mt-0.5"
               />
               <span className="text-sm">
-                I have saved my recovery code in a secure place. I understand it will not be shown
+                I have saved my recovery kit in a secure place. I understand it will not be shown
                 again.
               </span>
             </label>
@@ -398,7 +398,7 @@ export default function StepVaultPassword({ onNext }: StepVaultPasswordProps) {
                   setVerifyError('');
                 }}
               >
-                Back to code
+                Back to kit
               </Button>
               <Button
                 type="button"

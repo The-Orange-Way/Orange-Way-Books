@@ -26,7 +26,7 @@ export default function AppShell() {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="flex min-h-screen w-full flex-col" data-testid="app-shell">
       <MaintenanceBanner orgId={orgId} currentUserId={userId} />
       <PendingRatesBanner orgId={orgId} />
       <div className="flex flex-1">

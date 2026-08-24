@@ -31,7 +31,7 @@ export default function Terms() {
 
         <Section title="Accounts">
           <p className="text-muted-foreground">
-            You are responsible for keeping your vault password and recovery code safe. We cannot
+            You are responsible for keeping your vault password and recovery kit safe. We cannot
             recover them for you, and that is by design: your books are encrypted on your device
             with keys only you hold.
           </p>

@@ -59,18 +59,48 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
 
   const lockHeading = page.locator('text="Unlock your encrypted vault"').first();
   const unlockBtn = page.locator('button:has-text("Unlock Vault")').first();
-  const visible = await lockHeading.isVisible({ timeout: 4000 }).catch(() => false);
+  const authedShell = page.getByTestId('app-shell').first();
+
+  // After a page.goto the SPA is still hydrating: the lock screen and the
+  // authenticated shell are the two possible settled states. Deciding on a
+  // fixed 4s probe of the lock heading alone races hydration, a slow hydrate
+  // makes the heading appear just after the probe gives up, so this helper
+  // returns false (reporting already-unlocked) without ever unlocking and the
+  // caller then asserts on a lock screen it was told was absent. Wait for
+  // whichever state settles first, then decide.
+  await expect(lockHeading.or(authedShell)).toBeVisible({ timeout: 15_000 });
+  const visible = await lockHeading.isVisible().catch(() => false);
   if (!visible) return false;
 
   const pwInput = page.locator('input[type="password"]').first();
   await pwInput.fill(vaultPw);
   await unlockBtn.click();
 
-  const err = page.locator('text=/incorrect|wrong|invalid|failed/i').first();
+  // Scope the error probe to the unlock form itself. A document-wide regex also
+  // matched incidental words like "failed" elsewhere on the page (an import job
+  // status, say), which would misread a successful unlock as a rejection. The
+  // #vault-password input id is unique to this form and stable across the
+  // loading state, so it is the reliable anchor.
+  const unlockForm = page.locator('form:has(input#vault-password)');
+  const err = unlockForm.locator('text=/incorrect|wrong|invalid|failed/i').first();
+  // The rate-limit banner ("Too many failed attempts") renders OUTSIDE the form,
+  // and when locked out handleUnlock returns before setting any in-form error, so
+  // the scoped probe above cannot see it. Add it as its own terminal outcome:
+  // without this a rate-limited run falls through to the 30s lock-heading wait and
+  // reports a generic timeout instead of the true cause. The cooldown trips at 5
+  // failed attempts and this suite unlocks on nearly every test, so it is a case
+  // the probe will actually hit.
+  const rateLimited = page.getByTestId('vault-rate-limited').first();
   await Promise.race([
     lockHeading.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => undefined),
     err.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined),
+    rateLimited.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined),
   ]);
+
+  if (await rateLimited.isVisible().catch(() => false)) {
+    const text = await rateLimited.textContent();
+    throw new Error(`Vault unlock rate-limited: ${text?.trim() ?? 'too many failed attempts'}`);
+  }
 
   if (await err.isVisible().catch(() => false)) {
     const text = await err.textContent();
@@ -82,10 +112,11 @@ export async function unlockVaultIfNeeded(page: Page): Promise<boolean> {
   // Wait for the post-unlock app shell to actually render. The lock heading
   // disappearing only tells us the unlock RPC succeeded — the SPA still has to
   // hydrate the dashboard. Screenshots taken between unlock and hydration
-  // capture a blank spinner page. The sidebar "Insights" nav item is the
-  // first stable element of the authenticated shell.
+  // capture a blank spinner page. The app shell root (data-testid="app-shell")
+  // is the first stable element of the authenticated shell and renders on every
+  // authenticated route, so a copy change cannot silently break it.
   await page
-    .locator('text=Insights')
+    .getByTestId('app-shell')
     .first()
     .waitFor({ state: 'visible', timeout: 15_000 })
     .catch(() => undefined);

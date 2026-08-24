@@ -453,8 +453,8 @@ export async function deriveOrTxnsKeyFromMek(
 // Full standard BIP-39 English wordlist (2048 words). 12 words × log2(2048)
 // = 132 bits of entropy. 11-bit indexing has no modulo bias since 2^11 = 2048
 // exactly — a 16-bit random sample masked with 0x7FF is uniformly distributed.
-// Looks like a Bitcoin seed phrase (because it is one — same wordlist as
-// every BIP-39 wallet on earth) so users recognize the format immediately.
+// Uses the BIP-39 English wordlist without checksum validation: not a
+// standard BIP-39 mnemonic, cannot be imported into a Bitcoin wallet.
 
 import { BIP39_WORDS } from './bip39-words';
 
@@ -467,7 +467,7 @@ export function generateRecoveryCode(): string {
 
 /**
  * Derive an AES-256-GCM wrapping key from a 12-word recovery code via HKDF.
- * No password-stretching: the code already has 96 bits of entropy.
+ * No password-stretching: the code already has 132 bits of entropy.
  */
 export async function deriveRecoveryKek(recoveryCode: string): Promise<CryptoKey> {
   const normalized = recoveryCode.trim().toLowerCase().replace(/\s+/g, ' ');

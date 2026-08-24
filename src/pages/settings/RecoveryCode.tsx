@@ -1,24 +1,24 @@
 /**
- * Settings → Security → Recovery code
+ * Settings → Security → Recovery kit
  *
- * Lets the user rotate their vault recovery code. The crypto design
- * intentionally throws the original code away after onboarding — only
- * the MEK wrapped under the code's derived KEK is persisted. So there
- * is no "view existing code" affordance; the only operation available
+ * Lets the user rotate their vault recovery kit. The crypto design
+ * intentionally throws the original recovery kit away after onboarding; only
+ * the MEK wrapped under the recovery kit derived KEK is persisted. So there
+ * is no "view existing recovery kit" affordance; the only operation available
  * is "generate a new one" (which invalidates the old one).
  *
  * Flow:
- *   1. Acknowledge that rotating invalidates the previous code.
- *   2. Click "Generate new recovery code" → calls rotateRecoveryCode
+ *   1. Acknowledge that rotating invalidates the previous recovery kit.
+ *   2. Click "Generate new recovery kit" → calls rotateRecoveryCode
  *      against the in-memory MEK + PERSISTs the new recovery_ciphertext
  *      to org_settings.
- *   3. Display the new 12-word code with copy-to-clipboard.
+ *   3. Display the new 12-word recovery kit with copy-to-clipboard.
  *   4. Type-back verification: retype 3 random positions to prove save
  *      (same pattern as onboarding S3) before the page lets the user
  *      navigate away.
  *
- * Surfaced by 2026-05-16 security review (combined S4 + S9 — viewing
- * the existing code is impossible by design, so this is the only
+ * Surfaced by 2026-05-16 security review (combined S4 + S9: viewing
+ * the existing recovery kit is impossible by design, so this is the only
  * meaningful settings affordance).
  */
 
@@ -87,13 +87,13 @@ export default function RecoveryCode() {
     })();
   }, [navigate]);
 
-  // Warn on navigation while the new code is unverified.
+  // Warn on navigation while the new recovery kit is unverified.
   useEffect(() => {
     if (stage !== 'display' && stage !== 'verify') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue =
-        'Your new recovery code has not been verified saved. Closing this page now will lock you out next time you forget your password.';
+        'Your new recovery kit has not been verified saved. Closing this page now will lock you out next time you forget your password.';
       return e.returnValue;
     };
     window.addEventListener('beforeunload', handler);
@@ -103,7 +103,7 @@ export default function RecoveryCode() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm p-6">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading recovery code status…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading recovery kit status…
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function RecoveryCode() {
       <div className="max-w-2xl p-6">
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
-            Unlock your vault to manage your recovery code.
+            Unlock your vault to manage your recovery kit.
           </p>
         </div>
       </div>
@@ -136,14 +136,14 @@ export default function RecoveryCode() {
         action: 'UPDATE',
         entityType: 'org_settings',
         entityId: orgId,
-        summary: 'Rotated vault recovery code',
+        summary: 'Rotated recovery kit',
         encrypt: encryptText,
       });
       setNewCode(out.newRecoveryCode);
       setHasRecoveryCipher(true);
       setStage('display');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Recovery code rotation failed.';
+      const msg = err instanceof Error ? err.message : 'Recovery kit rotation failed.';
       setError(msg);
       toast.error(msg);
     } finally {
@@ -178,7 +178,7 @@ export default function RecoveryCode() {
       return;
     }
     setStage('done');
-    toast.success('Recovery code rotated and verified saved.');
+    toast.success('Recovery kit rotated and verified saved.');
   };
 
   const handleCopy = async () => {
@@ -198,11 +198,11 @@ export default function RecoveryCode() {
       <div>
         <h1 className="text-2xl font-bold text-foreground mb-1 flex items-center gap-2">
           <KeyRound className="w-6 h-6 text-primary" />
-          Recovery code
+          Recovery kit
         </h1>
         <p className="text-sm text-muted-foreground">
-          Your recovery code unlocks your vault if you ever forget your vault password. It is the
-          only backup that works without your password — keep it somewhere safe.
+          Your recovery kit unlocks your vault if you ever forget your vault password. It is the
+          only backup that works without your password, keep it somewhere safe.
         </p>
       </div>
 
@@ -214,25 +214,29 @@ export default function RecoveryCode() {
           </div>
           <p className="text-sm text-muted-foreground">
             {hasRecoveryCipher
-              ? '✅ A recovery code is set for this organization.'
-              : '⚠️ No recovery code is set yet. Generate one now.'}
+              ? '✅ A recovery kit is set for this organization.'
+              : '⚠️ No recovery kit is set yet. Generate one now.'}
           </p>
 
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground">Why you cannot view the existing code</p>
+            <p className="font-medium text-foreground">
+              Why you cannot view your existing recovery kit
+            </p>
             <p>
-              By design, only an encrypted form of your code is stored on the server. The original
-              code was shown once during setup and never persisted. If you have lost track of it,
-              generate a new one below.
+              By design, only an encrypted form of your recovery kit is stored on the server. The
+              original recovery kit was shown once during setup and never persisted. If you have
+              lost track of it, generate a new one below.
             </p>
           </div>
 
           <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium mb-1">Generating a new code invalidates the old one.</p>
+              <p className="font-medium mb-1">
+                Generating a new recovery kit invalidates the old one.
+              </p>
               <p>
-                Any copy of your old recovery code (in a password manager, on paper, etc.) stops
+                Any copy of your old recovery kit (in a password manager, on paper, etc.) stops
                 working the moment you click below. Make sure you can save the new one safely before
                 continuing.
               </p>
@@ -246,7 +250,7 @@ export default function RecoveryCode() {
               onCheckedChange={(v) => setConfirmAck(Boolean(v))}
             />
             <Label htmlFor="ack" className="text-sm leading-tight cursor-pointer">
-              I understand the old code stops working and I am ready to save the new one
+              I understand the old recovery kit stops working and I am ready to save the new one
               immediately.
             </Label>
           </div>
@@ -266,8 +270,8 @@ export default function RecoveryCode() {
             {submitting
               ? 'Generating…'
               : hasRecoveryCipher
-                ? 'Generate a new recovery code'
-                : 'Generate recovery code'}
+                ? 'Generate a new recovery kit'
+                : 'Generate recovery kit'}
           </Button>
         </section>
       )}
@@ -276,7 +280,7 @@ export default function RecoveryCode() {
         <section className="rounded-lg border-2 border-primary/40 bg-primary/5 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-card-foreground">Your new recovery code</h2>
+            <h2 className="text-base font-semibold text-card-foreground">Your new recovery kit</h2>
           </div>
           <p className="text-xs text-muted-foreground">Shown once. Copy or write it down now.</p>
 
@@ -339,7 +343,7 @@ export default function RecoveryCode() {
           </div>
 
           <Button type="button" onClick={handleStartVerify} className="w-full">
-            I have saved it — verify
+            I have saved it, verify
           </Button>
         </section>
       )}
@@ -387,7 +391,7 @@ export default function RecoveryCode() {
               className="flex-1"
               onClick={() => setStage('display')}
             >
-              Back to code
+              Back to my recovery kit
             </Button>
             <Button
               type="button"
@@ -405,10 +409,10 @@ export default function RecoveryCode() {
         <section className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-base font-semibold text-card-foreground">Recovery code rotated</h2>
+            <h2 className="text-base font-semibold text-card-foreground">Recovery kit rotated</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Your previous recovery code no longer works. Use the new one if you ever need to recover
+            Your previous recovery kit no longer works. Use the new one if you ever need to recover
             your vault.
           </p>
           <Button variant="outline" onClick={() => navigate('/app/settings/security')}>

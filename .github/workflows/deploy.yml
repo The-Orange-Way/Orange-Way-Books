@@ -34,7 +34,7 @@ jobs:
         with:
           bun-version: latest
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -53,6 +53,25 @@ jobs:
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
           VITE_DEPLOY_ENV: ${{ github.ref_name }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          # Onboarding v2 (DL-0429) is a build-time flag, read as the exact
+          # string "true" in onboarding-flow.tsx. It is NOT a Cloudflare Pages
+          # env var: the bundle is built here, in Actions, then shipped to
+          # Pages, so the value must be present at this Build step.
+          #
+          # On for dev only. The reason it was off on every branch was that v2
+          # authenticated and then provisioned nothing, no org and no vault, so
+          # a user who finished it was left stuck with no way back in. That is
+          # fixed: #226 persists the five vault columns v2 was discarding, and
+          # #227 shows and verifies the real recovery words instead of accepting
+          # any twelve strings. Both must be merged before this lands, which is
+          # why this PR is sequenced behind them rather than opened alongside.
+          #
+          # Prod stays 'false' deliberately. Turning it on for real customers is
+          # a separate decision that belongs to whoever owns the release, taken
+          # after the flow has been exercised on books.orangeway.dev. Flipping
+          # both at once would mean prod's first run of v2 is also its first
+          # test of v2.
+          VITE_ONBOARDING_V2: ${{ github.ref_name == 'dev' && 'true' || 'false' }}
           # Branch-derived Turnstile site key. Site keys are browser-safe
           # by design; the corresponding secret lives on the Supabase Auth
           # config (security_captcha_secret), not on the SPA.

@@ -96,7 +96,7 @@ flowchart LR
 2. **Your browser computes a key from the password.** Everything sensitive you type into the app (account names, journal entries, customer details, memos) is encrypted with that key before it leaves your machine.
 3. **The server stores only ciphertext.** Our database sees opaque blobs and timestamps. It cannot decrypt them. We cannot decrypt them.
 4. **Reports run in your browser.** P&L, balance sheet, trial balance, general ledger, cash flow, all the math happens after decrypt, in the page you have open.
-5. **Close the tab and the key is gone.** We never had a copy. If you forget your password and didn't print the recovery code, the data is unrecoverable. That is the cost of the privacy guarantee.
+5. **Close the tab and the key is gone.** We never had a copy. If you forget your password and didn't print the recovery kit, the data is unrecoverable. That is the cost of the privacy guarantee.
 6. **You can invite people.** When you invite your accountant or a colleague, your browser wraps a copy of the key for them. Each invitee unlocks with their own vault password and gets only the rows their role can see.
 
 The cryptography uses standard primitives in well-vetted combinations. Full details are in [`SECURITY.md`](./SECURITY.md).

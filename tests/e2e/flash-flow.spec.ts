@@ -74,7 +74,7 @@ async function gotoAuthed(page: Page, url: string): Promise<void> {
     .isVisible({ timeout: 500 })
     .catch(() => false);
   expect(stillLocked, `still on Unlock Vault screen after gotoAuthed(${url})`).toBe(false);
-  await expect(page.locator('text=Insights').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('app-shell').first()).toBeVisible({ timeout: 10_000 });
   // Wait for any centered content spinner to disappear.
   await page
     .locator('svg.animate-spin.w-6.h-6')
@@ -121,18 +121,18 @@ test.describe.serial('Pay with Flash — narrative (honest)', () => {
   test('01 — authenticated user lands on dashboard', async () => {
     await gotoAuthed(sharedPage, '/app');
     expect(sharedPage.url()).toContain('/app');
-    // Dashboard-specific element: the "Insights" page heading (h1/h2)
+    // Dashboard-specific element: the "Dashboard" page heading (h1/h2)
     // distinct from the sidebar nav item.
     await expect(
       sharedPage
         .locator('h1, h2')
-        .filter({ hasText: /Insights/i })
+        .filter({ hasText: /Dashboard/i })
         .first(),
     ).toBeVisible({ timeout: 10_000 });
     await shot(
       sharedPage,
       '01-signup',
-      'Authenticated Orange Way Books user lands on the Insights dashboard. Sidebar shows the active org. Vault Unlocked badge confirms the in-browser MEK is live and only the user can decrypt the data the dashboard renders.',
+      'Authenticated Orange Way Books user lands on the Dashboard. Sidebar shows the active org. Vault Unlocked badge confirms the in-browser MEK is live and only the user can decrypt the data the dashboard renders.',
     );
   });
 

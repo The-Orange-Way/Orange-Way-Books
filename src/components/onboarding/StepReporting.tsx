@@ -10,17 +10,11 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BarChart3 } from 'lucide-react';
 import type { BitcoinDisplay } from '@/types';
+import { getFiatCurrencies } from '@/lib/exchange';
 
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'BTC', label: 'BTC — Bitcoin' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'JPY', label: 'JPY — Japanese Yen' },
-  { value: 'CHF', label: 'CHF — Swiss Franc' },
+  ...getFiatCurrencies().map((c) => ({ value: c.code, label: `${c.code} - ${c.name}` })),
 ];
 
 const btcDisplayOptions: { value: BitcoinDisplay; label: string }[] = [
@@ -173,7 +167,7 @@ export default function StepReporting({ data, onChange, onNext, onBack }: Props)
         <div className="space-y-2">
           <Label>Timezone</Label>
           <Select value={data.timezone} onValueChange={(v) => onChange({ ...data, timezone: v })}>
-            <SelectTrigger>
+            <SelectTrigger data-testid="onboarding-timezone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
