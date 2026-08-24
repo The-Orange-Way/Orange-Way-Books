@@ -106,3 +106,29 @@ export const VERIFY_COPY = {
   cta: 'Confirm and continue',
   back: 'Back to my recovery kit',
 };
+
+/**
+ * What the vault password step says when the Continue button is disabled, one
+ * string per blocking condition, plus the acknowledgement label.
+ *
+ * NOT locked and not from the 2026-07-30 spec: the spec predates the fix this
+ * wording comes from, which was written after a beta user met a greyed-out
+ * button with no message and could not tell what to change. Ported from the
+ * sibling app's shipped version so both say the same thing, and it is CX's to
+ * reword. If CX changes it, change the sibling app in the same breath.
+ *
+ * Which of these shows is decided in src/lib/vault-gate.ts, never here, and
+ * never by a guard expression assembled next to the string. That separation is
+ * the whole point: it is what stopped the disabled state and the explanation
+ * from drifting apart again.
+ */
+export const VAULT_GATE_COPY = {
+  length: 'Passphrase is too short. Keep adding characters.',
+  strength:
+    'Your passphrase needs to be stronger to protect your vault. Keep adding characters, or use several unrelated words.',
+  mismatch: "Passwords don't match. Re-type to confirm.",
+  acknowledgement:
+    'Confirm you understand that losing your password means losing access to your books.',
+  acknowledgementLabel: 'I understand this password cannot be recovered without my recovery kit.',
+  emptyMeter: 'Enter a password',
+};
