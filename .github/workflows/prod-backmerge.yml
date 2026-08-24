@@ -144,6 +144,28 @@ jobs:
           git merge --abort 2>/dev/null || true
           git checkout --quiet --detach "origin/${SOURCE_BRANCH}"
 
+      - name: Assert automation branch is an ancestor of prod (guard)
+        if: steps.compare.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          # The push below is fast-forward only. That invariant holds if and
+          # only if the automation branch is an ancestor of prod. If not,
+          # someone pushed to it directly and the push fails with
+          # "non-fast-forward" -- a message that points the reader at prod
+          # history rather than at the automation branch. This guard checks
+          # ancestry first and prints the actionable fix instead.
+          if git rev-parse --verify "origin/${BACKMERGE_BRANCH}" >/dev/null 2>&1; then
+            if ! git merge-base --is-ancestor \
+                   "origin/${BACKMERGE_BRANCH}" \
+                   "origin/${SOURCE_BRANCH}"; then
+              echo "::error title=Automation branch is not an ancestor of prod::${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH}. Someone pushed to it directly. Delete the branch and re-run: git push origin --delete ${BACKMERGE_BRANCH}"
+              exit 1
+            fi
+            echo "Ancestry OK: origin/${BACKMERGE_BRANCH} is an ancestor of origin/${SOURCE_BRANCH}."
+          else
+            echo "Branch ${BACKMERGE_BRANCH} does not exist yet; ancestry check skipped."
+          fi
+
       - name: Update the automation branch to the prod tip
         if: steps.compare.outputs.count != '0'
         run: |
