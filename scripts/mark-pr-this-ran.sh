@@ -26,6 +26,11 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 HEAD_SHA="$(git rev-parse HEAD)"
-echo "$HEAD_SHA" > .git/.pr-this-ran
+# Resolve the per-worktree git dir. A bare ".git/" path is a regular FILE
+# inside a linked worktree, so this redirect would fail with "Not a directory"
+# and no marker would be written. --absolute-git-dir is per-worktree (not
+# --git-common-dir, which is shared and would let one worktree authorise a
+# push from another branch).
+echo "$HEAD_SHA" > "$(git rev-parse --absolute-git-dir)/.pr-this-ran"
 
 echo "✓ /pr-this marker set → $(echo "$HEAD_SHA" | head -c 12) on $(git rev-parse --abbrev-ref HEAD)"

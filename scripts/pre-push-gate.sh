@@ -60,7 +60,12 @@ fi
 FAIL=0
 
 # ---- Check 1: /pr-this marker fresh ----
-MARKER="$REPO_ROOT/.git/.pr-this-ran"
+# --absolute-git-dir resolves the per-worktree git dir, where mark-pr-this-ran.sh
+# writes the marker. "$REPO_ROOT/.git" would be a plain FILE inside a linked
+# worktree, so the marker could never be found and every push from a worktree
+# would be refused. Not --git-common-dir: that is shared across worktrees and
+# would let one worktree's marker authorise a push from a different branch.
+MARKER="$(git rev-parse --absolute-git-dir)/.pr-this-ran"
 HEAD_SHA=$(git rev-parse HEAD)
 if [ ! -f "$MARKER" ]; then
   red "✗ /pr-this has NEVER been recorded for this clone."
