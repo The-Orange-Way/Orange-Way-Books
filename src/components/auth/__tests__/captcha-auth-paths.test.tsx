@@ -149,6 +149,13 @@ function withSiteKey(present: boolean) {
 async function renderLogin(keyPresent: boolean) {
   const { MemoryRouter } = await import('react-router-dom');
   withSiteKey(keyPresent);
+  // The code sign-in control is behind the onboarding v2 flag (DL-0429), and
+  // that flag is read at module scope too, so it has to be stubbed alongside
+  // the site key rather than anywhere later. Nothing injects it under the test
+  // runner, so without this the control never renders and every case below
+  // that reaches for it fails on a missing element instead of on the captcha
+  // behaviour it is actually about.
+  vi.stubEnv('VITE_ONBOARDING_V2', 'true');
   const { default: LoginPage } = await import('../LoginPage');
   render(
     <MemoryRouter>
