@@ -11,6 +11,7 @@ import {
   CAPTCHA_REQUIRED,
   type TurnstileInstance,
 } from '@/components/auth/CaptchaWidget';
+import { ONBOARDING_V2_ENABLED } from '@/components/onboarding/v2/onboarding-flow';
 
 // Onboarding v2 creates accounts through signInWithOtp({ shouldCreateUser:
 // true }), so those users never get a Supabase password. Password sign-in is
@@ -375,13 +376,30 @@ export default function LoginPage() {
                 >
                   {loading ? 'Signing in…' : 'Sign In'}
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => setOtpMode(true)}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Email me a sign-in code instead
-                </button>
+                {/*
+                  Behind the onboarding v2 flag, and deliberately the same flag
+                  rather than one of its own. The only accounts that need this
+                  door are the passwordless ones the v2 front door creates, so
+                  where the front door is off this control has, by
+                  construction, nobody to serve.
+
+                  It is not merely useless when it is early. The send swallows
+                  its own error on purpose, so the address cannot be probed for
+                  an account, and then advances to the code screen either way.
+                  On a project where Auth does not issue email codes that reads
+                  to the customer as "your code is coming" followed by mail
+                  that never arrives, with nothing on screen to report. Gating
+                  it here is what makes a promotion genuinely dark.
+                */}
+                {ONBOARDING_V2_ENABLED && (
+                  <button
+                    type="button"
+                    onClick={() => setOtpMode(true)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Email me a sign-in code instead
+                  </button>
+                )}
               </div>
             )}
           </form>
