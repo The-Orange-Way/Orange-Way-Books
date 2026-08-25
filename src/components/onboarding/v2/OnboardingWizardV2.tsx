@@ -13,7 +13,20 @@ import OrgSetupSurface from './OrgSetupSurface';
  * touching the caller.
  *
  * userId is threaded into OrgSetupSurface, which uses it to create the
- * organization and the org_members OWNER row on finish (v1 parity).
+ * organization and the org_members OWNER row on finish (v1 parity). It is
+ * optional because this wizard now has two callers with two different moments
+ * at which that id exists:
+ *
+ * - Mounted after sign in, the caller already holds a session and passes the
+ *   id down, exactly as v1 does.
+ * - Mounted as the signup front door, nobody is signed in yet, so there is no
+ *   id to pass. The email step creates the account and records the id in the
+ *   flow's own state as soon as the code is confirmed, and it arrives here on
+ *   the completion result. That happens at step two of seven, well before the
+ *   only consumer needs it.
+ *
+ * The prop wins when it is present, so the post-auth path is unchanged: it
+ * keeps using the id from its session rather than one derived mid-flow.
  *
  * vaultSetup is threaded the same way, and it is worth being precise about
  * what that does and does not expose. It is the five persistable fields the
@@ -26,7 +39,7 @@ import OrgSetupSurface from './OrgSetupSurface';
  * material crosses this boundary.
  */
 interface OnboardingWizardV2Props {
-  userId: string;
+  userId?: string;
   onComplete: () => void;
 }
 
@@ -42,8 +55,13 @@ export default function OnboardingWizardV2({ userId, onComplete }: OnboardingWiz
   // seconds between the two phases, and dropped when the component unmounts.
   const [vaultSetup, setVaultSetup] = useState<OnboardingVaultSetup | null>(null);
 
+  // Whose account this is. Seeded from the prop when the caller already knew,
+  // and otherwise filled in from the wizard's own result.
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(userId ?? null);
+
   const handleWizardComplete = (result: OnboardingResult) => {
     setVaultSetup(result.vaultSetup);
+    setResolvedUserId(userId ?? result.userId);
     setPhase('org-setup');
   };
 
@@ -51,5 +69,22 @@ export default function OnboardingWizardV2({ userId, onComplete }: OnboardingWiz
     return <OnboardingFlow steps={ONBOARDING_STEPS} onComplete={handleWizardComplete} />;
   }
 
-  return <OrgSetupSurface userId={userId} vaultSetup={vaultSetup} onComplete={onComplete} />;
+  if (!resolvedUserId) {
+    // Unreachable on either mount: the caller passes an id, or the email step
+    // records one before the flow can reach its last step. It is a visible
+    // refusal rather than a cast because the alternative is handing a surface
+    // that writes an org and an OWNER row an id it cannot trust. Refusing here
+    // costs a retry; guessing there writes rows against the wrong account.
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <p className="text-sm text-destructive text-center max-w-sm">
+          We could not confirm which account this setup belongs to. Please sign in and try again.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <OrgSetupSurface userId={resolvedUserId} vaultSetup={vaultSetup} onComplete={onComplete} />
+  );
 }

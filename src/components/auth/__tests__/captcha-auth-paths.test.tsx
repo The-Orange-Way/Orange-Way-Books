@@ -85,6 +85,7 @@ vi.mock('@/lib/supabase', () => ({
  */
 const vendor = vi.hoisted(() => ({
   onSuccess: null as ((token: string) => void) | null,
+  onExpire: null as (() => void) | null,
   reset: vi.fn(),
 }));
 
@@ -92,10 +93,11 @@ vi.mock('@marsidev/react-turnstile', async () => {
   const { forwardRef, useImperativeHandle } = await import('react');
   return {
     Turnstile: forwardRef(function TurnstileStub(
-      props: { onSuccess?: (token: string) => void },
+      props: { onSuccess?: (token: string) => void; onExpire?: () => void },
       ref: unknown,
     ) {
       vendor.onSuccess = props.onSuccess ?? null;
+      vendor.onExpire = props.onExpire ?? null;
       useImperativeHandle(ref as never, () => ({ reset: vendor.reset }));
       return null;
     }),
@@ -114,9 +116,21 @@ async function solveCaptcha() {
   });
 }
 
+/**
+ * Let a solved challenge lapse, the way the vendor does after a few minutes.
+ * The widget reports that as a null token, so a form holding a stale one has
+ * to notice and go back to un-submittable.
+ */
+async function expireCaptcha() {
+  await act(async () => {
+    vendor.onExpire?.();
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vendor.onSuccess = null;
+  vendor.onExpire = null;
   vi.resetModules();
 });
 
@@ -135,6 +149,13 @@ function withSiteKey(present: boolean) {
 async function renderLogin(keyPresent: boolean) {
   const { MemoryRouter } = await import('react-router-dom');
   withSiteKey(keyPresent);
+  // The code sign-in control is behind the onboarding v2 flag (DL-0429), and
+  // that flag is read at module scope too, so it has to be stubbed alongside
+  // the site key rather than anywhere later. Nothing injects it under the test
+  // runner, so without this the control never renders and every case below
+  // that reaches for it fails on a missing element instead of on the captcha
+  // behaviour it is actually about.
+  vi.stubEnv('VITE_ONBOARDING_V2', 'true');
   const { default: LoginPage } = await import('../LoginPage');
   render(
     <MemoryRouter>
@@ -194,6 +215,115 @@ describe('sign in with a password', () => {
     fireEvent.click(submit);
     await waitFor(() => expect(auth.signInWithPassword).toHaveBeenCalled());
     expect(auth.signInWithPassword.mock.calls[0][0]).toMatchObject({
+      options: { captchaToken: undefined },
+    });
+    expect(vendor.onSuccess).toBeNull();
+  });
+});
+
+describe('sign in with a code', () => {
+  async function openCodePath(keyPresent: boolean) {
+    await renderLogin(keyPresent);
+    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in code/i }));
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'someone@example.com' },
+    });
+  }
+
+  it('will not send until the challenge is solved, and Enter does not go around it', async () => {
+    await openCodePath(true);
+
+    const send = screen.getByRole('button', { name: 'Send code' });
+    expect(send).toBeDisabled();
+
+    // Submitting the form is the one way to reach the handler while the button
+    // is disabled, so the guard has to live in the handler as well as on the
+    // control. Otherwise the keyboard is a hole in the same door.
+    fireEvent.submit(screen.getByLabelText('Email').closest('form') as HTMLFormElement);
+    expect(auth.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it('hands the token to the send, and spends it', async () => {
+    await openCodePath(true);
+    await solveCaptcha();
+
+    const send = screen.getByRole('button', { name: 'Send code' });
+    expect(send).not.toBeDisabled();
+
+    fireEvent.click(send);
+    await waitFor(() => expect(auth.signInWithOtp).toHaveBeenCalled());
+    expect(auth.signInWithOtp.mock.calls[0][0]).toMatchObject({
+      options: { shouldCreateUser: false, captchaToken: SOLVED },
+    });
+    await waitFor(() => expect(vendor.reset).toHaveBeenCalled());
+  });
+
+  it('needs a fresh challenge before it will resend', async () => {
+    await openCodePath(true);
+    await solveCaptcha();
+
+    // The five second double-send lock disables Resend too, so asserting on it
+    // straight after the send would pass whether or not the token was cleared.
+    // Run the lock out first: then the missing token is the only thing left
+    // holding the button. Timers go in after the render so the module imports
+    // above are not waiting on a clock that no longer moves on its own.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+      await waitFor(() => expect(auth.signInWithOtp).toHaveBeenCalled());
+
+      await act(async () => {
+        vi.advanceTimersByTime(6000);
+      });
+
+      const resend = screen.getByRole('button', { name: /resend code/i });
+      expect(resend).toBeDisabled();
+
+      await solveCaptcha();
+      expect(resend).not.toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not send a token on verify, which Auth does not challenge', async () => {
+    await openCodePath(true);
+    await solveCaptcha();
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    await waitFor(() => expect(auth.signInWithOtp).toHaveBeenCalled());
+
+    // The send just spent the token, and nothing here solves another one.
+    // Requiring one at this step would break the second half of every code
+    // sign-in, which is why the widget's own table marks verify as exempt.
+    fireEvent.change(await screen.findByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+    await waitFor(() => expect(auth.verifyOtp).toHaveBeenCalled());
+    expect(auth.verifyOtp.mock.calls[0][0]).not.toHaveProperty('options');
+    expect(JSON.stringify(auth.verifyOtp.mock.calls)).not.toContain(SOLVED);
+  });
+
+  it('drops the token when the challenge expires', async () => {
+    await openCodePath(true);
+    await solveCaptcha();
+    expect(screen.getByRole('button', { name: 'Send code' })).not.toBeDisabled();
+
+    await expireCaptcha();
+    // A lapsed token is refused by the provider, so submitting with one still
+    // held would fail in a way that reads as a broken account rather than as a
+    // stale challenge.
+    expect(screen.getByRole('button', { name: 'Send code' })).toBeDisabled();
+  });
+
+  it('is unchanged when the build has no site key', async () => {
+    await openCodePath(false);
+
+    const send = screen.getByRole('button', { name: 'Send code' });
+    expect(send).not.toBeDisabled();
+
+    fireEvent.click(send);
+    await waitFor(() => expect(auth.signInWithOtp).toHaveBeenCalled());
+    expect(auth.signInWithOtp.mock.calls[0][0]).toMatchObject({
       options: { captchaToken: undefined },
     });
     expect(vendor.onSuccess).toBeNull();

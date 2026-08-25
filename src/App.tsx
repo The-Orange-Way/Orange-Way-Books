@@ -22,7 +22,7 @@ import OnboardingWizardV2 from '@/components/onboarding/v2/OnboardingWizardV2';
 import { ONBOARDING_V2_ENABLED } from '@/components/onboarding/v2/onboarding-flow';
 import LoginPage from '@/components/auth/LoginPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
-import SignupPage from '@/components/auth/SignupPage';
+import SignupFrontDoor from '@/components/onboarding/v2/SignupFrontDoor';
 import NotFound from '@/pages/NotFound';
 
 import Dashboard from '@/pages/Dashboard';
@@ -150,7 +150,7 @@ function RootRouter() {
         {/* Auth pages */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup" element={<SignupFrontDoor />} />
 
         {/* Public hosted invoice view , Bitwarden Send pattern (key in URL fragment) */}
         <Route path="/i/:urlId" element={<PublicInvoice />} />
