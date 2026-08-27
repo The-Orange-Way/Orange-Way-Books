@@ -81,24 +81,45 @@ jobs:
           fi
 
           if [ "$unpromoted" -gt 0 ]; then
-            oldest_sha="$(echo "$behind_json" | jq -r '.commits[0].sha')"
+            # Age from when each unpromoted commit LANDED on dev, not when it
+            # was authored, and take the MINIMUM landing date across ALL of
+            # them. commits[0] is ordered by commit date, not by landing
+            # date, so the commit that landed earliest is not guaranteed to
+            # be at index 0 once we age by merge time. Bounded: the job
+            # already fails above BEHIND_COMMIT_LIMIT commits, so at most
+            # that many lookups run.
+            oldest_epoch=""
+            oldest_date=""
+            date_source=""
+            commit_count="$(echo "$behind_json" | jq -r '.commits | length')"
+            for i in $(seq 0 $((commit_count - 1))); do
+              sha="$(echo "$behind_json" | jq -r ".commits[$i].sha")"
 
-            # Age from when this commit LANDED on dev, not when it was authored.
-            # Prefer the merge time of the PR that landed it; fall back to the
-            # commit's own committer date only when no merging PR is found
-            # (a commit pushed straight to dev with no PR).
-            pulls_json="$(gh api "repos/${REPO}/commits/${oldest_sha}/pulls" 2>/dev/null || echo '[]')"
-            oldest_date="$(echo "$pulls_json" | jq -r '[.[] | select(.merged_at != null)][0].merged_at // empty')"
-            date_source="pr-merged_at"
-            if [ -z "$oldest_date" ]; then
-              oldest_date="$(echo "$behind_json" | jq -r '.commits[0].commit.committer.date')"
-              date_source="committer.date (no merging PR found, fallback)"
-            fi
-            if [ "$oldest_date" = "null" ] || [ -z "$oldest_date" ]; then
-              echo "::error::have unpromoted commits but could not read the oldest commit date; refusing to pass." >&2
+              # Prefer the EARLIEST merge time among the PRs that carried this
+              # commit; fall back to the commit's own committer date only
+              # when no merging PR is found (a commit pushed straight to dev).
+              pulls_json="$(gh api "repos/${REPO}/commits/${sha}/pulls" 2>/dev/null || echo '[]')"
+              commit_date="$(echo "$pulls_json" | jq -r '[.[] | select(.merged_at != null) | .merged_at] | sort | .[0] // empty')"
+              src="pr-merged_at"
+              if [ -z "$commit_date" ]; then
+                commit_date="$(echo "$behind_json" | jq -r ".commits[$i].commit.committer.date")"
+                src="committer.date (no merging PR found, fallback)"
+              fi
+              if [ "$commit_date" = "null" ] || [ -z "$commit_date" ]; then
+                continue
+              fi
+
+              commit_epoch="$(date -u -d "$commit_date" +%s)"
+              if [ -z "$oldest_epoch" ] || [ "$commit_epoch" -lt "$oldest_epoch" ]; then
+                oldest_epoch="$commit_epoch"
+                oldest_date="$commit_date"
+                date_source="$src"
+              fi
+            done
+            if [ -z "$oldest_epoch" ]; then
+              echo "::error::have unpromoted commits but could not read a landing date for any of them; refusing to pass." >&2
               exit 1
             fi
-            oldest_epoch="$(date -u -d "$oldest_date" +%s)"
             now_epoch="$(date -u +%s)"
             age_hours=$(( (now_epoch - oldest_epoch) / 3600 ))
             echo "oldest unpromoted commit is ${age_hours} hour(s) old (${oldest_date}, source: ${date_source})"
