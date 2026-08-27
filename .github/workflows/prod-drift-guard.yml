@@ -81,7 +81,19 @@ jobs:
           fi
 
           if [ "$unpromoted" -gt 0 ]; then
-            oldest_date="$(echo "$behind_json" | jq -r '.commits[0].commit.committer.date')"
+            oldest_sha="$(echo "$behind_json" | jq -r '.commits[0].sha')"
+
+            # Age from when this commit LANDED on dev, not when it was authored.
+            # Prefer the merge time of the PR that landed it; fall back to the
+            # commit's own committer date only when no merging PR is found
+            # (a commit pushed straight to dev with no PR).
+            pulls_json="$(gh api "repos/${REPO}/commits/${oldest_sha}/pulls" 2>/dev/null || echo '[]')"
+            oldest_date="$(echo "$pulls_json" | jq -r '[.[] | select(.merged_at != null)][0].merged_at // empty')"
+            date_source="pr-merged_at"
+            if [ -z "$oldest_date" ]; then
+              oldest_date="$(echo "$behind_json" | jq -r '.commits[0].commit.committer.date')"
+              date_source="committer.date (no merging PR found, fallback)"
+            fi
             if [ "$oldest_date" = "null" ] || [ -z "$oldest_date" ]; then
               echo "::error::have unpromoted commits but could not read the oldest commit date; refusing to pass." >&2
               exit 1
@@ -89,7 +101,7 @@ jobs:
             oldest_epoch="$(date -u -d "$oldest_date" +%s)"
             now_epoch="$(date -u +%s)"
             age_hours=$(( (now_epoch - oldest_epoch) / 3600 ))
-            echo "oldest unpromoted commit is ${age_hours} hour(s) old (${oldest_date})"
+            echo "oldest unpromoted commit is ${age_hours} hour(s) old (${oldest_date}, source: ${date_source})"
             if [ "$age_hours" -gt "$BEHIND_HOURS_LIMIT" ]; then
               echo "::error::oldest unpromoted commit is ${age_hours} hours old, over the ${BEHIND_HOURS_LIMIT}-hour limit. Promote dev to prod." >&2
               fail=1
