@@ -102,8 +102,8 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       setProgressMessage('🔐 Verifying your identity…');
       await waitForAuthenticatedUser();
 
-      // Atomic org creation: create_org_for_current_user (DL-1348, PR #220)
-      // is a SECURITY DEFINER RPC that wraps the organizations, org_members,
+      // Atomic org creation: create_org_for_current_user (DL-1348) is a
+      // SECURITY DEFINER RPC that wraps the organizations, org_members,
       // org_settings and vault-verifier writes in one database transaction.
       // If it throws partway through, the whole thing rolls back, so a lost
       // connection or a closed tab never leaves an orphaned half-created org
