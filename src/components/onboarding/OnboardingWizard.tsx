@@ -180,7 +180,7 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
       if (rpcError) throw rpcError;
       const orgId = newOrgId as string;
 
-      // 5. Seed chart of accounts in Postgres. Encrypting 43 accounts with
+      // Seed chart of accounts in Postgres. Encrypting 43 accounts with
       // Argon2id+AES-GCM takes ~30s on a typical laptop. Blocking the wizard
       // on that wait left customers staring at a spinner before they could
       // touch the app. Now: mark `organizations.ledger_status='provisioning'`
