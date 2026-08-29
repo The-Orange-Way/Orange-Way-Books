@@ -132,6 +132,10 @@ push_base() {
 # single-line "a|b|c" value passes through unchanged.
 CANON_TERMS_LIB="$REPO_ROOT/scripts/canon-terms.sh"
 PRIVATE_PATTERN=""
+# Set when a list WAS supplied and could not be turned into a usable
+# pattern. That is a refusal with a reason already printed, not a skip, and
+# the two must not print the same line.
+RESERVED_UNUSABLE=0
 if [ ! -f "$CANON_TERMS_LIB" ]; then
   # Fail closed. A check that cannot run is not a check that passed.
   red "✗ scripts/canon-terms.sh is missing; the reserved-term check cannot run."
@@ -139,24 +143,42 @@ if [ ! -f "$CANON_TERMS_LIB" ]; then
 else
   # shellcheck source=scripts/canon-terms.sh
   . "$CANON_TERMS_LIB"
-  # The "|| true" on each assignment is deliberate. This script runs under
-  # set -euo pipefail, and inside canon_terms the grep that drops comment
-  # and blank lines exits 1 when it selects nothing. pipefail promotes that
-  # to the pipeline status, so a bare assignment would end the script there
-  # with no message at all. The trigger is a list holding only comments,
-  # which is exactly what a freshly copied .reserved-terms.example looks
-  # like. Capturing the empty result instead lets the skip notice below
-  # say why the scan did not run.
-  if [ -n "${OW_RESERVED_TERMS:-}" ]; then
-    PRIVATE_PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms || true)"
-  fi
-  if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
-    PRIVATE_PATTERN="$(canon_terms < "$REPO_ROOT/.reserved-terms" || true)"
+  # Present is not the same as usable: a file that exists and fails to
+  # source leaves canon_terms undefined. Ask for the function.
+  if ! declare -f canon_terms >/dev/null 2>&1; then
+    red "✗ scripts/canon-terms.sh was sourced but defines no canon_terms; the reserved-term check cannot run."
+    FAIL=1
+  else
+    if [ -n "${OW_RESERVED_TERMS:-}" ]; then
+      PRIVATE_PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms)"
+    fi
+    if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
+      PRIVATE_PATTERN="$(canon_terms < "$REPO_ROOT/.reserved-terms")"
+    fi
+    # One typo in a fragment, an unbalanced parenthesis say, and grep exits
+    # 2 on every use below. Both scans read that as "no match" and the gate
+    # prints that no reserved terms were found. Refuse instead, with a
+    # reason, and without printing any part of the list.
+    if [ -n "$PRIVATE_PATTERN" ] && ! canon_terms_usable "$PRIVATE_PATTERN"; then
+      red "✗ The reserved-term list does not compile as a regular expression, so this check would find nothing."
+      red "  Fix the offending fragment in OW_RESERVED_TERMS or .reserved-terms (one regex fragment per line)."
+      red "  No part of the list is printed here."
+      FAIL=1
+      RESERVED_UNUSABLE=1
+      PRIVATE_PATTERN=""
+    fi
   fi
 fi
 
-if [ -z "$PRIVATE_PATTERN" ]; then
-  yellow "– Reserved-term scan skipped (no OW_RESERVED_TERMS / .reserved-terms)."
+if [ "$RESERVED_UNUSABLE" != "0" ]; then
+  # Already refused above, with the reason. Do not also claim it was skipped.
+  :
+elif [ -z "$PRIVATE_PATTERN" ]; then
+  # Says which of the two real causes this is. "Not configured" and
+  # "configured, but every line is a comment or blank" look identical from
+  # here and send a contributor looking in different places.
+  yellow "– Reserved-term scan skipped: no usable terms found."
+  yellow "  OW_RESERVED_TERMS and .reserved-terms are unset, or hold only comments and blank lines."
   yellow "  The server-side post-merge identity scan still enforces the list."
 else
   # Scan commits being pushed: messages + diff
