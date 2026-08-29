@@ -61,6 +61,17 @@ jobs:
             echo "::error::OW_RESERVED_TERMS is configured but contains no usable terms: every line is blank or a comment. The reserved-term scan would check for nothing and report green. Set it in Settings > Secrets and variables > Actions, one term per line."
             exit 1
           fi
+          # Configured and non-empty is still not the same as usable. Each
+          # line is a regex FRAGMENT, so an unbalanced parenthesis or
+          # bracket is a realistic typo in a value nobody can read back.
+          # grep exits 2 on a pattern it refuses and every consumer of this
+          # list reads exit 2 as "no matches", so the tree scan prints a
+          # green tick and the identity scan prints "clean" while nothing
+          # is being checked at all.
+          if ! canon_terms_usable "$PATTERN"; then
+            echo "::error::OW_RESERVED_TERMS does not compile as a regular expression: at least one line is not valid regex, an unbalanced parenthesis or bracket being the usual cause. Every scan that uses it would report clean while matching nothing. Fix the offending line in Settings > Secrets and variables > Actions. No part of the value is printed."
+            exit 1
+          fi
           COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c . || true)
           echo "Reserved-term list is configured on this repository ($COUNT terms)."
 
