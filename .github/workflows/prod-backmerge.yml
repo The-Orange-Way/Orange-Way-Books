@@ -205,8 +205,10 @@ jobs:
             if [ "${{ steps.trial.outputs.clean }}" = "true" ]; then
               echo "## Merge status: clean"
               echo
-              echo "Auto-merge is requested, so this lands on its own once the required checks"
-              echo "(and any required approval on \`${BASE_BRANCH}\`) are satisfied."
+              # Placeholder replaced by "Update pull request body with actual
+              # auto-merge outcome" after the enable step runs. Do not claim
+              # auto-merge is armed before we know whether it succeeded.
+              echo "<!-- auto-merge-status: to be updated after the enable step -->"
             else
               echo "## Merge status: CONFLICTS, a human is needed"
               echo
@@ -271,6 +273,7 @@ jobs:
           echo "url=$(gh pr view "${number}" --json url --jq .url)" >> "$GITHUB_OUTPUT"
 
       - name: Enable auto-merge when the back-merge is clean
+        id: automerge
         if: steps.compare.outputs.count != '0' && steps.trial.outputs.clean == 'true'
         env:
           GH_TOKEN: ${{ secrets.FLEET_PAT }}
@@ -278,17 +281,40 @@ jobs:
         run: |
           set -euo pipefail
           # Merge commit, never squash: see the note in the pull request body.
-          # A failure here is not fatal. Auto-merge has to be enabled on the
-          # repository first, and the pull request being open is the point.
+          # A failure here is NOT fatal: auto-merge requires the repository
+          # setting "Allow auto-merge" to be on. The PR being open and clean
+          # is the point; auto-merge is a convenience on top.
+          # armed=true/false is read by the next step to write an honest body.
           if gh pr merge "${{ steps.pr.outputs.number }}" --merge --auto; then
-            echo "auto-merge requested"
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+            echo "auto-merge armed"
           else
+            echo "armed=false" >> "$GITHUB_OUTPUT"
             {
               echo "> Auto-merge could not be requested. Enable **Allow auto-merge** in the"
               echo "> repository settings, or land the back-merge by hand. The pull request is open"
               echo "> and clean either way."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Update pull request body with actual auto-merge outcome
+        if: steps.compare.outputs.count != '0' && steps.trial.outputs.clean == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FLEET_PAT }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body="${{ steps.body.outputs.path }}"
+          armed="${{ steps.automerge.outputs.armed }}"
+          if [ "${armed}" = "true" ]; then
+            status="Auto-merge is armed: this PR lands automatically once required checks (and any required review on \`${BASE_BRANCH}\`) pass."
+          else
+            status="Auto-merge could not be enabled (the repository setting **Allow auto-merge** may be off). Land this PR by hand once checks pass."
+          fi
+          # The placeholder is a fixed string we control, so | as sed delimiter
+          # is safe and no characters in the replacement need escaping.
+          sed -i "s|<!-- auto-merge-status: to be updated after the enable step -->|${status}|" "${body}"
+          gh pr edit "${{ steps.pr.outputs.number }}" --body-file "${body}"
 
       - name: Job summary
         if: steps.compare.outputs.count != '0'
@@ -299,6 +325,11 @@ jobs:
               echo "### Back-merge open and clean"
               echo
               echo "${{ steps.compare.outputs.count }} commit(s) from \`${SOURCE_BRANCH}\` are on their way back to \`${BASE_BRANCH}\`."
+              if [ "${{ steps.automerge.outputs.armed }}" = "true" ]; then
+                echo "Auto-merge is armed."
+              else
+                echo "Auto-merge could not be enabled. Land the PR by hand once checks pass."
+              fi
               echo
               echo "${{ steps.pr.outputs.url }}"
             } >> "$GITHUB_STEP_SUMMARY"

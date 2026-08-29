@@ -100,32 +100,19 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
     setProgressDetail('');
     try {
       setProgressMessage('🔐 Verifying your identity…');
-      const user = await waitForAuthenticatedUser();
-      const orgId = crypto.randomUUID();
+      await waitForAuthenticatedUser();
 
-      // 1. Insert organization (encrypt name for ZKA)
+      // Atomic org creation: create_org_for_current_user (DL-1348) is a
+      // SECURITY DEFINER RPC that wraps the organizations, org_members,
+      // org_settings and vault-verifier writes in one database transaction.
+      // If it throws partway through, the whole thing rolls back, so a lost
+      // connection or a closed tab never leaves an orphaned half-created org
+      // the way four sequential client-side writes could. The org id is
+      // generated server-side (gen_random_uuid() inside the function) and
+      // returned to us, so we no longer mint it client-side up front.
       setProgressMessage('🔐 Encrypting your organization in your browser (server can’t read it)…');
       const encOrgName = await encryptText(orgData.name);
-      const { error: orgError } = await supabase
-        .from('organizations')
-        .insert({ id: orgId, name: encOrgName, key_version: 2 });
-      if (orgError) throw orgError;
 
-      // 2. Ensure org_member row exists for the creator.
-      //
-      // A post-insert trigger on organizations (20260417000400_data_integrity_triggers.sql)
-      // already inserts the caller as OWNER, so this upsert is idempotent — we
-      // keep it to guarantee the row regardless of whether the trigger is
-      // deployed yet.
-      const { error: memberError } = await supabase
-        .from('org_members')
-        .upsert(
-          { org_id: orgId, user_id: user.id, role: 'OWNER' },
-          { onConflict: 'user_id,org_id' },
-        );
-      if (memberError) throw memberError;
-
-      // 3. Insert org_settings
       setProgressMessage('🛡️ Sealing your books under zero-knowledge encryption…');
       const secondaryCurrency =
         reportingData.secondaryCurrency === 'none' ? null : reportingData.secondaryCurrency;
@@ -164,29 +151,36 @@ export default function OnboardingWizard({ userId, onComplete }: OnboardingWizar
         },
         encryptText,
       );
-      const { error: settingsError } = await supabase.from('org_settings').insert({
-        org_id: orgId,
-        ...encSettings,
-      } as any);
-      if (settingsError) throw settingsError;
 
-      // 4. Save vault verifier + per-org salt. vault_key_version stamps
-      // the active strategy (currently 1 → deriveVaultV1Kek).
-      if (vaultVerifier) {
-        const { error: verifierError } = await (supabase as any)
-          .from('org_settings')
-          .update({
-            vault_verifier: vaultVerifier,
-            vault_salt: vaultSalt,
-            vault_key_version: vaultKeyVersion,
-            enc_mek_ciphertext: encMekCiphertext,
-            recovery_ciphertext: recoveryCiphertext,
-          })
-          .eq('org_id', orgId);
-        if (verifierError) throw verifierError;
-      }
+      // All parameters are ciphertext (or plaintext structural values like
+      // date_format); the server never sees plaintext. Caller identity comes
+      // from auth.uid() inside the function, not from any parameter here.
+      const { data: newOrgId, error: rpcError } = await (supabase as any).rpc(
+        'create_org_for_current_user',
+        {
+          p_org_name: encOrgName,
+          p_key_version: 2,
+          p_settings_primary_currency: encSettings.primary_currency,
+          p_settings_secondary_currency: encSettings.secondary_currency,
+          p_settings_bitcoin_display: encSettings.bitcoin_display,
+          p_settings_fiscal_year_type: encSettings.fiscal_year_type,
+          p_settings_encrypted_fiscal_month: encSettings.encrypted_fiscal_month,
+          p_settings_date_format: encSettings.date_format,
+          p_settings_time_format: encSettings.time_format,
+          p_settings_number_format: encSettings.number_format,
+          p_settings_timezone: encSettings.timezone,
+          p_settings_key_version: encSettings.key_version,
+          p_vault_verifier: vaultVerifier,
+          p_vault_salt: vaultSalt,
+          p_vault_key_version: vaultKeyVersion,
+          p_enc_mek_ciphertext: encMekCiphertext,
+          p_recovery_ciphertext: recoveryCiphertext,
+        },
+      );
+      if (rpcError) throw rpcError;
+      const orgId = newOrgId as string;
 
-      // 5. Seed chart of accounts in Postgres. Encrypting 43 accounts with
+      // Seed chart of accounts in Postgres. Encrypting 43 accounts with
       // Argon2id+AES-GCM takes ~30s on a typical laptop. Blocking the wizard
       // on that wait left customers staring at a spinner before they could
       // touch the app. Now: mark `organizations.ledger_status='provisioning'`
