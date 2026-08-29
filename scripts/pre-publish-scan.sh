@@ -156,12 +156,36 @@ fi
 # shellcheck source=scripts/canon-terms.sh
 . "$CANON_TERMS_LIB"
 
+# Present is not the same as usable. The file can exist and fail to source,
+# which is what a syntax error introduced by a later edit looks like, and
+# this script has no set -e: canon_terms would simply be undefined, the
+# list would resolve empty, category 1 would print itself as skipped and
+# the run would still exit 0. In CI the canonicalizer self test runs as an
+# earlier step and would catch that first, so the property would be held by
+# step ORDER rather than by this script. Ask for the function itself.
+if ! declare -f canon_terms >/dev/null 2>&1; then
+  printf "\n\033[31m▎ scripts/canon-terms.sh was sourced but defines no canon_terms; the reserved-term scan cannot run.\033[0m\n\n" >&2
+  exit 1
+fi
+
 RESERVED_TERMS=""
 if [[ -n "${OW_RESERVED_TERMS:-}" ]]; then
   RESERVED_TERMS="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms)"
 fi
 if [[ -z "$RESERVED_TERMS" && -f .reserved-terms ]]; then
   RESERVED_TERMS="$(canon_terms < .reserved-terms)"
+fi
+
+# A list that does not compile is not a clean tree. The list is one regex
+# fragment per line, so an unbalanced parenthesis or bracket is a realistic
+# typo; grep exits 2 on a pattern it refuses, scan() below discards that
+# status with "|| true", and the category prints a green tick having
+# matched nothing. Refuse the run here, while we still know why.
+if [[ -n "$RESERVED_TERMS" ]] && ! canon_terms_usable "$RESERVED_TERMS"; then
+  printf "\n\033[31m▎ The reserved-term list does not compile as a regular expression, so the scan would check for nothing.\033[0m\n" >&2
+  printf "  Fix the offending fragment in OW_RESERVED_TERMS or .reserved-terms (one regex fragment per line).\n" >&2
+  printf "  No part of the list is printed here.\n\n" >&2
+  exit 1
 fi
 
 # ----------------------------------------------------------------------
