@@ -87,11 +87,12 @@ fi
 # this one answered "I could not check" with silence.
 #
 # The bit is tested and the scanner is then invoked with bash, which does not
-# need it. That looks redundant and is deliberate: it keeps this gate
-# diffable with the twin, and a scanner whose bit was cleared is a broken
-# tree either way. Verified 2026-08-29: the server-side leak check
-# (.github/workflows/leak-check.yml) runs the scanner with bash and does not
-# test the bit, so this hook is the only place a cleared bit is caught.
+# need it. That looks redundant and is deliberate: the post-merge
+# identity-scan workflow tests the same bit and hard errors on it, so
+# accepting a non-executable scanner here would pass a push the server
+# refuses after the merge. Same rule in both places, same wording.
+# (.github/workflows/post-merge-identity-scan.yml, the "Run repo tree
+# pre-publish leak scan" step: test -x, then exit 1 with an error.)
 if [ -x "$REPO_ROOT/scripts/pre-publish-scan.sh" ]; then
   if bash "$REPO_ROOT/scripts/pre-publish-scan.sh" >/tmp/.pps.out 2>&1; then
     green "✓ pre-publish-scan clean."
