@@ -246,6 +246,27 @@ if command -v gitleaks >/dev/null; then
   else
     FAIL=1
   fi
+else
+  # An absent scanner is not a clean scan. This branch did not exist: with
+  # gitleaks off PATH nothing ran, nothing printed, FAIL was untouched, and
+  # the gate went on to print PASSED, which reads as "a secret scan covered
+  # these commits". Announce the gap every time instead.
+  #
+  # This warns rather than refusing, unlike the checks above, and the
+  # difference is deliberate: the term list and the canonicalizer are
+  # repository state, so their absence means a broken tree, while gitleaks
+  # is an optional external binary a fresh clone will not have. Whether
+  # this should also refuse is one decision for both twins, and it is being
+  # settled on evidence about server-side coverage rather than guessed.
+  #
+  # Worth knowing while that is open: of every check in this script, this
+  # is the only one with no server-side counterpart. A reserved term missed
+  # here is caught after the merge by the identity scan and the tree scan.
+  # A secret gitleaks would have caught is caught by nothing downstream.
+  yellow "- gitleaks is not installed: NO secret scan ran on the commits being pushed."
+  yellow "  The checks above look for reserved terms and commit identities. None of"
+  yellow "  them looks for secret-shaped strings such as API keys, tokens or private keys."
+  yellow "  Install gitleaks and push again for that cover: https://github.com/gitleaks/gitleaks"
 fi
 
 if [ "$FAIL" != "0" ]; then
