@@ -80,6 +80,19 @@ else
 fi
 
 # ---- Check 2: pre-publish leak scan ----
+# Fail closed. A check that cannot run is not a check that passed, and with
+# no else branch here a cleared executable bit made this check disappear:
+# nothing ran, nothing printed, FAIL stayed untouched and the gate went on to
+# report PASSED. The other unrunnable paths in this file say so out loud;
+# this one answered "I could not check" with silence.
+#
+# The bit is tested and the scanner is then invoked with bash, which does not
+# need it. That looks redundant and is deliberate: the post-merge
+# identity-scan workflow tests the same bit and hard errors on it, so
+# accepting a non-executable scanner here would pass a push the server
+# refuses after the merge. Same rule in both places, same wording.
+# (.github/workflows/post-merge-identity-scan.yml, the "Run repo tree
+# pre-publish leak scan" step: test -x, then exit 1 with an error.)
 if [ -x "$REPO_ROOT/scripts/pre-publish-scan.sh" ]; then
   if bash "$REPO_ROOT/scripts/pre-publish-scan.sh" >/tmp/.pps.out 2>&1; then
     green "✓ pre-publish-scan clean."
@@ -88,6 +101,10 @@ if [ -x "$REPO_ROOT/scripts/pre-publish-scan.sh" ]; then
     tail -20 /tmp/.pps.out
     FAIL=1
   fi
+else
+  red "✗ scripts/pre-publish-scan.sh is missing or not executable; the tree scan cannot run."
+  red "  Restore the file, or run: chmod +x scripts/pre-publish-scan.sh"
+  FAIL=1
 fi
 
 # ---- Shared helper: the base a push is measured against ----
@@ -246,6 +263,21 @@ if command -v gitleaks >/dev/null; then
   else
     FAIL=1
   fi
+else
+  # An absent scanner is not a clean scan. This branch did not exist: with
+  # gitleaks off PATH nothing ran, nothing printed, FAIL was untouched, and
+  # the gate went on to print PASSED, which reads as "a secret scan covered
+  # these commits". Announce the gap every time instead.
+  #
+  # This warns rather than refusing, unlike check 2, and the difference is
+  # deliberate: pre-publish-scan.sh ships in the repository, so its absence
+  # means a broken tree, while gitleaks is an optional external binary that
+  # a fresh clone will not have. Whether this should also refuse is being
+  # settled on evidence about server-side coverage, not guessed here.
+  yellow "- gitleaks is not installed: NO secret scan ran on the commits being pushed."
+  yellow "  The checks above look for reserved terms and commit identities. None of them"
+  yellow "  looks for secret-shaped strings such as API keys, tokens or private keys."
+  yellow "  Install gitleaks and push again for that cover: https://github.com/gitleaks/gitleaks"
 fi
 
 if [ "$FAIL" != "0" ]; then
