@@ -47,8 +47,37 @@ jobs:
             echo "::error::OW_RESERVED_TERMS is not configured on this repository. The reserved-term scan cannot run. Set it in Settings > Secrets and variables > Actions, one term per line."
             exit 1
           fi
-          COUNT=$(printf '%s\n' "$OW_RESERVED_TERMS" | grep -cvE '^[[:space:]]*(#|$)' || true)
+          # Count through the SAME canonicalizer every consumer uses, so
+          # the number printed here is the number of terms that will
+          # actually be matched with, and not the number of lines in the
+          # stored value.
+          if [ ! -f scripts/canon-terms.sh ]; then
+            echo "::error::scripts/canon-terms.sh is missing, so the reserved-term list cannot be canonicalized and this check cannot pass."
+            exit 1
+          fi
+          . scripts/canon-terms.sh
+          PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms)"
+          if [ -z "$PATTERN" ]; then
+            echo "::error::OW_RESERVED_TERMS is configured but contains no usable terms: every line is blank or a comment. The reserved-term scan would check for nothing and report green. Set it in Settings > Secrets and variables > Actions, one term per line."
+            exit 1
+          fi
+          COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c . || true)
           echo "Reserved-term list is configured on this repository ($COUNT terms)."
+
+          # Windows line endings in the stored value: report, do not fail.
+          # Every consumer strips them through the shared canonicalizer, so
+          # matching is correct today and a hard failure here would block
+          # every pull request on an edit only the repository owner can
+          # make. It is still worth stating, because it is the one property
+          # of this value that cannot be observed from outside, and any
+          # future consumer that forgets to strip it will match nothing and
+          # report clean. No part of the value is printed: only whether
+          # removing carriage returns changed its length.
+          RAW_LEN=$(printf '%s' "$OW_RESERVED_TERMS" | wc -c)
+          STRIPPED_LEN=$(printf '%s' "$OW_RESERVED_TERMS" | tr -d '\r' | wc -c)
+          if [ "$RAW_LEN" -ne "$STRIPPED_LEN" ]; then
+            echo "::warning title=Reserved-term list has Windows line endings::The stored value contains carriage returns. Every consumer strips them through scripts/canon-terms.sh, so matching is correct today. Re-saving the secret with Unix line endings removes the hazard at the source."
+          fi
 
       - name: Report that the reserved-term category cannot run here
         # A green check on these runs covers the structural checks only. In
@@ -62,6 +91,16 @@ jobs:
               && github.event.pull_request.head.repo.full_name != github.repository)
         run: |
           echo "::notice title=Reserved-term scan skipped::Category 1, reserved terms, did not run on this pull request. GitHub withholds Actions secrets from Dependabot runs and from fork runs, so OW_RESERVED_TERMS is empty here and category 1 has nothing to check against. A green check on this run means the structural checks passed, not the full scan. The full scan runs on the push to dev after merge."
+
+      - name: Reserved-term canonicalizer self test
+        # Every consumer of the reserved-term list resolves it through one
+        # shared function, so that function is a single point of failure
+        # whose failure mode is silent: it returns a pattern that compiles,
+        # matches nothing, and produces output identical to a clean tree.
+        #
+        # This needs no secret, so it runs on fork and Dependabot pull
+        # requests too, where the reserved-term category itself cannot.
+        run: bash scripts/test-canon-terms.sh
 
       - name: Run pre-publish leak scan
         # Fails the job (and the required check) if any leak is found.
