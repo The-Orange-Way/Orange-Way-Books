@@ -108,6 +108,16 @@ jobs:
             echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after dropping comments and blank lines."
             exit 1
           fi
+          # Non-empty is not the same as usable. Each line of the stored
+          # value is a regex FRAGMENT, so an unbalanced parenthesis or
+          # bracket is a realistic typo. grep exits 2 on a pattern it
+          # refuses, and the match below is an "if": exit 2 takes the same
+          # false branch a clean line does, the counter stays at zero and
+          # this step prints "Identity-scan clean" having compared nothing.
+          if ! canon_terms_usable "$PATTERN"; then
+            echo "::error::OW_RESERVED_TERMS does not compile as a regular expression, so this scan cannot run and must not report clean. At least one line is not valid regex; an unbalanced parenthesis or bracket is the usual cause. No part of the value is printed."
+            exit 1
+          fi
           # Count only. The terms themselves are never printed to a public log.
           TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
           echo "Reserved-term list loaded: $TERM_COUNT term(s)."
