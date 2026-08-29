@@ -125,21 +125,34 @@ push_base() {
 # repository secret, so local and server-side enforcement share one source
 # of truth and cannot drift.
 #
-# Both sources go through the SAME canonicalizer as pre-publish-scan.sh:
-# one fragment per line, blank lines and #-comment lines dropped, the rest
-# joined into a single alternation. A comment line inside the secret is
-# therefore ignored, not compiled into a live regex fragment. A
+# Both sources go through the SAME canonicalizer the leak scan and the
+# post-merge identity scan use: scripts/canon-terms.sh, sourced below.
+# One fragment per line, carriage returns stripped, blank lines and
+# #-comment lines dropped, the rest joined into a single alternation. A
 # single-line "a|b|c" value passes through unchanged.
-canon_terms() {
-  grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' - | sed -e 's/^|*//' -e 's/|*$//'
-}
-
+CANON_TERMS_LIB="$REPO_ROOT/scripts/canon-terms.sh"
 PRIVATE_PATTERN=""
-if [ -n "${OW_RESERVED_TERMS:-}" ]; then
-  PRIVATE_PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms || true)"
-fi
-if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
-  PRIVATE_PATTERN="$(canon_terms < "$REPO_ROOT/.reserved-terms" || true)"
+if [ ! -f "$CANON_TERMS_LIB" ]; then
+  # Fail closed. A check that cannot run is not a check that passed.
+  red "✗ scripts/canon-terms.sh is missing; the reserved-term check cannot run."
+  FAIL=1
+else
+  # shellcheck source=scripts/canon-terms.sh
+  . "$CANON_TERMS_LIB"
+  # The "|| true" on each assignment is deliberate. This script runs under
+  # set -euo pipefail, and inside canon_terms the grep that drops comment
+  # and blank lines exits 1 when it selects nothing. pipefail promotes that
+  # to the pipeline status, so a bare assignment would end the script there
+  # with no message at all. The trigger is a list holding only comments,
+  # which is exactly what a freshly copied .reserved-terms.example looks
+  # like. Capturing the empty result instead lets the skip notice below
+  # say why the scan did not run.
+  if [ -n "${OW_RESERVED_TERMS:-}" ]; then
+    PRIVATE_PATTERN="$(printf '%s\n' "$OW_RESERVED_TERMS" | canon_terms || true)"
+  fi
+  if [ -z "$PRIVATE_PATTERN" ] && [ -f "$REPO_ROOT/.reserved-terms" ]; then
+    PRIVATE_PATTERN="$(canon_terms < "$REPO_ROOT/.reserved-terms" || true)"
+  fi
 fi
 
 if [ -z "$PRIVATE_PATTERN" ]; then
