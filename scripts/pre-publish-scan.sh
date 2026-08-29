@@ -126,10 +126,11 @@ REDACT_MATCHES="${CI:+1}"
 #      workflows).
 #   2. A gitignored .reserved-terms file. See .reserved-terms.example.
 #
-# BOTH sources accept the same format and go through the same
-# canonicalizer below: one regex fragment per line, blank lines and
-# #-comment lines ignored, remaining lines joined into a single regex
-# alternation. A single-line "a|b|c" value passes through unchanged.
+# BOTH sources accept the same format and go through the SAME shared
+# canonicalizer, scripts/canon-terms.sh: one regex fragment per line,
+# blank lines and #-comment lines ignored, remaining lines joined into a
+# single regex alternation. A single-line "a|b|c" value passes through
+# unchanged.
 #
 # If neither is configured the reserved-term scan is SKIPPED with a notice
 # (the structural checks below still run). Outside contributors therefore
@@ -138,14 +139,22 @@ REDACT_MATCHES="${CI:+1}"
 # workflows hard-fail when the secret is missing, so a missing list can
 # never read as a green scan on a protected branch.
 
-# canon_terms: stdin -> one regex alternation on stdout.
-# Drops blank lines and #-comment lines, joins the rest with '|', and
-# trims any leading/trailing separators. Applied to the env value as well
-# as the file, so a comment line inside the secret is IGNORED rather than
-# compiled into a live regex fragment that would match literal text.
-canon_terms() {
-  grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' - | sed -e 's/^|*//' -e 's/|*$//'
-}
+# The canonicalizer is NOT defined here. This scan, the pre-push gate, the
+# post-merge identity-scan workflow and the leak-check workflow all source
+# ONE implementation, so they cannot drift the way they had. See
+# scripts/canon-terms.sh for what each step of the pipeline is holding up.
+#
+# Fail closed when the library is absent. Without this check the script
+# would carry on with canon_terms undefined, RESERVED_TERMS would resolve
+# empty, category 1 would print itself as skipped, and the whole run would
+# still exit 0. An unrunnable scanner is a broken guard, not a clean tree.
+CANON_TERMS_LIB="$REPO_ROOT/scripts/canon-terms.sh"
+if [[ ! -f "$CANON_TERMS_LIB" ]]; then
+  printf "\n\033[31m▎ scripts/canon-terms.sh is missing; the reserved-term scan cannot run.\033[0m\n\n" >&2
+  exit 1
+fi
+# shellcheck source=scripts/canon-terms.sh
+. "$CANON_TERMS_LIB"
 
 RESERVED_TERMS=""
 if [[ -n "${OW_RESERVED_TERMS:-}" ]]; then
