@@ -171,6 +171,23 @@ jobs:
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
 
+      # tests/e2e/rls-cross-user.spec.ts (the real cross-tenant isolation
+      # test: "user A cannot read user B's org data") file-scope skips
+      # unless /tmp/owb-pw/owb-dev-supabase.json exists (see readSupaCreds()
+      # in that file). Nothing before this step ever wrote that file, so the
+      # spec has been unconditionally skipped on every CI run. Write it here,
+      # gated on the same push-to-dev/prod condition as "Provision E2E user
+      # (DEV only)" above, so the DEV secret never reaches a fork or external
+      # pull_request runner.
+      - name: Write local Supabase creds file for cross-user RLS spec
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
+        run: |
+          mkdir -p /tmp/owb-pw
+          printf '{"url":"%s","secret":"%s"}' "$OWB_E2E_SUPABASE_URL" "$OWB_E2E_SUPABASE_SECRET_KEY" > /tmp/owb-pw/owb-dev-supabase.json
+        env:
+          OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+
       - name: Run Playwright
         run: bunx playwright test
         env:
