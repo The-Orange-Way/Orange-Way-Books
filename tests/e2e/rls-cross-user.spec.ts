@@ -64,6 +64,11 @@ function adminFetch(
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
         },
+        // A hard bound on connect + response. Without this, a stalled
+        // socket (network hiccup, no response ever sent) hangs this
+        // Promise forever, which hangs the whole CI job well past
+        // Playwright's own 30s per-test timeout rather than failing loud.
+        timeout: 10_000,
       },
       (r) => {
         let b = '';
