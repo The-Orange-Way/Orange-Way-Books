@@ -81,12 +81,18 @@ describe('planOrKeyMaterial: fully pinned', () => {
   });
 
   it('refuses a generation NEWER than this build understands', () => {
-    const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH + 1 }, CURRENT_SALT);
+    const plan = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH + 1 },
+      CURRENT_SALT,
+    );
     expect(plan.mode).toBe('refuse');
   });
 
   it('refuses a generation OLDER than this build understands', () => {
-    const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH - 1 }, CURRENT_SALT);
+    const plan = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH - 1 },
+      CURRENT_SALT,
+    );
     expect(plan.mode).toBe('refuse');
   });
 });
