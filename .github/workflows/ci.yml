@@ -166,10 +166,10 @@ jobs:
         # variable is deliberately not asserted here: it changes, and a comment
         # that names one goes stale silently.
         #
-        # What actually bounds the blast radius is
-        # narrower and worth stating plainly: the key is the DEV project's only,
-        # and the job `if:` above refuses any pull request whose head repo is not
-        # this repository, so a fork PR gets no secrets at all.
+        # What actually bounds the blast radius is narrower and worth stating
+        # plainly: the key is the DEV project's only, and the job `if:` above
+        # refuses any pull request whose head repo is not this repository, so a
+        # fork PR gets no secrets at all.
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
