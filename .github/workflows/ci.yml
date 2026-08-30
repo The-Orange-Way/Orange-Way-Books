@@ -211,21 +211,31 @@ jobs:
       # nothing. This reads the JSON report the run wrote and fails the job
       # unless at least one spec actually EXECUTED. A missing or unparseable
       # report is itself a failure, never scored as a pass.
+      #
+      # That count is suite-wide, so it cannot see an INDIVIDUAL spec going
+      # back to skipping while the rest of the suite carries the count. So the
+      # same step also reads tests/e2e/required-specs.json and fails by name
+      # when a spec on that list did not execute. The list path is passed
+      # explicitly, not left to the script's default, so that deleting the list
+      # turns this red instead of quietly downgrading it to the suite-wide
+      # check. Adding a required spec is a one line edit to that JSON file and
+      # needs no change here.
       - name: Guard against zero-spec execution
-        run: bun tests/e2e/scripts/assert-specs-ran.mjs playwright-report/results.json
+        run: >-
+          bun tests/e2e/scripts/assert-specs-ran.mjs
+          playwright-report/results.json
+          tests/e2e/required-specs.json
 
       # Prove the guard can go RED in this same run, so it is a real gate and
-      # not a green rubber stamp. Feed it a synthetic report with zero executed
-      # specs and assert it exits non-zero. If the guard ever stops failing on
-      # a zero-executed report, this step goes red instead.
-      - name: Prove the zero-spec guard fires on a zero-executed report
-        run: |
-          echo '{"stats":{"expected":0,"unexpected":0,"flaky":0,"skipped":3}}' > "$RUNNER_TEMP/zero-report.json"
-          if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/zero-report.json"; then
-            echo "::error::zero-spec guard did NOT fail on a zero-executed report"
-            exit 1
-          fi
-          echo "zero-spec guard correctly failed on a zero-executed report"
+      # not a green rubber stamp. This drives the guard, against the real
+      # required-spec list, through a zero-executed report, a required spec
+      # that is present but skipped, and a required spec that is absent, and
+      # fails this step if the guard passes any of them. It also drives the
+      # positive control, where every required spec ran and the guard must
+      # pass, so a guard that was red for an unrelated reason cannot look
+      # proven.
+      - name: Prove the spec-execution guard fires
+        run: bun tests/e2e/scripts/prove-specs-guard.mjs tests/e2e/required-specs.json
 
       # DL-0947: on a red E2E run, write the failing assertion label into the
       # run summary so it is readable on the run page without downloading and
