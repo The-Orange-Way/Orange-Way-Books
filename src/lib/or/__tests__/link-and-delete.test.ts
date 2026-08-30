@@ -85,7 +85,11 @@ describe('buildDeletePlan', () => {
   });
 
   it('treats an unknown stealth flag as ordinary, not as private', () => {
-    const plan = buildDeletePlan({ isStealth: undefined, connectionId: 'c-3', subaccountId: 's-1' });
+    const plan = buildDeletePlan({
+      isStealth: undefined,
+      connectionId: 'c-3',
+      subaccountId: 's-1',
+    });
     expect(plan.endpoint).toBe('or-connection-delete');
   });
 });
