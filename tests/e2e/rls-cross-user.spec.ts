@@ -77,6 +77,9 @@ function adminFetch(
       },
     );
     req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error(`adminFetch timed out after 10s: ${method} ${path}`));
+    });
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
