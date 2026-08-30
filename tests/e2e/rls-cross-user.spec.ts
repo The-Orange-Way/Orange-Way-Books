@@ -32,6 +32,14 @@ function readSupaCreds(): SupaCreds | null {
   try {
     return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
   } catch {
+    // No local creds file (the normal case in CI and on a laptop that has
+    // never run the provision script). Fall back to the same env vars the
+    // "Run Playwright" CI step already sets from the dev environment scope,
+    // so this spec can run without ever writing the DEV service-role key
+    // to disk. The file path above stays as a laptop convenience only.
+    const url = process.env.OWB_E2E_SUPABASE_URL;
+    const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+    if (url && secret) return { url, secret };
     return null;
   }
 }
