@@ -1,0 +1,14 @@
+{
+  "_what": "Specs that MUST execute in every CI run. The suite-wide zero-spec guard cannot see an individual spec going back to skipping; this list can. Enforced by tests/e2e/scripts/assert-specs-ran.mjs.",
+  "_how_to_add": "Add the spec path to \"required\". Paths are matched against the Playwright JSON report by path suffix, so either tests/e2e/foo.spec.ts or foo.spec.ts works.",
+  "required": [
+    "tests/e2e/rls-isolation.spec.ts"
+  ],
+  "pending": [
+    {
+      "spec": "tests/e2e/rls-cross-user.spec.ts",
+      "why_it_belongs": "It is our only cross-user RLS attack spec and it file-scope skipped on every CI run from the day it was written until 2026-08-30 with nothing going red.",
+      "blocked_on": "On dev today readSupaCreds() reads only the local creds file, which CI never writes, so the spec still skips on dev and on every PR built from dev. Adding it here before that lands would fail this guard for a reason outside the guard. Move this entry into \"required\" as a one line change once the env-var fallback is on dev."
+    }
+  ]
+}
