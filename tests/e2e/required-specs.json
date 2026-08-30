@@ -1,0 +1,9 @@
+{
+  "_why": "Specs listed here MUST be observed EXECUTING in every CI run of the Playwright suite. Skipped is not executed, and absent is not executed. tests/e2e/scripts/assert-specs-ran.mjs reads this file and fails the job by name when one of them did not run. Adding a spec is one line here: no script edit, no workflow edit.",
+  "_when_to_add": "Add a spec when its silent loss would be expensive and it can skip itself. Anything that guards tenant isolation, key handling or money belongs here. Do NOT add a spec that is deliberately conditional (onboarding-walk is gated by E2E_ONBOARDING_WALK), because a required entry that cannot be satisfied turns the guard into noise people learn to ignore.",
+  "_do_not_empty_it": "An empty list makes the guard verify nothing while still reporting OK, which is the exact silent-success shape it exists to stop. The script fails on an empty list rather than passing.",
+  "required": [
+    "tests/e2e/rls-cross-user.spec.ts",
+    "tests/e2e/rls-isolation.spec.ts"
+  ]
+}
