@@ -154,12 +154,19 @@ jobs:
       # pins the OWB DEV project ref as a literal and refuses to run against any
       # other ref, so a misconfigured URL cannot point it at prod.
       - name: Provision E2E user (DEV only)
-        # Only materialize the DEV service key on trusted push events to dev or
-        # prod. The e2e job still runs on same-repo pull requests (see the job
-        # `if:` above) so a PR can prove E2E path changes, but provisioning is
-        # skipped there, so the secret never reaches a runner built from an
-        # unmerged branch. On PR runs the specs sign in against the existing dev
-        # fixture; the self-heal that (re)creates it only runs post-merge.
+        # Provisioning is limited to push events on dev or prod so that a PR run
+        # cannot rewrite the SHARED dev fixture user out from under other runs:
+        # the self-heal that (re)creates it only runs post-merge, and on PR runs
+        # the specs sign in against the fixture as it already exists.
+        #
+        # This gate does NOT keep the DEV service key off pull-request runners,
+        # and it never did. The "Run Playwright" step below supplies
+        # OWB_E2E_SUPABASE_SECRET_KEY on every run of this job, including
+        # same-repo pull requests, because rls-cross-user.spec.ts needs it to
+        # prove tenant isolation. What actually bounds the blast radius is
+        # narrower and worth stating plainly: the key is the DEV project's only,
+        # and the job `if:` above refuses any pull request whose head repo is not
+        # this repository, so a fork PR gets no secrets at all.
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
