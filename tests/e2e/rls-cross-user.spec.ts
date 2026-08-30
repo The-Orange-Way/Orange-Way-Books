@@ -99,7 +99,7 @@ const HAVE_LOCAL_CREDS = (() => {
 })();
 test.skip(
   !HAVE_LOCAL_CREDS,
-  'no Supabase admin creds available (no /tmp/owb-pw/owb-dev-supabase.json and no OWB_E2E_SUPABASE_URL/SECRET_KEY env vars) — cross-user spec skipped',
+  'no Supabase admin creds available (no /tmp/owb-pw/owb-dev-supabase.json and no OWB_E2E_SUPABASE_URL/SECRET_KEY env vars), cross-user spec skipped',
 );
 
 test.describe.serial('RLS cross-user — user A cannot see user B', () => {
