@@ -85,10 +85,11 @@ const ALLOWED_PROJECT_REFS = new Set(
 const SUPA_URL = process.env.OWB_E2E_SUPABASE_URL!;
 const PUBLISHABLE_KEY = process.env.OWB_E2E_SUPABASE_PUBLISHABLE_KEY!;
 
-// Skip when the local supabase creds file isn't available. CI runs in a
-// fresh runner that doesn't have /tmp/owb-pw/owb-dev-supabase.json, so the
-// cross-user spec only runs on a developer laptop that's used the provision
-// script at least once. Single-user RLS + structural audit still run in CI.
+// Skip when no Supabase admin creds are available at all: neither the
+// laptop convenience file nor the OWB_E2E_SUPABASE_URL /
+// OWB_E2E_SUPABASE_SECRET_KEY env vars. CI sets those env vars from the
+// dev environment scope on every push and same-repo PR run, so this spec
+// executes there; a fork PR or a laptop with neither still skips cleanly.
 const HAVE_LOCAL_CREDS = (() => {
   try {
     return !!readSupaCreds();
@@ -98,7 +99,7 @@ const HAVE_LOCAL_CREDS = (() => {
 })();
 test.skip(
   !HAVE_LOCAL_CREDS,
-  '/tmp/owb-pw/owb-dev-supabase.json not present — cross-user spec runs only on dev laptops',
+  'no Supabase admin creds available (no /tmp/owb-pw/owb-dev-supabase.json and no OWB_E2E_SUPABASE_URL/SECRET_KEY env vars) — cross-user spec skipped',
 );
 
 test.describe.serial('RLS cross-user — user A cannot see user B', () => {
