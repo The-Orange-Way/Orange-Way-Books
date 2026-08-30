@@ -449,6 +449,52 @@ export async function deriveOrTxnsKeyFromMek(
   return deriveOrSubkey(mekRaw, orgSaltB64, 'orangerails-txns-v1');
 }
 
+/**
+ * Derive the raw 32-byte OPK seed (NOT an AES key) from the OR MEK.
+ *
+ * OPK is the X25519 keypair that background-synced transactions are sealed
+ * to. Only the holder of the private half can open them, and that is this
+ * browser, only while the vault is unlocked. The seed feeds a seeded X25519
+ * keypair generator, so the same seed reproduces the same keypair on every
+ * device with nothing stored anywhere.
+ *
+ * Same OR subkey HKDF family as creds and txns above (same input key
+ * material, same 'owb-or:' salt prefix) with its own HKDF label, so it
+ * regenerates deterministically on every unlock and can never collide with a
+ * sibling subkey.
+ *
+ * THIS RETURNS READABLE KEY MATERIAL, which the sibling functions do not.
+ * They hand back a CryptoKey; this hands back bytes, because a seed is not an
+ * AES key and cannot be expressed as one. The caller owns its lifetime: zero
+ * it when the vault locks, and never write it to storage, a log, or a network
+ * call.
+ */
+export async function deriveOrOpkSeedFromMek(
+  mekRaw: Uint8Array,
+  orgSaltB64: string,
+): Promise<Uint8Array> {
+  const encoder = new TextEncoder();
+  const saltBytes = encoder.encode('owb-or:' + orgSaltB64);
+  const mekAsHkdf = await window.crypto.subtle.importKey(
+    'raw',
+    mekRaw as BufferSource,
+    'HKDF',
+    false,
+    ['deriveBits'],
+  );
+  const rawBits = await window.crypto.subtle.deriveBits(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: saltBytes as BufferSource,
+      info: encoder.encode('orangerails-opk-seed-v1') as BufferSource,
+    },
+    mekAsHkdf,
+    256,
+  );
+  return new Uint8Array(rawBits);
+}
+
 // ─── Recovery codes: 12-word offline backup for the MEK ─────────────────────
 // Full standard BIP-39 English wordlist (2048 words). 12 words × log2(2048)
 // = 132 bits of entropy. 11-bit indexing has no modulo bias since 2^11 = 2048
