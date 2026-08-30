@@ -132,7 +132,9 @@ const listPath = requestedList || DEFAULT_REQUIRED_LIST;
 
 if (!fs.existsSync(listPath)) {
   if (requestedList) {
-    fail(`no required-spec list at ${listPath}; it was named explicitly, so its absence is a failure`);
+    fail(
+      `no required-spec list at ${listPath}; it was named explicitly, so its absence is a failure`,
+    );
   }
   console.log(
     `required-spec guard: no list at ${DEFAULT_REQUIRED_LIST}, suite-wide check only. ` +
