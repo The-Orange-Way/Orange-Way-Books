@@ -15,13 +15,21 @@
  *     'or-provision' | 'or-connection-create' | 'or-connection-list'
  *     | 'or-connection-delete' | 'or-sync' | 'or-transactions-list'
  *     | 'or-discover-wallets' | 'or-source-wallets-set'
+ *     | 'or-link-mint-token'
  *   org_id: uuid  the Orange Way Books org to act on (caller must be a member)
  *   payload: object  forwarded to OR; subaccount_id auto-injected for
  *                    non-provision endpoints if not present
  *
  * For or-provision: external_user_id is set to the org_id automatically.
- * For all others: subaccount_id is looked up from a small in-memory cache
- * (per warm function instance) or re-provisioned on miss.
+ * For or-link-mint-token: app_user_id is set to the org_id, which is the same
+ * value or-provision used as external_user_id, and ttl_seconds is forwarded
+ * when the caller supplies a number. This endpoint takes no subaccount_id.
+ * For all others: subaccount_id is resolved server side from
+ * organizations.or_subaccount_id on the already verified org_id and injected;
+ * a client supplied value is never trusted. (This paragraph used to describe
+ * a per instance in-memory cache with re-provisioning on miss. The code below
+ * does not do that, so the comment is corrected here rather than left to be
+ * reasoned from.)
  *
  * Response: passes through OR's response body and status.
  */
@@ -75,6 +83,11 @@ const ALLOWED_ENDPOINTS = new Set([
   // Phase 3: source-wallet discovery + per-wallet sync selection.
   'or-discover-wallets',
   'or-source-wallets-set',
+  // Mints the short lived session token the hosted connect widget
+  // authenticates to OR with. Widening this set widens what any authenticated
+  // caller can reach while carrying the platform key, so it is deliberately a
+  // reviewed code change and not an env var.
+  'or-link-mint-token',
 ]);
 
 async function callOr(endpoint: string, body: Record<string, unknown>): Promise<Response> {
@@ -179,6 +192,26 @@ Deno.serve(async (req: Request) => {
     if (endpoint === 'or-provision') {
       // Provision uses org_id as external_user_id (one subaccount per org).
       orBody = { external_user_id: org_id };
+    } else if (endpoint === 'or-link-mint-token') {
+      // Mint a widget session token. app_user_id is forced to the org_id the
+      // caller was just proved a member of, and it mirrors the
+      // external_user_id used at provision time so the session and the
+      // subaccount always name the same subject. It is never read from the
+      // payload: a member of org A could otherwise mint a widget session
+      // against org B.
+      //
+      // Deliberately not routed through the generic branch below, which
+      // injects subaccount_id. Mint does not take one, and requiring the org
+      // to be provisioned first would make the widget unusable on the very
+      // first connect.
+      //
+      // ttl_seconds is forwarded only when it is a number; OR caps it on its
+      // side. Anything else is dropped rather than passed through.
+      const requested = payload.ttl_seconds;
+      orBody = {
+        app_user_id: org_id,
+        ttl_seconds: typeof requested === 'number' ? requested : undefined,
+      };
     } else {
       // For everything else, subaccount_id must be present on the OR call.
       // Source of truth is organizations.or_subaccount_id (set by the
