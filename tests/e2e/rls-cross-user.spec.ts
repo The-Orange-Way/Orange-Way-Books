@@ -85,6 +85,38 @@ function adminFetch(
   });
 }
 
+// The admin list endpoint has no `email` query parameter. GoTrue reads only
+// sort, filter, page, per_page and cursor, and it IGNORES anything else, so a
+// lookup like /auth/v1/admin/users?email=<address> quietly returns the first
+// page of ALL users, newest first. Taking users[0] from that response picks
+// whatever account happened to be created last, and the caller below then
+// deletes that account's organizations. So page through the list and match the
+// address exactly, and throw rather than guess when there is no match.
+const ADMIN_LIST_PAGE_SIZE = 200;
+const ADMIN_LIST_MAX_PAGES = 50;
+
+async function findUserIdByEmail(supa: SupaCreds, email: string): Promise<string> {
+  const wanted = email.toLowerCase();
+  for (let page = 1; page <= ADMIN_LIST_MAX_PAGES; page += 1) {
+    const res = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users?page=${page}&per_page=${ADMIN_LIST_PAGE_SIZE}`,
+      'GET',
+    );
+    if (res.status >= 400) {
+      throw new Error(`admin list users page ${page}: HTTP ${res.status} ${res.body}`);
+    }
+    const users: Array<{ id?: string; email?: string }> = JSON.parse(res.body).users ?? [];
+    const hit = users.find((u) => (u.email ?? '').toLowerCase() === wanted);
+    if (hit?.id) return hit.id;
+    if (users.length < ADMIN_LIST_PAGE_SIZE) break;
+  }
+  throw new Error(
+    `admin user-create returned 422 for ${email} but no account with that exact address is in the admin user list; refusing to guess an id, because the next step deletes that account's organizations`,
+  );
+}
+
 const USER_B_EMAIL = 'e2e-bob@orangewaybooks.test';
 const USER_B_PASSWORD = 'OwbE2EBob-2026!CrossTenant';
 const ALLOWED_PROJECT_REFS = new Set(
@@ -131,19 +163,18 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
     if (cr.status === 200 || cr.status === 201) {
       userBId = JSON.parse(cr.body).id;
     } else if (cr.status === 422) {
-      // Already exists — look up
-      const q = await adminFetch(
-        supa.url,
-        supa.secret,
-        `/auth/v1/admin/users?email=${encodeURIComponent(USER_B_EMAIL)}`,
-        'GET',
-      );
-      userBId = JSON.parse(q.body).users[0].id;
+      // Already exists, which is the normal path on every run after the first:
+      // afterAll deliberately leaves the auth.users row in place so re-runs are
+      // idempotent. Resolve by exact address, never by list position.
+      userBId = await findUserIdByEmail(supa, USER_B_EMAIL);
     } else {
       throw new Error(`admin user-create user B: HTTP ${cr.status} ${cr.body}`);
     }
 
-    // 2. Clean any existing org for B (so we start fresh)
+    // 2. Clean any existing org for B (so we start fresh). The loop below runs
+    // DELETE against a shared dev database, so refuse to enter it on an id we
+    // did not positively resolve to user B.
+    if (!userBId) throw new Error('userBId is empty before org cleanup, refusing to delete');
     const memQ = await adminFetch(
       supa.url,
       supa.secret,
