@@ -187,10 +187,16 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // would then fail at the login screen on every future run with no way to
     // self-heal, which reads as a broken app rather than a stale fixture. Set
     // it explicitly so this spec's user always matches what step 01 types.
-    const pwReset = await adminFetch(supa.url, supa.secret, `/auth/v1/admin/users/${userId}`, 'PUT', {
-      password: PASSWORD,
-      email_confirm: true,
-    });
+    const pwReset = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users/${userId}`,
+      'PUT',
+      {
+        password: PASSWORD,
+        email_confirm: true,
+      },
+    );
     if (pwReset.status >= 400) {
       throw new Error(`admin password reset failed: HTTP ${pwReset.status} ${pwReset.body}`);
     }
