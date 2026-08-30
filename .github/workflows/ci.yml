@@ -160,10 +160,13 @@ jobs:
         # the specs sign in against the fixture as it already exists.
         #
         # This gate does NOT keep the DEV service key off pull-request runners,
-        # and it never did. The "Run Playwright" step below supplies
-        # OWB_E2E_SUPABASE_SECRET_KEY on every run of this job, including
-        # same-repo pull requests, because rls-cross-user.spec.ts needs it to
-        # prove tenant isolation. What actually bounds the blast radius is
+        # and it never did. The "Run Playwright" step below carries no event
+        # gate of its own and supplies OWB_E2E_SUPABASE_SECRET_KEY on every run
+        # of this job, including same-repo pull requests. Which specs read that
+        # variable is deliberately not asserted here: it changes, and a comment
+        # that names one goes stale silently.
+        #
+        # What actually bounds the blast radius is
         # narrower and worth stating plainly: the key is the DEV project's only,
         # and the job `if:` above refuses any pull request whose head repo is not
         # this repository, so a fork PR gets no secrets at all.
