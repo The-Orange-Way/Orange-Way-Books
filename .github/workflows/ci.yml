@@ -216,12 +216,24 @@ jobs:
           # fixed. Until both land, running it costs three other specs.
           E2E_ONBOARDING_WALK: '0'
 
+      # Two guards, one script, both reading the JSON report the run just wrote.
+      #
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
-      # nothing. This reads the JSON report the run wrote and fails the job
-      # unless at least one spec actually EXECUTED. A missing or unparseable
-      # report is itself a failure, never scored as a pass.
-      - name: Guard against zero-spec execution
+      # nothing. Fails unless at least one spec actually EXECUTED.
+      #
+      # OWB-T0094: that first check is suite-wide, so one spec answering "yes, I
+      # ran" covers for every other spec, and any INDIVIDUAL spec can skip
+      # itself forever with CI fully green. rls-cross-user.spec.ts did exactly
+      # that from the day it was written until 2026-08-30, and nothing went red.
+      # So every spec named in tests/e2e/required-specs.json must be observed
+      # EXECUTING in this run, and a miss fails the job BY NAME with the likely
+      # cause. Adding a spec to that list is one line in that file: no edit
+      # here, and no edit to the script.
+      #
+      # A missing or unparseable report, and a missing or empty required list,
+      # are failures in themselves and are never scored as a pass.
+      - name: Guard that the suite, and every required spec, actually executed
         run: bun tests/e2e/scripts/assert-specs-ran.mjs playwright-report/results.json
 
       # Prove the guard can go RED in this same run, so it is a real gate and
