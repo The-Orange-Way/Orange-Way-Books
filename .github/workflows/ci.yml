@@ -205,26 +205,29 @@ jobs:
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          # Held at '0' on every event. This previously read '1' on pushes to
-          # dev and prod, and that one character is what has kept dev E2E red
-          # since 2026-08-13.
+          # On. Both conditions the previous version of this comment set for
+          # re-enabling are met by the spec itself now.
           #
-          # onboarding-walk.spec.ts deletes the SHARED e2e fixture user's
-          # organizations in beforeAll, on purpose, so it can walk a fresh
-          # signup. Its own walk then fails, so the org is never recreated, and
-          # every spec that sorts after it (owb-full-suite B3 vault unlock,
-          # rls-isolation) finds a user with no org and no vault. Provisioning
-          # is skipped on pull_request runs, so nothing restores the fixture and
-          # the next PR is red too, which is why no PR has been able to recover.
+          # 1. The walk no longer touches the shared fixture. It deletes its
+          #    user's organizations in beforeAll on purpose, and it used to read
+          #    OWB_E2E_* while every other spec signs in with OWB_DEV_E2E_*, so
+          #    whether it destroyed the shared org depended on whether two
+          #    separately set values happened to be equal. It now reads its own
+          #    OWB_E2E_WALK_* family and REFUSES to run when its address
+          #    resolves to OWB_DEV_E2E_EMAIL. That is why the cascade that kept
+          #    dev E2E red from 2026-08-13 (owb-full-suite B3 vault unlock and
+          #    rls-isolation finding a user with no org and no vault) cannot
+          #    repeat: nothing it deletes belongs to those specs.
+          # 2. Its own failure has a named cause. admin user-create answers 422
+          #    for a user that already exists and does NOT set the password, so
+          #    a fixture created once with a different password fails at the
+          #    login screen on every later run. The spec now resets its own
+          #    user's password through the admin API before signing in.
           #
-          # The spec's own header already says "Skipped by default ... run
-          # manually before promotes". Turning it on for automated pushes
-          # contradicted that contract. This restores it.
-          #
-          # Re-enabling needs two things first: the walk must stop touching the
-          # shared fixture (its own dedicated user), and its own failure must be
-          # fixed. Until both land, running it costs three other specs.
-          E2E_ONBOARDING_WALK: '0'
+          # It provisions its own user through the admin API, so it needs
+          # nothing from the "Provision E2E user" step above and works on
+          # pull_request runs, where that step is deliberately skipped.
+          E2E_ONBOARDING_WALK: '1'
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified

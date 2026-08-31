@@ -8,12 +8,20 @@
  * customer ticket. This spec walks the full flow against dev and asserts
  * per-step so a regression fails CI instead of waiting for a human.
  *
- * **Skipped by default.** Set `E2E_ONBOARDING_WALK=1` to opt in. The spec
- * has side effects: it deletes the existing e2e user's org so the user
- * re-onboards through the live code path. Running it in CI on every PR
- * would conflict with other devs running it on their laptops at the same
- * time. Run manually before promotes; rely on `owb-full-suite.spec.ts`
- * for the per-PR coverage.
+ * **Runs on its own dedicated fixture user, never the shared one.** The spec
+ * has side effects: it deletes its user's organizations in beforeAll so the
+ * user re-onboards through the live code path. owb-full-suite, rls-isolation
+ * and or-import-wizard all sign in with the SHARED fixture (OWB_DEV_E2E_*),
+ * so this spec reads OWB_E2E_WALK_* instead and beforeAll refuses to run when
+ * the two resolve to the same address.
+ *
+ * That refusal is the point. Sharing one user is what kept dev E2E red from
+ * 2026-08-13: the walk wiped the org, its own walk then failed, so the org was
+ * never recreated, and every spec sorting after it found a user with no org
+ * and no vault. Provisioning only runs on pushes, so no PR run could recover.
+ *
+ * Gated by `E2E_ONBOARDING_WALK=1`. It provisions its own user through the
+ * Supabase admin API, so it needs no separate provisioning step in CI.
  *
  * What it asserts (each one a hard expect):
  *   01 — /signup form renders, email + password fields visible
@@ -38,10 +46,19 @@ import fs from 'node:fs';
 
 const OPT_IN = process.env.E2E_ONBOARDING_WALK === '1';
 
-const EMAIL = process.env.OWB_E2E_EMAIL ?? 'e2e@orangewaybooks.test';
-const PASSWORD = process.env.OWB_E2E_PASSWORD ?? 'OwbE2E-Stable-2026!Pw';
-const VAULT_PW = process.env.OWB_E2E_VAULT_PW ?? 'OwbE2EVault-Stable-2026!';
-const ORG_NAME = process.env.OWB_E2E_ORG_NAME ?? 'OWB E2E Org';
+// The walk's OWN identity. Deliberately a different variable family from the
+// OWB_DEV_E2E_* one every other spec reads, so the two cannot be pointed at
+// one user by accident. The defaults are the same dev-only fixture values this
+// file already carried; only the address changes, so no new credential
+// material enters the tree.
+const EMAIL = process.env.OWB_E2E_WALK_EMAIL ?? 'e2e-walk@orangewaybooks.test';
+const PASSWORD = process.env.OWB_E2E_WALK_PASSWORD ?? 'OwbE2E-Stable-2026!Pw';
+const VAULT_PW = process.env.OWB_E2E_WALK_VAULT_PW ?? 'OwbE2EVault-Stable-2026!';
+const ORG_NAME = process.env.OWB_E2E_WALK_ORG_NAME ?? 'OWB E2E Walk Org';
+
+// The shared fixture every other spec signs in with. Read only so the guard
+// below can compare against it; this spec never signs in as it.
+const SHARED_FIXTURE_EMAIL = process.env.OWB_DEV_E2E_EMAIL ?? '';
 
 // Pin to OWB DEV ref. Refuses to run if env points elsewhere.
 const ALLOWED_PROJECT_REFS = new Set(
@@ -100,6 +117,30 @@ function adminFetch(
   });
 }
 
+// Click a wizard button that sits immediately after a Radix Select interaction.
+//
+// Radix puts `pointer-events: none` on <body> while a Select popup is open and
+// only clears it once the close animation finishes. A click({ force: true }) in
+// that window skips every actionability check, lands on a document that is not
+// accepting pointer events, and is swallowed with no error, so the wizard
+// silently does not advance and the NEXT step's element never renders. That is
+// how this spec failed: 06b set the timezone and passed, its Continue click was
+// eaten, and 06c timed out on getByTestId('onboarding-fiscal-month') reporting
+// "element(s) not found" rather than anything about the click.
+//
+// So wait for the body to accept pointer events again, then click WITHOUT force
+// and let Playwright's own actionability retry cover the rest.
+async function clickWizardButton(page: Page, label: RegExp) {
+  await expect(page.locator('body'), 'body accepting pointer events again').not.toHaveCSS(
+    'pointer-events',
+    'none',
+    { timeout: 10_000 },
+  );
+  const btn = page.locator('button:visible:not([disabled])').filter({ hasText: label }).first();
+  await expect(btn, `wizard button matching ${label}`).toBeVisible({ timeout: 10_000 });
+  await btn.click();
+}
+
 test.skip(
   !OPT_IN,
   'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly',
@@ -114,6 +155,18 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // Playwright versions execute beforeAll even for skipped tests. Guard
     // explicitly so the org DELETE never fires without an explicit opt-in.
     if (!OPT_IN) return;
+
+    // Refuse before touching anything, whatever the environment says. This
+    // hook DELETES organizations, so if the walk's address ever resolves to
+    // the shared fixture it destroys the org owb-full-suite and rls-isolation
+    // depend on. A loud refusal costs one red spec; the converged case costs
+    // three other specs and every PR run after it, with no automatic recovery.
+    if (SHARED_FIXTURE_EMAIL && EMAIL.toLowerCase() === SHARED_FIXTURE_EMAIL.toLowerCase()) {
+      throw new Error(
+        'onboarding walk refuses to run: its fixture user resolves to the SHARED e2e user ' +
+          '(OWB_DEV_E2E_EMAIL). Point OWB_E2E_WALK_EMAIL at a dedicated user.',
+      );
+    }
 
     supa = readSupaCreds();
     if (!supa)
@@ -152,6 +205,25 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     const userPayload = JSON.parse(userQ.body);
     const userId = userPayload.users?.[0]?.id;
     if (!userId) throw new Error(`could not resolve user_id for ${EMAIL}`);
+
+    // admin user-create answers 422 when the user is already there and leaves
+    // the password alone. A fixture created once with a different password
+    // would then fail at the login screen on every future run with no way to
+    // self-heal, which reads as a broken app rather than a stale fixture. Set
+    // it explicitly so this spec's user always matches what step 01 types.
+    const pwReset = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users/${userId}`,
+      'PUT',
+      {
+        password: PASSWORD,
+        email_confirm: true,
+      },
+    );
+    if (pwReset.status >= 400) {
+      throw new Error(`admin password reset failed: HTTP ${pwReset.status} ${pwReset.body}`);
+    }
 
     // org_members lookup
     const memQ = await adminFetch(
@@ -257,11 +329,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await onbTimezone.click();
     await page.getByRole('option', { name: 'Eastern Time (US)', exact: true }).click();
     await expect(onbTimezone, 'onboarding timezone set to Eastern').toContainText('Eastern');
-    await page
-      .locator('button:visible:not([disabled])')
-      .filter({ hasText: /Continue|Next/i })
-      .first()
-      .click({ force: true });
+    await clickWizardButton(page, /Continue|Next/i);
 
     // 06c (DL-0720): StepCalendar. Set the fiscal year start to April through
     // the onboarding picker, assert the trigger reflects it, then Create
@@ -271,11 +339,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await onbFiscal.click();
     await page.getByRole('option', { name: 'April', exact: true }).click();
     await expect(onbFiscal, 'onboarding fiscal month set to April').toContainText('April');
-    await page
-      .locator('button:visible:not([disabled])')
-      .filter({ hasText: /Create Organization|Finish|Done/i })
-      .first()
-      .click({ force: true });
+    await clickWizardButton(page, /Create Organization|Finish|Done/i);
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
