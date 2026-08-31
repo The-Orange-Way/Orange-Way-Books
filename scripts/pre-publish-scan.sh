@@ -126,10 +126,11 @@ REDACT_MATCHES="${CI:+1}"
 #      workflows).
 #   2. A gitignored .reserved-terms file. See .reserved-terms.example.
 #
-# BOTH sources accept the same format and go through the same
-# canonicalizer below: one regex fragment per line, blank lines and
-# #-comment lines ignored, remaining lines joined into a single regex
-# alternation. A single-line "a|b|c" value passes through unchanged.
+# BOTH sources accept the same format and go through the SAME shared
+# canonicalizer, scripts/canon-terms.sh: one regex fragment per line,
+# blank lines and #-comment lines ignored, remaining lines joined into a
+# single regex alternation. A single-line "a|b|c" value passes through
+# unchanged.
 #
 # If neither is configured the reserved-term scan is SKIPPED with a notice
 # (the structural checks below still run). Outside contributors therefore
@@ -138,14 +139,34 @@ REDACT_MATCHES="${CI:+1}"
 # workflows hard-fail when the secret is missing, so a missing list can
 # never read as a green scan on a protected branch.
 
-# canon_terms: stdin -> one regex alternation on stdout.
-# Drops blank lines and #-comment lines, joins the rest with '|', and
-# trims any leading/trailing separators. Applied to the env value as well
-# as the file, so a comment line inside the secret is IGNORED rather than
-# compiled into a live regex fragment that would match literal text.
-canon_terms() {
-  grep -vE '^[[:space:]]*(#|$)' | paste -sd'|' - | sed -e 's/^|*//' -e 's/|*$//'
-}
+# The canonicalizer is NOT defined here. This scan, the pre-push gate, the
+# post-merge identity-scan workflow and the leak-check workflow all source
+# ONE implementation, so they cannot drift the way they had. See
+# scripts/canon-terms.sh for what each step of the pipeline is holding up.
+#
+# Fail closed when the library is absent. Without this check the script
+# would carry on with canon_terms undefined, RESERVED_TERMS would resolve
+# empty, category 1 would print itself as skipped, and the whole run would
+# still exit 0. An unrunnable scanner is a broken guard, not a clean tree.
+CANON_TERMS_LIB="$REPO_ROOT/scripts/canon-terms.sh"
+if [[ ! -f "$CANON_TERMS_LIB" ]]; then
+  printf "\n\033[31m▎ scripts/canon-terms.sh is missing; the reserved-term scan cannot run.\033[0m\n\n" >&2
+  exit 1
+fi
+# shellcheck source=scripts/canon-terms.sh
+. "$CANON_TERMS_LIB"
+
+# Present is not the same as usable. The file can exist and fail to source,
+# which is what a syntax error introduced by a later edit looks like, and
+# this script has no set -e: canon_terms would simply be undefined, the
+# list would resolve empty, category 1 would print itself as skipped and
+# the run would still exit 0. In CI the canonicalizer self test runs as an
+# earlier step and would catch that first, so the property would be held by
+# step ORDER rather than by this script. Ask for the function itself.
+if ! declare -f canon_terms >/dev/null 2>&1; then
+  printf "\n\033[31m▎ scripts/canon-terms.sh was sourced but defines no canon_terms; the reserved-term scan cannot run.\033[0m\n\n" >&2
+  exit 1
+fi
 
 RESERVED_TERMS=""
 if [[ -n "${OW_RESERVED_TERMS:-}" ]]; then
@@ -153,6 +174,18 @@ if [[ -n "${OW_RESERVED_TERMS:-}" ]]; then
 fi
 if [[ -z "$RESERVED_TERMS" && -f .reserved-terms ]]; then
   RESERVED_TERMS="$(canon_terms < .reserved-terms)"
+fi
+
+# A list that does not compile is not a clean tree. The list is one regex
+# fragment per line, so an unbalanced parenthesis or bracket is a realistic
+# typo; grep exits 2 on a pattern it refuses, scan() below discards that
+# status with "|| true", and the category prints a green tick having
+# matched nothing. Refuse the run here, while we still know why.
+if [[ -n "$RESERVED_TERMS" ]] && ! canon_terms_usable "$RESERVED_TERMS"; then
+  printf "\n\033[31m▎ The reserved-term list does not compile as a regular expression, so the scan would check for nothing.\033[0m\n" >&2
+  printf "  Fix the offending fragment in OW_RESERVED_TERMS or .reserved-terms (one regex fragment per line).\n" >&2
+  printf "  No part of the list is printed here.\n\n" >&2
+  exit 1
 fi
 
 # ----------------------------------------------------------------------

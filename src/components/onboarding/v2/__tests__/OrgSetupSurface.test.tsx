@@ -35,10 +35,8 @@ const VAULT_SETUP: OnboardingVaultSetup = {
 
 // Hoisted so the vi.mock factories below (hoisted above the imports) can close
 // over the same spy instances the assertions read.
-const { insertOrg, upsertMember, insertSettings, updateEq } = vi.hoisted(() => ({
-  insertOrg: vi.fn(async () => ({ error: null })),
-  upsertMember: vi.fn(async () => ({ error: null })),
-  insertSettings: vi.fn(async () => ({ error: null })),
+const { createOrgRpc, updateEq } = vi.hoisted(() => ({
+  createOrgRpc: vi.fn(async () => ({ data: 'org-1', error: null })),
   updateEq: vi.fn(async () => ({ error: null })),
 }));
 
@@ -52,12 +50,12 @@ vi.mock('@/lib/supabase', () => ({
       getSession: async () => ({ data: { session: { user: { id: 'user-1' } } } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
-    from: (table: string) => {
-      if (table === 'org_members') return { upsert: upsertMember };
-      if (table === 'org_settings') return { insert: insertSettings };
-      // organizations: insert on create, update for ledger_status.
-      return { insert: insertOrg, update: () => ({ eq: updateEq }) };
-    },
+    // Org creation is one SECURITY DEFINER call now, so there is nothing left
+    // to intercept per table on the create path.
+    rpc: createOrgRpc,
+    // The only table this surface still touches directly is organizations, and
+    // only to move ledger_status while the chart of accounts seeds.
+    from: () => ({ update: () => ({ eq: updateEq }) }),
   },
 }));
 
@@ -157,7 +155,7 @@ describe('OrgSetupSurface screen 2 (currencies)', () => {
 });
 
 describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
-  it('creates the org, the OWNER member and settings, then fires onComplete', async () => {
+  it('creates the org in one atomic call, then fires onComplete', async () => {
     const onComplete = vi.fn();
     render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
 
@@ -171,15 +169,14 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
-    expect(insertOrg).toHaveBeenCalledTimes(1);
-    expect(insertOrg).toHaveBeenCalledWith(
+    expect(createOrgRpc).toHaveBeenCalledTimes(1);
+    expect(createOrgRpc).toHaveBeenCalledWith(
+      'create_org_for_current_user',
       expect.objectContaining({
-        name: 'enc:Acme',
-        key_version: FIELD_KEY_VERSION,
+        p_org_name: 'enc:Acme',
+        p_key_version: FIELD_KEY_VERSION,
       }),
     );
-    expect(upsertMember).toHaveBeenCalledTimes(1);
-    expect(insertSettings).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -199,9 +196,7 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
  */
 describe('OrgSetupSurface persists the vault material (lockout regression)', () => {
   beforeEach(() => {
-    insertOrg.mockClear();
-    upsertMember.mockClear();
-    insertSettings.mockClear();
+    createOrgRpc.mockClear();
     toastError.mockClear();
   });
 
@@ -215,30 +210,32 @@ describe('OrgSetupSurface persists the vault material (lockout regression)', () 
     return onComplete;
   }
 
-  it('writes all five vault columns on the org_settings insert', async () => {
+  it('passes all five vault fields to the atomic create call', async () => {
     await finish(VAULT_SETUP);
 
-    await waitFor(() => expect(insertSettings).toHaveBeenCalledTimes(1));
-    expect(insertSettings).toHaveBeenCalledWith(
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    expect(createOrgRpc).toHaveBeenCalledWith(
+      'create_org_for_current_user',
       expect.objectContaining({
-        vault_verifier: 'verifier-abc',
-        vault_salt: 'salt-abc',
-        vault_key_version: 1,
-        enc_mek_ciphertext: 'enc-mek-abc',
-        recovery_ciphertext: 'recovery-abc',
+        p_vault_verifier: 'verifier-abc',
+        p_vault_salt: 'salt-abc',
+        p_vault_key_version: 1,
+        p_enc_mek_ciphertext: 'enc-mek-abc',
+        p_recovery_ciphertext: 'recovery-abc',
       }),
     );
   });
 
-  it('writes them in the same statement as the settings, leaving no window without a verifier', async () => {
+  it('writes them in the same transaction as the org, leaving no window without a verifier', async () => {
     await finish(VAULT_SETUP);
 
-    // One insert, not an insert followed by an update. If this ever splits in
-    // two, a failure between them leaves an organization nobody can open while
-    // the customer is told everything worked.
-    await waitFor(() => expect(insertSettings).toHaveBeenCalledTimes(1));
-    expect(insertSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ org_id: expect.any(String), vault_verifier: 'verifier-abc' }),
+    // One transactional call, not three sequential writes. If this ever splits
+    // up again, a failure between the parts leaves an organization nobody can
+    // open while the customer is told everything worked.
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    expect(createOrgRpc).toHaveBeenCalledWith(
+      'create_org_for_current_user',
+      expect.objectContaining({ p_vault_verifier: 'verifier-abc' }),
     );
   });
 
@@ -248,9 +245,7 @@ describe('OrgSetupSurface persists the vault material (lockout regression)', () 
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     // Nothing was written, so there is no half-made organization to clean up
     // and no dashboard the customer cannot unlock.
-    expect(insertOrg).not.toHaveBeenCalled();
-    expect(upsertMember).not.toHaveBeenCalled();
-    expect(insertSettings).not.toHaveBeenCalled();
+    expect(createOrgRpc).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
   });
 });

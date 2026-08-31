@@ -31,9 +31,11 @@ import type { User } from '@supabase/supabase-js';
  *      display preference that appears only while a picker is set to BTC.
  *
  * Slice 3 (DL-0718): the final CTA now creates the organization, mirroring the
- * v1 OnboardingWizard.handleFinish path (insert organizations with an encrypted
- * name, upsert the OWNER org_members row, insert client-encrypted org_settings,
- * then seed the chart of accounts in the background). Zero-knowledge holds by
+ * v1 OnboardingWizard.handleFinish path. Both wizards call the atomic
+ * create_org_for_current_user RPC (DL-1348), which writes the organizations
+ * row, the OWNER org_members row and the client-encrypted org_settings row in
+ * one database transaction, and then seed the chart of accounts in the
+ * background. Zero-knowledge holds by
  * construction: the org name and every settings field are encrypted in the
  * browser via encryptText, a closure over the MEK held in VaultContext, and no
  * key material crosses a prop boundary (only userId is threaded in).
@@ -41,8 +43,8 @@ import type { User } from '@supabase/supabase-js';
  * salt, or KDF. Fields this surface does not yet collect (calendar, reporting)
  * take the v2 defaults.
  *
- * The org_settings insert also carries the five vault fields the wizard
- * produced. In this product the vault is per-organization: org_settings is
+ * The org_settings row the RPC writes also carries the five vault fields the
+ * wizard produced. In this product the vault is per-organization: org_settings is
  * where the verifier, the salt, the key version and both wrapped-MEK
  * ciphertexts live, and the unlock screen reads them from that row by org_id.
  * The row therefore has to be written with them, because the organization it
@@ -190,29 +192,17 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
         );
       }
 
-      const user = await waitForAuthenticatedUser();
-      const orgId = crypto.randomUUID();
+      // The RPC takes the caller from auth.uid(), so the session has to have
+      // settled before it runs. Straight after sign-up it may not have.
+      await waitForAuthenticatedUser();
 
-      // 1. Insert organization with a client-encrypted name.
+      // 1. Encrypt the organization name in the browser.
       const encOrgName = await encryptText(name);
-      const { error: orgError } = await supabase
-        .from('organizations')
-        .insert({ id: orgId, name: encOrgName, key_version: FIELD_KEY_VERSION });
-      if (orgError) throw orgError;
 
-      // 2. Guarantee the creator's OWNER row. A post-insert trigger on
-      // organizations already inserts it, so this upsert is idempotent.
-      const { error: memberError } = await supabase
-        .from('org_members')
-        .upsert(
-          { org_id: orgId, user_id: user.id, role: 'OWNER' },
-          { onConflict: 'user_id,org_id' },
-        );
-      if (memberError) throw memberError;
-
-      // 3. Insert org_settings, every field client-encrypted. Fields this
-      // surface does not yet collect take the v2 defaults: a calendar fiscal
-      // year (start month 1), US number format, and null date/time/timezone.
+      // 2. Encrypt every settings field. Fields this surface does not yet
+      // collect take the v2 defaults: a calendar fiscal year (start month 1),
+      // US number format, and null date/time/timezone. Those defaults are not
+      // what the customer chose, and collecting them is its own change.
 
       const secondary = secondaryCurrency.length > 0 ? secondaryCurrency : null;
       const btcDisplay: BitcoinDisplay =
@@ -233,23 +223,41 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
         },
         encryptText,
       );
-      // The vault fields go in on the insert rather than in a follow-up
-      // update. v1 inserts and then updates, which leaves a window where the
-      // settings row exists without a verifier; if the update fails there, the
-      // org is already unopenable and the customer is told everything worked.
-      // One statement removes the window. The five values are stored verbatim
-      // in both flows, so nothing about the ciphertext or the derivation
-      // changes, only when it is written.
-      const { error: settingsError } = await supabase.from('org_settings').insert({
-        org_id: orgId,
-        ...encSettings,
-        vault_verifier: vaultSetup.verifier,
-        vault_salt: vaultSetup.vaultSalt,
-        vault_key_version: vaultSetup.vaultKeyVersion,
-        enc_mek_ciphertext: vaultSetup.encMekCiphertext,
-        recovery_ciphertext: vaultSetup.recoveryCiphertext,
-      });
-      if (settingsError) throw settingsError;
+      // 3. One atomic call instead of three sequential client-side writes.
+      // create_org_for_current_user is SECURITY DEFINER and wraps the
+      // organizations row, the OWNER org_members row and the org_settings row
+      // in a single database transaction, so a lost connection or a closed tab
+      // rolls the whole thing back instead of leaving a half-created
+      // organization behind. It also closes the window where a settings row
+      // could exist without its verifier: an organization is never visible
+      // without the material that opens it. Caller identity comes from
+      // auth.uid() inside the function, never from a parameter here, and every
+      // value below is either ciphertext or a structural plaintext such as the
+      // number format. The org id is generated server side and returned.
+      const { data: newOrgId, error: rpcError } = await (supabase as any).rpc(
+        'create_org_for_current_user',
+        {
+          p_org_name: encOrgName,
+          p_key_version: FIELD_KEY_VERSION,
+          p_settings_primary_currency: encSettings.primary_currency,
+          p_settings_secondary_currency: encSettings.secondary_currency,
+          p_settings_bitcoin_display: encSettings.bitcoin_display,
+          p_settings_fiscal_year_type: encSettings.fiscal_year_type,
+          p_settings_encrypted_fiscal_month: encSettings.encrypted_fiscal_month,
+          p_settings_date_format: encSettings.date_format,
+          p_settings_time_format: encSettings.time_format,
+          p_settings_number_format: encSettings.number_format,
+          p_settings_timezone: encSettings.timezone,
+          p_settings_key_version: encSettings.key_version,
+          p_vault_verifier: vaultSetup.verifier,
+          p_vault_salt: vaultSetup.vaultSalt,
+          p_vault_key_version: vaultSetup.vaultKeyVersion,
+          p_enc_mek_ciphertext: vaultSetup.encMekCiphertext,
+          p_recovery_ciphertext: vaultSetup.recoveryCiphertext,
+        },
+      );
+      if (rpcError) throw rpcError;
+      const orgId = newOrgId as string;
 
       // 4. Seed the chart of accounts in the background (v1 parity): mark the
       // org provisioning, dispatch initChartOfAccounts fire-and-forget, and let

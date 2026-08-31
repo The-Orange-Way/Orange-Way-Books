@@ -90,18 +90,32 @@ jobs:
             exit 1
           fi
 
-          # Canonicalize exactly as scripts/pre-publish-scan.sh does: drop
-          # blank lines and #-comment lines, join the rest into one regex
-          # alternation. Without this a comment line in the secret would be
-          # compiled into the regex as a live fragment. A single-line
-          # "a|b|c" secret passes through unchanged.
-          PATTERN="$(printf '%s\n' "$RAW_PATTERN" \
-            | grep -vE '^[[:space:]]*(#|$)' \
-            | paste -sd'|' - \
-            | sed -e 's/^|*//' -e 's/|*$//')"
+          # Canonicalize through the SHARED implementation, not a copy of
+          # it. See scripts/canon-terms.sh: it drops blank and comment
+          # lines, deletes carriage returns, joins the rest into one regex
+          # alternation and trims stray separators. The copy that used to
+          # live here was missing the carriage-return step, so a secret
+          # saved with Windows line endings produced a pattern of dead
+          # branches while this step printed a term count and "clean".
+          if [ ! -f scripts/canon-terms.sh ]; then
+            echo "::error::scripts/canon-terms.sh is missing, so the reserved-term list cannot be canonicalized. This scan must not report clean when it could not run."
+            exit 1
+          fi
+          . scripts/canon-terms.sh
+          PATTERN="$(printf '%s\n' "$RAW_PATTERN" | canon_terms)"
 
           if [ -z "$PATTERN" ]; then
             echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after dropping comments and blank lines."
+            exit 1
+          fi
+          # Non-empty is not the same as usable. Each line of the stored
+          # value is a regex FRAGMENT, so an unbalanced parenthesis or
+          # bracket is a realistic typo. grep exits 2 on a pattern it
+          # refuses, and the match below is an "if": exit 2 takes the same
+          # false branch a clean line does, the counter stays at zero and
+          # this step prints "Identity-scan clean" having compared nothing.
+          if ! canon_terms_usable "$PATTERN"; then
+            echo "::error::OW_RESERVED_TERMS does not compile as a regular expression, so this scan cannot run and must not report clean. At least one line is not valid regex; an unbalanced parenthesis or bracket is the usual cause. No part of the value is printed."
             exit 1
           fi
           # Count only. The terms themselves are never printed to a public log.
