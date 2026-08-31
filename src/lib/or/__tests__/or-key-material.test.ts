@@ -13,6 +13,7 @@ import {
   OrNamespaceDisabledError,
   planOrKeyMaterial,
   type OrKeyMaterialRow,
+  type PlanOrKeyMaterialOptions,
 } from '@/lib/or/or-key-material';
 import {
   deriveOrCredsKeyFromMek,
@@ -29,19 +30,17 @@ const EMPTY: OrKeyMaterialRow = {
 const CURRENT_SALT = 'Y3VycmVudC1zYWx0LWJhc2U2NA==';
 const PINNED_SALT = 'cGlubmVkLXNhbHQtYmFzZTY0';
 
+/** The only statement that permits deriving. Spelled out at every call. */
+const MATCHES: PlanOrKeyMaterialOptions = { saltMatchesExistingRows: true };
+
 describe('planOrKeyMaterial: nothing pinned yet', () => {
-  it('derives and pins against the salt in force', () => {
-    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT);
+  it('derives and pins when the caller states the salt still matches', () => {
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, MATCHES);
     expect(plan).toEqual({
       mode: 'derive-and-pin',
       saltContext: CURRENT_SALT,
       epoch: CURRENT_OR_KEY_EPOCH,
     });
-  });
-
-  it('derives and pins when the caller states the salt still matches', () => {
-    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, { saltMatchesExistingRows: true });
-    expect(plan.mode).toBe('derive-and-pin');
   });
 
   it('REFUSES when the salt has just rotated, instead of deriving a key that opens nothing', () => {
@@ -52,8 +51,28 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
     expect(plan.reason).toMatch(/re-sync/i);
   });
 
+  it('REFUSES when the caller passes undefined rather than stating the flag', () => {
+    // The shape a recovery-path caller falls into by accident:
+    // { saltMatchesExistingRows: fetched?.matches } is boolean | undefined,
+    // which TypeScript did not complain about while the option was optional.
+    // Absence has to refuse, never derive, so it is checked at runtime and
+    // not only in the types.
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, {
+      saltMatchesExistingRows: undefined,
+    } as unknown as PlanOrKeyMaterialOptions);
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('REFUSES when the options argument is missing altogether at runtime', () => {
+    const untyped = planOrKeyMaterial as unknown as (
+      row: OrKeyMaterialRow,
+      salt: string,
+    ) => ReturnType<typeof planOrKeyMaterial>;
+    expect(untyped(EMPTY, CURRENT_SALT).mode).toBe('refuse');
+  });
+
   it('refuses when there is no salt to pin against', () => {
-    const plan = planOrKeyMaterial(EMPTY, '');
+    const plan = planOrKeyMaterial(EMPTY, '', MATCHES);
     expect(plan.mode).toBe('refuse');
   });
 });
@@ -66,7 +85,7 @@ describe('planOrKeyMaterial: fully pinned', () => {
   };
 
   it('unwraps using the PINNED salt, not the salt in force now', () => {
-    const plan = planOrKeyMaterial(pinned, CURRENT_SALT);
+    const plan = planOrKeyMaterial(pinned, CURRENT_SALT, MATCHES);
     expect(plan).toEqual({
       mode: 'unwrap',
       ciphertext: 'sealed-key-ciphertext',
@@ -75,8 +94,8 @@ describe('planOrKeyMaterial: fully pinned', () => {
   });
 
   it('unwraps regardless of what the current salt is, which is the whole point', () => {
-    const a = planOrKeyMaterial(pinned, CURRENT_SALT);
-    const b = planOrKeyMaterial(pinned, 'a-completely-different-salt');
+    const a = planOrKeyMaterial(pinned, CURRENT_SALT, MATCHES);
+    const b = planOrKeyMaterial(pinned, 'a-completely-different-salt', MATCHES);
     expect(a).toEqual(b);
   });
 
@@ -84,6 +103,7 @@ describe('planOrKeyMaterial: fully pinned', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH + 1 },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
   });
@@ -92,8 +112,39 @@ describe('planOrKeyMaterial: fully pinned', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH - 1 },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
+  });
+
+  it('reads a generation that arrives as a STRING, which is how a numeric column comes back', () => {
+    // PostgREST returns a Postgres numeric as a JSON string and only the
+    // integer types as a JSON number. If the string form read as absent, a
+    // fully pinned row would look half established and the namespace would be
+    // disabled for exactly the customers who do have the material, with a
+    // message naming the wrong cause.
+    const plan = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: String(CURRENT_OR_KEY_EPOCH) },
+      CURRENT_SALT,
+      MATCHES,
+    );
+    expect(plan.mode).toBe('unwrap');
+  });
+
+  it('refuses a STRING generation it does not understand, rather than unwrapping it', () => {
+    const plan = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: String(CURRENT_OR_KEY_EPOCH + 1) },
+      CURRENT_SALT,
+      MATCHES,
+    );
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('treats a generation that is not a whole number as absent, never as current', () => {
+    for (const bad of [1.5, Number.NaN, 'one', '1.5', '']) {
+      const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, MATCHES);
+      expect(plan.mode).toBe('refuse');
+    }
   });
 });
 
@@ -102,6 +153,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: null, or_subkey_salt: PINNED_SALT, or_key_epoch: 1 },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
@@ -112,6 +164,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: null, or_key_epoch: 1 },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
@@ -122,6 +175,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: PINNED_SALT, or_key_epoch: null },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
@@ -132,6 +186,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: '', or_subkey_salt: PINNED_SALT, or_key_epoch: 1 },
       CURRENT_SALT,
+      MATCHES,
     );
     expect(plan.mode).toBe('refuse');
   });
@@ -144,7 +199,7 @@ describe('planOrKeyMaterial: partly stored', () => {
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: PINNED_SALT, or_key_epoch: null },
     ];
     for (const row of partials) {
-      expect(planOrKeyMaterial(row, CURRENT_SALT).mode).toBe('refuse');
+      expect(planOrKeyMaterial(row, CURRENT_SALT, MATCHES).mode).toBe('refuse');
     }
   });
 });
