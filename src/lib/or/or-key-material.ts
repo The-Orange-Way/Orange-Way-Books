@@ -86,10 +86,14 @@ export interface OrKeyMaterialRow {
 export type OrKeyMaterialPlan =
   | {
       /**
-       * Nothing is pinned yet. Derive the legacy value exactly as before and
-       * pin it. This is correct only at a moment when the password and the
-       * current salt still produce the value that existing rows were sealed
-       * under, which means an unlock or a vault creation.
+       * Nothing is pinned yet, and the caller has SHOWN that deriving is
+       * safe: either nothing was ever sealed, or the key derived from the
+       * password and salt in force now demonstrably opens a row that was.
+       * Derive the legacy value exactly as before and pin it.
+       *
+       * Being on an unlock is not by itself that showing. An account that
+       * changed its vault password before pinning existed unlocks perfectly
+       * normally, and its current salt no longer matches its own rows.
        */
       mode: 'derive-and-pin';
       saltContext: string;
@@ -289,7 +293,10 @@ export function planOrKeyMaterial(
   }
 
   const evidence: SealedRowEvidence | undefined = options?.existingRows;
-  if (evidence?.kind !== 'no-sealed-rows' && evidence?.kind !== 'derived-key-opens-a-sealed-row') {
+  const permitsDeriving =
+    evidence?.kind === 'no-sealed-rows' || evidence?.kind === 'derived-key-opens-a-sealed-row';
+
+  if (!permitsDeriving) {
     // Nothing is pinned, and neither of the two things that make deriving
     // safe has been established: that there is no history to orphan, or
     // that the current derivation still opens the history there is.
@@ -298,14 +305,10 @@ export function planOrKeyMaterial(
     // formed key, pins it as authoritative, reports success, and every row
     // the customer already synced stops opening forever with nothing on
     // screen to say so.
-    const detail = evidence && evidence.kind === 'unproven' && evidence.detail
-      ? ` (${evidence.detail})`
-      : '';
-    return {
-      mode: 'refuse',
-      reason:
-        `Orange Rails key material was never pinned for this account, and it has not been established that the key derived from the vault password and salt in force now still opens the rows already sealed${detail}. Pinning a derived key here could make every one of those rows permanently unopenable, so it is refused. Either show that an existing sealed row opens, or accept that anything synced before this point needs a re-sync.`,
-    };
+    const why =
+      'Orange Rails key material was never pinned for this account, and it has not been established that the key derived from the vault password and salt in force now still opens the rows already sealed. Pinning a derived key here could make every one of those rows permanently unopenable, so it is refused. Either show that an existing sealed row opens, or accept that anything synced before this point needs a re-sync.';
+    const detail = evidence && evidence.kind === 'unproven' ? evidence.detail : undefined;
+    return { mode: 'refuse', reason: detail ? `${why} Cause: ${detail}.` : why };
   }
 
   return { mode: 'derive-and-pin', saltContext: orgSalt, epoch: CURRENT_OR_KEY_EPOCH };
