@@ -117,6 +117,30 @@ function adminFetch(
   });
 }
 
+// Click a wizard button that sits immediately after a Radix Select interaction.
+//
+// Radix puts `pointer-events: none` on <body> while a Select popup is open and
+// only clears it once the close animation finishes. A click({ force: true }) in
+// that window skips every actionability check, lands on a document that is not
+// accepting pointer events, and is swallowed with no error, so the wizard
+// silently does not advance and the NEXT step's element never renders. That is
+// how this spec failed: 06b set the timezone and passed, its Continue click was
+// eaten, and 06c timed out on getByTestId('onboarding-fiscal-month') reporting
+// "element(s) not found" rather than anything about the click.
+//
+// So wait for the body to accept pointer events again, then click WITHOUT force
+// and let Playwright's own actionability retry cover the rest.
+async function clickWizardButton(page: Page, label: RegExp) {
+  await expect(page.locator('body'), 'body accepting pointer events again').not.toHaveCSS(
+    'pointer-events',
+    'none',
+    { timeout: 10_000 },
+  );
+  const btn = page.locator('button:visible:not([disabled])').filter({ hasText: label }).first();
+  await expect(btn, `wizard button matching ${label}`).toBeVisible({ timeout: 10_000 });
+  await btn.click();
+}
+
 test.skip(
   !OPT_IN,
   'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly',
@@ -305,11 +329,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await onbTimezone.click();
     await page.getByRole('option', { name: 'Eastern Time (US)', exact: true }).click();
     await expect(onbTimezone, 'onboarding timezone set to Eastern').toContainText('Eastern');
-    await page
-      .locator('button:visible:not([disabled])')
-      .filter({ hasText: /Continue|Next/i })
-      .first()
-      .click({ force: true });
+    await clickWizardButton(page, /Continue|Next/i);
 
     // 06c (DL-0720): StepCalendar. Set the fiscal year start to April through
     // the onboarding picker, assert the trigger reflects it, then Create
@@ -319,11 +339,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await onbFiscal.click();
     await page.getByRole('option', { name: 'April', exact: true }).click();
     await expect(onbFiscal, 'onboarding fiscal month set to April').toContainText('April');
-    await page
-      .locator('button:visible:not([disabled])')
-      .filter({ hasText: /Create Organization|Finish|Done/i })
-      .first()
-      .click({ force: true });
+    await clickWizardButton(page, /Create Organization|Finish|Done/i);
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
