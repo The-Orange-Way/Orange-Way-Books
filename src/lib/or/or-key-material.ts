@@ -58,8 +58,20 @@ export interface OrKeyMaterialRow {
   enc_or_mek_ciphertext: string | null;
   /** The org salt in force when the above was established. Null until then. */
   or_subkey_salt: string | null;
-  /** Generation of the pinned pair. Null until established. */
-  or_key_epoch: number | null;
+  /**
+   * Generation of the pinned pair. Null until established.
+   *
+   * Typed to accept a string as well as a number, and that is deliberate.
+   * PostgREST returns a Postgres `numeric` as a JSON STRING and only the
+   * integer types as a JSON number, so a strict `typeof === 'number'` test
+   * would read a fully pinned row as half established the moment the column
+   * were declared numeric, and would disable the namespace for every customer
+   * who actually has the material while naming the wrong cause. The column
+   * must be declared `integer` when the Books migration is written (the
+   * personal twin already declares it that way), and this type accepts the
+   * string form so the client is not what breaks if it ever is not.
+   */
+  or_key_epoch: number | string | null;
 }
 
 export type OrKeyMaterialPlan =
@@ -111,11 +123,37 @@ export interface PlanOrKeyMaterialOptions {
    * and recovery by definition does not have it. So refusing is not a policy
    * preference, it is the only outcome that is not a lie.
    *
-   * Omitted defaults to true, which preserves the unlock and create paths.
-   * Any production caller should pass it explicitly so it cannot inherit that
-   * default by accident.
+   * REQUIRED, and required on purpose. It was optional with a default of
+   * true, which pointed absence at the destroying outcome: a caller computing
+   * the flag from a lookup and passing `undefined` (which `boolean |
+   * undefined` makes easy, and which TypeScript would not have flagged) got
+   * derive-and-pin. "I do not know" is precisely the state in which deriving
+   * is unsafe, so absence must refuse rather than destroy. The check below is
+   * `=== true` rather than `!== false` for the same reason, so an untyped
+   * caller passing undefined at runtime is refused as well.
    */
-  saltMatchesExistingRows?: boolean;
+  saltMatchesExistingRows: boolean;
+}
+
+/**
+ * Read the stored generation, accepting both shapes PostgREST can hand back.
+ *
+ * A Postgres `integer` arrives as a JSON number and a `numeric` arrives as a
+ * JSON string, so a client that accepts only a number is one column-type
+ * choice away from reading every fully pinned row as half established.
+ *
+ * Anything that is not a whole number, in either shape, is treated as absent
+ * rather than coerced. A fractional or unparseable generation is not a
+ * generation, and guessing at one is the class of thing this module exists to
+ * refuse.
+ */
+function readEpoch(raw: number | string | null): number | null {
+  if (typeof raw === 'number') return Number.isInteger(raw) ? raw : null;
+  if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
+    const parsed = Number.parseInt(raw.trim(), 10);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 /**
@@ -130,19 +168,22 @@ export interface PlanOrKeyMaterialOptions {
  *
  * @param row      what the vault metadata row holds for this org
  * @param orgSalt  the salt in force right now, used only when pinning
+ * @param options  whether that salt still matches the rows already sealed.
+ *                 Required: see the field's own comment for why absence is
+ *                 not allowed to mean yes.
  */
 export function planOrKeyMaterial(
   row: OrKeyMaterialRow,
   orgSalt: string,
-  options: PlanOrKeyMaterialOptions = {},
+  options: PlanOrKeyMaterialOptions,
 ): OrKeyMaterialPlan {
   const hasCiphertext =
     typeof row.enc_or_mek_ciphertext === 'string' && row.enc_or_mek_ciphertext.length > 0;
   const hasSalt = typeof row.or_subkey_salt === 'string' && row.or_subkey_salt.length > 0;
-  const hasEpoch = typeof row.or_key_epoch === 'number' && Number.isFinite(row.or_key_epoch);
+  const epoch = readEpoch(row.or_key_epoch);
+  const hasEpoch = epoch !== null;
 
-  if (hasCiphertext && hasSalt && hasEpoch) {
-    const epoch = row.or_key_epoch as number;
+  if (hasCiphertext && hasSalt && epoch !== null) {
     if (epoch !== CURRENT_OR_KEY_EPOCH) {
       // Deliberately refuses in BOTH directions. A newer generation means
       // this build is the stale one and must not guess at a format it
@@ -181,8 +222,11 @@ export function planOrKeyMaterial(
     };
   }
 
-  if (options.saltMatchesExistingRows === false) {
-    // Nothing is pinned AND the salt just rotated.
+  if (options?.saltMatchesExistingRows !== true) {
+    // Nothing is pinned, AND either the salt just rotated or the caller did
+    // not state that it did not. Both refuse, and the second is why this
+    // reads `!== true` rather than `=== false`: an unstated flag is not
+    // evidence that deriving is safe, it is the absence of that evidence.
     // Deriving here is what silently destroys history: it yields a well
     // formed key, pins it as authoritative, reports success, and every row
     // the customer already synced stops opening forever with nothing on
@@ -190,7 +234,7 @@ export function planOrKeyMaterial(
     return {
       mode: 'refuse',
       reason:
-        'Orange Rails key material was never pinned for this account and the vault salt has just changed, so the key that opened existing rows cannot be reproduced. Anything synced before this point needs a re-sync.',
+        'Orange Rails key material was never pinned for this account, and the vault salt has either just changed or is not stated to match the rows already sealed, so the key that opened existing rows cannot be reproduced. Anything synced before this point needs a re-sync.',
     };
   }
 
