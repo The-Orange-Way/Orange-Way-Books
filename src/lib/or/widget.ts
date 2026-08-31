@@ -29,11 +29,11 @@
  *      org, so the caller passes the active org and owb-or-proxy verifies
  *      the caller is a member of that org before it will mint anything.
  *   2. The platform slug is resolved by a function, not fixed in a constant
- *      at import time, and a production build refuses to guess it. See
- *      resolveOrPlatformSlug below for why.
+ *      at import time, and NO build guesses it. See resolveOrPlatformSlug
+ *      below for why Books has no default where the personal twin has one.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/lib/supabase';
 
 /**
  * The host that serves the widget directly.
@@ -52,12 +52,6 @@ export const OR_CONNECT_URL_RAW = import.meta.env.VITE_OR_CONNECT_URL as string 
 export const OR_CONNECT_BASE = OR_CONNECT_URL_RAW || 'https://connect.orangerails.com/connect';
 
 /**
- * The slug used when no build-time value is configured. Development only,
- * and named as such so nobody reads it as "the Books slug".
- */
-export const OR_PLATFORM_SLUG_DEV_DEFAULT = 'orangeway-books';
-
-/**
  * The platform slug this build claims widget sessions under.
  *
  * WHY THIS IS A FUNCTION WITH A REFUSAL IN IT, rather than the single
@@ -71,31 +65,28 @@ export const OR_PLATFORM_SLUG_DEV_DEFAULT = 'orangeway-books';
  * never matches its own session row. It surfaces as a 401 "invalid widget
  * token", which reads like an expired or replayed token and is neither.
  *
- * Books has a different slug per environment, so a production build with the
- * variable unset would fall back and quietly claim under the development
- * platform. That is the silent-wrong-default shape: it would look like a
- * token bug for as long as it took someone to read this file. So a
- * production build refuses instead, at the moment the widget is opened
- * rather than at import time, which keeps one broken action from taking the
- * whole bundle down at load.
+ * Books has a DIFFERENT slug per environment (orangeway-books on dev,
+ * orangewaybooks on prod), so there is no value that is right to guess. A
+ * default would mean a build that forgot the variable claims its session
+ * under the other environment's platform and fails as that same misleading
+ * 401. So this refuses instead, and it refuses at the moment the widget is
+ * opened rather than at import time, which keeps one misconfigured action
+ * from taking the whole bundle down at load.
  *
  * Set VITE_OR_PLATFORM_SLUG per environment in the deploy workflow, both
  * arms explicit. An empty arm is not "unset with a sensible default", it is
- * the wrong platform.
+ * a build that cannot connect a wallet.
  */
 export function resolveOrPlatformSlug(): string {
-  const configured = (import.meta.env.VITE_OR_PLATFORM_SLUG as string | undefined) || '';
+  const configured = ((import.meta.env.VITE_OR_PLATFORM_SLUG as string | undefined) || '').trim();
   if (configured) return configured;
 
-  const deployEnv = (import.meta.env.VITE_DEPLOY_ENV as string | undefined) || '';
-  if (deployEnv === 'prod') {
-    throw new Error(
-      'VITE_OR_PLATFORM_SLUG is not set in this build. Refusing to open the connect widget ' +
-        'rather than claim the session under the development platform, which fails later as a ' +
-        'misleading 401 on the widget token.',
-    );
-  }
-  return OR_PLATFORM_SLUG_DEV_DEFAULT;
+  throw new Error(
+    'VITE_OR_PLATFORM_SLUG is not set in this build, so this app cannot name itself to Orange ' +
+      'Rails. Set it per environment in the deploy workflow (orangeway-books on dev, ' +
+      'orangewaybooks on prod). Refusing rather than guessing, because a wrong slug surfaces ' +
+      'later as a 401 on the widget token that reads like an expired token and is not one.',
+  );
 }
 
 /**
@@ -222,6 +213,29 @@ export async function openOrConnect(args: {
 }
 
 /**
+ * One POST to owb-or-proxy for the mint endpoint.
+ *
+ * Split out so the refresh retry below can send a byte-identical request
+ * carrying the new token, rather than a second request that has drifted from
+ * the first.
+ */
+async function postMint(accessToken: string, orgId: string): Promise<Response> {
+  return fetch(`${SUPABASE_URL}/functions/v1/owb-or-proxy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify({
+      endpoint: 'or-link-mint-token',
+      org_id: orgId,
+      payload: {},
+    }),
+  });
+}
+
+/**
  * Mint the short-lived session token the widget authenticates with.
  *
  * Exported because a later slice opens the widget directly rather than
@@ -240,26 +254,22 @@ export async function mintWidgetToken(orgId: string): Promise<string> {
   const accessToken = session?.access_token;
   if (!accessToken) throw new Error('Not signed in');
 
-  // Resolved the same way the Supabase client resolves them. The proxy is
-  // called with fetch rather than supabase.functions.invoke so tests can
-  // drive the transport directly.
-  const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
-  const SUPABASE_PUBLISHABLE_KEY =
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ?? '';
+  // The proxy is called with fetch rather than supabase.functions.invoke so a
+  // test can drive the transport directly.
+  let res = await postMint(accessToken, orgId);
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/owb-or-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-    },
-    body: JSON.stringify({
-      endpoint: 'or-link-mint-token',
-      org_id: orgId,
-      payload: {},
-    }),
-  });
+  // The edge gateway sometimes rejects a freshly minted session token on the
+  // first call, while Auth and the gateway are still converging. Every other
+  // proxy caller in Books already refreshes once and retries (callProxy in
+  // src/pages/Connections.tsx). Without the same retry here, a customer who
+  // has just signed in cannot connect a wallet, and the message they get says
+  // they are not signed in when they plainly are.
+  if (res.status === 401) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const retryToken = refreshed?.session?.access_token;
+    if (retryToken) res = await postMint(retryToken, orgId);
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`or-link-mint-token failed (${res.status}): ${body}`);
