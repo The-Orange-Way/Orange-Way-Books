@@ -1,0 +1,10 @@
+{
+  "why": [
+    "CI must be able to say WHICH spec ran, not only that the suite finished.",
+    "Every spec named here MUST have executed (not skipped) in the run. If one did not, the E2E job fails and names it.",
+    "Add a spec here the moment its silent skip would cost us something we cannot afford to lose quietly: tenant isolation, auth, money paths."
+  ],
+  "required": [
+    "tests/e2e/rls-isolation.spec.ts"
+  ]
+}
