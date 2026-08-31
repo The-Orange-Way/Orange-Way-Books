@@ -205,6 +205,21 @@ jobs:
           echo "OWB_DEV_E2E_EMAIL set=$([ -n "$S2" ] && echo yes || echo no) len=${#S2}"
           echo "OWB_DEV_E2E_PASSWORD set=$([ -n "$S3" ] && echo yes || echo no) len=${#S3}"
           echo "OWB_DEV_E2E_VAULT_PASSWORD set=$([ -n "$S4" ] && echo yes || echo no) len=${#S4}"
+          {
+            echo "SECRET PRESENCE PROBE"
+            echo "event=${{ github.event_name }} ref=${{ github.ref }}"
+            echo "OWB_E2E_SUPABASE_SECRET_KEY set=$([ -n "$S1" ] && echo yes || echo no) len=${#S1}"
+            echo "OWB_DEV_E2E_EMAIL set=$([ -n "$S2" ] && echo yes || echo no) len=${#S2}"
+            echo "OWB_DEV_E2E_PASSWORD set=$([ -n "$S3" ] && echo yes || echo no) len=${#S3}"
+            echo "OWB_DEV_E2E_VAULT_PASSWORD set=$([ -n "$S4" ] && echo yes || echo no) len=${#S4}"
+          } > /tmp/secret-probe.txt
+
+      - name: Publish probe result where it can be read
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/secret-probe.txt
 
       - name: Run Playwright
         run: bunx playwright test
