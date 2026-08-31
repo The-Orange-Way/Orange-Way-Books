@@ -63,6 +63,70 @@ jobs:
       - name: Build
         run: bun run build
 
+  # TEMPORARY DIAGNOSTIC, not for merge. See the pull request that carries it.
+  # Answers one question: at what scope are the four E2E secrets defined?
+  # This job binds NO environment, so it can only see repository or org level
+  # secrets. If a secret is visible here it is repository scoped, and every
+  # same-repo pull request runner gets it.
+  secret-scope-probe-no-environment:
+    name: probe no-env ${{ matrix.secret }}
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        secret:
+          - OWB_E2E_SUPABASE_SECRET_KEY
+          - OWB_DEV_E2E_EMAIL
+          - OWB_DEV_E2E_PASSWORD
+          - OWB_DEV_E2E_VAULT_PASSWORD
+    steps:
+      - name: Presence and length only
+        env:
+          PROBE: ${{ secrets[matrix.secret] }}
+        run: |
+          if [ -n "$PROBE" ]; then
+            echo "${{ matrix.secret }}: SET with no environment binding, length ${#PROBE}" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::${{ matrix.secret }} is SET on a pull_request runner with NO environment binding (length ${#PROBE}). Repository scope."
+            exit 1
+          fi
+          echo "${{ matrix.secret }}: EMPTY with no environment binding" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ matrix.secret }} is EMPTY with no environment binding."
+
+  # Same probe, but binding the dev environment exactly as the E2E job does.
+  # If a secret is visible here and not above, it is a dev environment secret
+  # and the environment places no deployment-branch restriction on pull
+  # request refs.
+  secret-scope-probe-dev-environment:
+    name: probe dev-env ${{ matrix.secret }}
+    runs-on: ubuntu-latest
+    environment: dev
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        secret:
+          - OWB_E2E_SUPABASE_SECRET_KEY
+          - OWB_DEV_E2E_EMAIL
+          - OWB_DEV_E2E_PASSWORD
+          - OWB_DEV_E2E_VAULT_PASSWORD
+    steps:
+      - name: Presence and length only
+        env:
+          PROBE: ${{ secrets[matrix.secret] }}
+        run: |
+          if [ -n "$PROBE" ]; then
+            echo "${{ matrix.secret }}: SET under environment dev, length ${#PROBE}" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::${{ matrix.secret }} is SET on a pull_request runner under environment dev (length ${#PROBE})."
+            exit 1
+          fi
+          echo "${{ matrix.secret }}: EMPTY under environment dev" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ matrix.secret }} is EMPTY under environment dev."
+
   e2e:
     name: E2E (Playwright smoke)
     runs-on: ubuntu-latest
