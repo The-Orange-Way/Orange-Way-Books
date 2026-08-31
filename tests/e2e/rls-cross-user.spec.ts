@@ -32,6 +32,14 @@ function readSupaCreds(): SupaCreds | null {
   try {
     return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
   } catch {
+    // No local creds file (the normal case in CI and on a laptop that has
+    // never run the provision script). Fall back to the same env vars the
+    // "Run Playwright" CI step already sets from the dev environment scope,
+    // so this spec can run without ever writing the DEV service-role key
+    // to disk. The file path above stays as a laptop convenience only.
+    const url = process.env.OWB_E2E_SUPABASE_URL;
+    const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
+    if (url && secret) return { url, secret };
     return null;
   }
 }
@@ -56,6 +64,11 @@ function adminFetch(
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
         },
+        // A hard bound on connect + response. Without this, a stalled
+        // socket (network hiccup, no response ever sent) hangs this
+        // Promise forever, which hangs the whole CI job well past
+        // Playwright's own 30s per-test timeout rather than failing loud.
+        timeout: 10_000,
       },
       (r) => {
         let b = '';
@@ -64,9 +77,44 @@ function adminFetch(
       },
     );
     req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error(`adminFetch timed out after 10s: ${method} ${path}`));
+    });
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
+}
+
+// The admin list endpoint has no `email` query parameter. GoTrue reads only
+// sort, filter, page, per_page and cursor, and it IGNORES anything else, so a
+// lookup like /auth/v1/admin/users?email=<address> quietly returns the first
+// page of ALL users, newest first. Taking users[0] from that response picks
+// whatever account happened to be created last, and the caller below then
+// deletes that account's organizations. So page through the list and match the
+// address exactly, and throw rather than guess when there is no match.
+const ADMIN_LIST_PAGE_SIZE = 200;
+const ADMIN_LIST_MAX_PAGES = 50;
+
+async function findUserIdByEmail(supa: SupaCreds, email: string): Promise<string> {
+  const wanted = email.toLowerCase();
+  for (let page = 1; page <= ADMIN_LIST_MAX_PAGES; page += 1) {
+    const res = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users?page=${page}&per_page=${ADMIN_LIST_PAGE_SIZE}`,
+      'GET',
+    );
+    if (res.status >= 400) {
+      throw new Error(`admin list users page ${page}: HTTP ${res.status} ${res.body}`);
+    }
+    const users: Array<{ id?: string; email?: string }> = JSON.parse(res.body).users ?? [];
+    const hit = users.find((u) => (u.email ?? '').toLowerCase() === wanted);
+    if (hit?.id) return hit.id;
+    if (users.length < ADMIN_LIST_PAGE_SIZE) break;
+  }
+  throw new Error(
+    `admin user-create returned 422 for ${email} but no account with that exact address is in the admin user list; refusing to guess an id, because the next step deletes that account's organizations`,
+  );
 }
 
 const USER_B_EMAIL = 'e2e-bob@orangewaybooks.test';
@@ -77,10 +125,11 @@ const ALLOWED_PROJECT_REFS = new Set(
 const SUPA_URL = process.env.OWB_E2E_SUPABASE_URL!;
 const PUBLISHABLE_KEY = process.env.OWB_E2E_SUPABASE_PUBLISHABLE_KEY!;
 
-// Skip when the local supabase creds file isn't available. CI runs in a
-// fresh runner that doesn't have /tmp/owb-pw/owb-dev-supabase.json, so the
-// cross-user spec only runs on a developer laptop that's used the provision
-// script at least once. Single-user RLS + structural audit still run in CI.
+// Skip when no Supabase admin creds are available at all: neither the
+// laptop convenience file nor the OWB_E2E_SUPABASE_URL /
+// OWB_E2E_SUPABASE_SECRET_KEY env vars. CI sets those env vars from the
+// dev environment scope on every push and same-repo PR run, so this spec
+// executes there; a fork PR or a laptop with neither still skips cleanly.
 const HAVE_LOCAL_CREDS = (() => {
   try {
     return !!readSupaCreds();
@@ -90,7 +139,7 @@ const HAVE_LOCAL_CREDS = (() => {
 })();
 test.skip(
   !HAVE_LOCAL_CREDS,
-  '/tmp/owb-pw/owb-dev-supabase.json not present — cross-user spec runs only on dev laptops',
+  'no Supabase admin creds available (no /tmp/owb-pw/owb-dev-supabase.json and no OWB_E2E_SUPABASE_URL/SECRET_KEY env vars), cross-user spec skipped',
 );
 
 test.describe.serial('RLS cross-user — user A cannot see user B', () => {
@@ -114,19 +163,18 @@ test.describe.serial('RLS cross-user — user A cannot see user B', () => {
     if (cr.status === 200 || cr.status === 201) {
       userBId = JSON.parse(cr.body).id;
     } else if (cr.status === 422) {
-      // Already exists — look up
-      const q = await adminFetch(
-        supa.url,
-        supa.secret,
-        `/auth/v1/admin/users?email=${encodeURIComponent(USER_B_EMAIL)}`,
-        'GET',
-      );
-      userBId = JSON.parse(q.body).users[0].id;
+      // Already exists, which is the normal path on every run after the first:
+      // afterAll deliberately leaves the auth.users row in place so re-runs are
+      // idempotent. Resolve by exact address, never by list position.
+      userBId = await findUserIdByEmail(supa, USER_B_EMAIL);
     } else {
       throw new Error(`admin user-create user B: HTTP ${cr.status} ${cr.body}`);
     }
 
-    // 2. Clean any existing org for B (so we start fresh)
+    // 2. Clean any existing org for B (so we start fresh). The loop below runs
+    // DELETE against a shared dev database, so refuse to enter it on an id we
+    // did not positively resolve to user B.
+    if (!userBId) throw new Error('userBId is empty before org cleanup, refusing to delete');
     const memQ = await adminFetch(
       supa.url,
       supa.secret,

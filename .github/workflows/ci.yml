@@ -171,6 +171,16 @@ jobs:
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
 
+      # tests/e2e/rls-cross-user.spec.ts (the real cross-tenant isolation
+      # test: "user A cannot read user B's org data") used to file-scope skip
+      # unless /tmp/owb-pw/owb-dev-supabase.json existed. Nothing wrote that
+      # file in CI, so the spec was unconditionally skipped on every run.
+      # Fixed at the source instead of by writing a service-key file here:
+      # readSupaCreds() in the spec now falls back to the
+      # OWB_E2E_SUPABASE_URL / OWB_E2E_SUPABASE_SECRET_KEY env vars the
+      # "Run Playwright" step below already sets, so no file, and no
+      # DEV service-role key on disk, is needed for the spec to run.
+
       - name: Run Playwright
         run: bunx playwright test
         env:
