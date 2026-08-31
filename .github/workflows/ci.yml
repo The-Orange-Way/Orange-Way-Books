@@ -191,6 +191,21 @@ jobs:
       # "Run Playwright" step below already sets, so no file, and no
       # DEV service-role key on disk, is needed for the spec to run.
 
+      # TEMPORARY MEASUREMENT, remove after the pull-request run is read.
+      # Reports presence and character length only. No value, no prefix.
+      - name: Probe e2e secret presence (no values)
+        env:
+          S1: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          S2: ${{ secrets.OWB_DEV_E2E_EMAIL }}
+          S3: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
+          S4: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
+        run: |
+          echo "event=${{ github.event_name }} ref=${{ github.ref }}"
+          echo "OWB_E2E_SUPABASE_SECRET_KEY set=$([ -n "$S1" ] && echo yes || echo no) len=${#S1}"
+          echo "OWB_DEV_E2E_EMAIL set=$([ -n "$S2" ] && echo yes || echo no) len=${#S2}"
+          echo "OWB_DEV_E2E_PASSWORD set=$([ -n "$S3" ] && echo yes || echo no) len=${#S3}"
+          echo "OWB_DEV_E2E_VAULT_PASSWORD set=$([ -n "$S4" ] && echo yes || echo no) len=${#S4}"
+
       - name: Run Playwright
         run: bunx playwright test
         env:
