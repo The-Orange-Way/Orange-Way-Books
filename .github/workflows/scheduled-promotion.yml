@@ -86,7 +86,7 @@ jobs:
 
           # The exact dev commit this promotion carries. Everything below is
           # pinned to it, so the reviewed set cannot move when an unrelated
-          # pull request merges into dev (OWM-T0432).
+          # pull request merges into dev.
           DEV_SHA=$(gh api "repos/${GH_REPO}/git/ref/heads/dev" --jq '.object.sha')
 
           if [ -n "${OLDEST_DATE}" ]; then
@@ -248,32 +248,27 @@ jobs:
           # ---- reuse or open ----------------------------------------------
           # Duplicate guard. Ask GitHub for any OPEN pull request into prod whose
           # head is a promotion head: a release/prod- branch cut by this
-          # workflow, or the legacy dev head from before OWM-T0432. If one
-          # exists we update it and never reach gh pr create. A hotfix opened
+          # workflow, or the legacy dev head from before this pinning change. If
+          # one exists we update it and never reach gh pr create. A hotfix opened
           # straight against prod from some other branch is deliberately NOT
           # matched: it is not the promotion and must not be retitled as one.
           EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100" \
                        --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))] | .[0].number // ""')
 
           if [ -n "${EXISTING}" ]; then
-            EXISTING_TITLE=$(gh api "repos/${GH_REPO}/pulls/${EXISTING}" --jq '.title')
             echo "Reusing open promotion pull request ${EXISTING}. Not opening a duplicate."
 
-            gh pr edit "${EXISTING}" --body-file pr-body.md
+            # Do not touch the body or the title here. Both were generated
+            # from AHEAD/BEHIND/DEV_SHA above, which describe the CURRENT dev
+            # head, not the commit this pull request is actually pinned to.
+            # Rewriting either on every scheduled run made the pull request
+            # lie about its own contents to the one person who has to read it
+            # before approving a production release. A pinned promotion's
+            # body and title are fixed at open time; only the label is kept
+            # in sync on reuse.
             gh pr edit "${EXISTING}" --add-label 'owner:release'
 
-            # Only retitle a title this workflow itself generated. A title a
-            # human wrote is left alone; the counts live in the body either way.
-            case "${EXISTING_TITLE}" in
-              "promote: dev to prod ("*)
-                gh pr edit "${EXISTING}" --title "promote: dev to prod (${AHEAD} commits)"
-                ;;
-              *)
-                echo "Left the existing human-written title unchanged."
-                ;;
-            esac
-
-            echo "Updated: ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
+            echo "Left title and body unchanged (pinned at open time): ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
             exit 0
           fi
 
@@ -283,7 +278,7 @@ jobs:
           # time anything merges into dev, and every advance voids the approving
           # review, so an approval can never survive long enough to be spent.
           # A pinned branch does not move, so the set that was reviewed is the
-          # set that ships (OWM-T0432).
+          # set that ships.
           BRANCH="release/prod-$(date -u +%Y%m%d)-$(printf '%s' "${DEV_SHA}" | cut -c1-12)"
 
           if gh api "repos/${GH_REPO}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
