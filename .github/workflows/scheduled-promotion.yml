@@ -133,7 +133,8 @@ jobs:
           What to do:
             1. Add a repository secret named FLEET_PAT.
             2. Its value is a token for the orange-builder machine user, scoped
-               to this repository with Contents:read and Pull requests:write.
+               to this repository with Contents:write (it cuts the release
+               branch this promotion is opened from) and Pull requests:write.
             3. Re-run this workflow (Actions, then Run workflow).
 
           Why not the built-in GITHUB_TOKEN: "Allow GitHub Actions to create and
@@ -245,11 +246,14 @@ jobs:
           fi
 
           # ---- reuse or open ----------------------------------------------
-          # Duplicate guard. Ask GitHub for any OPEN pull request whose base is
-          # prod and whose head is dev. If one exists we update it. We never
-          # reach gh pr create while one is open.
-          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&head=${GH_REPO%%/*}:dev" \
-                       --jq '.[0].number // ""')
+          # Duplicate guard. Ask GitHub for any OPEN pull request into prod whose
+          # head is a promotion head: a release/prod- branch cut by this
+          # workflow, or the legacy dev head from before OWM-T0432. If one
+          # exists we update it and never reach gh pr create. A hotfix opened
+          # straight against prod from some other branch is deliberately NOT
+          # matched: it is not the promotion and must not be retitled as one.
+          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100" \
+                       --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))] | .[0].number // ""')
 
           if [ -n "${EXISTING}" ]; then
             EXISTING_TITLE=$(gh api "repos/${GH_REPO}/pulls/${EXISTING}" --jq '.title')
