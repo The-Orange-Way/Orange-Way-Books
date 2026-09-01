@@ -139,11 +139,7 @@ export type OrKeyMaterialPlan =
  * - `unknown`: the caller could not check. Refuses, because "I do not know"
  *   is precisely the state in which deriving is unsafe.
  */
-export type SealedRowEvidence =
-  | 'none'
-  | 'opens-with-candidate'
-  | 'present-unverified'
-  | 'unknown';
+export type SealedRowEvidence = 'none' | 'opens-with-candidate' | 'present-unverified' | 'unknown';
 
 export interface PlanOrKeyMaterialOptions {
   /**
