@@ -247,7 +247,7 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
           p_settings_date_format: encSettings.date_format,
           p_settings_time_format: encSettings.time_format,
           p_settings_number_format: encSettings.number_format,
-          p_settings_timezone: encSettings.timezone,
+          p_settings_timeZone: encSettings.timezone,
           p_settings_key_version: encSettings.key_version,
           p_vault_verifier: vaultSetup.verifier,
           p_vault_salt: vaultSetup.vaultSalt,
