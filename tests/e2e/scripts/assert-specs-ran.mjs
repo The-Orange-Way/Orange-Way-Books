@@ -23,6 +23,13 @@
  * override exists so the workflow can prove this guard goes RED in the same
  * run, against a synthetic report, without touching the real list.
  *
+ * A list entry is either a bare path, required on EVERY run, or an object
+ * { "file": "...", "when": "push" } for a spec whose credentials only exist on
+ * a push to dev or prod. The run's event is read from E2E_EVENT_NAME, falling
+ * back to the GITHUB_EVENT_NAME that Actions sets. A waived spec is printed by
+ * name with the reason: a waiver that nobody can see in the log is the same
+ * silent skip this guard exists to catch.
+ *
  * A missing or unparseable report, and a missing or malformed required list,
  * are themselves failures, never silently scored as OK. "The check could not
  * run" must be loud.
@@ -109,9 +116,39 @@ if (executed < MIN_EXECUTED) {
 }
 
 const requiredDoc = readJson(requiredListPath, 'required-spec list');
-const required = Array.isArray(requiredDoc) ? requiredDoc : requiredDoc && requiredDoc.required;
-if (!Array.isArray(required)) {
+const requiredRaw = Array.isArray(requiredDoc) ? requiredDoc : requiredDoc && requiredDoc.required;
+if (!Array.isArray(requiredRaw)) {
   fail(`required-spec list at ${requiredListPath} has no "required" array`);
+}
+
+const EVENT = process.env.E2E_EVENT_NAME || process.env.GITHUB_EVENT_NAME || '';
+const WHEN_VALUES = new Set(['always', 'push']);
+
+const required = [];
+const waived = [];
+for (const entry of requiredRaw) {
+  const file = typeof entry === 'string' ? entry : entry && entry.file;
+  const when = typeof entry === 'string' ? 'always' : (entry && entry.when) || 'always';
+  if (typeof file !== 'string' || file.length === 0) {
+    fail(
+      `required-spec list at ${requiredListPath} has an entry with no "file": ${JSON.stringify(entry)}`,
+    );
+  }
+  if (!WHEN_VALUES.has(when)) {
+    fail(
+      `required-spec list at ${requiredListPath} gives ${file} an unknown "when" value ` +
+        `${JSON.stringify(when)}; allowed: ${[...WHEN_VALUES].join(', ')}`,
+    );
+  }
+  if (when === 'push' && EVENT !== 'push') {
+    waived.push(`${file} (when=push, and this run's event is ${EVENT || 'not set'})`);
+    continue;
+  }
+  required.push(file);
+}
+
+for (const line of waived) {
+  console.log(`spec-execution guard: not required on this run: ${line}`);
 }
 
 const byFile = new Map();
@@ -149,5 +186,6 @@ if (problems.length > 0) {
 
 console.log(
   `spec-execution guard: OK, ${executed} spec(s) executed, ${skipped} skipped; ` +
-    `all ${required.length} required spec(s) executed`,
+    `all ${required.length} required spec(s) executed` +
+    (waived.length > 0 ? `, ${waived.length} not required on this event` : ''),
 );
