@@ -2,7 +2,9 @@ name: prod-drift-guard
 
 # Fails loud when this repo's prod branch has drifted from dev.
 # Two independent conditions, either one fails the job:
-#   1. prod leads dev: any commit in prod that is not in dev. Never allowed.
+#   1. prod leads dev: prod carries file content that dev does not have.
+#      Measured on the compare's files, not on its commit count, because a
+#      promotion merge commit lands on prod and changes nothing.
 #   2. dev runs too far ahead of prod: unpromoted commits over the divergence
 #      limit (50 commits, or the oldest unpromoted commit older than 72 hours).
 # A branch that cannot be resolved exits non-zero. "Could not check" is never green.
@@ -16,6 +18,10 @@ on:
         description: 'Base/dev branch to compare against. Set a nonexistent branch to force the guard red (failure-path proof).'
         required: false
         default: dev
+      head_branch:
+        description: 'Head/prod branch to compare. Point it at a branch that carries content dev does not have to prove condition 1 goes red (failure-path proof).'
+        required: false
+        default: prod
   schedule:
     - cron: '0 13 * * *'
 
@@ -27,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_BRANCH: ${{ github.event.inputs.base_branch || 'dev' }}
-      HEAD_BRANCH: prod
+      HEAD_BRANCH: ${{ github.event.inputs.head_branch || 'prod' }}
       BEHIND_COMMIT_LIMIT: '50'
       BEHIND_HOURS_LIMIT: '72'
     steps:
@@ -52,7 +58,11 @@ jobs:
 
           fail=0
 
-          # 1. prod ahead of dev: commits in prod not in dev. Must be 0.
+          # 1. prod ahead of dev. What must never happen is prod carrying WORK
+          #    that dev does not have. A commit count does not measure that:
+          #    every promotion leaves a merge commit on prod that dev never
+          #    receives, and those commits change no file. Drive the failure off
+          #    the compare's CONTENT instead.
           ahead_json="$(gh api "repos/${REPO}/compare/${BASE_BRANCH}...${HEAD_BRANCH}")"
           prod_ahead="$(echo "$ahead_json" | jq -r '.ahead_by')"
           if [ "$prod_ahead" = "null" ] || [ -z "$prod_ahead" ]; then
@@ -61,9 +71,22 @@ jobs:
           fi
           echo "prod is ahead of dev by ${prod_ahead} commit(s)"
           if [ "$prod_ahead" -gt 0 ]; then
-            echo "::error::prod has ${prod_ahead} commit(s) that are NOT in dev. prod must never lead dev." >&2
-            echo "$ahead_json" | jq -r '.commits[] | "  prod-only \(.sha[0:9]) \(.commit.message | split("\n")[0])"' >&2
-            fail=1
+            # An absent files array is NOT the same fact as an empty one. A
+            # compare the API declined to diff must never read as clean.
+            if [ "$(echo "$ahead_json" | jq -r 'has("files")')" != "true" ]; then
+              echo "::error::prod is ahead by ${prod_ahead} commit(s) and the compare carried no files array, so prod-only content could not be checked. Refusing to report green." >&2
+              exit 1
+            fi
+            prod_only_files="$(echo "$ahead_json" | jq -r '.files | length')"
+            if [ "$prod_only_files" -gt 0 ]; then
+              echo "::error::prod carries ${prod_only_files} file(s) of content that are NOT in dev. prod must never lead dev: back-merge prod into dev." >&2
+              echo "$ahead_json" | jq -r '.files[] | "  prod-only path \(.status) \(.filename)"' >&2
+              echo "$ahead_json" | jq -r '.commits[] | "  prod-only commit \(.sha[0:9]) \(.commit.message | split("\n")[0])"' >&2
+              fail=1
+            else
+              echo "::notice::prod is ahead of dev by ${prod_ahead} commit(s) that change no files (promotion merge commits). No prod-only content, so this is not drift."
+              echo "$ahead_json" | jq -r '.commits[] | "  content-free prod-only commit \(.sha[0:9]) \(.commit.message | split("\n")[0])"'
+            fi
           fi
 
           # 2. dev ahead of prod: unpromoted commits over the divergence limit.
