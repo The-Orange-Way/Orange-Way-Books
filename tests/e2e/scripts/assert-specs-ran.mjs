@@ -53,9 +53,8 @@ function readJson(filePath, what) {
 // Report paths are posix-ish already, but a Windows-run report and a leading
 // './' should not be the reason a required spec reads as missing.
 function normalize(p) {
-  return String(p)
-    .replace(/\\/g, '/')
-    .replace(/^\.\//, '');
+  const forwardSlashes = String(p).replace(/\\/g, '/');
+  return forwardSlashes.replace(/^\.\//, '');
 }
 
 function sameSpecFile(reportFile, requiredFile) {
