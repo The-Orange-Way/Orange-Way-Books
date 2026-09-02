@@ -208,9 +208,12 @@ jobs:
           # 33344922437), and anyone able to push a branch decides what this
           # job executes, so a pull request run is not a place to put a
           # credential that reads and writes every tenant's rows. On a pull
-          # request the value is empty and the two specs that need it skip by
-          # name: tests/e2e/rls-cross-user.spec.ts and
-          # tests/e2e/onboarding-walk.spec.ts. The rest of the suite signs in
+          # request the value is empty and the two specs that need it do not
+          # run, by two different mechanisms: tests/e2e/rls-cross-user.spec.ts
+          # file-scope skips, because readSupaCreds() returns null on an empty
+          # secret, and tests/e2e/onboarding-walk.spec.ts is switched off at
+          # its own E2E_ONBOARDING_WALK opt-in below, because it throws rather
+          # than skips when the key is absent. The rest of the suite signs in
           # with the OWB_DEV_E2E_* fixture user and still runs, so the
           # zero-spec guard below still has real specs to count.
           #
@@ -245,11 +248,17 @@ jobs:
           # It provisions its own user through the admin API, so it needs
           # nothing from the "Provision E2E user" step above. It does need the
           # DEV service-role key to do that, and the key is withheld on pull
-          # requests, so the walk EXECUTES on pushes to dev and prod and skips
-          # itself on a pull request run. That is the deliberate trade: the
+          # requests. The walk does not skip itself when the key is missing:
+          # its only file-scope skip is on this variable, and beforeAll throws
+          # when readSupaCreds() returns null. So the opt-in follows the key.
+          # On for pushes to dev and prod, where the walk EXECUTES; off on a
+          # pull request, where it stops at its documented opt-in instead of
+          # failing on a credential it was never given. The trade is that the
           # walk's coverage moves post-merge rather than putting an
-          # RLS-bypassing key on a runner a branch author controls.
-          E2E_ONBOARDING_WALK: '1'
+          # RLS-bypassing key on a runner a branch author controls. It stays on
+          # the required-spec list with "when": "push", so the runs where it
+          # does apply cannot lose it quietly.
+          E2E_ONBOARDING_WALK: ${{ github.event_name == 'push' && '1' || '0' }}
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
