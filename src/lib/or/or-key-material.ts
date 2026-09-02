@@ -166,7 +166,7 @@ export interface PlanOrKeyMaterialOptions {
  * refuse.
  */
 function readEpoch(raw: number | string | null): number | null {
-  if (typeof raw === 'number') return Number.isInteger(raw) ? raw : null;
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null;
   if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
     const parsed = Number.parseInt(raw.trim(), 10);
     return Number.isSafeInteger(parsed) ? parsed : null;
@@ -206,6 +206,27 @@ export function planOrKeyMaterial(
   orgSalt: string,
   options: PlanOrKeyMaterialOptions,
 ): OrKeyMaterialPlan {
+  // A row we could not READ is not a row with nothing IN it, and the two mean
+  // opposite things. An empty row is a fresh account with nothing to lose. A
+  // nullish row is a state we failed to read, which is an "I cannot know", and
+  // this module's entire contract is that "I cannot know" refuses.
+  //
+  // Without this guard the optional chains below make all three columns look
+  // absent, the partial-state refusal is skipped because nothing is present,
+  // and control reaches derive-and-pin: the destructive answer, in the exact
+  // situation this module exists to refuse.
+  //
+  // The type says the row is non-nullable, so a compiling caller cannot get
+  // here. The callers this guard is for are the ones that lost their types at
+  // a boundary, or that read a failed lookup as an empty result.
+  if (row === null || row === undefined) {
+    return {
+      mode: 'refuse',
+      reason:
+        'The stored Orange Rails key material could not be read, so whether anything is pinned is unknown. Deriving now could produce a key that opens none of the rows already synced, so it is refused. This is a failed read, not an account with nothing stored.',
+    };
+  }
+
   const ciphertextPresent = isPresent(row?.enc_or_mek_ciphertext);
   const saltPresent = isPresent(row?.or_subkey_salt);
   const epochPresent = isPresent(row?.or_key_epoch);
