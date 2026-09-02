@@ -285,7 +285,14 @@ describe('OrgSetupSurface RPC contract (OWB-T0110)', () => {
     await openBooks();
 
     await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
-    const [rpcName, args] = createOrgRpc.mock.calls[0];
+    // createOrgRpc is `vi.fn(async () => ...)` with no declared parameters,
+    // so TS infers `mock.calls` as `[][]`. It is actually called with two
+    // arguments at runtime; cast the call record to that shape rather than
+    // widen the shared mock's inferred type, which other tests also use.
+    const [rpcName, args] = createOrgRpc.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+    ];
     expect(rpcName).toBe('create_org_for_current_user');
 
     // A key SET comparison, not objectContaining: objectContaining checks
