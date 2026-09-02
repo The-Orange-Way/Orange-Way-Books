@@ -200,7 +200,12 @@ jobs:
           # dev Supabase project. Sourced from the same dev env-vars the
           # frontend build uses, so there is one place to rotate them.
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          # Repository-scoped secrets reach every same-repo pull_request
+          # runner (proven by probe PR #278, OWB-T0118). The DEV service-role
+          # key has full RLS bypass over the whole project, so it is supplied
+          # only on push events; a pull_request run gets an empty string and
+          # the specs that need it (rls-cross-user.spec.ts) skip cleanly.
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ github.event_name == 'push' && secrets.OWB_E2E_SUPABASE_SECRET_KEY || '' }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           # On. Both conditions the previous version of this comment set for
