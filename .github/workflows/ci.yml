@@ -154,15 +154,11 @@ jobs:
       # pins the OWB DEV project ref as a literal and refuses to run against any
       # other ref, so a misconfigured URL cannot point it at prod.
       - name: Provision E2E user (DEV only)
-        # Provisioning is limited to push events on dev or prod so that a PR run
-        # cannot rewrite the SHARED dev fixture user out from under other runs:
-        # the self-heal that (re)creates it only runs post-merge, and on PR runs
-        # the specs sign in against the fixture as it already exists.
-        #
         # This gate is about the FIXTURE USER, not the service key. Provisioning
         # runs only on push to dev or prod, so a pull_request run cannot rewrite
-        # the shared dev fixture out from under other runs: the specs sign in
-        # against the fixture as it already exists.
+        # the shared dev fixture user out from under other runs: the self-heal
+        # that (re)creates it only runs post-merge, and on PR runs the specs
+        # sign in against the fixture as it already exists.
         #
         # The service key itself is withheld from pull_request runs at the
         # "Run Playwright" step below, which supplies OWB_E2E_SUPABASE_SECRET_KEY
