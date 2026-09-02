@@ -104,6 +104,51 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
   });
 });
 
+describe('planOrKeyMaterial: the row itself could not be read', () => {
+  // A failed metadata read that hands back null rather than throwing is an
+  // "I cannot know", and this module's whole doctrine is that those refuse.
+  // Before the guard, null read as three absent columns, which is exactly the
+  // shape of a fresh account, and with evidence 'none' it answered
+  // derive-and-pin: a well formed key, pinned as authoritative, opening none
+  // of the rows the customer already synced.
+  it('REFUSES a null row instead of deriving over it', () => {
+    const plan = planOrKeyMaterial(null as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+    // Distinct from the partial-write refusal, so a log can tell a failed read
+    // from a write that stopped halfway.
+    expect(plan.reason).not.toMatch(/partly stored/i);
+  });
+
+  it('REFUSES an undefined row', () => {
+    const plan = planOrKeyMaterial(
+      undefined as unknown as OrKeyMaterialRow,
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+  });
+
+  it('REFUSES an unreadable row even when the caller PROVED the derived key opens a row', () => {
+    // Evidence is about what deriving would cost, not about whether the read
+    // succeeded. Proof cannot rescue a state we never observed.
+    const plan = planOrKeyMaterial(null as unknown as OrKeyMaterialRow, CURRENT_SALT, PROVEN);
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('still derives for a genuinely empty row, so the guard has not eaten the fresh-account path', () => {
+    const plan = planOrKeyMaterial(
+      { enc_or_mek_ciphertext: null, or_subkey_salt: null, or_key_epoch: null },
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(plan.mode).toBe('derive-and-pin');
+  });
+});
+
 describe('planOrKeyMaterial: fully pinned', () => {
   const pinned: OrKeyMaterialRow = {
     enc_or_mek_ciphertext: 'sealed-key-ciphertext',
@@ -179,6 +224,23 @@ describe('planOrKeyMaterial: fully pinned', () => {
       const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, NO_ROWS);
       expect(plan.mode).toBe('refuse');
     }
+  });
+
+  it('refuses a generation beyond exact representation in BOTH spellings', () => {
+    // The number and string branches must agree. They did not: the number
+    // branch asked only for a whole number while the string branch asked for a
+    // safe one, so the same magnitude was accepted written one way and rejected
+    // written the other. Nothing depended on it, because such a value is never
+    // the current generation and refuses on the comparison, but an asymmetry
+    // inside a rule whose job is refusing is worth not having.
+    const unsafe = Number.MAX_SAFE_INTEGER + 2;
+    expect(planOrKeyMaterial({ ...pinned, or_key_epoch: unsafe }, CURRENT_SALT, NO_ROWS).mode).toBe(
+      'refuse',
+    );
+    expect(
+      planOrKeyMaterial({ ...pinned, or_key_epoch: '9007199254740993' }, CURRENT_SALT, NO_ROWS)
+        .mode,
+    ).toBe('refuse');
   });
 });
 
