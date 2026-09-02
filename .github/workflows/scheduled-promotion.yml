@@ -252,8 +252,13 @@ jobs:
           # one exists we update it and never reach gh pr create. A hotfix opened
           # straight against prod from some other branch is deliberately NOT
           # matched: it is not the promotion and must not be retitled as one.
-          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100" \
-                       --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))] | .[0].number // ""')
+          # Explicit ordering: newest-created first, and prefer a pinned
+          # release/prod- head over a legacy dev head if both are somehow
+          # open at once. Without this the choice depended on the API's
+          # unstated default ordering.
+          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100&sort=created&direction=desc" \
+                       --jq '[.[] | select(.head.ref | startswith("release/prod-"))] + [.[] | select(.head.ref == "dev")]
+                             | .[0].number // ""')
 
           if [ -n "${EXISTING}" ]; then
             echo "Reusing open promotion pull request ${EXISTING}. Not opening a duplicate."
@@ -267,6 +272,41 @@ jobs:
             # body and title are fixed at open time; only the label is kept
             # in sync on reuse.
             gh pr edit "${EXISTING}" --add-label 'owner:release'
+
+            # DL-0768 follow-up (OWM-T0556). The body above is frozen at
+            # open time on purpose (see the comment block just above), so a
+            # human reading only the body sees the state from the day the
+            # PR opened, even after dev has since blown through the
+            # threshold. Publish the LIVE numbers as a separate, clearly
+            # labelled sticky comment instead of touching the pinned body:
+            # a comment cannot misdescribe what the pull request contains,
+            # because it never claims to be that.
+            STATUS_MARKER='<!-- scheduled-promotion-status:auto -->'
+            STATUS_BODY=$(cat <<EOF
+${STATUS_MARKER}
+**Live status as of this scheduled run** (refreshed every run; this is NOT what this pull request contains, that stays pinned in the body above at open time).
+
+| | |
+|---|---|
+| Commits on dev not on prod, right now | **${AHEAD}** |
+| Oldest unpromoted commit, right now | **${AGE_DAYS} day(s)** old (${OLDEST_DATE}, \`${OLDEST_SHA}\`) |
+| Commits on prod not on dev, right now | **${BEHIND}** |
+| Threshold breached (50 commits or 3 days), right now | **${BREACH}** (${BREACH_WHY}) |
+
+Checked: $(date -u +"%Y-%m-%d %H:%M UTC"). Full comparison: ${COMPARE_URL}
+EOF
+)
+
+            EXISTING_COMMENT_ID=$(gh api "repos/${GH_REPO}/issues/${EXISTING}/comments?per_page=100" \
+                                     --jq '[.[] | select(.body | startswith("<!-- scheduled-promotion-status:auto -->"))] | .[0].id // ""')
+
+            if [ -n "${EXISTING_COMMENT_ID}" ]; then
+              gh api -X PATCH "repos/${GH_REPO}/issues/comments/${EXISTING_COMMENT_ID}" -f body="${STATUS_BODY}" >/dev/null
+              echo "Updated live-status comment ${EXISTING_COMMENT_ID} on pull request ${EXISTING}."
+            else
+              gh api -X POST "repos/${GH_REPO}/issues/${EXISTING}/comments" -f body="${STATUS_BODY}" >/dev/null
+              echo "Posted live-status comment on pull request ${EXISTING}."
+            fi
 
             echo "Left title and body unchanged (pinned at open time): ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
             exit 0
