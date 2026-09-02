@@ -146,6 +146,24 @@ test.skip(
   'E2E_ONBOARDING_WALK=1 not set — onboarding walk has DB side effects and only runs explicitly',
 );
 
+// The walk provisions and resets its own user through the Supabase admin API,
+// so it cannot run without the DEV service-role key. CI supplies that key on
+// push events only: it bypasses RLS across the whole DEV project and a
+// pull-request runner is controlled by whoever pushed the branch. Without this
+// skip the beforeAll below throws on every pull request run, which turns a
+// deliberate coverage decision into a red check people learn to ignore.
+const HAVE_ADMIN_CREDS = (() => {
+  try {
+    return !!readSupaCreds();
+  } catch {
+    return false;
+  }
+})();
+test.skip(
+  OPT_IN && !HAVE_ADMIN_CREDS,
+  'no Supabase admin creds (OWB_E2E_SUPABASE_URL / OWB_E2E_SUPABASE_SECRET_KEY, or the local creds file): onboarding walk skipped',
+);
+
 test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
   let supa: SupaCreds | null = null;
 
@@ -155,6 +173,11 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // Playwright versions execute beforeAll even for skipped tests. Guard
     // explicitly so the org DELETE never fires without an explicit opt-in.
     if (!OPT_IN) return;
+
+    // Same reason, second condition: no admin credentials means the file-level
+    // skip above has already excused this spec, and nothing below can run.
+    // Return before the org DELETE rather than throwing.
+    if (!HAVE_ADMIN_CREDS) return;
 
     // Refuse before touching anything, whatever the environment says. This
     // hook DELETES organizations, so if the walk's address ever resolves to
