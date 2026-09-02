@@ -159,17 +159,17 @@ jobs:
         # the self-heal that (re)creates it only runs post-merge, and on PR runs
         # the specs sign in against the fixture as it already exists.
         #
-        # This gate does NOT keep the DEV service key off pull-request runners,
-        # and it never did. The "Run Playwright" step below carries no event
-        # gate of its own and supplies OWB_E2E_SUPABASE_SECRET_KEY on every run
-        # of this job, including same-repo pull requests. Which specs read that
-        # variable is deliberately not asserted here: it changes, and a comment
-        # that names one goes stale silently.
+        # The DEV service key no longer reaches a pull-request runner. This
+        # gate never did that on its own: the "Run Playwright" step below used
+        # to supply OWB_E2E_SUPABASE_SECRET_KEY on every run of this job,
+        # including same-repo pull requests. That step now supplies it on push
+        # events only, so a pull request run gets an empty value. Which specs
+        # read the variable is deliberately not asserted here: it changes, and
+        # a comment that names one goes stale silently.
         #
-        # What actually bounds the blast radius is narrower and worth stating
-        # plainly: the key is the DEV project's only, and the job `if:` above
-        # refuses any pull request whose head repo is not this repository, so a
-        # fork PR gets no secrets at all.
+        # Two further bounds, unchanged: the key is the DEV project's only, and
+        # the job `if:` above refuses any pull request whose head repo is not
+        # this repository, so a fork PR gets no secrets at all.
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
@@ -202,50 +202,155 @@ jobs:
           # dev Supabase project. Sourced from the same dev env-vars the
           # frontend build uses, so there is one place to rotate them.
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          # PUSH RUNS ONLY. This is a service-role key: it bypasses RLS across
+          # the whole OWB DEV project. Repository-scope secrets are present on
+          # every same-repo pull_request runner (measured, probe run
+          # 33344922437), and anyone able to push a branch decides what this
+          # job executes, so a pull request run is not a place to put a
+          # credential that reads and writes every tenant's rows. On a pull
+          # request the value is empty and the two specs that need it do not
+          # run, by two different mechanisms: tests/e2e/rls-cross-user.spec.ts
+          # file-scope skips, because readSupaCreds() returns null on an empty
+          # secret, and tests/e2e/onboarding-walk.spec.ts is switched off at
+          # its own E2E_ONBOARDING_WALK opt-in below, because it throws rather
+          # than skips when the key is absent. The rest of the suite signs in
+          # with the OWB_DEV_E2E_* fixture user and still runs, so the
+          # zero-spec guard below still has real specs to count.
+          #
+          # rls-cross-user is on the required-spec list, so withholding the key
+          # here would fail every pull request by name. The next commit marks
+          # that entry "when": "push" in tests/e2e/required-specs.json, which is
+          # the waiver mechanism built for exactly this case. The spec stays
+          # required on pushes to dev and prod, and the waiver is printed by
+          # name in the job log so it is never silent.
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ github.event_name == 'push' && secrets.OWB_E2E_SUPABASE_SECRET_KEY || '' }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          # Held at '0' on every event. This previously read '1' on pushes to
-          # dev and prod, and that one character is what has kept dev E2E red
-          # since 2026-08-13.
+          # On. Both conditions the previous version of this comment set for
+          # re-enabling are met by the spec itself now.
           #
-          # onboarding-walk.spec.ts deletes the SHARED e2e fixture user's
-          # organizations in beforeAll, on purpose, so it can walk a fresh
-          # signup. Its own walk then fails, so the org is never recreated, and
-          # every spec that sorts after it (owb-full-suite B3 vault unlock,
-          # rls-isolation) finds a user with no org and no vault. Provisioning
-          # is skipped on pull_request runs, so nothing restores the fixture and
-          # the next PR is red too, which is why no PR has been able to recover.
+          # 1. The walk no longer touches the shared fixture. It deletes its
+          #    user's organizations in beforeAll on purpose, and it used to read
+          #    OWB_E2E_* while every other spec signs in with OWB_DEV_E2E_*, so
+          #    whether it destroyed the shared org depended on whether two
+          #    separately set values happened to be equal. It now reads its own
+          #    OWB_E2E_WALK_* family and REFUSES to run when its address
+          #    resolves to OWB_DEV_E2E_EMAIL. That is why the cascade that kept
+          #    dev E2E red from 2026-08-13 (owb-full-suite B3 vault unlock and
+          #    rls-isolation finding a user with no org and no vault) cannot
+          #    repeat: nothing it deletes belongs to those specs.
+          # 2. Its own failure has a named cause. admin user-create answers 422
+          #    for a user that already exists and does NOT set the password, so
+          #    a fixture created once with a different password fails at the
+          #    login screen on every later run. The spec now resets its own
+          #    user's password through the admin API before signing in.
           #
-          # The spec's own header already says "Skipped by default ... run
-          # manually before promotes". Turning it on for automated pushes
-          # contradicted that contract. This restores it.
-          #
-          # Re-enabling needs two things first: the walk must stop touching the
-          # shared fixture (its own dedicated user), and its own failure must be
-          # fixed. Until both land, running it costs three other specs.
-          E2E_ONBOARDING_WALK: '0'
+          # It provisions its own user through the admin API, so it needs
+          # nothing from the "Provision E2E user" step above. It does need the
+          # DEV service-role key to do that, and the key is withheld on pull
+          # requests. The walk does not skip itself when the key is missing:
+          # its only file-scope skip is on this variable, and beforeAll throws
+          # when readSupaCreds() returns null. So the opt-in follows the key.
+          # On for pushes to dev and prod, where the walk EXECUTES; off on a
+          # pull request, where it stops at its documented opt-in instead of
+          # failing on a credential it was never given. The trade is that the
+          # walk's coverage moves post-merge rather than putting an
+          # RLS-bypassing key on a runner a branch author controls. It stays on
+          # the required-spec list with "when": "push", so the runs where it
+          # does apply cannot lose it quietly.
+          E2E_ONBOARDING_WALK: ${{ github.event_name == 'push' && '1' || '0' }}
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
       # nothing. This reads the JSON report the run wrote and fails the job
       # unless at least one spec actually EXECUTED. A missing or unparseable
       # report is itself a failure, never scored as a pass.
-      - name: Guard against zero-spec execution
+      #
+      # OWB-T0094: that check is suite-wide, so it cannot tell "all six ran"
+      # from "one ran and five skipped". The same step now also requires every
+      # spec named in tests/e2e/required-specs.json to have executed, and fails
+      # by name when one did not. The list is data, so adding a spec to it is
+      # one line and needs no edit to this workflow.
+      - name: Guard against zero-spec execution, and against a required spec skipping
         run: bun tests/e2e/scripts/assert-specs-ran.mjs playwright-report/results.json
+        env:
+          # Which event this run is, so a list entry marked "when": "push" can
+          # be waived on a pull-request run where its credentials do not exist.
+          # Passed explicitly rather than inherited from GITHUB_EVENT_NAME: what
+          # a gate depends on should be readable here, not two files away.
+          E2E_EVENT_NAME: ${{ github.event_name }}
 
-      # Prove the guard can go RED in this same run, so it is a real gate and
-      # not a green rubber stamp. Feed it a synthetic report with zero executed
-      # specs and assert it exits non-zero. If the guard ever stops failing on
-      # a zero-executed report, this step goes red instead.
-      - name: Prove the zero-spec guard fires on a zero-executed report
+      # Prove the guards can go RED in this same run, so they are real gates
+      # and not green rubber stamps. Every case below feeds synthetic input
+      # (and, for the required-spec cases, a synthetic required list) so the
+      # proof does not depend on the real list and does not go red when the
+      # real list legitimately changes. If a guard ever stops failing, this
+      # step goes red instead.
+      - name: Prove the spec-execution guards fire
         run: |
+          # Case 1: nothing executed at all.
           echo '{"stats":{"expected":0,"unexpected":0,"flaky":0,"skipped":3}}' > "$RUNNER_TEMP/zero-report.json"
           if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/zero-report.json"; then
             echo "::error::zero-spec guard did NOT fail on a zero-executed report"
             exit 1
           fi
           echo "zero-spec guard correctly failed on a zero-executed report"
+
+          echo '{"required":["tests/e2e/proof-only.spec.ts"]}' > "$RUNNER_TEMP/required-proof.json"
+
+          # Case 2: the suite ran, but the required spec was collected and
+          # skipped. This is the exact shape that let rls-cross-user skip on
+          # every run for weeks with CI green.
+          echo '{"stats":{"expected":1,"unexpected":0,"flaky":0,"skipped":1},"suites":[{"file":"tests/e2e/proof-only.spec.ts","specs":[{"title":"p","file":"tests/e2e/proof-only.spec.ts","tests":[{"status":"skipped"}]}]},{"file":"tests/e2e/other.spec.ts","specs":[{"title":"o","file":"tests/e2e/other.spec.ts","tests":[{"status":"expected"}]}]}]}' > "$RUNNER_TEMP/skipped-report.json"
+          if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/skipped-report.json" "$RUNNER_TEMP/required-proof.json"; then
+            echo "::error::required-spec guard did NOT fail on a required spec that skipped"
+            exit 1
+          fi
+          echo "required-spec guard correctly failed on a required spec that skipped"
+
+          # Case 3: the required spec is not in the report at all, which is what
+          # a rename or a move looks like.
+          echo '{"stats":{"expected":1,"unexpected":0,"flaky":0,"skipped":0},"suites":[{"file":"tests/e2e/other.spec.ts","specs":[{"title":"o","file":"tests/e2e/other.spec.ts","tests":[{"status":"expected"}]}]}]}' > "$RUNNER_TEMP/absent-report.json"
+          if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/absent-report.json" "$RUNNER_TEMP/required-proof.json"; then
+            echo "::error::required-spec guard did NOT fail on a required spec missing from the report"
+            exit 1
+          fi
+          echo "required-spec guard correctly failed on a required spec missing from the report"
+
+          # Case 4: the required spec executed, so the guard must PASS. Without
+          # this, a guard that is always red would look identical to one that
+          # works.
+          echo '{"stats":{"expected":1,"unexpected":0,"flaky":0,"skipped":0},"suites":[{"file":"tests/e2e/proof-only.spec.ts","specs":[{"title":"p","file":"tests/e2e/proof-only.spec.ts","tests":[{"status":"expected"}]}]}]}' > "$RUNNER_TEMP/ran-report.json"
+          bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/ran-report.json" "$RUNNER_TEMP/required-proof.json"
+          echo "required-spec guard correctly passed when the required spec executed"
+
+          echo '{"required":[{"file":"tests/e2e/proof-only.spec.ts","when":"push"}]}' > "$RUNNER_TEMP/required-when-push.json"
+
+          # Case 5: a spec marked when=push skipped on a pull-request run. It
+          # cannot run there (its credential is withheld from PR runners), so
+          # the guard must PASS and say so by name.
+          E2E_EVENT_NAME=pull_request bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/skipped-report.json" "$RUNNER_TEMP/required-when-push.json"
+          echo "required-spec guard correctly waived a when=push spec on a pull_request run"
+
+          # Case 6: the SAME spec and the SAME report on a push run must FAIL.
+          # Without this, a waiver that never stops waiving would look identical
+          # to one that works.
+          if E2E_EVENT_NAME=push bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/skipped-report.json" "$RUNNER_TEMP/required-when-push.json"; then
+            echo "::error::required-spec guard waived a when=push spec on a PUSH run"
+            exit 1
+          fi
+          echo "required-spec guard correctly still required a when=push spec on a push run"
+
+          # Case 7: an unrecognised "when" value is a hard failure. A typo must
+          # not quietly waive a spec, which is the original hole in a new
+          # costume. The report here has the spec EXECUTING, so the bad value is
+          # the only thing left to fail on.
+          echo '{"required":[{"file":"tests/e2e/proof-only.spec.ts","when":"sometimes"}]}' > "$RUNNER_TEMP/required-bad-when.json"
+          if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/ran-report.json" "$RUNNER_TEMP/required-bad-when.json"; then
+            echo "::error::required-spec guard accepted an unknown when value"
+            exit 1
+          fi
+          echo "required-spec guard correctly refused an unknown when value"
 
       # DL-0947: on a red E2E run, write the failing assertion label into the
       # run summary so it is readable on the run page without downloading and

@@ -30,12 +30,15 @@ const EMPTY: OrKeyMaterialRow = {
 const CURRENT_SALT = 'Y3VycmVudC1zYWx0LWJhc2U2NA==';
 const PINNED_SALT = 'cGlubmVkLXNhbHQtYmFzZTY0';
 
-/** The only statement that permits deriving. Spelled out at every call. */
-const MATCHES: PlanOrKeyMaterialOptions = { saltMatchesExistingRows: true };
+/** Nothing has been sealed yet, so deriving cannot cost anything. */
+const NO_ROWS: PlanOrKeyMaterialOptions = { existingSealedRows: 'none' };
+
+/** Rows exist AND the derived key was tried against one and opened it. */
+const PROVEN: PlanOrKeyMaterialOptions = { existingSealedRows: 'opens-with-candidate' };
 
 describe('planOrKeyMaterial: nothing pinned yet', () => {
-  it('derives and pins when the caller states the salt still matches', () => {
-    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, MATCHES);
+  it('derives and pins when the org has no sealed rows to lose', () => {
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, NO_ROWS);
     expect(plan).toEqual({
       mode: 'derive-and-pin',
       saltContext: CURRENT_SALT,
@@ -43,22 +46,46 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
     });
   });
 
-  it('REFUSES when the salt has just rotated, instead of deriving a key that opens nothing', () => {
-    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, { saltMatchesExistingRows: false });
+  it('derives and pins when the derived key was PROVEN to open an existing sealed row', () => {
+    // This is the upgrade path for a customer who already synced under the
+    // current salt: proof rather than inference, and no re-sync.
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, PROVEN);
+    expect(plan.mode).toBe('derive-and-pin');
+  });
+
+  it('REFUSES for an account that rotated its vault password before pinning existed', () => {
+    // The situation the old boolean got wrong: rows were sealed under the old
+    // salt, the password change minted a new one, nothing was pinned because
+    // this build did not exist, and no record of the old salt survives. A
+    // caller can see that sealed rows exist and cannot show the derived key
+    // opens them, so the only answer that is not a lie is refuse.
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, {
+      existingSealedRows: 'present-unverified',
+    });
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
     expect(plan.reason).toMatch(/never pinned/i);
     expect(plan.reason).toMatch(/re-sync/i);
   });
 
-  it('REFUSES when the caller passes undefined rather than stating the flag', () => {
-    // The shape a recovery-path caller falls into by accident:
-    // { saltMatchesExistingRows: fetched?.matches } is boolean | undefined,
-    // which TypeScript did not complain about while the option was optional.
-    // Absence has to refuse, never derive, so it is checked at runtime and
-    // not only in the types.
+  it('REFUSES when the caller could not check whether sealed rows exist', () => {
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, { existingSealedRows: 'unknown' });
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('REFUSES when the caller passes undefined rather than stating what it found', () => {
+    // The shape a caller falls into by accident when the value comes from a
+    // lookup. Checked at runtime and not only in the types, because an
+    // untyped caller is exactly the one that will do it.
     const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, {
-      saltMatchesExistingRows: undefined,
+      existingSealedRows: undefined,
+    } as unknown as PlanOrKeyMaterialOptions);
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('REFUSES an unrecognised evidence value instead of treating it as safe', () => {
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, {
+      existingSealedRows: 'no-rows',
     } as unknown as PlanOrKeyMaterialOptions);
     expect(plan.mode).toBe('refuse');
   });
@@ -72,8 +99,52 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
   });
 
   it('refuses when there is no salt to pin against', () => {
-    const plan = planOrKeyMaterial(EMPTY, '', MATCHES);
+    const plan = planOrKeyMaterial(EMPTY, '', NO_ROWS);
     expect(plan.mode).toBe('refuse');
+  });
+});
+
+describe('planOrKeyMaterial: the row itself could not be read', () => {
+  // A failed metadata read that hands back null rather than throwing is an
+  // "I cannot know", and this module's whole doctrine is that those refuse.
+  // Before the guard, null read as three absent columns, which is exactly the
+  // shape of a fresh account, and with evidence 'none' it answered
+  // derive-and-pin: a well formed key, pinned as authoritative, opening none
+  // of the rows the customer already synced.
+  const NO_ROW = null as unknown as OrKeyMaterialRow;
+  const MISSING_ROW = undefined as unknown as OrKeyMaterialRow;
+
+  it('REFUSES a null row instead of deriving over it', () => {
+    const plan = planOrKeyMaterial(NO_ROW, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+    // Distinct from the partial-write refusal, so a log can tell a failed read
+    // from a write that stopped halfway.
+    expect(plan.reason).not.toMatch(/partly stored/i);
+  });
+
+  it('REFUSES an undefined row', () => {
+    const plan = planOrKeyMaterial(MISSING_ROW, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+  });
+
+  it('REFUSES an unreadable row even when the caller PROVED the derived key opens a row', () => {
+    // Evidence is about what deriving would cost, not about whether the read
+    // succeeded. Proof cannot rescue a state we never observed.
+    const plan = planOrKeyMaterial(NO_ROW, CURRENT_SALT, PROVEN);
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('still derives for a genuinely empty row, so the guard has not eaten the fresh-account path', () => {
+    const plan = planOrKeyMaterial(
+      { enc_or_mek_ciphertext: null, or_subkey_salt: null, or_key_epoch: null },
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(plan.mode).toBe('derive-and-pin');
   });
 });
 
@@ -85,7 +156,7 @@ describe('planOrKeyMaterial: fully pinned', () => {
   };
 
   it('unwraps using the PINNED salt, not the salt in force now', () => {
-    const plan = planOrKeyMaterial(pinned, CURRENT_SALT, MATCHES);
+    const plan = planOrKeyMaterial(pinned, CURRENT_SALT, NO_ROWS);
     expect(plan).toEqual({
       mode: 'unwrap',
       ciphertext: 'sealed-key-ciphertext',
@@ -94,16 +165,23 @@ describe('planOrKeyMaterial: fully pinned', () => {
   });
 
   it('unwraps regardless of what the current salt is, which is the whole point', () => {
-    const a = planOrKeyMaterial(pinned, CURRENT_SALT, MATCHES);
-    const b = planOrKeyMaterial(pinned, 'a-completely-different-salt', MATCHES);
+    const a = planOrKeyMaterial(pinned, CURRENT_SALT, NO_ROWS);
+    const b = planOrKeyMaterial(pinned, 'a-completely-different-salt', NO_ROWS);
     expect(a).toEqual(b);
+  });
+
+  it('unwraps whatever the caller found about sealed rows, because pinned material settles it', () => {
+    const plan = planOrKeyMaterial(pinned, CURRENT_SALT, {
+      existingSealedRows: 'unknown',
+    });
+    expect(plan.mode).toBe('unwrap');
   });
 
   it('refuses a generation NEWER than this build understands', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH + 1 },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
   });
@@ -112,7 +190,7 @@ describe('planOrKeyMaterial: fully pinned', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: CURRENT_OR_KEY_EPOCH - 1 },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
   });
@@ -126,7 +204,7 @@ describe('planOrKeyMaterial: fully pinned', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: String(CURRENT_OR_KEY_EPOCH) },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('unwrap');
   });
@@ -135,16 +213,29 @@ describe('planOrKeyMaterial: fully pinned', () => {
     const plan = planOrKeyMaterial(
       { ...pinned, or_key_epoch: String(CURRENT_OR_KEY_EPOCH + 1) },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
   });
 
-  it('treats a generation that is not a whole number as absent, never as current', () => {
+  it('treats a generation that is not a whole number as unusable, never as current', () => {
     for (const bad of [1.5, Number.NaN, 'one', '1.5', '']) {
-      const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, MATCHES);
+      const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, NO_ROWS);
       expect(plan.mode).toBe('refuse');
     }
+  });
+
+  it('refuses a generation beyond exact representation in BOTH spellings', () => {
+    // The number and string branches must agree. They did not: the number
+    // branch asked only for a whole number while the string branch asked for a
+    // safe one, so the same magnitude was accepted written one way and rejected
+    // written the other. Nothing depended on it, because such a value is never
+    // the current generation and refuses on the comparison, but an asymmetry
+    // inside a rule whose job is refusing is worth not having.
+    const asNumber = { ...pinned, or_key_epoch: Number.MAX_SAFE_INTEGER + 2 };
+    const asString = { ...pinned, or_key_epoch: '9007199254740993' };
+    expect(planOrKeyMaterial(asNumber, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
+    expect(planOrKeyMaterial(asString, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
   });
 });
 
@@ -153,7 +244,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: null, or_subkey_salt: PINNED_SALT, or_key_epoch: 1 },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
@@ -164,7 +255,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: null, or_key_epoch: 1 },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
@@ -175,20 +266,36 @@ describe('planOrKeyMaterial: partly stored', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: PINNED_SALT, or_key_epoch: null },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
     expect(plan.reason).toMatch(/its generation/);
   });
 
-  it('treats an empty-string ciphertext as absent, not as a usable key', () => {
+  it('treats an empty-string ciphertext as unusable, not as a usable key', () => {
     const plan = planOrKeyMaterial(
       { enc_or_mek_ciphertext: '', or_subkey_salt: PINNED_SALT, or_key_epoch: 1 },
       CURRENT_SALT,
-      MATCHES,
+      NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
+  });
+
+  it('refuses an ALL-EMPTY row rather than deriving over it', () => {
+    // A row holding empty strings is a write that went wrong partway, not a
+    // row nobody has touched. Reading it as absent sent it to derive-and-pin,
+    // which is the destructive answer. This holds whatever the eventual Books
+    // migration chooses for defaults, which is why it is decided here and not
+    // left to that file.
+    const plan = planOrKeyMaterial(
+      { enc_or_mek_ciphertext: '', or_subkey_salt: '', or_key_epoch: '' },
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/partly stored/);
   });
 
   it('never answers derive-and-pin from a partial state', () => {
@@ -197,9 +304,12 @@ describe('planOrKeyMaterial: partly stored', () => {
       { enc_or_mek_ciphertext: null, or_subkey_salt: PINNED_SALT, or_key_epoch: null },
       { enc_or_mek_ciphertext: null, or_subkey_salt: null, or_key_epoch: 1 },
       { enc_or_mek_ciphertext: 'x', or_subkey_salt: PINNED_SALT, or_key_epoch: null },
+      { enc_or_mek_ciphertext: '', or_subkey_salt: null, or_key_epoch: null },
+      { enc_or_mek_ciphertext: null, or_subkey_salt: '', or_key_epoch: null },
     ];
     for (const row of partials) {
-      expect(planOrKeyMaterial(row, CURRENT_SALT, MATCHES).mode).toBe('refuse');
+      expect(planOrKeyMaterial(row, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
+      expect(planOrKeyMaterial(row, CURRENT_SALT, PROVEN).mode).toBe('refuse');
     }
   });
 });

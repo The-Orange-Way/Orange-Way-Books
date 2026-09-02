@@ -84,6 +84,11 @@ jobs:
           OLDEST_DATE=$(jq -r '.commits[0].commit.committer.date // ""' compare.json)
           OLDEST_SHA=$(jq -r '.commits[0].sha // ""' compare.json)
 
+          # The exact dev commit this promotion carries. Everything below is
+          # pinned to it, so the reviewed set cannot move when an unrelated
+          # pull request merges into dev.
+          DEV_SHA=$(gh api "repos/${GH_REPO}/git/ref/heads/dev" --jq '.object.sha')
+
           if [ -n "${OLDEST_DATE}" ]; then
             OLDEST_EPOCH=$(date -u -d "${OLDEST_DATE}" +%s)
             NOW_EPOCH=$(date -u +%s)
@@ -98,6 +103,7 @@ jobs:
             echo "age_days=${AGE_DAYS}"
             echo "oldest_date=${OLDEST_DATE}"
             echo "oldest_sha=${OLDEST_SHA}"
+            echo "dev_sha=${DEV_SHA}"
           } >> "$GITHUB_OUTPUT"
 
           echo "dev is ${AHEAD} commit(s) ahead of prod and ${BEHIND} behind."
@@ -127,7 +133,8 @@ jobs:
           What to do:
             1. Add a repository secret named FLEET_PAT.
             2. Its value is a token for the orange-builder machine user, scoped
-               to this repository with Contents:read and Pull requests:write.
+               to this repository with Contents:write (it cuts the release
+               branch this promotion is opened from) and Pull requests:write.
             3. Re-run this workflow (Actions, then Run workflow).
 
           Why not the built-in GITHUB_TOKEN: "Allow GitHub Actions to create and
@@ -151,6 +158,7 @@ jobs:
           AGE_DAYS: ${{ steps.compare.outputs.age_days }}
           OLDEST_DATE: ${{ steps.compare.outputs.oldest_date }}
           OLDEST_SHA: ${{ steps.compare.outputs.oldest_sha }}
+          DEV_SHA: ${{ steps.compare.outputs.dev_sha }}
         run: |
           set -euo pipefail
 
@@ -193,6 +201,7 @@ jobs:
             echo "| Commits on dev not on prod | **${AHEAD}** |"
             echo "| Oldest unpromoted commit | **${AGE_DAYS} day(s)** old (${OLDEST_DATE}, \`${OLDEST_SHA}\`) |"
             echo "| Commits on prod not on dev | **${BEHIND}** |"
+            echo "| Pinned promotion commit | \`${DEV_SHA}\` |"
             echo "| Threshold breached (50 commits or 3 days) | **${BREACH}** (${BREACH_WHY}) |"
             echo
             echo "Full comparison: ${COMPARE_URL}"
@@ -237,38 +246,55 @@ jobs:
           fi
 
           # ---- reuse or open ----------------------------------------------
-          # Duplicate guard. Ask GitHub for any OPEN pull request whose base is
-          # prod and whose head is dev. If one exists we update it. We never
-          # reach gh pr create while one is open.
-          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&head=${GH_REPO%%/*}:dev" \
-                       --jq '.[0].number // ""')
+          # Duplicate guard. Ask GitHub for any OPEN pull request into prod whose
+          # head is a promotion head: a release/prod- branch cut by this
+          # workflow, or the legacy dev head from before this pinning change. If
+          # one exists we update it and never reach gh pr create. A hotfix opened
+          # straight against prod from some other branch is deliberately NOT
+          # matched: it is not the promotion and must not be retitled as one.
+          EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100" \
+                       --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))] | .[0].number // ""')
 
           if [ -n "${EXISTING}" ]; then
-            EXISTING_TITLE=$(gh api "repos/${GH_REPO}/pulls/${EXISTING}" --jq '.title')
             echo "Reusing open promotion pull request ${EXISTING}. Not opening a duplicate."
 
-            gh pr edit "${EXISTING}" --body-file pr-body.md
+            # Do not touch the body or the title here. Both were generated
+            # from AHEAD/BEHIND/DEV_SHA above, which describe the CURRENT dev
+            # head, not the commit this pull request is actually pinned to.
+            # Rewriting either on every scheduled run made the pull request
+            # lie about its own contents to the one person who has to read it
+            # before approving a production release. A pinned promotion's
+            # body and title are fixed at open time; only the label is kept
+            # in sync on reuse.
             gh pr edit "${EXISTING}" --add-label 'owner:release'
 
-            # Only retitle a title this workflow itself generated. A title a
-            # human wrote is left alone; the counts live in the body either way.
-            case "${EXISTING_TITLE}" in
-              "promote: dev to prod ("*)
-                gh pr edit "${EXISTING}" --title "promote: dev to prod (${AHEAD} commits)"
-                ;;
-              *)
-                echo "Left the existing human-written title unchanged."
-                ;;
-            esac
-
-            echo "Updated: ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
+            echo "Left title and body unchanged (pinned at open time): ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
             exit 0
+          fi
+
+          # ---- cut the release branch --------------------------------------
+          # The promotion is opened from a branch pinned at one dev commit, not
+          # from dev itself. A pull request whose head is dev advances every
+          # time anything merges into dev, and every advance voids the approving
+          # review, so an approval can never survive long enough to be spent.
+          # A pinned branch does not move, so the set that was reviewed is the
+          # set that ships.
+          BRANCH="release/prod-$(date -u +%Y%m%d)-$(printf '%s' "${DEV_SHA}" | cut -c1-12)"
+
+          if gh api "repos/${GH_REPO}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
+            echo "Release branch ${BRANCH} already exists at this commit. Reusing it."
+          else
+            gh api -X POST "repos/${GH_REPO}/git/refs" \
+              -f ref="refs/heads/${BRANCH}" \
+              -f sha="${DEV_SHA}" >/dev/null
+            echo "Cut ${BRANCH} at ${DEV_SHA}."
           fi
 
           URL=$(gh pr create \
                   --base prod \
-                  --head dev \
+                  --head "${BRANCH}" \
                   --title "promote: dev to prod (${AHEAD} commits)" \
                   --body-file pr-body.md \
                   --label 'owner:release')
           echo "Opened: ${URL}"
+          echo "Reviewed commit is pinned at ${DEV_SHA}. Record it on the promotion ticket before requesting review."

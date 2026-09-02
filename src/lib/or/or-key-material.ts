@@ -77,10 +77,10 @@ export interface OrKeyMaterialRow {
 export type OrKeyMaterialPlan =
   | {
       /**
-       * Nothing is pinned yet. Derive the legacy value exactly as before and
-       * pin it. This is correct only at a moment when the password and the
-       * current salt still produce the value that existing rows were sealed
-       * under, which means an unlock or a vault creation.
+       * Nothing is pinned yet, and the caller has shown that deriving cannot
+       * destroy anything: either this org has no sealed Orange Rails rows at
+       * all, or the key this derivation produces was proven to open one. Pin
+       * the derived value so no later password change can move it again.
        */
       mode: 'derive-and-pin';
       saltContext: string;
@@ -108,31 +108,49 @@ export type OrKeyMaterialPlan =
       reason: string;
     };
 
+/**
+ * What the caller has established about rows that were ALREADY sealed with
+ * the Orange Rails subkeys for this org.
+ *
+ * This replaced a boolean called `saltMatchesExistingRows`, and the reason is
+ * worth keeping. That flag asked the caller to assert that the salt in force
+ * is the salt the existing rows were written against, and its own
+ * documentation said an unlock or a vault creation makes that true. It does
+ * not. An account that changed its vault password before pinning existed has
+ * a new salt, nothing pinned, and no record anywhere of the old one, so on
+ * the next unlock a caller doing exactly what the comment said would derive
+ * against the wrong salt and pin the result. Nothing in the product records
+ * salt history, so the honest answer to the old question was always "I cannot
+ * know", and a parameter whose only honest answer is refuse should not be
+ * phrased as a claim the caller is invited to make.
+ *
+ * These four are phrased as things a caller can go and find out.
+ *
+ * - `none`: there are no sealed Orange Rails rows for this org. Deriving is
+ *   safe whatever the salt has done, because there is nothing that has to
+ *   keep opening. Establish it by counting the rows, not by assuming a new
+ *   account.
+ * - `opens-with-candidate`: sealed rows exist, and the key this plan would
+ *   derive was tried against one and opened it. That is proof rather than
+ *   inference, and it is the path that lets an existing customer pin without
+ *   a re-sync.
+ * - `present-unverified`: sealed rows exist and no such attempt was made or
+ *   it failed. Refuses.
+ * - `unknown`: the caller could not check. Refuses, because "I do not know"
+ *   is precisely the state in which deriving is unsafe.
+ */
+export type SealedRowEvidence = 'none' | 'opens-with-candidate' | 'present-unverified' | 'unknown';
+
 export interface PlanOrKeyMaterialOptions {
   /**
-   * Whether `orgSalt` is still the salt that already-sealed rows were sealed
-   * under.
-   *
-   * True on an unlock or a vault creation: the salt in force is the salt the
-   * existing rows were written against, so deriving reproduces the same key.
-   *
-   * False during recovery, which mints a NEW salt before it gets here.
-   * Deriving against that salt produces 32 bytes with no relationship to the
-   * old ones, and pinning them makes the loss permanent. Recovery also cannot
-   * repair the row, because reproducing the old key needs the OLD password
-   * and recovery by definition does not have it. So refusing is not a policy
-   * preference, it is the only outcome that is not a lie.
-   *
-   * REQUIRED, and required on purpose. It was optional with a default of
-   * true, which pointed absence at the destroying outcome: a caller computing
-   * the flag from a lookup and passing `undefined` (which `boolean |
-   * undefined` makes easy, and which TypeScript would not have flagged) got
-   * derive-and-pin. "I do not know" is precisely the state in which deriving
-   * is unsafe, so absence must refuse rather than destroy. The check below is
-   * `=== true` rather than `!== false` for the same reason, so an untyped
-   * caller passing undefined at runtime is refused as well.
+   * REQUIRED, and required on purpose. It was once optional and defaulted to
+   * the deriving outcome, so a caller computing it from a lookup and passing
+   * `undefined` got the destructive path with nothing to flag it. Absence
+   * must refuse. The check below is an explicit allow-list of the two safe
+   * values rather than a test for the unsafe ones, so an untyped caller
+   * passing undefined, null or a misspelt string at runtime is refused too.
    */
-  saltMatchesExistingRows: boolean;
+  existingSealedRows: SealedRowEvidence;
 }
 
 /**
@@ -145,15 +163,22 @@ export interface PlanOrKeyMaterialOptions {
  * Anything that is not a whole number, in either shape, is treated as absent
  * rather than coerced. A fractional or unparseable generation is not a
  * generation, and guessing at one is the class of thing this module exists to
- * refuse.
+ * refuse. Both shapes require a SAFE integer, so a magnitude beyond exact
+ * representation is refused whichever way it arrives, rather than being
+ * accepted as a number and rejected as its own string spelling.
  */
 function readEpoch(raw: number | string | null): number | null {
-  if (typeof raw === 'number') return Number.isInteger(raw) ? raw : null;
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null;
   if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
     const parsed = Number.parseInt(raw.trim(), 10);
     return Number.isSafeInteger(parsed) ? parsed : null;
   }
   return null;
+}
+
+/** Present means the column holds something. It does not mean it is usable. */
+function isPresent(value: unknown): boolean {
+  return value !== null && value !== undefined;
 }
 
 /**
@@ -166,24 +191,49 @@ function readEpoch(raw: number | string | null): number | null {
  * Guessing here is how a data-loss bug hides itself for months. Refusing is
  * visible on the first attempt.
  *
- * @param row      what the vault metadata row holds for this org
+ * An empty string counts as a partial state, not as a blank one. Empty is
+ * evidence that a write went wrong partway, and the difference matters: read
+ * as absent, a row holding '' falls through to deriving, which is the
+ * destructive answer. This does not depend on how the eventual Books
+ * migration declares its defaults, which is the point of deciding it here.
+ *
+ * @param row      what the vault metadata row holds for this org. A missing
+ *                 row is an unreadable state, not an empty one, and refuses.
  * @param orgSalt  the salt in force right now, used only when pinning
- * @param options  whether that salt still matches the rows already sealed.
- *                 Required: see the field's own comment for why absence is
- *                 not allowed to mean yes.
+ * @param options  what the caller established about rows already sealed. See
+ *                 SealedRowEvidence: only proof that nothing can be lost
+ *                 permits deriving.
  */
 export function planOrKeyMaterial(
   row: OrKeyMaterialRow,
   orgSalt: string,
   options: PlanOrKeyMaterialOptions,
 ): OrKeyMaterialPlan {
-  const hasCiphertext =
-    typeof row.enc_or_mek_ciphertext === 'string' && row.enc_or_mek_ciphertext.length > 0;
-  const hasSalt = typeof row.or_subkey_salt === 'string' && row.or_subkey_salt.length > 0;
-  const epoch = readEpoch(row.or_key_epoch);
-  const hasEpoch = epoch !== null;
+  // The row itself has to be a row. Every read below is optional-chained, so a
+  // null or undefined row yields undefined three times and looks exactly like a
+  // row whose three columns are genuinely null. Those two states mean opposite
+  // things: a row of nulls is a fresh account with nothing to lose, a missing
+  // row is a read that did not complete. Falling through would answer
+  // derive-and-pin for a lookup we never got an answer from, which is the
+  // destructive guess this module exists to refuse.
+  if (row === null || typeof row !== 'object') {
+    return {
+      mode: 'refuse',
+      reason:
+        'Orange Rails key material could not be read: no vault metadata row was available, so whether anything is pinned is unknown. Deriving in that state could produce a key that opens none of the rows already synced, so it is refused.',
+    };
+  }
 
-  if (hasCiphertext && hasSalt && epoch !== null) {
+  const ciphertextPresent = isPresent(row?.enc_or_mek_ciphertext);
+  const saltPresent = isPresent(row?.or_subkey_salt);
+  const epochPresent = isPresent(row?.or_key_epoch);
+
+  const ciphertextUsable =
+    typeof row?.enc_or_mek_ciphertext === 'string' && row.enc_or_mek_ciphertext.length > 0;
+  const saltUsable = typeof row?.or_subkey_salt === 'string' && row.or_subkey_salt.length > 0;
+  const epoch = readEpoch(row?.or_key_epoch ?? null);
+
+  if (ciphertextUsable && saltUsable && epoch !== null) {
     if (epoch !== CURRENT_OR_KEY_EPOCH) {
       // Deliberately refuses in BOTH directions. A newer generation means
       // this build is the stale one and must not guess at a format it
@@ -202,16 +252,15 @@ export function planOrKeyMaterial(
     };
   }
 
-  const anyPresent = hasCiphertext || hasSalt || hasEpoch;
-  if (anyPresent) {
+  if (ciphertextPresent || saltPresent || epochPresent) {
     const missing = [
-      hasCiphertext ? null : 'the sealed key',
-      hasSalt ? null : 'its salt',
-      hasEpoch ? null : 'its generation',
+      ciphertextUsable ? null : 'the sealed key',
+      saltUsable ? null : 'its salt',
+      epoch !== null ? null : 'its generation',
     ].filter((x): x is string => x !== null);
     return {
       mode: 'refuse',
-      reason: `Orange Rails key material is partly stored: ${missing.join(' and ')} missing, so the subkeys cannot be reproduced.`,
+      reason: `Orange Rails key material is partly stored: ${missing.join(' and ')} missing or empty, so the subkeys cannot be reproduced.`,
     };
   }
 
@@ -222,19 +271,19 @@ export function planOrKeyMaterial(
     };
   }
 
-  if (options?.saltMatchesExistingRows !== true) {
-    // Nothing is pinned, AND either the salt just rotated or the caller did
-    // not state that it did not. Both refuse, and the second is why this
-    // reads `!== true` rather than `=== false`: an unstated flag is not
-    // evidence that deriving is safe, it is the absence of that evidence.
-    // Deriving here is what silently destroys history: it yields a well
-    // formed key, pins it as authoritative, reports success, and every row
-    // the customer already synced stops opening forever with nothing on
-    // screen to say so.
+  const evidence = options?.existingSealedRows;
+  if (evidence !== 'none' && evidence !== 'opens-with-candidate') {
+    // Nothing is pinned, and the caller has not shown that deriving costs
+    // nothing. Deriving here is what silently destroys history: it yields a
+    // well formed key, pins it as authoritative, reports success, and every
+    // row the customer already synced stops opening forever with nothing on
+    // screen to say so. An unstated fact is not evidence of safety, so
+    // `unknown` and a missing option refuse on the same footing as rows that
+    // are known to exist unverified.
     return {
       mode: 'refuse',
       reason:
-        'Orange Rails key material was never pinned for this account, and the vault salt has either just changed or is not stated to match the rows already sealed, so the key that opened existing rows cannot be reproduced. Anything synced before this point needs a re-sync.',
+        'Orange Rails key material was never pinned for this account, and it is not established that deriving now reproduces the key that sealed the rows already synced. Deriving could produce a key that opens none of them, so it is refused. Either prove the derived key opens an existing sealed row, or re-sync anything synced before this point.',
     };
   }
 
