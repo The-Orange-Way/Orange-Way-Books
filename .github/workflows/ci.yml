@@ -159,17 +159,17 @@ jobs:
         # the self-heal that (re)creates it only runs post-merge, and on PR runs
         # the specs sign in against the fixture as it already exists.
         #
-        # This gate does NOT keep the DEV service key off pull-request runners,
-        # and it never did. The "Run Playwright" step below carries no event
-        # gate of its own and supplies OWB_E2E_SUPABASE_SECRET_KEY on every run
-        # of this job, including same-repo pull requests. Which specs read that
-        # variable is deliberately not asserted here: it changes, and a comment
-        # that names one goes stale silently.
+        # The DEV service key no longer reaches a pull-request runner. This
+        # gate never did that on its own: the "Run Playwright" step below used
+        # to supply OWB_E2E_SUPABASE_SECRET_KEY on every run of this job,
+        # including same-repo pull requests. That step now supplies it on push
+        # events only, so a pull request run gets an empty value. Which specs
+        # read the variable is deliberately not asserted here: it changes, and
+        # a comment that names one goes stale silently.
         #
-        # What actually bounds the blast radius is narrower and worth stating
-        # plainly: the key is the DEV project's only, and the job `if:` above
-        # refuses any pull request whose head repo is not this repository, so a
-        # fork PR gets no secrets at all.
+        # Two further bounds, unchanged: the key is the DEV project's only, and
+        # the job `if:` above refuses any pull request whose head repo is not
+        # this repository, so a fork PR gets no secrets at all.
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
@@ -202,7 +202,28 @@ jobs:
           # dev Supabase project. Sourced from the same dev env-vars the
           # frontend build uses, so there is one place to rotate them.
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
+          # PUSH RUNS ONLY. This is a service-role key: it bypasses RLS across
+          # the whole OWB DEV project. Repository-scope secrets are present on
+          # every same-repo pull_request runner (measured, probe run
+          # 33344922437), and anyone able to push a branch decides what this
+          # job executes, so a pull request run is not a place to put a
+          # credential that reads and writes every tenant's rows. On a pull
+          # request the value is empty and the two specs that need it do not
+          # run, by two different mechanisms: tests/e2e/rls-cross-user.spec.ts
+          # file-scope skips, because readSupaCreds() returns null on an empty
+          # secret, and tests/e2e/onboarding-walk.spec.ts is switched off at
+          # its own E2E_ONBOARDING_WALK opt-in below, because it throws rather
+          # than skips when the key is absent. The rest of the suite signs in
+          # with the OWB_DEV_E2E_* fixture user and still runs, so the
+          # zero-spec guard below still has real specs to count.
+          #
+          # rls-cross-user is on the required-spec list, so withholding the key
+          # here would fail every pull request by name. The next commit marks
+          # that entry "when": "push" in tests/e2e/required-specs.json, which is
+          # the waiver mechanism built for exactly this case. The spec stays
+          # required on pushes to dev and prod, and the waiver is printed by
+          # name in the job log so it is never silent.
+          OWB_E2E_SUPABASE_SECRET_KEY: ${{ github.event_name == 'push' && secrets.OWB_E2E_SUPABASE_SECRET_KEY || '' }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           # On. Both conditions the previous version of this comment set for
@@ -225,9 +246,19 @@ jobs:
           #    user's password through the admin API before signing in.
           #
           # It provisions its own user through the admin API, so it needs
-          # nothing from the "Provision E2E user" step above and works on
-          # pull_request runs, where that step is deliberately skipped.
-          E2E_ONBOARDING_WALK: '1'
+          # nothing from the "Provision E2E user" step above. It does need the
+          # DEV service-role key to do that, and the key is withheld on pull
+          # requests. The walk does not skip itself when the key is missing:
+          # its only file-scope skip is on this variable, and beforeAll throws
+          # when readSupaCreds() returns null. So the opt-in follows the key.
+          # On for pushes to dev and prod, where the walk EXECUTES; off on a
+          # pull request, where it stops at its documented opt-in instead of
+          # failing on a credential it was never given. The trade is that the
+          # walk's coverage moves post-merge rather than putting an
+          # RLS-bypassing key on a runner a branch author controls. It stays on
+          # the required-spec list with "when": "push", so the runs where it
+          # does apply cannot lose it quietly.
+          E2E_ONBOARDING_WALK: ${{ github.event_name == 'push' && '1' || '0' }}
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
       # themselves, still exits 0, so the job goes green having verified
