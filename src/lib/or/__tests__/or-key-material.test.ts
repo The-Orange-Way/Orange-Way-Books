@@ -104,6 +104,38 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
   });
 });
 
+describe('planOrKeyMaterial: the row itself could not be read', () => {
+  // A failed read and a fresh account are opposite facts, and only one of them
+  // is safe to derive over. Before the guard they were indistinguishable here.
+  const unreadable = null as unknown as OrKeyMaterialRow;
+  const missing = undefined as unknown as OrKeyMaterialRow;
+
+  it('REFUSES a null row instead of deriving and pinning over it', () => {
+    const plan = planOrKeyMaterial(unreadable, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+    // Worded apart from the partial-write refusal on purpose, so the two are
+    // tellable apart in a log. They have opposite causes.
+    expect(plan.reason).not.toMatch(/partly stored/i);
+  });
+
+  it('REFUSES an undefined row on the same footing', () => {
+    expect(planOrKeyMaterial(missing, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
+  });
+
+  it('REFUSES even when the caller proved the derived key opens an existing row', () => {
+    // Proof about the sealed rows says nothing about material we failed to
+    // read, so the strongest evidence a caller has must not unlock the
+    // destructive path here.
+    expect(planOrKeyMaterial(unreadable, CURRENT_SALT, PROVEN).mode).toBe('refuse');
+  });
+
+  it('still DERIVES for a genuinely empty row, so the fresh-account path holds', () => {
+    expect(planOrKeyMaterial(EMPTY, CURRENT_SALT, NO_ROWS).mode).toBe('derive-and-pin');
+  });
+});
+
 describe('planOrKeyMaterial: fully pinned', () => {
   const pinned: OrKeyMaterialRow = {
     enc_or_mek_ciphertext: 'sealed-key-ciphertext',
@@ -179,6 +211,22 @@ describe('planOrKeyMaterial: fully pinned', () => {
       const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, NO_ROWS);
       expect(plan.mode).toBe('refuse');
     }
+  });
+
+  it('treats an unsafe-magnitude generation as unusable in BOTH shapes', () => {
+    // 2 ** 53 is a whole number JavaScript cannot represent exactly, so reading
+    // it back is not reading what was stored. The string branch always rejected
+    // it; the number branch did not, and one stored value must not mean two
+    // different things depending on which shape PostgREST hands back.
+    const unsafe = 2 ** 53;
+    const asNumber = planOrKeyMaterial({ ...pinned, or_key_epoch: unsafe }, CURRENT_SALT, NO_ROWS);
+    const asText = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: String(unsafe) },
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(asNumber.mode).toBe('refuse');
+    expect(asText.mode).toBe('refuse');
   });
 });
 
