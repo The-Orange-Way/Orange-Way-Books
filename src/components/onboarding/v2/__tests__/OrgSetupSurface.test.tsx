@@ -249,3 +249,101 @@ describe('OrgSetupSurface persists the vault material (lockout regression)', () 
     expect(onComplete).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * OWB-T0110: the `.rpc(...)` call is cast `as any`, so a renamed or
+ * misspelled argument is invisible to tsc, and the objectContaining
+ * assertions above only ever checked 7 of the 17 names. Someone renaming
+ * one of the other 10 (all p_settings_*) would still see 5/5 green: tsc
+ * because the cast hides it, this suite because objectContaining does not
+ * fail on an unlisted key. At runtime PostgREST cannot resolve the function
+ * by its named arguments and every v2 org creation fails with PGRST202.
+ *
+ * These two tests are the fallback this ticket names when a typed fix
+ * (regenerating the Supabase types so `.rpc` is typed and `as any` can be
+ * deleted) is not available in this environment: assert all 17 names, and
+ * assert an RPC error actually stops the flow.
+ */
+describe('OrgSetupSurface RPC contract (OWB-T0110)', () => {
+  beforeEach(() => {
+    createOrgRpc.mockClear();
+    updateEq.mockClear();
+    toastError.mockClear();
+  });
+
+  async function openBooks() {
+    const onComplete = vi.fn();
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
+    fireEvent.change(screen.getByLabelText('Organization Name'), { target: { value: 'Acme' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Primary currency'), { target: { value: 'BTC' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
+    return onComplete;
+  }
+
+  it('calls create_org_for_current_user with exactly the 17 argument names the RPC expects', async () => {
+    await openBooks();
+
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    // createOrgRpc is `vi.fn(async () => ...)` with no declared parameters,
+    // so TS infers `mock.calls` as `[][]`. It is actually called with two
+    // arguments at runtime; cast the call record to that shape rather than
+    // widen the shared mock's inferred type, which other tests also use.
+    const [rpcName, args] = createOrgRpc.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(rpcName).toBe('create_org_for_current_user');
+
+    // A key SET comparison, not objectContaining: objectContaining checks
+    // `received[key] === expected[key]` by bracket access, so an expected
+    // value of `undefined` cannot tell "key renamed or dropped" apart from
+    // "key present and happens to be undefined" -- it would not fail if
+    // p_settings_timezone were mistyped p_settings_timeZone. Comparing the
+    // full sorted key list catches a rename, a drop, or a stray extra
+    // argument by name, which is the actual PGRST202 failure mode.
+    expect(Object.keys(args).sort()).toEqual(
+      [
+        'p_org_name',
+        'p_key_version',
+        'p_settings_primary_currency',
+        'p_settings_secondary_currency',
+        'p_settings_bitcoin_display',
+        'p_settings_fiscal_year_type',
+        'p_settings_encrypted_fiscal_month',
+        'p_settings_date_format',
+        'p_settings_time_format',
+        'p_settings_number_format',
+        'p_settings_timezone',
+        'p_settings_key_version',
+        'p_vault_verifier',
+        'p_vault_salt',
+        'p_vault_key_version',
+        'p_enc_mek_ciphertext',
+        'p_recovery_ciphertext',
+      ].sort(),
+    );
+  });
+
+  it('does not call onComplete or touch ledger_status when the RPC returns an error', async () => {
+    // The shape PostgREST actually returns on a bad call (e.g. PGRST202 for
+    // an unresolvable named-argument set): data null, an error object that
+    // is not an Error instance, exactly what line `if (rpcError) throw
+    // rpcError` throws today.
+    createOrgRpc.mockImplementationOnce(async () => ({
+      data: null,
+      error: { message: 'Could not find the function in the schema cache', code: 'PGRST202' },
+    }));
+
+    const onComplete = await openBooks();
+
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+
+    // The behaviour this PR changed most, and the one with no prior test:
+    // an RPC error must stop the flow before the ledger_status write and
+    // before onComplete, not just show a toast alongside them.
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+});
