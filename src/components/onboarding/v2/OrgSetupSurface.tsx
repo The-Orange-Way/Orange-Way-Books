@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { useVault } from '@/context/VaultContext';
 import { encryptOrgSettings, FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
+import { MONTH_NAMES, monthNumber } from '@/lib/months';
+import { browserTimezone, timezoneOptionsIncluding } from '@/lib/timezones';
 import { captureException } from '@/lib/observability/sentry';
 import type { OnboardingVaultSetup } from './onboarding-state';
 import type { BitcoinDisplay } from '@/types';
@@ -25,10 +27,16 @@ import type { User } from '@supabase/supabase-js';
  * places the organization work could land; this is option 1, chosen so the 7
  * steps stay identical to the sibling app and the aha moment stays early.
  *
- * Two screens, render plus local state only:
+ * Three screens, render plus local state only:
  *   1. Organization name (validate-only, lifted from v1 StepOrganization).
  *   2. Currency: a required primary, an optional secondary, and a Bitcoin
  *      display preference that appears only while a picker is set to BTC.
+ *   3. Fiscal year start and timezone (OWB-T0102), both lifted from the v1
+ *      StepCalendar and StepReporting steps. They are asked rather than
+ *      defaulted because a wrong fiscal start puts every period boundary in
+ *      the ledger in the wrong place and a wrong timezone moves which day a
+ *      transaction lands on, and neither is visible to the customer at
+ *      signup.
  *
  * Slice 3 (DL-0718): the final CTA now creates the organization, mirroring the
  * v1 OnboardingWizard.handleFinish path. Both wizards call the atomic
@@ -40,8 +48,10 @@ import type { User } from '@supabase/supabase-js';
  * browser via encryptText, a closure over the MEK held in VaultContext, and no
  * key material crosses a prop boundary (only userId is threaded in).
  * encryptOrgSettings is reused verbatim from v1, so there is no new derivation,
- * salt, or KDF. Fields this surface does not yet collect (calendar, reporting)
- * take the v2 defaults.
+ * salt, or KDF. The three fields this surface still does not collect (date
+ * format, time format, number format) take the v2 defaults: they are display
+ * preferences, changeable in Admin at any time with no wrong books in the
+ * meantime.
  *
  * The org_settings row the RPC writes also carries the five vault fields the
  * wizard produced. In this product the vault is per-organization: org_settings is
@@ -120,13 +130,25 @@ function CurrencyOptions() {
 
 export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgSetupSurfaceProps) {
   const { encryptText } = useVault();
-  const [screen, setScreen] = useState<0 | 1>(0);
+  const [screen, setScreen] = useState<0 | 1 | 2>(0);
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState('');
   const [primaryCurrency, setPrimaryCurrency] = useState('');
   const [secondaryCurrency, setSecondaryCurrency] = useState('');
   const [bitcoinDisplay, setBitcoinDisplay] = useState('btc');
+
+  // v1 parity: the fiscal year start is held as a month NAME and mapped to a
+  // 1-based number at finish through the shared months module, so the two
+  // wizards cannot drift on what the same answer means.
+  const [fiscalYearStart, setFiscalYearStart] = useState('january');
+
+  // Detected once, on mount. The option list is built from the detected zone
+  // rather than the current one so that picking a listed zone does not drop
+  // the detected entry out of the list underneath the customer.
+  const [detectedTimezone] = useState(browserTimezone);
+  const timezoneOptions = timezoneOptionsIncluding(detectedTimezone);
+  const [timezone, setTimezone] = useState(detectedTimezone || timezoneOptions[0].value);
 
   // Same rule as v1 StepOrganization: a name is present once it is non-blank.
   const nameValid = name.trim().length > 0;
@@ -199,27 +221,40 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
       // 1. Encrypt the organization name in the browser.
       const encOrgName = await encryptText(name);
 
-      // 2. Encrypt every settings field. Fields this surface does not yet
-      // collect take the v2 defaults: a calendar fiscal year (start month 1),
-      // US number format, and null date/time/timezone. Those defaults are not
-      // what the customer chose, and collecting them is its own change.
+      // 2. Encrypt every settings field. The fiscal year start and the
+      // timezone are the customer's own answers (OWB-T0102). Date format,
+      // time format and number format still take the v2 defaults.
 
       const secondary = secondaryCurrency.length > 0 ? secondaryCurrency : null;
       const btcDisplay: BitcoinDisplay =
         primaryCurrency === 'BTC' || secondary === 'BTC'
           ? (bitcoinDisplay as BitcoinDisplay)
           : 'sats';
+
+      // Mirror of v1 OnboardingWizard.handleFinish. monthNumber returns 0 for
+      // an unrecognized name, and callers must treat that as an error rather
+      // than coerce it, because coercing it silently picks January, which is
+      // the exact failure the shared months module exists to prevent.
+      const fiscalStartMonth = monthNumber(fiscalYearStart);
+      if (fiscalStartMonth === 0) {
+        throw new Error(`Unrecognized fiscal year start month: ${fiscalYearStart}`);
+      }
+      // A start month other than January means the org keeps a fiscal rather
+      // than a calendar year. That is what makes the Settings screen surface
+      // and apply the month.
+      const fiscalYearType = fiscalStartMonth === 1 ? 'calendar' : 'fiscal';
+
       const encSettings = await encryptOrgSettings(
         {
           primary_currency: primaryCurrency,
           secondary_currency: secondary,
           bitcoin_display: btcDisplay,
-          fiscal_year_type: 'calendar',
-          fiscal_start_month: 1,
+          fiscal_year_type: fiscalYearType,
+          fiscal_start_month: fiscalStartMonth,
           date_format: null,
           time_format: null,
           number_format: 'us',
-          timezone: null,
+          timezone: timezone || null,
         },
         encryptText,
       );
@@ -347,15 +382,15 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
             />
           </div>
         </StepShell>
-      ) : (
+      ) : screen === 1 ? (
         <StepShell
           title="Your currencies"
-          onNext={handleFinish}
+          onNext={() => setScreen(2)}
           onBack={() => setScreen(0)}
           isFirst={false}
-          isLast
-          nextLabel="Open my books"
-          nextDisabled={!currencyValid || saving}
+          isLast={false}
+          nextLabel="Continue"
+          nextDisabled={!currencyValid}
         >
           <p className="mb-6">
             Pick the currency your books are kept in. You can add a second display currency now or
@@ -407,6 +442,54 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
                 </select>
               </div>
             ) : null}
+          </div>
+        </StepShell>
+      ) : (
+        <StepShell
+          title="Your fiscal year"
+          onNext={handleFinish}
+          onBack={() => setScreen(1)}
+          isFirst={false}
+          isLast
+          nextLabel="Open my books"
+          nextDisabled={saving}
+        >
+          <p className="mb-6">
+            Your fiscal year start decides every period boundary in your books, and your timezone
+            decides which day a transaction lands on. Both can be changed later in Admin settings.
+          </p>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="fiscal-year-start">Fiscal year starts</Label>
+              <select
+                id="fiscal-year-start"
+                className={selectClass}
+                value={fiscalYearStart}
+                onChange={(e) => setFiscalYearStart(e.target.value)}
+              >
+                {MONTH_NAMES.map((m) => (
+                  <option key={m} value={m.toLowerCase()}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <select
+                id="timezone"
+                className={selectClass}
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+              >
+                {timezoneOptions.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </StepShell>
       )}
