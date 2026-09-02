@@ -3,7 +3,8 @@
     "CI must be able to say WHICH spec ran, not only that the suite finished.",
     "Every spec named here MUST have executed (not skipped) in the run. If one did not, the E2E job fails and names it.",
     "Add a spec here the moment its silent skip would cost us something we cannot afford to lose quietly: tenant isolation, auth, money paths.",
-    "Remove one only with a reason in the PR body. A spec quietly dropped from this list is the same hole this list closes."
+    "Remove one only with a reason in the PR body. A spec quietly dropped from this list is the same hole this list closes.",
+    "An entry is a bare path (required on every run) or {\"file\": \"...\", \"when\": \"push\"} for a spec whose credentials only exist on a push to dev or prod. A waived spec is printed by name in the job log, so a waiver is never silent."
   ],
   "required": ["tests/e2e/rls-cross-user.spec.ts", "tests/e2e/rls-isolation.spec.ts"]
 }
