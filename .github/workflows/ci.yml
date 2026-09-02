@@ -242,6 +242,12 @@ jobs:
       # one line and needs no edit to this workflow.
       - name: Guard against zero-spec execution, and against a required spec skipping
         run: bun tests/e2e/scripts/assert-specs-ran.mjs playwright-report/results.json
+        env:
+          # Which event this run is, so a list entry marked "when": "push" can
+          # be waived on a pull-request run where its credentials do not exist.
+          # Passed explicitly rather than inherited from GITHUB_EVENT_NAME: what
+          # a gate depends on should be readable here, not two files away.
+          E2E_EVENT_NAME: ${{ github.event_name }}
 
       # Prove the guards can go RED in this same run, so they are real gates
       # and not green rubber stamps. Every case below feeds synthetic input
@@ -286,6 +292,34 @@ jobs:
           echo '{"stats":{"expected":1,"unexpected":0,"flaky":0,"skipped":0},"suites":[{"file":"tests/e2e/proof-only.spec.ts","specs":[{"title":"p","file":"tests/e2e/proof-only.spec.ts","tests":[{"status":"expected"}]}]}]}' > "$RUNNER_TEMP/ran-report.json"
           bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/ran-report.json" "$RUNNER_TEMP/required-proof.json"
           echo "required-spec guard correctly passed when the required spec executed"
+
+          echo '{"required":[{"file":"tests/e2e/proof-only.spec.ts","when":"push"}]}' > "$RUNNER_TEMP/required-when-push.json"
+
+          # Case 5: a spec marked when=push skipped on a pull-request run. It
+          # cannot run there (its credential is withheld from PR runners), so
+          # the guard must PASS and say so by name.
+          E2E_EVENT_NAME=pull_request bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/skipped-report.json" "$RUNNER_TEMP/required-when-push.json"
+          echo "required-spec guard correctly waived a when=push spec on a pull_request run"
+
+          # Case 6: the SAME spec and the SAME report on a push run must FAIL.
+          # Without this, a waiver that never stops waiving would look identical
+          # to one that works.
+          if E2E_EVENT_NAME=push bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/skipped-report.json" "$RUNNER_TEMP/required-when-push.json"; then
+            echo "::error::required-spec guard waived a when=push spec on a PUSH run"
+            exit 1
+          fi
+          echo "required-spec guard correctly still required a when=push spec on a push run"
+
+          # Case 7: an unrecognised "when" value is a hard failure. A typo must
+          # not quietly waive a spec, which is the original hole in a new
+          # costume. The report here has the spec EXECUTING, so the bad value is
+          # the only thing left to fail on.
+          echo '{"required":[{"file":"tests/e2e/proof-only.spec.ts","when":"sometimes"}]}' > "$RUNNER_TEMP/required-bad-when.json"
+          if bun tests/e2e/scripts/assert-specs-ran.mjs "$RUNNER_TEMP/ran-report.json" "$RUNNER_TEMP/required-bad-when.json"; then
+            echo "::error::required-spec guard accepted an unknown when value"
+            exit 1
+          fi
+          echo "required-spec guard correctly refused an unknown when value"
 
       # DL-0947: on a red E2E run, write the failing assertion label into the
       # run summary so it is readable on the run page without downloading and
