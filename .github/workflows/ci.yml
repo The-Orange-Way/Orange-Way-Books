@@ -159,17 +159,20 @@ jobs:
         # the self-heal that (re)creates it only runs post-merge, and on PR runs
         # the specs sign in against the fixture as it already exists.
         #
-        # This gate does NOT keep the DEV service key off pull-request runners,
-        # and it never did. The "Run Playwright" step below carries no event
-        # gate of its own and supplies OWB_E2E_SUPABASE_SECRET_KEY on every run
-        # of this job, including same-repo pull requests. Which specs read that
-        # variable is deliberately not asserted here: it changes, and a comment
-        # that names one goes stale silently.
+        # This gate keeps the fixture-provisioning step itself off pull-request
+        # runners. The DEV service-role key given to the "Run Playwright" step
+        # below is now ALSO scoped to push events only (OWB_E2E_SUPABASE_SECRET_KEY
+        # resolves to an empty string on pull_request runs), so a same-repo PR
+        # gets none of the four E2E secrets that matter: the three fixture
+        # values below are a throwaway dev user, and the service-role key is
+        # withheld entirely rather than merely undocumented. Which specs read
+        # that variable is deliberately not asserted here: it changes, and a
+        # comment that names one goes stale silently. Every spec that needs it
+        # skips cleanly when it is empty (see readSupaCreds() in
+        # tests/e2e/rls-cross-user.spec.ts).
         #
-        # What actually bounds the blast radius is narrower and worth stating
-        # plainly: the key is the DEV project's only, and the job `if:` above
-        # refuses any pull request whose head repo is not this repository, so a
-        # fork PR gets no secrets at all.
+        # A fork PR gets no secrets at all regardless, because the job `if:`
+        # above refuses any pull request whose head repo is not this repository.
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
