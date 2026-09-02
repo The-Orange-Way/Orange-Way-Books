@@ -36,6 +36,33 @@ const NO_ROWS: PlanOrKeyMaterialOptions = { existingSealedRows: 'none' };
 /** Rows exist AND the derived key was tried against one and opened it. */
 const PROVEN: PlanOrKeyMaterialOptions = { existingSealedRows: 'opens-with-candidate' };
 
+describe('planOrKeyMaterial: the row itself is unreadable', () => {
+  it('REFUSES with cause "unreadable" when the row is null', () => {
+    // A failed vault-metadata read, not a genuinely empty row. Distinct from
+    // both derive-and-pin and the partial-state refusal: this is the one
+    // input the module used to guess on instead of refusing (OWB-T0132,
+    // OWB-T0133).
+    const plan = planOrKeyMaterial(null as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unreadable');
+  });
+
+  it('REFUSES with cause "unreadable" when the row is undefined', () => {
+    const plan = planOrKeyMaterial(undefined as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unreadable');
+  });
+
+  it('still derives and pins for a row that is genuinely empty, not merely unreadable', () => {
+    // The fix for the null case must not swallow the legitimate fresh-account
+    // path, which reads every column as null but IS a real row.
+    const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('derive-and-pin');
+  });
+});
+
 describe('planOrKeyMaterial: nothing pinned yet', () => {
   it('derives and pins when the org has no sealed rows to lose', () => {
     const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, NO_ROWS);
@@ -64,13 +91,14 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
     });
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
-    expect(plan.reason).toMatch(/never pinned/i);
-    expect(plan.reason).toMatch(/re-sync/i);
+    expect(plan.cause).toBe('unpinned-unproven');
   });
 
   it('REFUSES when the caller could not check whether sealed rows exist', () => {
     const plan = planOrKeyMaterial(EMPTY, CURRENT_SALT, { existingSealedRows: 'unknown' });
     expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unpinned-unproven');
   });
 
   it('REFUSES when the caller passes undefined rather than stating what it found', () => {
@@ -101,6 +129,8 @@ describe('planOrKeyMaterial: nothing pinned yet', () => {
   it('refuses when there is no salt to pin against', () => {
     const plan = planOrKeyMaterial(EMPTY, '', NO_ROWS);
     expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('no-salt');
   });
 });
 
@@ -140,6 +170,8 @@ describe('planOrKeyMaterial: fully pinned', () => {
       NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unknown-generation');
   });
 
   it('refuses a generation OLDER than this build understands', () => {
@@ -149,6 +181,8 @@ describe('planOrKeyMaterial: fully pinned', () => {
       NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unknown-generation');
   });
 
   it('reads a generation that arrives as a STRING, which is how a numeric column comes back', () => {
@@ -172,6 +206,8 @@ describe('planOrKeyMaterial: fully pinned', () => {
       NO_ROWS,
     );
     expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('unknown-generation');
   });
 
   it('treats a generation that is not a whole number as unusable, never as current', () => {
@@ -179,6 +215,18 @@ describe('planOrKeyMaterial: fully pinned', () => {
       const plan = planOrKeyMaterial({ ...pinned, or_key_epoch: bad }, CURRENT_SALT, NO_ROWS);
       expect(plan.mode).toBe('refuse');
     }
+  });
+
+  it('treats an unsafe-magnitude number the same as its unsafe string spelling', () => {
+    const unsafe = Number.MAX_SAFE_INTEGER + 2;
+    const byNumber = planOrKeyMaterial({ ...pinned, or_key_epoch: unsafe }, CURRENT_SALT, NO_ROWS);
+    const byString = planOrKeyMaterial(
+      { ...pinned, or_key_epoch: String(unsafe) },
+      CURRENT_SALT,
+      NO_ROWS,
+    );
+    expect(byNumber.mode).toBe('refuse');
+    expect(byString.mode).toBe('refuse');
   });
 });
 
@@ -191,6 +239,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('partial');
     expect(plan.reason).toMatch(/the sealed key/);
   });
 
@@ -202,6 +251,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('partial');
     expect(plan.reason).toMatch(/its salt/);
   });
 
@@ -213,6 +263,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('partial');
     expect(plan.reason).toMatch(/its generation/);
   });
 
@@ -238,6 +289,7 @@ describe('planOrKeyMaterial: partly stored', () => {
     );
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.cause).toBe('partial');
     expect(plan.reason).toMatch(/partly stored/);
   });
 
@@ -265,6 +317,13 @@ describe('OrNamespaceDisabledError', () => {
     expect(err.name).toBe('OrNamespaceDisabledError');
     expect(err.reason).toBe('the salt rotated');
     expect(err.message).toContain('the salt rotated');
+    expect(err.cause).toBeUndefined();
+  });
+
+  it('carries the machine-readable cause alongside the reason when given one', () => {
+    const err = new OrNamespaceDisabledError('nothing pinned yet', 'unpinned-unproven');
+    expect(err.cause).toBe('unpinned-unproven');
+    expect(err.reason).toBe('nothing pinned yet');
   });
 });
 
