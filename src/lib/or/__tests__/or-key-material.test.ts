@@ -111,8 +111,11 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
   // shape of a fresh account, and with evidence 'none' it answered
   // derive-and-pin: a well formed key, pinned as authoritative, opening none
   // of the rows the customer already synced.
+  const NO_ROW = null as unknown as OrKeyMaterialRow;
+  const MISSING_ROW = undefined as unknown as OrKeyMaterialRow;
+
   it('REFUSES a null row instead of deriving over it', () => {
-    const plan = planOrKeyMaterial(null as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+    const plan = planOrKeyMaterial(NO_ROW, CURRENT_SALT, NO_ROWS);
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
     expect(plan.reason).toMatch(/could not be read/i);
@@ -122,11 +125,7 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
   });
 
   it('REFUSES an undefined row', () => {
-    const plan = planOrKeyMaterial(
-      undefined as unknown as OrKeyMaterialRow,
-      CURRENT_SALT,
-      NO_ROWS,
-    );
+    const plan = planOrKeyMaterial(MISSING_ROW, CURRENT_SALT, NO_ROWS);
     expect(plan.mode).toBe('refuse');
     if (plan.mode !== 'refuse') throw new Error('unreachable');
     expect(plan.reason).toMatch(/could not be read/i);
@@ -135,7 +134,7 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
   it('REFUSES an unreadable row even when the caller PROVED the derived key opens a row', () => {
     // Evidence is about what deriving would cost, not about whether the read
     // succeeded. Proof cannot rescue a state we never observed.
-    const plan = planOrKeyMaterial(null as unknown as OrKeyMaterialRow, CURRENT_SALT, PROVEN);
+    const plan = planOrKeyMaterial(NO_ROW, CURRENT_SALT, PROVEN);
     expect(plan.mode).toBe('refuse');
   });
 
@@ -233,14 +232,10 @@ describe('planOrKeyMaterial: fully pinned', () => {
     // written the other. Nothing depended on it, because such a value is never
     // the current generation and refuses on the comparison, but an asymmetry
     // inside a rule whose job is refusing is worth not having.
-    const unsafe = Number.MAX_SAFE_INTEGER + 2;
-    expect(planOrKeyMaterial({ ...pinned, or_key_epoch: unsafe }, CURRENT_SALT, NO_ROWS).mode).toBe(
-      'refuse',
-    );
-    expect(
-      planOrKeyMaterial({ ...pinned, or_key_epoch: '9007199254740993' }, CURRENT_SALT, NO_ROWS)
-        .mode,
-    ).toBe('refuse');
+    const asNumber = { ...pinned, or_key_epoch: Number.MAX_SAFE_INTEGER + 2 };
+    const asString = { ...pinned, or_key_epoch: '9007199254740993' };
+    expect(planOrKeyMaterial(asNumber, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
+    expect(planOrKeyMaterial(asString, CURRENT_SALT, NO_ROWS).mode).toBe('refuse');
   });
 });
 
