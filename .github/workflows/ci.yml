@@ -243,8 +243,12 @@ jobs:
           #    user's password through the admin API before signing in.
           #
           # It provisions its own user through the admin API, so it needs
-          # nothing from the "Provision E2E user" step above and works on
-          # pull_request runs, where that step is deliberately skipped.
+          # nothing from the "Provision E2E user" step above. It does need the
+          # DEV service-role key to do that, and the key is withheld on pull
+          # requests, so the walk EXECUTES on pushes to dev and prod and skips
+          # itself on a pull request run. That is the deliberate trade: the
+          # walk's coverage moves post-merge rather than putting an
+          # RLS-bypassing key on a runner a branch author controls.
           E2E_ONBOARDING_WALK: '1'
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
