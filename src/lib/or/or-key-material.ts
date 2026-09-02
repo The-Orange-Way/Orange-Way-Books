@@ -163,10 +163,12 @@ export interface PlanOrKeyMaterialOptions {
  * Anything that is not a whole number, in either shape, is treated as absent
  * rather than coerced. A fractional or unparseable generation is not a
  * generation, and guessing at one is the class of thing this module exists to
- * refuse.
+ * refuse. Both shapes require a SAFE integer, so a magnitude beyond exact
+ * representation is refused whichever way it arrives, rather than being
+ * accepted as a number and rejected as its own string spelling.
  */
 function readEpoch(raw: number | string | null): number | null {
-  if (typeof raw === 'number') return Number.isInteger(raw) ? raw : null;
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null;
   if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
     const parsed = Number.parseInt(raw.trim(), 10);
     return Number.isSafeInteger(parsed) ? parsed : null;
@@ -195,7 +197,8 @@ function isPresent(value: unknown): boolean {
  * destructive answer. This does not depend on how the eventual Books
  * migration declares its defaults, which is the point of deciding it here.
  *
- * @param row      what the vault metadata row holds for this org
+ * @param row      what the vault metadata row holds for this org. A missing
+ *                 row is an unreadable state, not an empty one, and refuses.
  * @param orgSalt  the salt in force right now, used only when pinning
  * @param options  what the caller established about rows already sealed. See
  *                 SealedRowEvidence: only proof that nothing can be lost
@@ -206,6 +209,21 @@ export function planOrKeyMaterial(
   orgSalt: string,
   options: PlanOrKeyMaterialOptions,
 ): OrKeyMaterialPlan {
+  // The row itself has to be a row. Every read below is optional-chained, so a
+  // null or undefined row yields undefined three times and looks exactly like a
+  // row whose three columns are genuinely null. Those two states mean opposite
+  // things: a row of nulls is a fresh account with nothing to lose, a missing
+  // row is a read that did not complete. Falling through would answer
+  // derive-and-pin for a lookup we never got an answer from, which is the
+  // destructive guess this module exists to refuse.
+  if (row === null || typeof row !== 'object') {
+    return {
+      mode: 'refuse',
+      reason:
+        'Orange Rails key material could not be read: no vault metadata row was available, so whether anything is pinned is unknown. Deriving in that state could produce a key that opens none of the rows already synced, so it is refused.',
+    };
+  }
+
   const ciphertextPresent = isPresent(row?.enc_or_mek_ciphertext);
   const saltPresent = isPresent(row?.or_subkey_salt);
   const epochPresent = isPresent(row?.or_key_epoch);
