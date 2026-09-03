@@ -177,7 +177,7 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
   it('REFUSES non-object primitives: a string, a number and a boolean each refuse', () => {
     // typeof s !== 'object' for all three, so the three-arm guard is a
     // superset of the old `== null` check: nothing that passed before now
-    // derives. Mirrors the equivalent test added on the OWM side (PR #605).
+    // derives. The sibling personal finance app carries the same test.
     for (const bad of ['a-string', 0, 42, false, true]) {
       const plan = planOrKeyMaterial(bad as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
       expect(plan.mode).toBe('refuse');
