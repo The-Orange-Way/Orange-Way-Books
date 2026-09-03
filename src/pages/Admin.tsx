@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useVault } from '@/context/VaultContext';
 import { MONTH_NAMES } from '@/lib/months';
+import { TimezoneSelect } from '@/components/settings/TimezoneSelect';
 import {
   Settings,
   Users,
@@ -1019,38 +1020,12 @@ function OrganizationTab({
         {/* Timezone */}
         <div className="space-y-2">
           <Label className="font-semibold">Timezone</Label>
-          <Select
+          <TimezoneSelect
             value={settings.timezone}
             onValueChange={(v) => setSettings((p) => ({ ...p, timezone: v }))}
-          >
-            <SelectTrigger className="max-w-xs" data-testid="admin-timezone">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[
-                { value: 'America/New_York', label: 'Eastern Time (US)' },
-                { value: 'America/Chicago', label: 'Central Time (US)' },
-                { value: 'America/Denver', label: 'Mountain Time (US)' },
-                { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-                { value: 'America/Anchorage', label: 'Alaska Time' },
-                { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
-                { value: 'America/Toronto', label: 'Toronto (Eastern)' },
-                { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
-                { value: 'Europe/London', label: 'London (GMT)' },
-                { value: 'Europe/Paris', label: 'Paris (CET)' },
-                { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-                { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-                { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
-                { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-                { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
-                { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
-              ].map((tz) => (
-                <SelectItem key={tz.value} value={tz.value}>
-                  {tz.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            className="max-w-xs"
+            testId="admin-timezone"
+          />
         </div>
 
         {canManageOrg && (
