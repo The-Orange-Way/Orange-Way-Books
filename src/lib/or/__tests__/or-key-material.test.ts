@@ -173,6 +173,18 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
     const plan = planOrKeyMaterial(ONE_ELEMENT_ARRAY, CURRENT_SALT, NO_ROWS);
     expect(plan.mode).toBe('refuse');
   });
+
+  it('REFUSES non-object primitives: a string, a number and a boolean each refuse', () => {
+    // typeof s !== 'object' for all three, so the three-arm guard is a
+    // superset of the old `== null` check: nothing that passed before now
+    // derives. Mirrors the equivalent test added on the OWM side (PR #605).
+    for (const bad of ['a-string', 0, 42, false, true]) {
+      const plan = planOrKeyMaterial(bad as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+      expect(plan.mode).toBe('refuse');
+      if (plan.mode !== 'refuse') throw new Error('unreachable');
+      expect(plan.reason).toMatch(/could not be read/i);
+    }
+  });
 });
 
 describe('planOrKeyMaterial: fully pinned', () => {
