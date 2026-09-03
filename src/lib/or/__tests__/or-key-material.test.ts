@@ -164,7 +164,11 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
     // the module guessing at a caller's mistake, which is the class of
     // thing it exists to refuse; the caller must fix its query instead.
     const ONE_ELEMENT_ARRAY = [
-      { enc_or_mek_ciphertext: 'sealed-key-ciphertext', or_subkey_salt: PINNED_SALT, or_key_epoch: CURRENT_OR_KEY_EPOCH },
+      {
+        enc_or_mek_ciphertext: 'sealed-key-ciphertext',
+        or_subkey_salt: PINNED_SALT,
+        or_key_epoch: CURRENT_OR_KEY_EPOCH,
+      },
     ] as unknown as OrKeyMaterialRow;
     const plan = planOrKeyMaterial(ONE_ELEMENT_ARRAY, CURRENT_SALT, NO_ROWS);
     expect(plan.mode).toBe('refuse');
