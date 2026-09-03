@@ -1,8 +1,14 @@
-// Single source of truth for the onboarding timezone list. The v1 reporting
-// step (StepReporting) and the v2 organization setup surface (OrgSetupSurface)
-// both read from here so the two lists cannot drift, which is the same reason
-// months.ts exists: a drifted list silently stores a value the other surface
-// cannot show back to the customer.
+// Single source of truth for the timezone list. The v1 reporting step
+// (StepReporting), the v2 organization setup surface (OrgSetupSurface) and
+// Admin settings all read from here so the lists cannot drift, which is the
+// same reason months.ts exists: a drifted list silently stores a value the
+// other surface cannot show back to the customer.
+//
+// Sixteen entries, not the thirteen this started with: Anchorage, Honolulu and
+// Shanghai arrived from Admin settings, which carried its own list until
+// OWB-T0149. They were absorbed rather than dropped, so a customer who had
+// already picked one of them keeps a real label instead of falling back to the
+// bare-zone entry timezoneOptionsIncluding synthesises.
 
 export interface TimezoneOption {
   value: string;
@@ -14,12 +20,15 @@ export const TIMEZONE_OPTIONS: readonly TimezoneOption[] = [
   { value: 'America/Chicago', label: 'Central Time (US)' },
   { value: 'America/Denver', label: 'Mountain Time (US)' },
   { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
   { value: 'America/Toronto', label: 'Toronto (Eastern)' },
   { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
   { value: 'Europe/London', label: 'London (GMT)' },
   { value: 'Europe/Paris', label: 'Paris (CET)' },
   { value: 'Europe/Berlin', label: 'Berlin (CET)' },
   { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
   { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
   { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
@@ -42,7 +51,7 @@ export function browserTimezone(): string {
 /**
  * The option list with `zone` guaranteed to be in it.
  *
- * The curated list above is thirteen entries and the browser's zone is very
+ * The curated list above is sixteen entries and the browser's zone is very
  * often not one of them. A picker whose value matches no option displays the
  * first option while the state still holds the seeded value, so the customer
  * reads one timezone and saves another. Returning a list that always contains
