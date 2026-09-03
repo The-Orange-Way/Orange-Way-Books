@@ -14,12 +14,15 @@ export const TIMEZONE_OPTIONS: readonly TimezoneOption[] = [
   { value: 'America/Chicago', label: 'Central Time (US)' },
   { value: 'America/Denver', label: 'Mountain Time (US)' },
   { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
   { value: 'America/Toronto', label: 'Toronto (Eastern)' },
   { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
   { value: 'Europe/London', label: 'London (GMT)' },
   { value: 'Europe/Paris', label: 'Paris (CET)' },
   { value: 'Europe/Berlin', label: 'Berlin (CET)' },
   { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
   { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
   { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
@@ -42,13 +45,23 @@ export function browserTimezone(): string {
 /**
  * The option list with `zone` guaranteed to be in it.
  *
- * The curated list above is thirteen entries and the browser's zone is very
- * often not one of them. A picker whose value matches no option displays the
- * first option while the state still holds the seeded value, so the customer
- * reads one timezone and saves another. Returning a list that always contains
- * the current value keeps what is shown and what is stored in agreement.
+ * The curated list above is a short one and a real customer's zone is very
+ * often not on it. A picker whose value matches no option shows the customer
+ * something other than what is stored: a native select displays its first
+ * option while state still holds the other value, and a Radix listbox renders
+ * an empty trigger, so the customer reads "no timezone" when one is set.
+ * Returning a list that always contains the current value keeps what is shown
+ * and what is stored in agreement on both kinds of picker.
+ *
+ * `noteLabel` is how the extra option explains itself. Onboarding is offering
+ * the zone the browser reported, so the default "detected" is accurate there.
+ * A settings screen is offering the zone the customer already saved, which is
+ * not detected at all, so it passes its own word.
  */
-export function timezoneOptionsIncluding(zone: string): readonly TimezoneOption[] {
+export function timezoneOptionsIncluding(
+  zone: string,
+  noteLabel = 'detected',
+): readonly TimezoneOption[] {
   if (!zone || TIMEZONE_OPTIONS.some((t) => t.value === zone)) return TIMEZONE_OPTIONS;
-  return [{ value: zone, label: `${zone} (detected)` }, ...TIMEZONE_OPTIONS];
+  return [{ value: zone, label: `${zone} (${noteLabel})` }, ...TIMEZONE_OPTIONS];
 }
