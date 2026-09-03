@@ -296,7 +296,7 @@ describe('OrgSetupSurface screen 3 (fiscal year and timezone, OWB-T0102)', () =>
     // A select whose value matches no option renders as the first option while
     // state still holds the seeded value, so the customer reads one timezone
     // and saves another. Asserting the rendered value equals the browser zone
-    // catches that, whether or not the zone is one of the curated thirteen.
+    // catches that, whether or not the zone is one of the curated entries.
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     expect(screen.getByLabelText('Timezone')).toHaveValue(zone);
   });
