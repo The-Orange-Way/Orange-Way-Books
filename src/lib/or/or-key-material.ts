@@ -216,7 +216,7 @@ export function planOrKeyMaterial(
   // row is a read that did not complete. Falling through would answer
   // derive-and-pin for a lookup we never got an answer from, which is the
   // destructive guess this module exists to refuse.
-  if (row === null || typeof row !== 'object') {
+  if (row === null || typeof row !== 'object' || Array.isArray(row)) {
     return {
       mode: 'refuse',
       reason:
