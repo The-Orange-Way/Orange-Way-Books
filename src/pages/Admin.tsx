@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useVault } from '@/context/VaultContext';
 import { MONTH_NAMES } from '@/lib/months';
+import { browserTimezone, timezoneOptionsIncluding } from '@/lib/timezones';
 import {
   Settings,
   Users,
@@ -387,7 +388,7 @@ function OrganizationTab({
     date_format: 'MM-DD-YYYY',
     time_format: '12h',
     number_format: 'us',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: browserTimezone(),
     // T4 PR C, approval threshold for payment requests.
     approval_threshold_amount: null as number | null,
     approval_threshold_currency: '' as string,
@@ -467,7 +468,7 @@ function OrganizationTab({
           date_format: dec.date_format || 'MM-DD-YYYY',
           time_format: dec.time_format || '12h',
           number_format: dec.number_format || 'us',
-          timezone: dec.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezone: dec.timezone || browserTimezone(),
           approval_threshold_amount: dec.approval_threshold_amount ?? null,
           approval_threshold_currency: dec.approval_threshold_currency || '',
         });
@@ -563,7 +564,7 @@ function OrganizationTab({
           date_format: 'MM-DD-YYYY',
           time_format: '12h',
           number_format: 'us',
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezone: browserTimezone(),
         },
         encryptText,
       );
@@ -1016,7 +1017,7 @@ function OrganizationTab({
           </div>
         </div>
 
-        {/* Timezone */}
+        {/* Timezone. The list always carries the stored zone, so it never renders blank. */}
         <div className="space-y-2">
           <Label className="font-semibold">Timezone</Label>
           <Select
@@ -1027,24 +1028,7 @@ function OrganizationTab({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[
-                { value: 'America/New_York', label: 'Eastern Time (US)' },
-                { value: 'America/Chicago', label: 'Central Time (US)' },
-                { value: 'America/Denver', label: 'Mountain Time (US)' },
-                { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-                { value: 'America/Anchorage', label: 'Alaska Time' },
-                { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
-                { value: 'America/Toronto', label: 'Toronto (Eastern)' },
-                { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
-                { value: 'Europe/London', label: 'London (GMT)' },
-                { value: 'Europe/Paris', label: 'Paris (CET)' },
-                { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-                { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-                { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
-                { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-                { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
-                { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
-              ].map((tz) => (
+              {timezoneOptionsIncluding(settings.timezone).map((tz) => (
                 <SelectItem key={tz.value} value={tz.value}>
                   {tz.label}
                 </SelectItem>
