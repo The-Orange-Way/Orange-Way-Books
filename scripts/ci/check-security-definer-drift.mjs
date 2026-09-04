@@ -20,6 +20,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
 const PROJECT_REF = process.env.DRIFT_CHECK_PROJECT_REF;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
