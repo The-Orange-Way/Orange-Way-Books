@@ -13,7 +13,7 @@ import { useVault } from '@/context/VaultContext';
 import { encryptOrgSettings, FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
 import { MONTH_NAMES, monthNumber } from '@/lib/months';
-import { browserTimezone, timezoneOptionsIncluding } from '@/lib/timezones';
+import { browserTimezone, timezoneOptionsForDetection } from '@/lib/timezones';
 import { captureException } from '@/lib/observability/sentry';
 import type { OnboardingVaultSetup } from './onboarding-state';
 import type { BitcoinDisplay } from '@/types';
