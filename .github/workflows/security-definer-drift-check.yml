@@ -1,0 +1,47 @@
+name: security-definer-drift-check
+
+# Fails loud when a live SECURITY DEFINER function in OWB DEV's public
+# schema no longer matches the migration file that defines it, or has
+# picked up an unsafe EXECUTE grant. See scripts/ci/check-security-definer-drift.mjs
+# for why: supabase_migrations.schema_migrations proves a migration
+# FILENAME ran, it does not prove the live object still matches the file.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/ci/check-security-definer-drift.mjs'
+      - '.github/workflows/security-definer-drift-check.yml'
+  workflow_dispatch:
+    inputs:
+      project_ref_override:
+        description: 'Project ref to check. Set a bogus ref to prove the unreachable-database path goes red.'
+        required: false
+        default: ''
+  schedule:
+    - cron: '30 13 * * *'
+
+permissions:
+  contents: read
+
+env:
+  # OWB DEV. This check is scoped to DEV deliberately: DEV is where the
+  # drift this ticket is about was actually measured.
+  OWB_DEV_PROJECT_REF: kbjvvhjkaanvyibjezsv
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compare live SECURITY DEFINER functions against their migration files
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DRIFT_CHECK_PROJECT_REF: ${{ inputs.project_ref_override != '' && inputs.project_ref_override || env.OWB_DEV_PROJECT_REF }}
+        run: node scripts/ci/check-security-definer-drift.mjs
