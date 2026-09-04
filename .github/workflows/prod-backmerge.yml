@@ -183,6 +183,19 @@ jobs:
                 echo "::error title=Automation branch is not an ancestor of prod::${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH}, and open pull request #${pr_number} (${pr_url}) depends on it. Resolve or close that pull request, then delete the branch and re-run: git push origin --delete ${BACKMERGE_BRANCH}"
                 exit 1
               fi
+              # Known limitation, accepted rather than fixed with a lease: this
+              # reads the branch tip and then deletes it in two separate
+              # commands, so if something else pushed to the branch in
+              # between, the sha this step reports and summarises is not the
+              # sha it actually deleted. The window is narrow (this job is
+              # serialized by the concurrency group above) and nothing else
+              # is expected to write this branch, so a git push
+              # --force-with-lease reset was considered and deliberately not
+              # taken: it would turn one line of an automation that documents
+              # itself as never forcing into an explicit force-push, for a
+              # race that has not been observed. If this ever needs
+              # tightening, force-with-lease against the observed sha is the
+              # fix (OWB-T0184).
               deleted_sha="$(git rev-parse "origin/${BACKMERGE_BRANCH}")"
               echo "${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH} and no open pull request depends on it. Self-healing: deleting the branch (was ${deleted_sha})."
               git push origin --delete "${BACKMERGE_BRANCH}"
