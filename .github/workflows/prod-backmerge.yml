@@ -146,6 +146,9 @@ jobs:
 
       - name: Assert automation branch is an ancestor of prod (guard)
         if: steps.compare.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # The push below is fast-forward only. That invariant holds if and
@@ -154,14 +157,41 @@ jobs:
           # "non-fast-forward" -- a message that points the reader at prod
           # history rather than at the automation branch. This guard checks
           # ancestry first and prints the actionable fix instead.
+          # Fetch the automation branch explicitly so the rev-parse below has
+          # a real ref to work from. Without this, a runner whose clone never
+          # saw the branch takes the else path and exits zero -- the same
+          # silent pass the guard exists to prevent. The || true keeps the
+          # genuine first-run case clean.
+          git fetch --no-tags --quiet origin \
+            "+refs/heads/${BACKMERGE_BRANCH}:refs/remotes/origin/${BACKMERGE_BRANCH}" || true
           if git rev-parse --verify "origin/${BACKMERGE_BRANCH}" >/dev/null 2>&1; then
             if ! git merge-base --is-ancestor \
                    "origin/${BACKMERGE_BRANCH}" \
                    "origin/${SOURCE_BRANCH}"; then
-              echo "::error title=Automation branch is not an ancestor of prod::${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH}. Someone pushed to it directly. Delete the branch and re-run: git push origin --delete ${BACKMERGE_BRANCH}"
-              exit 1
+              # Not an ancestor: someone pushed to the automation branch
+              # directly. If a pull request already depends on it, that PR
+              # may carry a human's conflict resolution, so fail loudly and
+              # let a human decide. If no pull request depends on it, it is
+              # safe to self-heal: delete it, and the next step recreates it
+              # at the prod tip in this same run.
+              pr_number="$(gh pr list --head "${BACKMERGE_BRANCH}" --base "${BASE_BRANCH}" \
+                             --state open --json number --jq '.[0].number // empty')"
+              if [ -n "${pr_number}" ]; then
+                pr_url="$(gh pr view "${pr_number}" --json url --jq .url)"
+                echo "::error title=Automation branch is not an ancestor of prod::${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH}, and open pull request #${pr_number} (${pr_url}) depends on it. Resolve or close that pull request, then delete the branch and re-run: git push origin --delete ${BACKMERGE_BRANCH}"
+                exit 1
+              fi
+              deleted_sha="$(git rev-parse "origin/${BACKMERGE_BRANCH}")"
+              echo "${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH} and no open pull request depends on it. Self-healing: deleting the branch (was ${deleted_sha})."
+              git push origin --delete "${BACKMERGE_BRANCH}"
+              {
+                echo "### Self-healed a stray automation branch"
+                echo
+                echo "\`${BACKMERGE_BRANCH}\` was not an ancestor of \`${SOURCE_BRANCH}\` and no open pull request depended on it, so this run deleted it. Deleted sha: \`${deleted_sha}\`."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "Ancestry OK: origin/${BACKMERGE_BRANCH} is an ancestor of origin/${SOURCE_BRANCH}."
             fi
-            echo "Ancestry OK: origin/${BACKMERGE_BRANCH} is an ancestor of origin/${SOURCE_BRANCH}."
           else
             echo "Branch ${BACKMERGE_BRANCH} does not exist yet; ancestry check skipped."
           fi
