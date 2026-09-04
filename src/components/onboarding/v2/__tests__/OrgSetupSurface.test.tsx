@@ -106,6 +106,24 @@ vi.mock('@/lib/init-chart-of-accounts', () => ({
   initChartOfAccounts: async () => {},
 }));
 
+/**
+ * OWB-T0171: browserTimezone is spied on so a test can drive the case where the
+ * environment reports no zone at all. It could not be reached before, because
+ * jsdom always reports one, which is exactly why a fallback that quietly wrote
+ * America/New_York stayed invisible while this suite was green.
+ *
+ * The spy defaults to the real implementation, so every other test here keeps
+ * the behaviour it had, including the seeding assertion that reads Intl
+ * directly. Only the cases below override it, and only for one call each.
+ */
+const browserTimezoneSpy = vi.hoisted(() => vi.fn(() => ''));
+
+vi.mock('@/lib/timezones', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/timezones')>();
+  browserTimezoneSpy.mockImplementation(actual.browserTimezone);
+  return { ...actual, browserTimezone: browserTimezoneSpy };
+});
+
 const toastError = vi.hoisted(() => vi.fn());
 
 vi.mock('sonner', () => ({
@@ -463,5 +481,76 @@ describe('OrgSetupSurface RPC contract (OWB-T0110)', () => {
     // before onComplete, not just show a toast alongside them.
     expect(updateEq).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * OWB-T0171: the guessed timezone.
+ *
+ * browserTimezone() returns '' when Intl throws or reports nothing. The surface
+ * used to resolve that to timezoneOptions[0].value, which is 'America/New_York',
+ * and render it in the picker indistinguishably from a value the customer had
+ * selected. The timezone decides which day a transaction lands on, so a wrong
+ * one moves entries across period boundaries and is invisible afterwards.
+ *
+ * The disclosure was backwards as well. A detected but uncurated zone is
+ * injected labelled '(detected)', so the customer is told where it came from;
+ * the fallback, the only value that was never theirs, carried no label. These
+ * assert the fix in both directions: nothing is written without an answer, and
+ * a successful detection still flows through untouched.
+ */
+describe('OrgSetupSurface timezone when the browser reports none (OWB-T0171)', () => {
+  beforeEach(() => {
+    createOrgRpc.mockClear();
+    encryptOrgSettings.mockClear();
+    toastError.mockClear();
+  });
+
+  it('leaves the picker unset and gates the CTA instead of writing America/New_York', () => {
+    browserTimezoneSpy.mockReturnValueOnce('');
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+    advanceToLastScreen();
+
+    const picker = screen.getByLabelText('Timezone');
+    expect(picker).toHaveValue('');
+    // Naming the exact value the old fallback produced, so a regression reads as
+    // itself rather than as a vague "not empty".
+    expect(picker).not.toHaveValue('America/New_York');
+    expect(screen.getByRole('button', { name: 'Open my books' })).toBeDisabled();
+  });
+
+  it('says it did not guess, so the empty picker is not read as a glitch', () => {
+    browserTimezoneSpy.mockReturnValueOnce('');
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+    advanceToLastScreen();
+
+    expect(screen.getByText(/did not report a timezone/i)).toBeInTheDocument();
+  });
+
+  it('sends the zone the customer then picks', async () => {
+    browserTimezoneSpy.mockReturnValueOnce('');
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+    advanceToLastScreen();
+
+    fireEvent.change(screen.getByLabelText('Timezone'), { target: { value: 'Europe/London' } });
+    const cta = screen.getByRole('button', { name: 'Open my books' });
+    expect(cta).toBeEnabled();
+    fireEvent.click(cta);
+
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    expect(encryptOrgSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ timezone: 'Europe/London' }),
+      expect.any(Function),
+    );
+  });
+
+  it('is unchanged when the browser does report a zone', () => {
+    browserTimezoneSpy.mockReturnValueOnce('Asia/Singapore');
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+    advanceToLastScreen();
+
+    expect(screen.getByLabelText('Timezone')).toHaveValue('Asia/Singapore');
+    expect(screen.queryByText(/did not report a timezone/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open my books' })).toBeEnabled();
   });
 });
