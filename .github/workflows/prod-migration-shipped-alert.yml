@@ -1,0 +1,119 @@
+name: Prod migration shipped alert
+
+on:
+  push:
+    branches: [prod]
+
+# Least privilege for the automatic GITHUB_TOKEN. This job needs to open an
+# issue and needs to read the checkout to see what changed; nothing else.
+# No repository secret and no database credential of any kind, on purpose:
+# see the ticket this workflow closes for why that constraint is load
+# bearing.
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: prod-migration-alert-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-migrations:
+    name: Check for shipped, unapplied migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Find migration files added by this push
+        id: find
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          ZERO="0000000000000000000000000000000000000000"
+
+          # A normal push carries a real BEFORE sha and we diff exactly what
+          # this push added. The first ever push to the branch (or a push
+          # whose BEFORE this checkout cannot see) has no usable BEFORE; fall
+          # back to diffing the pushed commit against its own parent, so we
+          # still only look at what THIS push actually contains rather than
+          # refusing outright.
+          if [ "$BEFORE" != "$ZERO" ] && git cat-file -e "$BEFORE" 2>/dev/null; then
+            RANGE_FROM="$BEFORE"
+          elif git rev-parse "$AFTER^" >/dev/null 2>&1; then
+            RANGE_FROM=$(git rev-parse "$AFTER^")
+          else
+            RANGE_FROM=$(git hash-object -t tree /dev/null)
+          fi
+
+          ADDED=$(git diff --name-status --diff-filter=A "$RANGE_FROM" "$AFTER" -- supabase/migrations 2>/dev/null | awk '{print $2}' || true)
+
+          if [ -z "$ADDED" ]; then
+            echo "No migration files were added by this push. Nothing to do."
+            echo "has_migrations=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_migrations=true" >> "$GITHUB_OUTPUT"
+
+          VERSIONS=$(printf '%s\n' "$ADDED" | xargs -n1 basename | cut -d_ -f1 | sort -u | paste -sd, -)
+          echo "versions=$VERSIONS" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "files<<MIGFILES_EOF"
+            printf '%s\n' "$ADDED"
+            echo "MIGFILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Added migration file(s) on this push:"
+          printf '%s\n' "$ADDED"
+
+      - name: Open one issue naming the shipped migrations
+        if: steps.find.outputs.has_migrations == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSIONS: ${{ steps.find.outputs.versions }}
+          FILES: ${{ steps.find.outputs.files }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TITLE="PROD MIGRATIONS SHIPPED AND NOT YET APPLIED: ${VERSIONS}"
+
+          # Do not open a second issue for the same migration set. A re-run
+          # of this workflow, or a force push that reproduces the same push
+          # event, must not multiply the issue count. Only OPEN issues are
+          # checked: once an issue is closed the migration set is either
+          # applied or the issue was judged resolved, and either way a new
+          # push carrying those same files again is worth a fresh look.
+          EXISTING=$(gh issue list --repo "$REPO" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING is already open for this exact migration set. Not opening a duplicate."
+            exit 0
+          fi
+
+          BODY_FILE=$(mktemp)
+          {
+            echo "These migration files just landed on the production branch and the app has already been redeployed."
+            echo ""
+            echo "The database changes themselves have NOT been run yet. Deploying the app does not run the migration; something separate has to apply it."
+            echo ""
+            echo "Files added by this push:"
+            echo ""
+            echo '```'
+            printf '%s\n' "$FILES"
+            echo '```'
+            echo ""
+            echo "The database administrator is the role that applies production migrations."
+            echo ""
+            echo "This issue is closed only when the migration has actually been run against the production database and the ledger row exists for it, not when this PR merged or this app redeployed."
+            echo ""
+            echo "This check knows a migration was shipped. It does not know what the production database actually contains: it cannot see a migration applied out of band, a file that was later removed, or drift from any other cause. It is a red flag for an unclosed obligation, not a measurement of the database state."
+          } > "$BODY_FILE"
+
+          gh issue create --repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE"
