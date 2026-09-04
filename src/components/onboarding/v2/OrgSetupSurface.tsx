@@ -148,7 +148,18 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
   // the detected entry out of the list underneath the customer.
   const [detectedTimezone] = useState(browserTimezone);
   const timezoneOptions = timezoneOptionsIncluding(detectedTimezone);
-  const [timezone, setTimezone] = useState(detectedTimezone || timezoneOptions[0].value);
+  // OWB-T0171: when the browser reports no zone, ask rather than guess. This
+  // used to fall back to timezoneOptions[0].value, which is 'America/New_York',
+  // so a customer whose browser reported nothing had Eastern US written into
+  // their books while the picker looked exactly as if they had chosen it. The
+  // timezone decides which day a transaction lands on, so a wrong one moves
+  // entries across period boundaries and is invisible afterwards.
+  //
+  // The disclosure was backwards too: a successful detection of an uncurated
+  // zone is labelled '(detected)' by timezoneOptionsIncluding, while the
+  // fallback, the one value that was never the customer's, carried no label at
+  // all. Empty now means unanswered, and unanswered gates the final CTA below.
+  const [timezone, setTimezone] = useState(detectedTimezone);
 
   // Same rule as v1 StepOrganization: a name is present once it is non-blank.
   const nameValid = name.trim().length > 0;
@@ -456,7 +467,7 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
           isFirst={false}
           isLast
           nextLabel="Open my books"
-          nextDisabled={saving}
+          nextDisabled={saving || !timezone}
         >
           <p className="mb-6">
             Your fiscal year start decides every period boundary in your books, and your timezone
@@ -481,12 +492,23 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
 
             <div className="space-y-2">
               <Label htmlFor="timezone">Timezone</Label>
+              {detectedTimezone ? null : (
+                <p className="text-sm text-muted-foreground">
+                  Your browser did not report a timezone, so please pick yours. We will not guess
+                  it: it decides which day each transaction lands on.
+                </p>
+              )}
               <select
                 id="timezone"
                 className={selectClass}
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
               >
+                {timezone ? null : (
+                  <option value="" disabled>
+                    Select your timezone
+                  </option>
+                )}
                 {timezoneOptions.map((tz) => (
                   <option key={tz.value} value={tz.value}>
                     {tz.label}
