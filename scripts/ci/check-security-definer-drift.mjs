@@ -105,8 +105,7 @@ function md5(str) {
 // nest parens and dollar-quote tags, which a naive regex mishandles.
 function extractFunctionDefinitions(sql) {
   const defs = [];
-  const createRe =
-    /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi; // eslint-disable-line
+  const createRe = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
   let m;
   while ((m = createRe.exec(sql)) !== null) {
     const name = m[1];
