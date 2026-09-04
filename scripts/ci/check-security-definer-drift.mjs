@@ -211,7 +211,9 @@ async function main() {
     const bad = unsafeGrantees(row.acl);
     if (bad.length > 0) {
       failed++;
-      problems.push(`${row.name}: unsafe EXECUTE grant(s) live: ${bad.join(', ')}. acl=${row.acl}`);
+      problems.push(
+        `${row.name}: unsafe EXECUTE grant(s) live: ${bad.join(', ')}. acl=${row.acl}`,
+      );
     }
   }
 
