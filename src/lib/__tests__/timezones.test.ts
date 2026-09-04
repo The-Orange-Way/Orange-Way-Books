@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { TIMEZONE_OPTIONS, timezoneOptionsIncluding } from '@/lib/timezones';
+import {
+  TIMEZONE_OPTIONS,
+  timezoneOptionsIncluding,
+  timezoneOptionsForDetection,
+} from '@/lib/timezones';
 
 describe('TIMEZONE_OPTIONS', () => {
   it('carries the zones that used to exist only in Admin settings', () => {
