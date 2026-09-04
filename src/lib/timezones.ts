@@ -67,3 +67,22 @@ export function timezoneOptionsIncluding(
   if (!zone || TIMEZONE_OPTIONS.some((t) => t.value === zone)) return TIMEZONE_OPTIONS;
   return [{ value: zone, label: `${zone} (${note})` }, ...TIMEZONE_OPTIONS];
 }
+
+/**
+ * The option list for a picker seeded from browser detection, with the
+ * empty-detection fallback disclosed as a guess (OWB-T0171).
+ *
+ * timezoneOptionsIncluding only injects a labelled entry when the zone is
+ * present and not already curated. When browserTimezone() reports nothing,
+ * the caller falls back to TIMEZONE_OPTIONS[0] (America/New_York), which IS
+ * already curated, so timezoneOptionsIncluding('') injects nothing and the
+ * fallback renders indistinguishable from a real choice. This wraps that
+ * case so a failed detection carries the same disclosure a successful one
+ * gets, instead of the opposite.
+ */
+export function timezoneOptionsForDetection(detectedZone: string): readonly TimezoneOption[] {
+  const options = timezoneOptionsIncluding(detectedZone);
+  if (detectedZone) return options;
+  const fallback = options[0];
+  return [{ ...fallback, label: `${fallback.label} (guessed, please confirm)` }, ...options.slice(1)];
+}
