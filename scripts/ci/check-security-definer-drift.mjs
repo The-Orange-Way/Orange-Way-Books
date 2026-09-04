@@ -88,8 +88,6 @@ function normalizeWs(sql) {
 }
 
 function md5(str) {
-  // Node's crypto, imported lazily so the file has one obvious top section.
-  const { createHash } = require('node:crypto');
   return createHash('md5').update(str).digest('hex');
 }
 
