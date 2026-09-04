@@ -46,6 +46,36 @@ jobs:
 
           echo "repo: $REPO  base(dev): $BASE_BRANCH  head(prod): $HEAD_BRANCH"
 
+          # Only a run driven off the standing dev/prod pair may report green.
+          # The dispatch inputs exist so anyone can force this guard red and
+          # prove it still works, but a dispatch aimed at a matching pair (for
+          # example base=prod, head=prod) compares a branch with itself: both
+          # conditions find nothing and the job would print PASS. That green
+          # posts as a check-run named drift-guard on the sha and carries no
+          # event type and no inputs, so a reader cannot tell it from a real
+          # check. A false red is harmless, a false green is believed. Mark the
+          # proof run here and force it non-zero at the end.
+          PROOF_RUN=0
+          if [ "$BASE_BRANCH" != "dev" ] || [ "$HEAD_BRANCH" != "prod" ]; then
+            PROOF_RUN=1
+            echo "::warning::PROOF RUN: base='${BASE_BRANCH}' head='${HEAD_BRANCH}' is not the standing dev/prod pair. This run exercises the failure path and cannot report green."
+          fi
+
+          # The run log body needs a signed-in reader, so put the resolved pair
+          # where anyone reading the checks list can see it.
+          {
+            echo "### prod-drift-guard"
+            echo ""
+            echo "- repo: \`${REPO}\`"
+            echo "- base (dev): \`${BASE_BRANCH}\`"
+            echo "- head (prod): \`${HEAD_BRANCH}\`"
+            echo "- event: \`${GITHUB_EVENT_NAME:-unknown}\`"
+            if [ "$PROOF_RUN" -ne 0 ]; then
+              echo ""
+              echo "**PROOF RUN.** Not the standing dev/prod pair, so this run cannot report green and is not a verdict on drift."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
           # Resolve both refs. A missing branch must exit non-zero, never pass.
           for ref in "$BASE_BRANCH" "$HEAD_BRANCH"; do
             if ! sha="$(gh api "repos/${REPO}/git/ref/heads/${ref}" --jq '.object.sha' 2>reserr.log)"; then
@@ -108,9 +138,13 @@ jobs:
             # was authored, and take the MINIMUM landing date across ALL of
             # them. commits[0] is ordered by commit date, not by landing
             # date, so the commit that landed earliest is not guaranteed to
-            # be at index 0 once we age by merge time. Bounded: the job
-            # already fails above BEHIND_COMMIT_LIMIT commits, so at most
-            # that many lookups run.
+            # be at index 0 once we age by merge time. Bound: one lookup per
+            # commit in the compare's commits array, which GitHub caps at 250.
+            # Setting fail=1 above does NOT shorten this loop, and we do not
+            # break early on purpose: the oldest-commit age is worth printing
+            # even once the commit-count condition has failed, and a
+            # rate-limited lookup falls back to committer.date, which is
+            # earlier than merged_at and so errs toward failing.
             oldest_epoch=""
             oldest_date=""
             date_source=""
@@ -154,6 +188,11 @@ jobs:
 
           if [ "$fail" -ne 0 ]; then
             echo "prod-drift-guard: FAIL (see errors above)"
+            exit 1
+          fi
+          if [ "$PROOF_RUN" -ne 0 ]; then
+            echo "::error::proof run (base='${BASE_BRANCH}', head='${HEAD_BRANCH}'): the two conditions found nothing to report, but a run that is not comparing dev against prod is not a verdict on drift. Exiting non-zero so it cannot be read as one." >&2
+            echo "prod-drift-guard: PROOF RUN, not a verdict (base=${BASE_BRANCH}, head=${HEAD_BRANCH})"
             exit 1
           fi
           echo "prod-drift-guard: PASS (prod within limits of dev)"
