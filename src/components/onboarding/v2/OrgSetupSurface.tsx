@@ -266,9 +266,13 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
       // organization behind. It also closes the window where a settings row
       // could exist without its verifier: an organization is never visible
       // without the material that opens it. Caller identity comes from
-      // auth.uid() inside the function, never from a parameter here, and every
-      // value below is either ciphertext or a structural plaintext such as the
-      // number format. The org id is generated server side and returned.
+      // auth.uid() inside the function, never from a parameter here. Exactly
+      // four values below are not sealed material: p_key_version,
+      // p_settings_key_version and p_vault_key_version, which record which key
+      // sealed the rest, and p_vault_salt, which is public by design. Every
+      // other value is ciphertext, the number format included: it goes through
+      // encryptOrgSettings like every other settings field, so the server
+      // never sees it. The org id is generated server side and returned.
       const { data: newOrgId, error: rpcError } = await (supabase as any).rpc(
         'create_org_for_current_user',
         {
