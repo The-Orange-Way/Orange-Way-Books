@@ -61,6 +61,22 @@ jobs:
 
           FAILED=0
 
+          # A file counts toward the duplicate checks below only if it has
+          # real content: at least one line that is not blank and not a
+          # comment. A migration can be deliberately emptied to a
+          # comment-only "SUPERSEDED" marker when a duplicate is retired and
+          # no listener seat holds a GitHub file-delete tool to remove the
+          # path outright (OWB-T0176, OWB-T0180). That marker must not
+          # re-trip the very check that would have caught the duplicate it
+          # replaces, or this job goes red on every PR forever.
+          ACTIVE_FILES=""
+          for f in "$MIG_DIR"/*.sql; do
+            [ -e "$f" ] || continue
+            if grep -vE '^[[:space:]]*(--.*)?$' "$f" | grep -q .; then
+              ACTIVE_FILES="${ACTIVE_FILES}${f}"$'\n'
+            fi
+          done
+
           # ---- Check 1: duplicate descriptive name --------------------------
           # The exact case that got through: two files with DIFFERENT
           # timestamps sharing the same name after the leading digits.
@@ -71,11 +87,11 @@ jobs:
           # with a timestamp are considered here; a file with no leading
           # digits has no prefix to strip and is left to check 2 below to
           # ignore, since it cannot collide on a timestamp either.
-          NAME_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | grep -E '^[0-9]+_' | sed -E 's/^[0-9]+_//' | sort | uniq -d)
+          NAME_DUPES=$(printf '%s' "$ACTIVE_FILES" | sed 's|.*/||' | grep -E '^[0-9]+_' | sed -E 's/^[0-9]+_//' | sort | uniq -d)
           if [ -n "$NAME_DUPES" ]; then
             while IFS= read -r NAME; do
               [ -z "$NAME" ] && continue
-              MATCHES=$(ls "$MIG_DIR"/*"_${NAME}" 2>/dev/null | sed 's|.*/||' | sort | tr '\n' ' ' | sed 's/ $//')
+              MATCHES=$(printf '%s' "$ACTIVE_FILES" | sed 's|.*/||' | grep -E "_${NAME}\$" | sort | tr '\n' ' ' | sed 's/ $//')
               echo "::error::duplicate migration name '${NAME}' used by more than one file: ${MATCHES}"
               FAILED=1
             done <<< "$NAME_DUPES"
@@ -86,11 +102,11 @@ jobs:
           # sharing a timestamp mean supabase_migrations.schema_migrations,
           # which stores one row per version, can only ever record one of
           # them, so the other counts as applied whether it ran or not.
-          VERSION_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | cut -d_ -f1 | sort | uniq -d)
+          VERSION_DUPES=$(printf '%s' "$ACTIVE_FILES" | sed 's|.*/||' | cut -d_ -f1 | sort | uniq -d)
           if [ -n "$VERSION_DUPES" ]; then
             while IFS= read -r V; do
               [ -z "$V" ] && continue
-              MATCHES=$(ls "$MIG_DIR"/${V}_*.sql 2>/dev/null | sed 's|.*/||' | sort | tr '\n' ' ' | sed 's/ $//')
+              MATCHES=$(printf '%s' "$ACTIVE_FILES" | sed 's|.*/||' | grep -E "^${V}_" | sort | tr '\n' ' ' | sed 's/ $//')
               echo "::error::duplicate migration timestamp '${V}' used by more than one file: ${MATCHES}"
               FAILED=1
             done <<< "$VERSION_DUPES"
