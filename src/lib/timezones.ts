@@ -54,8 +54,16 @@ export function browserTimezone(): string {
  * first option while the state still holds the seeded value, so the customer
  * reads one timezone and saves another. Returning a list that always contains
  * the current value keeps what is shown and what is stored in agreement.
+ *
+ * `note` is the parenthetical on the injected entry. It defaults to the
+ * onboarding wording, where the zone really did come from the browser. Admin
+ * settings passes its own word, because a zone read back out of the customer's
+ * saved books was not detected by anything.
  */
-export function timezoneOptionsIncluding(zone: string): readonly TimezoneOption[] {
+export function timezoneOptionsIncluding(
+  zone: string,
+  note = 'detected',
+): readonly TimezoneOption[] {
   if (!zone || TIMEZONE_OPTIONS.some((t) => t.value === zone)) return TIMEZONE_OPTIONS;
-  return [{ value: zone, label: `${zone} (detected)` }, ...TIMEZONE_OPTIONS];
+  return [{ value: zone, label: `${zone} (${note})` }, ...TIMEZONE_OPTIONS];
 }
