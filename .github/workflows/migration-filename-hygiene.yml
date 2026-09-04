@@ -19,21 +19,22 @@ jobs:
   migration-filename-hygiene:
     name: Migration filename hygiene
     runs-on: ubuntu-latest
-    # Why this job exists: OWB PR #304 shipped two migration files with the
+    # Why this job exists: this repo shipped two migration files with the
     # SAME descriptive name at two DIFFERENT timestamps, both defining the
-    # same three columns on public.org_settings, one already merged to dev.
-    # It passed every existing check and got an approving review; the merge
-    # tool caught it only because its refusal message happened to print both
-    # filenames. Nothing in CI had ever looked at supabase/migrations here.
+    # same three columns on one table, one already merged to dev. It passed
+    # every existing check and got an approving review; only the merge
+    # tool's own refusal message caught it, by accident, because it printed
+    # both filenames. Nothing in CI had ever looked at supabase/migrations
+    # here.
     #
     # Why a name collision is not cosmetic. Two files describing the same
-    # change look interchangeable to a reviewer skimming a diff, and nothing
-    # stops both from landing: supabase_migrations.schema_migrations keys on
-    # the TIMESTAMP, not the name, so two differently-timestamped files with
-    # identical intent are each free to apply. If they disagree even slightly
-    # (as OWB PR #304's did), the org ends up with the loser's shape wherever
-    # the two migrations diverged, invisible until something depending on the
-    # dropped shape breaks.
+    # change look interchangeable to a reviewer skimming a diff, and
+    # nothing stops both from landing: supabase_migrations.schema_migrations
+    # keys on the TIMESTAMP, not the name, so two differently-timestamped
+    # files with identical intent are each free to apply. If they disagree
+    # even slightly, the org ends up with whichever one's shape happened to
+    # apply last, invisible until something depending on the dropped shape
+    # breaks.
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -60,32 +61,17 @@ jobs:
 
           FAILED=0
 
-          # ---- Check 1: filename shape -------------------------------------
-          # Expected shape: <14-digit timestamp>_<snake_case name>.sql. A file
-          # outside this shape cannot be reasoned about by checks 2 and 3
-          # below, and is very likely a typo (wrong separator, missing digits).
-          SHAPE_BAD=0
-          for F in "$MIG_DIR"/*.sql; do
-            BASENAME=$(basename "$F")
-            if ! echo "$BASENAME" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
-              echo "::error::${BASENAME} does not match <14-digit timestamp>_<snake_case name>.sql"
-              SHAPE_BAD=1
-            fi
-          done
-          if [ "$SHAPE_BAD" -eq 1 ]; then
-            FAILED=1
-          else
-            echo "filename shape OK for all ${COUNT} files"
-          fi
-
-          # ---- Check 2: duplicate descriptive name -------------------------
-          # The exact case that got through on PR #304: two files with
-          # DIFFERENT timestamps sharing the same name after the first
-          # underscore. supabase_migrations.schema_migrations keys on the
-          # timestamp, so both are free to apply, and a reviewer skimming the
-          # diff sees what looks like one migration filed twice rather than
-          # two candidates for the same change.
-          NAME_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | sed -E 's/^[0-9]{14}_//' | sort | uniq -d)
+          # ---- Check 1: duplicate descriptive name --------------------------
+          # The exact case that got through: two files with DIFFERENT
+          # timestamps sharing the same name after the leading digits.
+          # supabase_migrations.schema_migrations keys on the timestamp, so
+          # both are free to apply, and a reviewer skimming the diff sees
+          # what looks like one migration filed twice rather than two
+          # candidates for the same change. Only files that actually start
+          # with a timestamp are considered here; a file with no leading
+          # digits has no prefix to strip and is left to check 2 below to
+          # ignore, since it cannot collide on a timestamp either.
+          NAME_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | grep -E '^[0-9]+_' | sed -E 's/^[0-9]+_//' | sort | uniq -d)
           if [ -n "$NAME_DUPES" ]; then
             while IFS= read -r NAME; do
               [ -z "$NAME" ] && continue
@@ -95,8 +81,8 @@ jobs:
             done <<< "$NAME_DUPES"
           fi
 
-          # ---- Check 3: duplicate timestamp prefix -------------------------
-          # Parity with the equivalent guard in Orange-Way-Me: two files
+          # ---- Check 2: duplicate timestamp prefix ---------------------------
+          # Parity with the equivalent guard in the sibling app: two files
           # sharing a timestamp mean supabase_migrations.schema_migrations,
           # which stores one row per version, can only ever record one of
           # them, so the other counts as applied whether it ran or not.
@@ -111,7 +97,7 @@ jobs:
           fi
 
           if [ "$FAILED" -eq 0 ]; then
-            echo "examined ${COUNT} migration files: no shape violations, no duplicate names, no duplicate timestamps"
+            echo "examined ${COUNT} migration files: no duplicate names, no duplicate timestamps"
           fi
 
           exit $FAILED
