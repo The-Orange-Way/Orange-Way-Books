@@ -1,0 +1,117 @@
+name: Migration filename hygiene
+
+on:
+  pull_request:
+    branches: [dev, prod]
+  push:
+    branches: [dev, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this job only reads the checkout, opens no PR, writes no
+# status, publishes nothing.
+permissions:
+  contents: read
+
+jobs:
+  migration-filename-hygiene:
+    name: Migration filename hygiene
+    runs-on: ubuntu-latest
+    # Why this job exists: OWB PR #304 shipped two migration files with the
+    # SAME descriptive name at two DIFFERENT timestamps, both defining the
+    # same three columns on public.org_settings, one already merged to dev.
+    # It passed every existing check and got an approving review; the merge
+    # tool caught it only because its refusal message happened to print both
+    # filenames. Nothing in CI had ever looked at supabase/migrations here.
+    #
+    # Why a name collision is not cosmetic. Two files describing the same
+    # change look interchangeable to a reviewer skimming a diff, and nothing
+    # stops both from landing: supabase_migrations.schema_migrations keys on
+    # the TIMESTAMP, not the name, so two differently-timestamped files with
+    # identical intent are each free to apply. If they disagree even slightly
+    # (as OWB PR #304's did), the org ends up with the loser's shape wherever
+    # the two migrations diverged, invisible until something depending on the
+    # dropped shape breaks.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check migration filenames
+        run: |
+          set -uo pipefail
+          MIG_DIR="supabase/migrations"
+
+          # Fail loudly rather than green when there is nothing to inspect.
+          # A missing directory or an empty glob must never read as "checked,
+          # all clear" -- see the silent-success guard pattern used across
+          # this org's other CI jobs.
+          if [ ! -d "$MIG_DIR" ]; then
+            echo "::error::${MIG_DIR} does not exist -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+
+          COUNT=$(ls "$MIG_DIR"/*.sql 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No .sql files found under ${MIG_DIR} -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+
+          FAILED=0
+
+          # ---- Check 1: filename shape -------------------------------------
+          # Expected shape: <14-digit timestamp>_<snake_case name>.sql. A file
+          # outside this shape cannot be reasoned about by checks 2 and 3
+          # below, and is very likely a typo (wrong separator, missing digits).
+          SHAPE_BAD=0
+          for F in "$MIG_DIR"/*.sql; do
+            BASENAME=$(basename "$F")
+            if ! echo "$BASENAME" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
+              echo "::error::${BASENAME} does not match <14-digit timestamp>_<snake_case name>.sql"
+              SHAPE_BAD=1
+            fi
+          done
+          if [ "$SHAPE_BAD" -eq 1 ]; then
+            FAILED=1
+          else
+            echo "filename shape OK for all ${COUNT} files"
+          fi
+
+          # ---- Check 2: duplicate descriptive name -------------------------
+          # The exact case that got through on PR #304: two files with
+          # DIFFERENT timestamps sharing the same name after the first
+          # underscore. supabase_migrations.schema_migrations keys on the
+          # timestamp, so both are free to apply, and a reviewer skimming the
+          # diff sees what looks like one migration filed twice rather than
+          # two candidates for the same change.
+          NAME_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | sed -E 's/^[0-9]{14}_//' | sort | uniq -d)
+          if [ -n "$NAME_DUPES" ]; then
+            while IFS= read -r NAME; do
+              [ -z "$NAME" ] && continue
+              MATCHES=$(ls "$MIG_DIR"/*"_${NAME}" 2>/dev/null | sed 's|.*/||' | sort | tr '\n' ' ' | sed 's/ $//')
+              echo "::error::duplicate migration name '${NAME}' used by more than one file: ${MATCHES}"
+              FAILED=1
+            done <<< "$NAME_DUPES"
+          fi
+
+          # ---- Check 3: duplicate timestamp prefix -------------------------
+          # Parity with the equivalent guard in Orange-Way-Me: two files
+          # sharing a timestamp mean supabase_migrations.schema_migrations,
+          # which stores one row per version, can only ever record one of
+          # them, so the other counts as applied whether it ran or not.
+          VERSION_DUPES=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | cut -d_ -f1 | sort | uniq -d)
+          if [ -n "$VERSION_DUPES" ]; then
+            while IFS= read -r V; do
+              [ -z "$V" ] && continue
+              MATCHES=$(ls "$MIG_DIR"/${V}_*.sql 2>/dev/null | sed 's|.*/||' | sort | tr '\n' ' ' | sed 's/ $//')
+              echo "::error::duplicate migration timestamp '${V}' used by more than one file: ${MATCHES}"
+              FAILED=1
+            done <<< "$VERSION_DUPES"
+          fi
+
+          if [ "$FAILED" -eq 0 ]; then
+            echo "examined ${COUNT} migration files: no shape violations, no duplicate names, no duplicate timestamps"
+          fi
+
+          exit $FAILED
