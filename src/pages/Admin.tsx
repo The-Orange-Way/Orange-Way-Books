@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useVault } from '@/context/VaultContext';
 import { MONTH_NAMES } from '@/lib/months';
+import { timezoneOptionsIncluding } from '@/lib/timezones';
 import {
   Settings,
   Users,
@@ -1027,24 +1028,14 @@ function OrganizationTab({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[
-                { value: 'America/New_York', label: 'Eastern Time (US)' },
-                { value: 'America/Chicago', label: 'Central Time (US)' },
-                { value: 'America/Denver', label: 'Mountain Time (US)' },
-                { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-                { value: 'America/Anchorage', label: 'Alaska Time' },
-                { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
-                { value: 'America/Toronto', label: 'Toronto (Eastern)' },
-                { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
-                { value: 'Europe/London', label: 'London (GMT)' },
-                { value: 'Europe/Paris', label: 'Paris (CET)' },
-                { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-                { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-                { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
-                { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-                { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
-                { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
-              ].map((tz) => (
+              {/*
+                The list comes from the shared module, and it is asked to
+                include whatever is stored. A zone outside the curated set is
+                the common case worldwide, and without this the trigger renders
+                blank while the real value sits untouched in state, so the
+                customer reads "no timezone" for a timezone they set.
+              */}
+              {timezoneOptionsIncluding(settings.timezone, 'current setting').map((tz) => (
                 <SelectItem key={tz.value} value={tz.value}>
                   {tz.label}
                 </SelectItem>
