@@ -147,7 +147,7 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
   // rather than the current one so that picking a listed zone does not drop
   // the detected entry out of the list underneath the customer.
   const [detectedTimezone] = useState(browserTimezone);
-  const timezoneOptions = timezoneOptionsIncluding(detectedTimezone);
+  const timezoneOptions = timezoneOptionsForDetection(detectedTimezone);
   const [timezone, setTimezone] = useState(detectedTimezone || timezoneOptions[0].value);
 
   // Same rule as v1 StepOrganization: a name is present once it is non-blank.
