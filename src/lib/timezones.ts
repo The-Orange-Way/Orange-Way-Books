@@ -84,5 +84,8 @@ export function timezoneOptionsForDetection(detectedZone: string): readonly Time
   const options = timezoneOptionsIncluding(detectedZone);
   if (detectedZone) return options;
   const fallback = options[0];
-  return [{ ...fallback, label: `${fallback.label} (guessed, please confirm)` }, ...options.slice(1)];
+  return [
+    { ...fallback, label: `${fallback.label} (guessed, please confirm)` },
+    ...options.slice(1),
+  ];
 }
