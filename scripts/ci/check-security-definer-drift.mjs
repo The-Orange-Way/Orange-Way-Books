@@ -35,7 +35,9 @@ if (!PROJECT_REF) {
   fail('DRIFT_CHECK_PROJECT_REF was not set. Refusing to report green: no target project.');
 }
 if (!ACCESS_TOKEN) {
-  fail('SUPABASE_ACCESS_TOKEN was not set. Refusing to report green: cannot read the live database.');
+  fail(
+    'SUPABASE_ACCESS_TOKEN was not set. Refusing to report green: cannot read the live database.',
+  );
 }
 
 const LIVE_QUERY = `
@@ -64,20 +66,28 @@ async function queryLive() {
       body: JSON.stringify({ query: LIVE_QUERY }),
     });
   } catch (err) {
-    fail(`Could not reach the Supabase Management API for project ${PROJECT_REF}: ${err.message}. Refusing to report green.`);
+    fail(
+      `Could not reach the Supabase Management API for project ${PROJECT_REF}: ${err.message}. Refusing to report green.`,
+    );
   }
   const text = await res.text();
   if (!res.ok) {
-    fail(`Supabase Management API returned ${res.status} for project ${PROJECT_REF}. Body: ${text.slice(0, 500)}. Refusing to report green.`);
+    fail(
+      `Supabase Management API returned ${res.status} for project ${PROJECT_REF}. Body: ${text.slice(0, 500)}. Refusing to report green.`,
+    );
   }
   let rows;
   try {
     rows = JSON.parse(text);
   } catch (err) {
-    fail(`Could not parse the Management API response as JSON: ${err.message}. Refusing to report green.`);
+    fail(
+      `Could not parse the Management API response as JSON: ${err.message}. Refusing to report green.`,
+    );
   }
   if (!Array.isArray(rows)) {
-    fail(`Management API response was not a row array. Refusing to report green. Body: ${text.slice(0, 500)}`);
+    fail(
+      `Management API response was not a row array. Refusing to report green. Body: ${text.slice(0, 500)}`,
+    );
   }
   return rows;
 }
@@ -95,7 +105,8 @@ function md5(str) {
 // nest parens and dollar-quote tags, which a naive regex mishandles.
 function extractFunctionDefinitions(sql) {
   const defs = [];
-  const createRe = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
+  const createRe =
+    /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
   let m;
   while ((m = createRe.exec(sql)) !== null) {
     const name = m[1];
@@ -123,12 +134,18 @@ function extractFunctionDefinitions(sql) {
 function loadMigrationDefinitions() {
   let files;
   try {
-    files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
+    files = readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
   } catch (err) {
-    fail(`Could not read migrations directory ${MIGRATIONS_DIR}: ${err.message}. Refusing to report green.`);
+    fail(
+      `Could not read migrations directory ${MIGRATIONS_DIR}: ${err.message}. Refusing to report green.`,
+    );
   }
   if (files.length === 0) {
-    fail(`Found zero migration files under ${MIGRATIONS_DIR}. Refusing to report green: nothing to compare against.`);
+    fail(
+      `Found zero migration files under ${MIGRATIONS_DIR}. Refusing to report green: nothing to compare against.`,
+    );
   }
   // Filename-order = chronological order, since every file starts with a
   // 14-digit timestamp prefix. Later files override earlier ones per name,
@@ -148,7 +165,9 @@ function unsafeGrantees(acl) {
   // privilege for a function is EXECUTE granted to PUBLIC -- that is unsafe
   // for a SECURITY DEFINER function and must fail exactly like an explicit
   // PUBLIC grant would.
-  if (acl === null || acl === undefined) return ['PUBLIC (no explicit ACL, default privileges apply)'];
+  if (acl === null || acl === undefined) {
+    return ['PUBLIC (no explicit ACL, default privileges apply)'];
+  }
   const inner = acl.replace(/^\{/, '').replace(/\}$/, '');
   if (inner === '') return [];
   const items = inner.split(',');
@@ -174,7 +193,9 @@ async function main() {
     const def = migrationDefs.get(row.name);
     if (!def) {
       failed++;
-      problems.push(`${row.name}: SECURITY DEFINER live, but no CREATE FUNCTION for it was found in any file under ${MIGRATIONS_DIR}. No provenance.`);
+      problems.push(
+        `${row.name}: SECURITY DEFINER live, but no CREATE FUNCTION for it was found in any file under ${MIGRATIONS_DIR}. No provenance.`,
+      );
       continue;
     }
     const liveNorm = normalizeWs(row.body);
@@ -184,8 +205,7 @@ async function main() {
     if (liveMd5 !== fileMd5) {
       failed++;
       problems.push(
-        `${row.name}: LIVE body (md5 ${liveMd5}, ${liveNorm.length} chars normalized) does not match ` +
-        `${def.file} (md5 ${fileMd5}, ${fileNorm.length} chars normalized). The database and the migration file have diverged.`
+        `${row.name}: LIVE body (md5 ${liveMd5}, ${liveNorm.length} chars normalized) does not match ${def.file} (md5 ${fileMd5}, ${fileNorm.length} chars normalized). The database and the migration file have diverged.`,
       );
     }
     const bad = unsafeGrantees(row.acl);
@@ -201,7 +221,9 @@ async function main() {
   }
 
   if (compared === 0) {
-    fail('Compared zero SECURITY DEFINER functions. That is either an empty database or a query that silently matched nothing; either way this run proves nothing and must not pass.');
+    fail(
+      'Compared zero SECURITY DEFINER functions. That is either an empty database or a query that silently matched nothing; either way this run proves nothing and must not pass.',
+    );
   }
 
   if (failed > 0) {
@@ -210,7 +232,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('security-definer-drift-check: PASS (every live SECURITY DEFINER function matches its migration file, no unsafe grants)');
+  console.log(
+    'security-definer-drift-check: PASS (every live SECURITY DEFINER function matches its migration file, no unsafe grants)',
+  );
 }
 
 main();
