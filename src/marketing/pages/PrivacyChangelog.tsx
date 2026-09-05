@@ -30,6 +30,16 @@ export default function PrivacyChangelog() {
 
         <section className="space-y-6">
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.09.05</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Corrected the Controller section: entity name and registered address updated to
+                the company's current legal identity and address.
+              </li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26c</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
