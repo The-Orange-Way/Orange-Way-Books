@@ -9,8 +9,7 @@
 // WHY: supabase_migrations.schema_migrations proves a migration FILENAME
 // ran. It does not prove the live object still matches the file, and it
 // does not prove the object's existence and the ledger agree at all. Three
-// failure shapes, all measured live on this estate (OWB-T0164, widened by
-// the DBA on 2026-09-04 after the Auditor's OWM DEV measurement):
+// failure shapes, all measured live on this estate:
 //   (1) file says X, live object says Y                  (body/grant drift)
 //   (2) ledger says a migration ran, the object is absent (silent loss)
 //   (3) the object exists live, the ledger has no row for it (silent gap)
