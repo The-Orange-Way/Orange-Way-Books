@@ -25,6 +25,11 @@
 #   BEHIND_HOURS_LIMIT    max age in hours of the oldest unpromoted commit
 #   GH_TOKEN              token for the gh api calls
 #   REPO                  owner/name
+#   BEHIND_JSON_OVERRIDE  optional, test only. A synthetic compare JSON to
+#                         use instead of a live 'gh api compare' call for
+#                         the unpromoted-commit check, so a test can drive
+#                         the landing-clock/age logic with a fake commit.
+#                         Unset in every real run.
 
 set -euo pipefail
 
