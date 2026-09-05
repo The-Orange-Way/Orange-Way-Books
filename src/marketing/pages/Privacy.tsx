@@ -433,7 +433,7 @@ export default function Privacy() {
         <Section title="Contact">
           <p className="text-muted-foreground">
             For privacy questions, data-rights requests, or breach notifications, write to
-            privacy@orangeway.app or to the postal address above. We aim to respond within 30 days
+            hello@orangeway.app or to the postal address above. We aim to respond within 30 days
             as required by GDPR Art. 12 and equivalent statutes.
           </p>
         </Section>
