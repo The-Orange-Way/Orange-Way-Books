@@ -82,6 +82,16 @@ jobs:
           fi
           echo "Target confirmed: the configured secret matches the ref you supplied."
 
+          # Prod is two-party (CTO + founder). A dispatch that targets the OWB
+          # production project must be launched from the prod branch, so a
+          # feature branch cannot ship untested code to production edge
+          # functions. This compares the configured ref to a fixed constant;
+          # it never prints the configured secret's value.
+          if [ "$CONFIGURED" = "mgnlerblrfetziusbjrt" ] && [ "${{ github.ref }}" != "refs/heads/prod" ]; then
+            echo "::error::This dispatch targets the OWB production project but was launched from ${{ github.ref }}, not refs/heads/prod. Nothing was deployed. Re-run this workflow from the prod branch."
+            exit 1
+          fi
+
   discover:
     needs: assert-target
     if: ${{ !inputs.dry_run }}
@@ -91,6 +101,8 @@ jobs:
       count: ${{ steps.list.outputs.count }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - name: List every function under supabase/functions
         id: list
@@ -123,6 +135,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - uses: supabase/setup-cli@v3
         with:
@@ -150,7 +164,7 @@ jobs:
     steps:
       - name: Say how many functions were deployed
         run: |
-          echo "Discovered ${{ needs.discover.outputs.count }} function(s); deploy result: ${{ needs.deploy.result }}"
+          echo "Discovered ${{ needs.discover.outputs.count }} function(s) at ${{ github.sha }}; deploy result: ${{ needs.deploy.result }}"
           if [ "${{ needs.deploy.result }}" != "success" ]; then
             echo "::error::At least one function failed to deploy. Treat the set as partially deployed."
             exit 1
