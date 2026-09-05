@@ -24,17 +24,22 @@
  * Supabase admin API, so it needs no separate provisioning step in CI.
  *
  * What it asserts (each one a hard expect):
- *   01 — /signup form renders, email + password fields visible
- *   02 — After signup submit, vault-setup screen appears
- *   03 — Vault password fill + Continue → recovery code screen with 12 words
- *   04 — Recovery code visible, copy text + checkbox + Continue
- *   05 — Verify-words step with 3 inputs, fill correctly, Confirm
- *   06 — Org name input renders, fill, Continue
+ *   01 — /login renders, sign in with the walk's own fixture user
+ *   02-06c — the v2 7-step wizard (DL-0429): name, email (session-skip),
+ *            education, vault password, recovery kit display + type-back
+ *            verify, success
+ *   06d-06f — OrgSetupSurface (DL-0718): org name, currency, fiscal year +
+ *            timezone, which runs handleFinish (create_org_for_current_user)
  *   07 — Ledger bootstrap completes (≤45s) — sidebar appears
  *   08 — Dashboard renders with NO "Finishing setup…" pill
  *   09 — chart_of_accounts page lists 43 default accounts
  *   10 — master-recovery page renders the heading (React #310 regression)
  *   11 (DL-0720/0721): admin settings reads back April fiscal start and Eastern timezone
+ *
+ * Walks the v2 onboarding wizard (VITE_ONBOARDING_V2), not v1's
+ * OnboardingWizard: this build sets the flag 'true' for the E2E bundle
+ * (OW-T0112 / PR #322), matching what deploy.yml already ships on dev, so
+ * the walk exercises the same code path a real dev user hits.
  *
  * Read-only environment: only OWB DEV (project ref allowlisted in the
  * provision script). Refuses to run on PROD.
@@ -263,42 +268,63 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await page.locator('button[type="submit"]').first().click();
     await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
 
-    // 02 — vault-setup screen appears (user signed in but has no org,
-    // OnboardingWizard renders the StepVaultPassword form)
+    // 02 — StepName (v2 step 1 of 7, DL-0429): first-name field is optional,
+    // fill it and Continue.
     await page.waitForTimeout(2_000);
+    const nameInput = page.getByPlaceholder('First name');
+    await expect(nameInput, 'onboarding name field').toBeVisible({ timeout: 15_000 });
+    await nameInput.fill('E2E Walk');
+    await clickWizardButton(page, /Continue/i);
 
-    const vaultSetup = page.locator('input[placeholder*="Minimum 14"]').first();
-    await expect(vaultSetup, 'vault password setup field (Minimum 14)').toBeVisible({
-      timeout: 15_000,
-    });
+    // 03 — StepEmail (v2 step 2 of 7). The wizard mounts post-auth, so this
+    // step detects the live session, skips the OTP round trip, and shows
+    // "Signed in as <email>" with a plain Continue instead.
+    await expect(
+      page.getByText(/Signed in as/i),
+      'onboarding email step recognizes the live session',
+    ).toBeVisible({ timeout: 15_000 });
+    await clickWizardButton(page, /Continue/i);
 
-    // 03 — fill vault password + continue → recovery code screen
-    await vaultSetup.fill(VAULT_PW);
-    await page.locator('input[placeholder*="Re-enter"]').first().fill(VAULT_PW);
-    await page.locator('button:has-text("Continue")').first().click();
-    await page.waitForSelector('[data-testid="recovery-code-grid"]', { timeout: 30_000 });
+    // 04 — StepEducation (v2 step 3 of 7): one non-skippable screen, "Got it".
+    await expect(
+      page.getByText('Your money stays yours.'),
+      'onboarding education screen',
+    ).toBeVisible({ timeout: 15_000 });
+    await clickWizardButton(page, /Got it/i);
 
-    // 04 — recovery code visible, capture words
+    // 05 — StepVaultPassword (v2 step 4 of 7). Same MIN_VAULT_PASSWORD_LENGTH
+    // and zxcvbn >= 4 gate v1 uses, different DOM: aria-label fields, not a
+    // "Minimum 14" placeholder.
+    const vaultPw = page.getByLabel('Vault password', { exact: true });
+    await expect(vaultPw, 'vault password field').toBeVisible({ timeout: 15_000 });
+    await vaultPw.fill(VAULT_PW);
+    await page.getByLabel('Confirm vault password', { exact: true }).fill(VAULT_PW);
+    const vaultAckCb = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
+    await vaultAckCb.click({ force: true });
+    await clickWizardButton(page, /Set my password/i);
+
+    // 06 — StepRecovery, display stage (v2 step 5 of 7, "staged" mode): 12
+    // words under data-testid="recovery-words", captured by position.
+    await page.waitForSelector('[data-testid="recovery-words"]', { timeout: 30_000 });
     const wordsByPos: Record<number, string> = await page.evaluate(() => {
       const map: Record<number, string> = {};
-      for (const c of Array.from(document.querySelectorAll('div'))) {
-        const spans = c.querySelectorAll(':scope > span');
-        if (spans.length !== 2) continue;
-        const m = (spans[0].textContent || '').trim().match(/^(\d+)\.?$/);
-        const w = (spans[1].textContent || '').trim();
-        if (m && /^[a-z]+$/.test(w)) map[parseInt(m[1])] = w;
-      }
+      const items = document.querySelectorAll('[data-testid="recovery-words"] > li');
+      items.forEach((li, i) => {
+        const spans = li.querySelectorAll(':scope > span');
+        const w = (spans[1]?.textContent || '').trim();
+        if (w) map[i + 1] = w;
+      });
       return map;
     });
     expect(Object.keys(wordsByPos).length, 'recovery code should yield 12 words').toBe(12);
-    const cb = page.locator('button[role="checkbox"], input[type="checkbox"]').first();
-    if ((await cb.count()) > 0)
-      await cb.check({ force: true }).catch(async () => {
-        await cb.click({ force: true }).catch(() => {});
-      });
-    await page.locator('button:has-text("Continue")').first().click({ force: true });
+    const recoveryConfirmCb = page
+      .locator('button[role="checkbox"], input[type="checkbox"]')
+      .first();
+    await recoveryConfirmCb.click({ force: true });
+    await clickWizardButton(page, /I've written it down/i);
 
-    // 05 — verify-words step
+    // 06b — StepRecovery, verify stage (still v2 step 5 of 7): type back the
+    // 3 highlighted words, matched by position from the captured code.
     await page.waitForSelector('[data-testid="recovery-verify-block"]', { timeout: 15_000 });
     for (const inp of await page.locator('[data-testid^="verify-word-"]').all()) {
       const tid = await inp.getAttribute('data-testid');
@@ -306,40 +332,36 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       const w = wordsByPos[z + 1];
       if (w) await inp.fill(w);
     }
-    await page.locator('button:has-text("Confirm")').first().click({ force: true });
+    await clickWizardButton(page, /Confirm and continue/i);
 
-    // 06: org name (StepOrganization). Fill the name, then Continue to
-    // advance to StepReporting.
-    await page.waitForTimeout(2_000);
-    const orgIn = page.locator('input:visible').first();
-    await expect(orgIn, 'org name input').toBeVisible({ timeout: 10_000 });
+    // 06c — StepSuccess (v2 step 6 of 7, last wizard step). Either CTA hands
+    // off to OrgSetupSurface.
+    await expect(page.getByText("You're all set."), 'onboarding success screen').toBeVisible({
+      timeout: 15_000,
+    });
+    await clickWizardButton(page, /Make my first entry/i);
+
+    // 06d — OrgSetupSurface screen 1/3: organization name.
+    const orgIn = page.locator('#org-name');
+    await expect(orgIn, 'org name input').toBeVisible({ timeout: 15_000 });
     await orgIn.fill(ORG_NAME);
-    await page
-      .locator('button:visible:not([disabled])')
-      .filter({ hasText: /Continue|Next/i })
-      .first()
-      .click({ force: true });
+    await clickWizardButton(page, /Continue/i);
 
-    // 06b (DL-0721): StepReporting. Set the reporting timezone to Eastern
-    // through the onboarding picker and assert the trigger reflects it, then
-    // Continue. This is the value read back on the Admin page in step 11 to
-    // prove the encrypt/decrypt round-trip.
-    const onbTimezone = page.getByTestId('onboarding-timezone');
-    await expect(onbTimezone, 'onboarding timezone picker').toBeVisible({ timeout: 15_000 });
-    await onbTimezone.click();
-    await page.getByRole('option', { name: 'Eastern Time (US)', exact: true }).click();
-    await expect(onbTimezone, 'onboarding timezone set to Eastern').toContainText('Eastern');
-    await clickWizardButton(page, /Continue|Next/i);
+    // 06e — OrgSetupSurface screen 2/3: currencies. Native <select>, no
+    // Radix popup, so no pointer-events race to guard against here.
+    const primaryCurrency = page.locator('#primary-currency');
+    await expect(primaryCurrency, 'primary currency select').toBeVisible({ timeout: 15_000 });
+    await primaryCurrency.selectOption('BTC');
+    await clickWizardButton(page, /Continue/i);
 
-    // 06c (DL-0720): StepCalendar. Set the fiscal year start to April through
-    // the onboarding picker, assert the trigger reflects it, then Create
-    // Organization (the final wizard step, which runs handleFinish).
-    const onbFiscal = page.getByTestId('onboarding-fiscal-month');
-    await expect(onbFiscal, 'onboarding fiscal-month picker').toBeVisible({ timeout: 15_000 });
-    await onbFiscal.click();
-    await page.getByRole('option', { name: 'April', exact: true }).click();
-    await expect(onbFiscal, 'onboarding fiscal month set to April').toContainText('April');
-    await clickWizardButton(page, /Create Organization|Finish|Done/i);
+    // 06f (DL-0720/0721 parity): OrgSetupSurface screen 3/3: fiscal year
+    // start and timezone, both read back on the Admin page in step 11.
+    const fiscalSelect = page.locator('#fiscal-year-start');
+    await expect(fiscalSelect, 'fiscal year start select').toBeVisible({ timeout: 15_000 });
+    await fiscalSelect.selectOption('april');
+    const timezoneSelect = page.locator('#timezone');
+    await timezoneSelect.selectOption('America/New_York');
+    await clickWizardButton(page, /Open my books/i);
 
     // 07 — ledger bootstrap; wait up to 45s for sidebar
     await expect(
