@@ -13,16 +13,14 @@ Last updated: 2026-07-13. Effective on the same date.
 
 ## 1. Who we are
 
-Orange Way Books is operated by Morning Revolution, an Ontario-domiciled
-operator. References to "we", "us", or "Orange Way Books" in this
-document mean the operator. References to "you" mean the individual or
-organisation creating an account or self-hosting the software.
+Orange Way Books is operated by The Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada. References to "we", "us", or "Orange Way Books" in this document mean the operator. References to "you" mean the individual or organisation creating an account or self-hosting the software.
 
-General and legal contact is `legal@orangeway.app`, the same address
-printed on the public Terms page at `/terms`. Privacy requests go to the
-contact named in the Contact section of the public Privacy page at
-`/privacy`. The public Contact page at `/contact` lists the other
-channels (public issue tracker, private security advisories).
+General contact is `hello@orangeway.app`. Billing and legal contact is
+`legal@orangeway.app`, the same address printed on the public Terms page
+at `/terms`. Privacy requests go to the contact named in the Contact
+section of the public Privacy page at `/privacy`. The public Contact
+page at `/contact` lists the other channels (public issue tracker,
+private security advisories).
 
 ## 2. The service
 
