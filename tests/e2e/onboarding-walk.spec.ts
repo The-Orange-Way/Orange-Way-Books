@@ -369,26 +369,29 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders, no "Finishing setup…"
+    // 08: dashboard renders; ledger_status must actually be 'ready', not
+    // just "not showing the literal string Finishing setup...". Both the
+    // ready and the failed pill share that same absence, so a text check
+    // cannot tell them apart (see OWB-T0190). Assert on the real
+    // data-ledger-status attribute instead: fail fast if the seed errored,
+    // and wait for the ready state rather than a fixed sleep.
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2_000);
-    const stillFinishing = await page
-      .locator('text=Finishing setup')
-      .first()
-      .isVisible({ timeout: 500 })
-      .catch(() => false);
-    expect(
-      stillFinishing,
-      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
-    ).toBe(false);
+    const failedPill = page.locator('[data-testid="ledger-status-pill"][data-ledger-status="failed"]');
+    await expect(
+      failedPill,
+      'ledger status must not be "failed", chart-of-accounts seed errored',
+    ).toHaveCount(0);
+    const readyPill = page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]');
+    await expect(
+      readyPill,
+      'ledger status must reach "ready" (data-ledger-status="ready")',
+    ).toBeAttached({ timeout: 30_000 });
 
-    // 09 — chart_of_accounts seed verification.
-    // Direct REST queries from the browser would need either an exposed
-    // publishable-key global or session token shenanigans. Skip — step 07
-    // (sidebar visible) and step 08 (no "Finishing setup…" pill) already
-    // prove initChartOfAccounts ran to completion without throwing, since
-    // OnboardingWizard.tsx writes ledger_status='ready' AFTER the loop and
-    // step 08 verifies that state surfaced to the dashboard.
+    // 09: chart_of_accounts seed verification is now covered by step 08.
+    // data-ledger-status="ready" is only written after initChartOfAccounts
+    // completes (OnboardingWizard.tsx), and data-ledger-status="failed" is
+    // asserted absent above, so a broken seed fails here instead of passing
+    // through silently.
 
     // 10 — master-recovery page renders (React #310 regression).
     // page.goto reloads the SPA which loses the in-memory MEK; need to
