@@ -81,9 +81,7 @@ check('planted body mismatch fails by name (acceptance item 1)', () => {
   const history = historyFor(RPC_NAME, GOOD_BODY, RPC_VERSION, RPC_FILE);
   const result = compareAll(live, defs, ledger, history);
   assert.ok(result.failed > 0, 'expected a failure, got none');
-  const named = result.problems.some(
-    (p) => p.includes(RPC_NAME) && p.includes('does not match'),
-  );
+  const named = result.problems.some((p) => p.includes(RPC_NAME) && p.includes('does not match'));
   const got = result.problems.join(' | ');
   assert.ok(named, `expected a body-mismatch problem naming the function, got: ${got}`);
 });
@@ -106,7 +104,9 @@ check('explicit PUBLIC grant fails by name', () => {
   const ledger = new Set(['20260101000000']);
   const history = historyFor('foo', GOOD_BODY, '20260101000000', 'x.sql');
   const result = compareAll(live, defs, ledger, history);
-  const found = result.problems.some((p) => p.includes('foo') && p.includes('unsafe EXECUTE grant'));
+  const found = result.problems.some(
+    (p) => p.includes('foo') && p.includes('unsafe EXECUTE grant'),
+  );
   assert.ok(found, `got: ${result.problems.join(' | ')}`);
 });
 
@@ -133,7 +133,9 @@ check('live function with no migration provenance fails by name', () => {
   const ledger = new Set();
   const history = new Map();
   const result = compareAll(live, defs, ledger, history);
-  const found = result.problems.some((p) => p.includes('mystery_fn') && p.includes('No provenance'));
+  const found = result.problems.some(
+    (p) => p.includes('mystery_fn') && p.includes('No provenance'),
+  );
   assert.ok(found, `got: ${result.problems.join(' | ')}`);
 });
 
@@ -147,7 +149,9 @@ check('ledger direction a: applied migration, missing object, not retired -> fai
   const entry = { action: 'create', version, file, body: GOOD_BODY };
   const history = new Map([['ghost_fn', entry]]);
   const result = compareAll(live, defs, ledger, history);
-  const found = result.problems.some((p) => p.includes('ghost_fn') && p.includes('does not exist live'));
+  const found = result.problems.some(
+    (p) => p.includes('ghost_fn') && p.includes('does not exist live'),
+  );
   assert.ok(found, `got: ${result.problems.join(' | ')}`);
 });
 
@@ -163,7 +167,11 @@ check('ledger direction a: a later ledgered DROP for the same name is not flagge
   const history = new Map([['retired_fn', dropEntry]]);
   const result = compareAll(live, defs, ledger, history);
   const got = result.problems.join(' | ');
-  assert.equal(result.failed, 0, `a legitimately dropped function must not be flagged, got: ${got}`);
+  assert.equal(
+    result.failed,
+    0,
+    `a legitimately dropped function must not be flagged, got: ${got}`,
+  );
 });
 
 // --- ledger direction (b): live and file-faithful, but ledger has no row ---
