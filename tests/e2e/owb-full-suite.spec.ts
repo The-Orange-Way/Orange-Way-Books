@@ -36,7 +36,7 @@ async function shot(page: Page, label: string) {
 }
 
 async function gotoAuthed(page: Page, url: string) {
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await unlockVaultIfNeeded(page);
   // Hard assertion: not on the lock screen. Without this every C/D/E test
   // silently passed even though the screenshot showed the vault unlock UI.
@@ -86,8 +86,9 @@ test.describe('A. Anonymous marketing', () => {
     '/docs',
   ]) {
     test(`A ${p} loads`, async ({ page }) => {
-      const res = await page.goto(p, { waitUntil: 'networkidle' });
+      const res = await page.goto(p, { waitUntil: 'domcontentloaded' });
       expect(res?.status() ?? 0, p).toBeLessThan(400);
+      await page.waitForTimeout(500);
       await shot(page, `anon${p.replace(/\//g, '-') || '-root'}`);
     });
   }
@@ -97,7 +98,8 @@ test.describe('A. Anonymous marketing', () => {
 
 test.describe('B. Sign in + vault unlock', () => {
   test('B1 /login renders', async ({ page }) => {
-    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(500);
     await shot(page, 'login-screen');
     await expect(page.locator('input[type="email"]').first()).toBeVisible();
     await expect(page.locator('input[type="password"]').first()).toBeVisible();
