@@ -8,6 +8,11 @@ name: prod-drift-guard
 #   2. dev runs too far ahead of prod: unpromoted commits over the divergence
 #      limit (50 commits, or the oldest unpromoted commit older than 72 hours).
 # A branch that cannot be resolved exits non-zero. "Could not check" is never green.
+#
+# The guard itself lives in scripts/prod-drift-guard.sh. It is a script and not
+# an inline run block so that the negative-control job below can execute the
+# SAME code and assert it refuses to report green. A negative control that
+# re-implements the thing it tests, tests nothing.
 
 on:
   push:
@@ -37,123 +42,56 @@ jobs:
       BEHIND_COMMIT_LIMIT: '50'
       BEHIND_HOURS_LIMIT: '72'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Check prod vs dev drift
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+        run: bash scripts/prod-drift-guard.sh
+
+  drift-guard-negative-control:
+    name: Drift guard refuses what it must
+    runs-on: ubuntu-latest
+    # Deliberately NOT the standing dev/prod pair. base=prod against head=prod
+    # compares a branch with itself, so both of the guard's conditions find
+    # nothing: this is exactly the input that used to make the guard print PASS.
+    env:
+      BASE_BRANCH: prod
+      HEAD_BRANCH: prod
+      BEHIND_COMMIT_LIMIT: '50'
+      BEHIND_HOURS_LIMIT: '72'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: The guard must refuse a run that is not comparing dev against prod
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
-          echo "repo: $REPO  base(dev): $BASE_BRANCH  head(prod): $HEAD_BRANCH"
+          rc=0
+          bash scripts/prod-drift-guard.sh > proof-run.log 2>&1 || rc=$?
+          echo "--- guard output (exit ${rc}) ---"
+          cat proof-run.log
+          echo "--- end guard output ---"
 
-          # Resolve both refs. A missing branch must exit non-zero, never pass.
-          for ref in "$BASE_BRANCH" "$HEAD_BRANCH"; do
-            if ! sha="$(gh api "repos/${REPO}/git/ref/heads/${ref}" --jq '.object.sha' 2>reserr.log)"; then
-              echo "::error::could not resolve branch '${ref}' in ${REPO}. Refusing to report green." >&2
-              cat reserr.log >&2
-              exit 1
-            fi
-            echo "resolved ${ref} = ${sha}"
-          done
-
-          fail=0
-
-          # 1. prod ahead of dev. What must never happen is prod carrying WORK
-          #    that dev does not have. A commit count does not measure that:
-          #    every promotion leaves a merge commit on prod that dev never
-          #    receives, and those commits change no file. Drive the failure off
-          #    the compare's CONTENT instead.
-          ahead_json="$(gh api "repos/${REPO}/compare/${BASE_BRANCH}...${HEAD_BRANCH}")"
-          prod_ahead="$(echo "$ahead_json" | jq -r '.ahead_by')"
-          if [ "$prod_ahead" = "null" ] || [ -z "$prod_ahead" ]; then
-            echo "::error::compare returned no ahead_by; refusing to pass." >&2
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::negative control FAILED: the guard reported green with base='${BASE_BRANCH}' head='${HEAD_BRANCH}'. A run that is not comparing dev against prod is not a verdict on drift and must never end successfully." >&2
             exit 1
           fi
-          echo "prod is ahead of dev by ${prod_ahead} commit(s)"
-          if [ "$prod_ahead" -gt 0 ]; then
-            # An absent files array is NOT the same fact as an empty one. A
-            # compare the API declined to diff must never read as clean.
-            if [ "$(echo "$ahead_json" | jq -r 'has("files")')" != "true" ]; then
-              echo "::error::prod is ahead by ${prod_ahead} commit(s) and the compare carried no files array, so prod-only content could not be checked. Refusing to report green." >&2
-              exit 1
-            fi
-            prod_only_files="$(echo "$ahead_json" | jq -r '.files | length')"
-            if [ "$prod_only_files" -gt 0 ]; then
-              echo "::error::prod carries ${prod_only_files} file(s) of content that are NOT in dev. prod must never lead dev: back-merge prod into dev." >&2
-              echo "$ahead_json" | jq -r '.files[] | "  prod-only path \(.status) \(.filename)"' >&2
-              echo "$ahead_json" | jq -r '.commits[] | "  prod-only commit \(.sha[0:9]) \(.commit.message | split("\n")[0])"' >&2
-              fail=1
-            else
-              echo "::notice::prod is ahead of dev by ${prod_ahead} commit(s) that change no files (promotion merge commits). No prod-only content, so this is not drift."
-              echo "$ahead_json" | jq -r '.commits[] | "  content-free prod-only commit \(.sha[0:9]) \(.commit.message | split("\n")[0])"'
-            fi
-          fi
 
-          # 2. dev ahead of prod: unpromoted commits over the divergence limit.
-          behind_json="$(gh api "repos/${REPO}/compare/${HEAD_BRANCH}...${BASE_BRANCH}")"
-          unpromoted="$(echo "$behind_json" | jq -r '.ahead_by')"
-          if [ "$unpromoted" = "null" ] || [ -z "$unpromoted" ]; then
-            echo "::error::compare returned no ahead_by for unpromoted count; refusing to pass." >&2
+          # Exit code alone is not enough. The guard can go red for reasons that
+          # have nothing to do with the refusal we are proving (an unresolvable
+          # branch, a compare the API declined). Require the refusal's own line,
+          # or this control would report green on the day the refusal stopped
+          # working.
+          if ! grep -q 'PROOF RUN, not a verdict' proof-run.log; then
+            echo "::error::negative control FAILED: the guard exited ${rc}, but not for the proof-run reason, so this run does not prove the refusal still works. See the guard output above." >&2
             exit 1
           fi
-          echo "dev has ${unpromoted} unpromoted commit(s) ahead of prod"
 
-          if [ "$unpromoted" -gt "$BEHIND_COMMIT_LIMIT" ]; then
-            echo "::error::dev is ${unpromoted} commits ahead of prod, over the ${BEHIND_COMMIT_LIMIT}-commit limit. Promote dev to prod." >&2
-            fail=1
-          fi
-
-          if [ "$unpromoted" -gt 0 ]; then
-            # Age from when each unpromoted commit LANDED on dev, not when it
-            # was authored, and take the MINIMUM landing date across ALL of
-            # them. commits[0] is ordered by commit date, not by landing
-            # date, so the commit that landed earliest is not guaranteed to
-            # be at index 0 once we age by merge time. Bounded: the job
-            # already fails above BEHIND_COMMIT_LIMIT commits, so at most
-            # that many lookups run.
-            oldest_epoch=""
-            oldest_date=""
-            date_source=""
-            commit_count="$(echo "$behind_json" | jq -r '.commits | length')"
-            for i in $(seq 0 $((commit_count - 1))); do
-              sha="$(echo "$behind_json" | jq -r ".commits[$i].sha")"
-
-              # Prefer the EARLIEST merge time among the PRs that carried this
-              # commit; fall back to the commit's own committer date only
-              # when no merging PR is found (a commit pushed straight to dev).
-              pulls_json="$(gh api "repos/${REPO}/commits/${sha}/pulls" 2>/dev/null || echo '[]')"
-              commit_date="$(echo "$pulls_json" | jq -r '[.[] | select(.merged_at != null) | .merged_at] | sort | .[0] // empty')"
-              src="pr-merged_at"
-              if [ -z "$commit_date" ]; then
-                commit_date="$(echo "$behind_json" | jq -r ".commits[$i].commit.committer.date")"
-                src="committer.date (no merging PR found, fallback)"
-              fi
-              if [ "$commit_date" = "null" ] || [ -z "$commit_date" ]; then
-                continue
-              fi
-
-              commit_epoch="$(date -u -d "$commit_date" +%s)"
-              if [ -z "$oldest_epoch" ] || [ "$commit_epoch" -lt "$oldest_epoch" ]; then
-                oldest_epoch="$commit_epoch"
-                oldest_date="$commit_date"
-                date_source="$src"
-              fi
-            done
-            if [ -z "$oldest_epoch" ]; then
-              echo "::error::have unpromoted commits but could not read a landing date for any of them; refusing to pass." >&2
-              exit 1
-            fi
-            now_epoch="$(date -u +%s)"
-            age_hours=$(( (now_epoch - oldest_epoch) / 3600 ))
-            echo "oldest unpromoted commit is ${age_hours} hour(s) old (${oldest_date}, source: ${date_source})"
-            if [ "$age_hours" -gt "$BEHIND_HOURS_LIMIT" ]; then
-              echo "::error::oldest unpromoted commit is ${age_hours} hours old, over the ${BEHIND_HOURS_LIMIT}-hour limit. Promote dev to prod." >&2
-              fail=1
-            fi
-          fi
-
-          if [ "$fail" -ne 0 ]; then
-            echo "prod-drift-guard: FAIL (see errors above)"
-            exit 1
-          fi
-          echo "prod-drift-guard: PASS (prod within limits of dev)"
+          echo "negative control PASS: the guard exited ${rc} and refused the proof run."
