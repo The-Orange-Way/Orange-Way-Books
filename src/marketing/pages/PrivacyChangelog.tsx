@@ -34,7 +34,7 @@ export default function PrivacyChangelog() {
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
                 Corrected the Controller section: entity name and registered address updated to
-                the company's current legal identity and address.
+                match the settled legal identity and address of record.
               </li>
             </ul>
           </div>
