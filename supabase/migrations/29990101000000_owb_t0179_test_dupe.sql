@@ -1,0 +1,5 @@
+-- RETIRED test fixture for OWB-T0179. It briefly proved the migration-filename-hygiene
+-- check goes red on a seeded duplicate name (captured: run 33892077869, job
+-- 101085906947, https://github.com/The-Orange-Way/Orange-Way-Books/actions/runs/33892077869/job/101085906947).
+-- Emptied to a comment-only marker rather than deleted, because no listener seat holds a
+-- GitHub file-delete tool (same limitation as OWB-T0176/OWB-T0180). Executes nothing.

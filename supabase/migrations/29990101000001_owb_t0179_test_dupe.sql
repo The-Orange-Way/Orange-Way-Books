@@ -1,0 +1,2 @@
+-- RETIRED test fixture for OWB-T0179. Paired with 29990101000000_owb_t0179_test_dupe.sql;
+-- see that file for why it is an empty marker instead of a deleted path.
