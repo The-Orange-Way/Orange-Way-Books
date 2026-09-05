@@ -36,9 +36,9 @@ export interface RenderContext {
 }
 
 const LEGAL_FOOTER_TEXT =
-  '\n\n--\nThe Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada';
+  '\n\n--\nThe Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada\nhello@orangeway.app';
 const LEGAL_FOOTER_HTML =
-  '<p style="color:#64748b;font-size:12px">The Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada</p>';
+  '<p style="color:#64748b;font-size:12px">The Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada<br>hello@orangeway.app</p>';
 
 function wrap(subject: string, body: string): RenderedEmail {
   const html = `<!doctype html><html><body style="font:14px/1.5 system-ui,sans-serif;color:#0f172a"><p>${body.replace(/\n\n/g, '</p><p>')}</p>${LEGAL_FOOTER_HTML}</body></html>`;
