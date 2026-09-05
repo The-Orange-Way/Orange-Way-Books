@@ -1,6 +1,6 @@
 name: guard auto-merge arming
 
-# Why this exists (OWM-T0555, out of OWM-T0552).
+# Why this exists.
 #
 # Our merge control is "the builder does not press merge." Nothing anywhere
 # checks "the builder did not ARM a merge" -- arming auto-merge is a write
