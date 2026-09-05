@@ -21,7 +21,22 @@ export default function Contact() {
           channels below.
         </p>
 
+        <address className="not-italic text-muted-foreground mb-10">
+          The Orange Way Inc
+          <br />
+          620 Veterans Drive Suite 12
+          <br />
+          Barrie, ON L4N9J4
+          <br />
+          Canada
+        </address>
+
         <div className="space-y-6">
+          <ContactRow
+            label="General inquiries"
+            href="mailto:hello@orangeway.app"
+            body="hello@orangeway.app"
+          />
           <ContactRow
             label="GitHub Issues"
             href="https://github.com/The-Orange-Way/Orange-Way-Books/issues"
