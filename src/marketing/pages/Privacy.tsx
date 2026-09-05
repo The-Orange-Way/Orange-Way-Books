@@ -421,13 +421,7 @@ export default function Privacy() {
             The controller for personal information collected through Orange Way Books is:
           </p>
           <address className="not-italic mt-4 text-muted-foreground">
-            Orange Way
-            <br />
-            24 Maple Ave #1
-            <br />
-            Barrie, ON L4N 1R6
-            <br />
-            Canada
+            The Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada
           </address>
           <p className="text-muted-foreground mt-4">
             This disclosure satisfies Quebec Law 25 §8.1 (identification of the person responsible
