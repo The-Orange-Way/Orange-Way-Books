@@ -71,7 +71,7 @@ jobs:
           # after the flow has been exercised on books.orangeway.dev. Flipping
           # both at once would mean prod's first run of v2 is also its first
           # test of v2.
-          VITE_ONBOARDING_V2: ${{ github.ref_name == 'dev' && 'true' || 'false' }}
+          VITE_ONBOARDING_V2: 'true'
           # Branch-derived Turnstile site key. Site keys are browser-safe
           # by design; the corresponding secret lives on the Supabase Auth
           # config (security_captcha_secret), not on the SPA.
