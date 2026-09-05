@@ -104,7 +104,16 @@ if [ "$prod_ahead" -gt 0 ]; then
 fi
 
 # 2. dev ahead of prod: unpromoted commits over the divergence limit.
-behind_json="$(gh api "repos/${REPO}/compare/${HEAD_BRANCH}...${BASE_BRANCH}")"
+# BEHIND_JSON_OVERRIDE lets a test drive this path with a synthetic compare
+# payload instead of a live API call, so the landing-clock and age logic
+# below can be exercised without a real stale branch existing in GitHub.
+# Never set in a real run; only a negative-control test job sets it.
+if [ -n "${BEHIND_JSON_OVERRIDE:-}" ]; then
+  behind_json="$BEHIND_JSON_OVERRIDE"
+  echo "::notice::using BEHIND_JSON_OVERRIDE (synthetic compare payload, test only)"
+else
+  behind_json="$(gh api "repos/${REPO}/compare/${HEAD_BRANCH}...${BASE_BRANCH}")"
+fi
 unpromoted="$(echo "$behind_json" | jq -r '.ahead_by')"
 if [ "$unpromoted" = "null" ] || [ -z "$unpromoted" ]; then
   echo "::error::compare returned no ahead_by for unpromoted count; refusing to pass." >&2
