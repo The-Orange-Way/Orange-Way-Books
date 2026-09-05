@@ -129,7 +129,10 @@ export default function MarketingLayout({ session }: MarketingLayoutProps) {
         </div>
         <div className="border-t border-border">
           <div className="max-w-6xl mx-auto px-6 py-4 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
-            <span>© {new Date().getFullYear()} Orange Way Books. Apache-2.0 licensed.</span>
+            <span>
+              © {new Date().getFullYear()} The Orange Way Inc. Orange Way Books, Apache-2.0
+              licensed. 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada.
+            </span>
             <span>Built for Bitcoin businesses who own their data.</span>
           </div>
         </div>
