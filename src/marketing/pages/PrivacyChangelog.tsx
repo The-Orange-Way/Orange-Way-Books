@@ -30,6 +30,17 @@ export default function PrivacyChangelog() {
 
         <section className="space-y-6">
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.09.05</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Settled legal identity applied (DEC-0304): the Controller section now names The
+                Orange Way Inc at 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada, and the
+                Contact section now points to hello@orangeway.app.
+              </li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26c</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
