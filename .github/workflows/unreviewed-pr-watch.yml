@@ -1,0 +1,167 @@
+name: unreviewed-pr-watch
+
+# Flags a PR that is green, carries ZERO approving reviews from anyone
+# other than its own author, and has sat that way for more than the
+# threshold. Detects the CONSEQUENCE of a review path silently failing
+# (an Auditor wake losing its GitHub toolset, for example), not the
+# cause. Runs hourly and on demand.
+#
+# "Could not check" must never read as clean: a PR whose checks or
+# reviews cannot be read is marked unknown and reported separately,
+# never counted as green or approved, and the sweep continues to the
+# remaining PRs instead of aborting partway through the list.
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      threshold_hours:
+        description: 'Minimum hours since last update before a green, unreviewed PR is flagged'
+        required: false
+        default: '4'
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    env:
+      THRESHOLD_HOURS: ${{ github.event.inputs.threshold_hours || '4' }}
+    steps:
+      - name: Check for unreviewed green PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "repo: $REPO  threshold_hours: $THRESHOLD_HOURS"
+          threshold_seconds=$(( THRESHOLD_HOURS * 3600 ))
+          now_epoch=$(date -u +%s)
+
+          pr_numbers="$(gh pr list --repo "$REPO" --state open --json number --jq '.[].number')"
+
+          flagged_file="$(mktemp)"
+          : > "$flagged_file"
+          unknown_file="$(mktemp)"
+          : > "$unknown_file"
+
+          for num in $pr_numbers; do
+            pr_json="$(gh pr view "$num" --repo "$REPO" --json number,author,updatedAt,isDraft,headRefOid)"
+            is_draft="$(echo "$pr_json" | jq -r '.isDraft')"
+            if [ "$is_draft" = "true" ]; then
+              echo "PR #$num: draft, skip"
+              continue
+            fi
+
+            author="$(echo "$pr_json" | jq -r '.author.login')"
+            updated_at="$(echo "$pr_json" | jq -r '.updatedAt')"
+            head_sha="$(echo "$pr_json" | jq -r '.headRefOid')"
+
+            updated_epoch="$(date -u -d "$updated_at" +%s)"
+            age_seconds=$(( now_epoch - updated_epoch ))
+            if [ "$age_seconds" -lt "$threshold_seconds" ]; then
+              echo "PR #$num: last updated $(( age_seconds / 3600 ))h ago, under the ${THRESHOLD_HOURS}h threshold, skip"
+              continue
+            fi
+
+            # Check-runs, PAGINATED. Do not trust a single page: check-run
+            # listing paginates at 100 and unpaginated reads have silently
+            # under-reported before. gh api --paginate walks every page and
+            # --jq runs per page, so the counts below sum across all pages.
+            #
+            # Each call's exit status is checked explicitly. A failed call
+            # (missing permission, transient API error) must never read as
+            # zero matches, because zero failing checks and zero pending
+            # checks is GREEN. On failure this PR is marked unknown and the
+            # loop moves on, it does not abort the whole run.
+            if ! failing_raw="$(gh api "repos/${REPO}/commits/${head_sha}/check-runs" --paginate \
+              --jq '.check_runs[] | select(.status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out" or .conclusion == "action_required")) | .id' \
+              2>&1)"; then
+              echo "PR #$num: could not read check-runs, marking unknown, skip"
+              echo "- PR #${num}: COULD NOT READ (check-runs API call failed)" >> "$unknown_file"
+              continue
+            fi
+            failing_check_runs="$(printf '%s\n' "$failing_raw" | grep -c . || true)"
+
+            if ! pending_raw="$(gh api "repos/${REPO}/commits/${head_sha}/check-runs" --paginate \
+              --jq '.check_runs[] | select(.status != "completed") | .id' \
+              2>&1)"; then
+              echo "PR #$num: could not read check-runs, marking unknown, skip"
+              echo "- PR #${num}: COULD NOT READ (check-runs API call failed)" >> "$unknown_file"
+              continue
+            fi
+            pending_check_runs="$(printf '%s\n' "$pending_raw" | grep -c . || true)"
+
+            # Legacy commit-status API (some checks post here, not as check-runs).
+            legacy_state="$(gh api "repos/${REPO}/commits/${head_sha}/status" --jq '.state' 2>/dev/null || echo "unknown")"
+
+            if [ "$failing_check_runs" -gt 0 ] || [ "$legacy_state" = "failure" ] || [ "$legacy_state" = "error" ]; then
+              echo "PR #$num: has a failing check, not green, skip"
+              continue
+            fi
+            if [ "$pending_check_runs" -gt 0 ] || [ "$legacy_state" = "pending" ]; then
+              echo "PR #$num: checks still pending, not green yet, skip"
+              continue
+            fi
+
+            # Approving reviews, PAGINATED, with the PR author explicitly
+            # excluded: GitHub returns an author's own review in this same
+            # list and it must never count as an approval.
+            if ! approvals_raw="$(gh api "repos/${REPO}/pulls/${num}/reviews" --paginate \
+              --jq --arg author "$author" '.[] | select(.state == "APPROVED" and .user.login != $author) | .id' \
+              2>&1)"; then
+              echo "PR #$num: could not read reviews, marking unknown, skip"
+              echo "- PR #${num}: COULD NOT READ (reviews API call failed)" >> "$unknown_file"
+              continue
+            fi
+            approvals="$(printf '%s\n' "$approvals_raw" | grep -c . || true)"
+
+            if [ "$approvals" -gt 0 ]; then
+              echo "PR #$num: has $approvals non-author approval(s), skip"
+              continue
+            fi
+
+            echo "PR #$num: FLAGGED, green, zero non-author approvals, $(( age_seconds / 3600 ))h since last update"
+            echo "- PR #${num} (author @${author}, head \`${head_sha:0:7}\`, ${age_seconds:+$(( age_seconds / 3600 ))}h since last update)" >> "$flagged_file"
+          done
+
+          flagged_count="$(wc -l < "$flagged_file" | tr -d ' ')"
+          unknown_count="$(wc -l < "$unknown_file" | tr -d ' ')"
+
+          if [ "$flagged_count" -eq 0 ] && [ "$unknown_count" -eq 0 ]; then
+            echo "unreviewed-pr-watch: no PRs flagged"
+            exit 0
+          fi
+
+          body="Found ${flagged_count} open PR(s) that are green, carry zero approving reviews from anyone other than their own author, and have had no update in over ${THRESHOLD_HOURS}h:
+
+          $(cat "$flagged_file")
+
+          Each of these needs a formal review from the Auditor before it can merge."
+
+          if [ "$unknown_count" -gt 0 ]; then
+            body="${body}
+
+          ${unknown_count} PR(s) could not be checked this run (an API call failed, most likely a permissions gap) and are NOT included in the count above. They need a manual look:
+
+          $(cat "$unknown_file")"
+          fi
+
+          if [ "$flagged_count" -eq 0 ]; then
+            echo "unreviewed-pr-watch: no PRs flagged, ${unknown_count} unreadable"
+          fi
+
+          existing_issue="$(gh issue list --repo "$REPO" --state open --search "Unreviewed green PR watch in:title" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing_issue" ]; then
+            echo "commenting on existing issue #${existing_issue}"
+            gh issue comment "$existing_issue" --repo "$REPO" --body "$body"
+          else
+            echo "opening a new issue"
+            gh issue create --repo "$REPO" --title "Unreviewed green PR watch: ${flagged_count} PR(s) flagged" --body "$body"
+          fi
