@@ -24,7 +24,7 @@ export default function Privacy() {
             after.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
-            Version: 2026.06.26c.{' '}
+            Version: 2026.09.05.{' '}
             <Link to="/privacy-changelog" className="underline">
               See changes to this policy.
             </Link>
