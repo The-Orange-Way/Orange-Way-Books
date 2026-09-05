@@ -4,10 +4,14 @@
  * Two kinds of assertion:
  *   - Gating (slice 2, DEC-0281/0282): the CTA enable/disable rules and the
  *     conditional Bitcoin display block. These do not touch the write path.
- *   - Finish (slice 3, DL-0718): pressing "Open my books" creates the org and
- *     fires onComplete. The vault and supabase are mocked so this stays
- *     deterministic and offline. Encryption runs in the browser via
- *     encryptText, so the server dependency here is a plain write.
+ *   - Finish (slice 3, DL-0718): pressing "Open my books" on the last screen
+ *     creates the org and fires onComplete. The vault and supabase are mocked
+ *     so this stays deterministic and offline. Encryption runs in the browser
+ *     via encryptText, so the server dependency here is a plain write.
+ *
+ * The surface has three screens (name, currencies, fiscal year and timezone),
+ * so the finish helpers below walk all three. Only the last one carries the
+ * "Open my books" CTA.
  *
  * The pickers are native select elements, so a currency change is a plain
  * fireEvent.change and needs none of the pointer polyfills a Radix listbox
@@ -59,9 +63,43 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
+/**
+ * An echoing stand-in for encryptOrgSettings, not a stub that discards.
+ *
+ * The previous version returned { key_version: 2 } and nothing else, so every
+ * p_settings_* argument reaching the RPC was undefined and no test could tell
+ * a value the customer chose apart from a hardcoded literal. That is exactly
+ * how OWB-T0102 stayed invisible while the suite was green. Echoing with an
+ * "enc:" prefix keeps the tests offline and deterministic while making both
+ * halves checkable: what plaintext the surface handed in, and that only
+ * ciphertext came out the other side. The real function is exercised by its
+ * own crypto-fields suite.
+ */
+const encryptOrgSettings = vi.hoisted(() =>
+  vi.fn(async (fields: Record<string, unknown>) => {
+    const enc = (v: unknown) => (v === null || v === undefined ? null : `enc:${v}`);
+    return {
+      primary_currency: enc(fields.primary_currency),
+      secondary_currency: enc(fields.secondary_currency),
+      bitcoin_display: enc(fields.bitcoin_display),
+      fiscal_year_type: enc(fields.fiscal_year_type),
+      encrypted_fiscal_month: enc(fields.fiscal_start_month),
+      // The plaintext stub stays NULL by construction in the real function.
+      fiscal_start_month: null,
+      date_format: enc(fields.date_format),
+      time_format: enc(fields.time_format),
+      number_format: enc(fields.number_format),
+      timezone: enc(fields.timezone),
+      encrypted_approval_threshold_amount: null,
+      encrypted_approval_threshold_currency: null,
+      key_version: 2,
+    };
+  }),
+);
+
 vi.mock('@/lib/crypto-fields', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/crypto-fields')>()),
-  encryptOrgSettings: async () => ({ key_version: 2 }),
+  encryptOrgSettings,
 }));
 
 vi.mock('@/lib/init-chart-of-accounts', () => ({
@@ -90,6 +128,14 @@ function renderAtCurrencyScreen() {
   return { onComplete };
 }
 
+// Walk from a fresh render to the last screen, where "Open my books" lives.
+function advanceToLastScreen(orgName = 'Acme', currency = 'BTC') {
+  fireEvent.change(screen.getByLabelText('Organization Name'), { target: { value: orgName } });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.change(screen.getByLabelText('Primary currency'), { target: { value: currency } });
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+}
+
 describe('OrgSetupSurface screen 1 (organization name)', () => {
   it('keeps Continue disabled until a non-blank name is entered', () => {
     render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
@@ -109,9 +155,9 @@ describe('OrgSetupSurface screen 1 (organization name)', () => {
 });
 
 describe('OrgSetupSurface screen 2 (currencies)', () => {
-  it('keeps "Open my books" disabled until a primary currency is chosen (DEC-0281)', () => {
+  it('keeps the CTA disabled until a primary currency is chosen (DEC-0281)', () => {
     renderAtCurrencyScreen();
-    const cta = screen.getByRole('button', { name: 'Open my books' });
+    const cta = screen.getByRole('button', { name: 'Continue' });
     expect(cta).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText('Primary currency'), {
@@ -127,7 +173,7 @@ describe('OrgSetupSurface screen 2 (currencies)', () => {
     });
     // The secondary picker is untouched and still resolves to "None".
     expect(screen.getByLabelText(/Secondary currency/)).toHaveValue('');
-    expect(screen.getByRole('button', { name: 'Open my books' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
   });
 
   it('shows the Bitcoin display block only while a picker is BTC (DEC-0281)', () => {
@@ -159,13 +205,7 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
     const onComplete = vi.fn();
     render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
 
-    fireEvent.change(screen.getByLabelText('Organization Name'), {
-      target: { value: 'Acme' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Primary currency'), {
-      target: { value: 'BTC' },
-    });
+    advanceToLastScreen();
     fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
@@ -177,6 +217,88 @@ describe('OrgSetupSurface finish (slice 3, DL-0718)', () => {
         p_key_version: FIELD_KEY_VERSION,
       }),
     );
+  });
+});
+
+/**
+ * OWB-T0102: the v2 surface wrote fiscal_year_type 'calendar',
+ * fiscal_start_month 1 and timezone null as literals, so a business whose
+ * year starts in any other month got a calendar year it never chose and every
+ * period boundary in its ledger sat in the wrong place. The old suite could
+ * not see it: encryptOrgSettings was mocked down to a key version, so a
+ * literal and a customer's answer produced identical (undefined) arguments.
+ *
+ * These assert both directions. What the surface hands the encryptor is the
+ * customer's plaintext answer, and what reaches the RPC is only ciphertext.
+ */
+describe('OrgSetupSurface screen 3 (fiscal year and timezone, OWB-T0102)', () => {
+  beforeEach(() => {
+    createOrgRpc.mockClear();
+    encryptOrgSettings.mockClear();
+    toastError.mockClear();
+  });
+
+  it('sends a non-January start month as a fiscal year with that month', async () => {
+    const onComplete = vi.fn();
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
+
+    advanceToLastScreen();
+    fireEvent.change(screen.getByLabelText('Fiscal year starts'), { target: { value: 'july' } });
+    fireEvent.change(screen.getByLabelText('Timezone'), { target: { value: 'Asia/Tokyo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
+
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+
+    // The month name became a 1-based number and July made the year fiscal,
+    // matching v1 semantics exactly.
+    expect(encryptOrgSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fiscal_year_type: 'fiscal',
+        fiscal_start_month: 7,
+        timezone: 'Asia/Tokyo',
+      }),
+      expect.any(Function),
+    );
+
+    // And the server only ever sees the ciphertext of those answers.
+    expect(createOrgRpc).toHaveBeenCalledWith(
+      'create_org_for_current_user',
+      expect.objectContaining({
+        p_settings_fiscal_year_type: 'enc:fiscal',
+        p_settings_encrypted_fiscal_month: 'enc:7',
+        p_settings_timezone: 'enc:Asia/Tokyo',
+      }),
+    );
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps January a calendar year, so the default is still correct', async () => {
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+
+    advanceToLastScreen();
+    // Left at the default rather than changed, which is the path most
+    // customers take and the one that must not regress.
+    expect(screen.getByLabelText('Fiscal year starts')).toHaveValue('january');
+    fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
+
+    await waitFor(() => expect(createOrgRpc).toHaveBeenCalledTimes(1));
+    expect(encryptOrgSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ fiscal_year_type: 'calendar', fiscal_start_month: 1 }),
+      expect.any(Function),
+    );
+  });
+
+  it('seeds the timezone picker from the browser and keeps that zone selectable', () => {
+    render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={vi.fn()} />);
+    advanceToLastScreen();
+
+    // A select whose value matches no option renders as the first option while
+    // state still holds the seeded value, so the customer reads one timezone
+    // and saves another. Asserting the rendered value equals the browser zone
+    // catches that, whether or not the zone is one of the curated thirteen.
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(screen.getByLabelText('Timezone')).toHaveValue(zone);
   });
 });
 
@@ -203,9 +325,7 @@ describe('OrgSetupSurface persists the vault material (lockout regression)', () 
   async function finish(vaultSetup: OnboardingVaultSetup | null) {
     const onComplete = vi.fn();
     render(<OrgSetupSurface userId="user-1" vaultSetup={vaultSetup} onComplete={onComplete} />);
-    fireEvent.change(screen.getByLabelText('Organization Name'), { target: { value: 'Acme' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Primary currency'), { target: { value: 'BTC' } });
+    advanceToLastScreen();
     fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
     return onComplete;
   }
@@ -274,9 +394,7 @@ describe('OrgSetupSurface RPC contract (OWB-T0110)', () => {
   async function openBooks() {
     const onComplete = vi.fn();
     render(<OrgSetupSurface userId="user-1" vaultSetup={VAULT_SETUP} onComplete={onComplete} />);
-    fireEvent.change(screen.getByLabelText('Organization Name'), { target: { value: 'Acme' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Primary currency'), { target: { value: 'BTC' } });
+    advanceToLastScreen();
     fireEvent.click(screen.getByRole('button', { name: 'Open my books' }));
     return onComplete;
   }

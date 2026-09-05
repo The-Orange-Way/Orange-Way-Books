@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BarChart3 } from 'lucide-react';
 import type { BitcoinDisplay } from '@/types';
 import { getFiatCurrencies } from '@/lib/exchange';
+import { timezoneOptionsIncluding } from '@/lib/timezones';
 
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
@@ -171,21 +172,7 @@ export default function StepReporting({ data, onChange, onNext, onBack }: Props)
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[
-                { value: 'America/New_York', label: 'Eastern Time (US)' },
-                { value: 'America/Chicago', label: 'Central Time (US)' },
-                { value: 'America/Denver', label: 'Mountain Time (US)' },
-                { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-                { value: 'America/Toronto', label: 'Toronto (Eastern)' },
-                { value: 'America/Vancouver', label: 'Vancouver (Pacific)' },
-                { value: 'Europe/London', label: 'London (GMT)' },
-                { value: 'Europe/Paris', label: 'Paris (CET)' },
-                { value: 'Europe/Berlin', label: 'Berlin (CET)' },
-                { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-                { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-                { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
-                { value: 'Pacific/Auckland', label: 'Auckland (NZST)' },
-              ].map((tz) => (
+              {timezoneOptionsIncluding(data.timezone).map((tz) => (
                 <SelectItem key={tz.value} value={tz.value}>
                   {tz.label}
                 </SelectItem>

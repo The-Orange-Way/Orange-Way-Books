@@ -146,6 +146,45 @@ describe('planOrKeyMaterial: the row itself could not be read', () => {
     );
     expect(plan.mode).toBe('derive-and-pin');
   });
+
+  it('REFUSES an empty array, the shape supabase-js hands back for a select with no .single()', () => {
+    // typeof [] === 'object' in JavaScript, so a guard testing only
+    // `typeof row !== 'object'` lets an array through. An empty array is
+    // also exactly the shape a caller gets when the row does not exist at
+    // all, which is the unreadable state this whole guard exists for.
+    const ARRAY_ROW = [] as unknown as OrKeyMaterialRow;
+    const plan = planOrKeyMaterial(ARRAY_ROW, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+    if (plan.mode !== 'refuse') throw new Error('unreachable');
+    expect(plan.reason).toMatch(/could not be read/i);
+  });
+
+  it('REFUSES a one-element array, the shape from a forgotten .single()', () => {
+    // Do not unwrap a length-1 array as if it were the row. That would be
+    // the module guessing at a caller's mistake, which is the class of
+    // thing it exists to refuse; the caller must fix its query instead.
+    const ONE_ELEMENT_ARRAY = [
+      {
+        enc_or_mek_ciphertext: 'sealed-key-ciphertext',
+        or_subkey_salt: PINNED_SALT,
+        or_key_epoch: CURRENT_OR_KEY_EPOCH,
+      },
+    ] as unknown as OrKeyMaterialRow;
+    const plan = planOrKeyMaterial(ONE_ELEMENT_ARRAY, CURRENT_SALT, NO_ROWS);
+    expect(plan.mode).toBe('refuse');
+  });
+
+  it('REFUSES non-object primitives: a string, a number and a boolean each refuse', () => {
+    // typeof s !== 'object' for all three, so the three-arm guard is a
+    // superset of the old `== null` check: nothing that passed before now
+    // derives. The sibling personal finance app carries the same test.
+    for (const bad of ['a-string', 0, 42, false, true]) {
+      const plan = planOrKeyMaterial(bad as unknown as OrKeyMaterialRow, CURRENT_SALT, NO_ROWS);
+      expect(plan.mode).toBe('refuse');
+      if (plan.mode !== 'refuse') throw new Error('unreachable');
+      expect(plan.reason).toMatch(/could not be read/i);
+    }
+  });
 });
 
 describe('planOrKeyMaterial: fully pinned', () => {

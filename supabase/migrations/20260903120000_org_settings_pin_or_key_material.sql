@@ -1,0 +1,13 @@
+-- SUPERSEDED. This file is intentionally empty of DDL. Do not add any.
+--
+-- The Orange Rails key material columns on public.org_settings are created by
+-- 20260903180000_org_settings_pin_or_key_material.sql, which is the version
+-- recorded in the Books dev migration history. This file was a second copy of
+-- the same change that reached the branch by accident (OWB-T0175); its DDL was
+-- byte equivalent in effect, so nothing was ever applied twice and no schema
+-- outcome depended on which copy ran.
+--
+-- It is kept as an empty marker rather than deleted only because removing a
+-- path is not available to the database steward's tooling. It executes nothing
+-- and records nothing, so it is safe to apply and safe to skip. Any seat with a
+-- working copy of this repository should delete it outright.
