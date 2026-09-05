@@ -85,10 +85,13 @@ if [ "$prod_ahead" = "null" ] || [ -z "$prod_ahead" ]; then
 fi
 echo "prod is ahead of dev by ${prod_ahead} commit(s)"
 if [ "$prod_ahead" -gt 0 ]; then
-  # An absent files array is NOT the same fact as an empty one. A
-  # compare the API declined to diff must never read as clean.
-  if [ "$(echo "$ahead_json" | jq -r 'has("files")')" != "true" ]; then
-    echo "::error::prod is ahead by ${prod_ahead} commit(s) and the compare carried no files array, so prod-only content could not be checked. Refusing to report green." >&2
+  # An absent OR NULL files array is NOT the same fact as an empty one.
+  # GitHub's compare API can return files: null while the key is still
+  # present, so a presence check (has("files")) reads true and lets
+  # null | length (which is 0) fall through as if the compare were
+  # clean. Check the TYPE instead: only a real array counts as checked.
+  if [ "$(echo "$ahead_json" | jq -r '.files | type')" != "array" ]; then
+    echo "::error::prod is ahead by ${prod_ahead} commit(s) and the compare's files field was not an array, so prod-only content could not be checked. Refusing to report green." >&2
     exit 1
   fi
   prod_only_files="$(echo "$ahead_json" | jq -r '.files | length')"
