@@ -35,9 +35,14 @@ export interface RenderContext {
   payUrl?: string;
 }
 
+const LEGAL_FOOTER_TEXT =
+  '\n\n--\nThe Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada';
+const LEGAL_FOOTER_HTML =
+  '<p style="color:#64748b;font-size:12px">The Orange Way Inc, 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada</p>';
+
 function wrap(subject: string, body: string): RenderedEmail {
-  const html = `<!doctype html><html><body style="font:14px/1.5 system-ui,sans-serif;color:#0f172a"><p>${body.replace(/\n\n/g, '</p><p>')}</p></body></html>`;
-  return { subject, html, text: body };
+  const html = `<!doctype html><html><body style="font:14px/1.5 system-ui,sans-serif;color:#0f172a"><p>${body.replace(/\n\n/g, '</p><p>')}</p>${LEGAL_FOOTER_HTML}</body></html>`;
+  return { subject, html, text: body + LEGAL_FOOTER_TEXT };
 }
 
 export function renderTemplate(name: LifecycleTemplateName, ctx: RenderContext): RenderedEmail {
