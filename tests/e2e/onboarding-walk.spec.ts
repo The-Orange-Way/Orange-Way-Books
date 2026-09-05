@@ -347,8 +347,8 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders; ledger_status must actually be 'ready', not
-    // just "not showing the literal string Finishing setup…". Both the
+    // 08: dashboard renders; ledger_status must actually be 'ready', not
+    // just "not showing the literal string Finishing setup...". Both the
     // ready and the failed pill share that same absence, so a text check
     // cannot tell them apart (see OWB-T0190). Assert on the real
     // data-ledger-status attribute instead: fail fast if the seed errored,
@@ -357,7 +357,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     const failedPill = page.locator('[data-testid="ledger-status-pill"][data-ledger-status="failed"]');
     await expect(
       failedPill,
-      'ledger status must not be "failed" — chart-of-accounts seed errored',
+      'ledger status must not be "failed", chart-of-accounts seed errored',
     ).toHaveCount(0);
     const readyPill = page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]');
     await expect(
@@ -365,7 +365,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'ledger status must reach "ready" (data-ledger-status="ready")',
     ).toBeAttached({ timeout: 30_000 });
 
-    // 09 — chart_of_accounts seed verification is now covered by step 08:
+    // 09: chart_of_accounts seed verification is now covered by step 08.
     // data-ledger-status="ready" is only written after initChartOfAccounts
     // completes (OnboardingWizard.tsx), and data-ledger-status="failed" is
     // asserted absent above, so a broken seed fails here instead of passing
