@@ -21,6 +21,19 @@ export default function Terms() {
           <p className="text-sm text-muted-foreground">Last updated: 2026-07-13.</p>
         </header>
 
+        <Section title="Who we are">
+          <p className="text-muted-foreground">Orange Way Books is operated by:</p>
+          <address className="not-italic mt-4 text-muted-foreground">
+            The Orange Way Inc
+            <br />
+            620 Veterans Drive Suite 12
+            <br />
+            Barrie, ON L4N9J4
+            <br />
+            Canada
+          </address>
+        </Section>
+
         <Section title="Use of the service">
           <p className="text-muted-foreground">
             You may use Orange Way Books to keep the books for yourself, your business, or your
