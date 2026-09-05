@@ -177,6 +177,7 @@ jobs:
         if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod')
         run: bun tests/e2e/scripts/provision-e2e-user.js
         env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
           OWB_E2E_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ secrets.OWB_E2E_SUPABASE_SECRET_KEY }}
           # Same fixture identity the specs sign in with, so provisioning and
