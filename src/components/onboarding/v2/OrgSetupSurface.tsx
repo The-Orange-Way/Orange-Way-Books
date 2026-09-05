@@ -13,7 +13,7 @@ import { useVault } from '@/context/VaultContext';
 import { encryptOrgSettings, FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
 import { MONTH_NAMES, monthNumber } from '@/lib/months';
-import { browserTimezone, timezoneOptionsIncluding } from '@/lib/timezones';
+import { browserTimezone, timezoneOptionsForDetection } from '@/lib/timezones';
 import { captureException } from '@/lib/observability/sentry';
 import type { OnboardingVaultSetup } from './onboarding-state';
 import type { BitcoinDisplay } from '@/types';
@@ -147,7 +147,7 @@ export default function OrgSetupSurface({ userId, vaultSetup, onComplete }: OrgS
   // rather than the current one so that picking a listed zone does not drop
   // the detected entry out of the list underneath the customer.
   const [detectedTimezone] = useState(browserTimezone);
-  const timezoneOptions = timezoneOptionsIncluding(detectedTimezone);
+  const timezoneOptions = timezoneOptionsForDetection(detectedTimezone);
   const [timezone, setTimezone] = useState(detectedTimezone || timezoneOptions[0].value);
 
   // Same rule as v1 StepOrganization: a name is present once it is non-blank.

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { TIMEZONE_OPTIONS, timezoneOptionsIncluding } from '@/lib/timezones';
+import {
+  TIMEZONE_OPTIONS,
+  timezoneOptionsIncluding,
+  timezoneOptionsForDetection,
+} from '@/lib/timezones';
 
 describe('TIMEZONE_OPTIONS', () => {
   it('carries the zones that used to exist only in Admin settings', () => {
@@ -59,6 +63,34 @@ describe('timezoneOptionsIncluding', () => {
     expect(timezoneOptionsIncluding('Europe/Madrid')[0].label).toBe('Europe/Madrid (detected)');
     expect(timezoneOptionsIncluding('Europe/Madrid', 'current setting')[0].label).toBe(
       'Europe/Madrid (current setting)',
+    );
+  });
+});
+
+describe('timezoneOptionsForDetection (OWB-T0171)', () => {
+  it('discloses the fallback as a guess when the browser reports no zone', () => {
+    // browserTimezone() returns '' when Intl throws or reports nothing.
+    // timezoneOptionsIncluding('') has nothing to inject because the
+    // fallback (TIMEZONE_OPTIONS[0]) is already curated, so without this
+    // wrapper the customer would see an ordinary-looking option with no
+    // sign it was not their own choice.
+    const options = timezoneOptionsForDetection('');
+    expect(options.length).toBe(TIMEZONE_OPTIONS.length);
+    expect(options[0].value).toBe(TIMEZONE_OPTIONS[0].value);
+    expect(options[0].label).toBe(`${TIMEZONE_OPTIONS[0].label} (guessed, please confirm)`);
+  });
+
+  it('leaves every other option unlabelled when it discloses the guess', () => {
+    const options = timezoneOptionsForDetection('');
+    for (const t of TIMEZONE_OPTIONS.slice(1)) {
+      expect(options).toContainEqual(t);
+    }
+  });
+
+  it('behaves exactly like timezoneOptionsIncluding when detection succeeds', () => {
+    expect(timezoneOptionsForDetection('Europe/London')).toBe(TIMEZONE_OPTIONS);
+    expect(timezoneOptionsForDetection('Europe/Madrid')).toEqual(
+      timezoneOptionsIncluding('Europe/Madrid'),
     );
   });
 });

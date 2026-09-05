@@ -99,11 +99,13 @@ jobs:
           FLEET_PAT: ${{ secrets.FLEET_PAT }}
         run: |
           set -euo pipefail
-          # This runs BEFORE the automation branch is pushed, on purpose. It is
-          # the only guard in front of the only write this job makes, so if the
-          # secret is missing the job stops with nothing written. Running it
-          # later pushed a branch at the prod tip and then failed, leaving an
-          # orphan ref with no pull request and no explanation on it.
+          # This runs BEFORE the automation branch is touched, on purpose. It
+          # is the only guard in front of both writes this job can make to that
+          # branch (the self-heal delete a few steps below, and the push that
+          # follows it), so if the secret is missing the job stops with nothing
+          # written. Running it later pushed a branch at the prod tip and then
+          # failed, leaving an orphan ref with no pull request and no
+          # explanation on it.
           if [ -z "${FLEET_PAT:-}" ]; then
             echo "::error title=FLEET_PAT is not set::There is work to back-merge but this workflow cannot open the pull request."
             {
@@ -181,6 +183,19 @@ jobs:
                 echo "::error title=Automation branch is not an ancestor of prod::${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH}, and open pull request #${pr_number} (${pr_url}) depends on it. Resolve or close that pull request, then delete the branch and re-run: git push origin --delete ${BACKMERGE_BRANCH}"
                 exit 1
               fi
+              # Known limitation, accepted rather than fixed with a lease: this
+              # reads the branch tip and then deletes it in two separate
+              # commands, so if something else pushed to the branch in
+              # between, the sha this step reports and summarises is not the
+              # sha it actually deleted. The window is narrow (this job is
+              # serialized by the concurrency group above) and nothing else
+              # is expected to write this branch, so a git push
+              # --force-with-lease reset was considered and deliberately not
+              # taken: it would turn one line of an automation that documents
+              # itself as never forcing into an explicit force-push, for a
+              # race that has not been observed. If this ever needs
+              # tightening, force-with-lease against the observed sha is the
+              # fix (OWB-T0184).
               deleted_sha="$(git rev-parse "origin/${BACKMERGE_BRANCH}")"
               echo "${BACKMERGE_BRANCH} is not an ancestor of ${SOURCE_BRANCH} and no open pull request depends on it. Self-healing: deleting the branch (was ${deleted_sha})."
               git push origin --delete "${BACKMERGE_BRANCH}"
@@ -200,11 +215,13 @@ jobs:
         if: steps.compare.outputs.count != '0'
         run: |
           set -euo pipefail
-          # Fast-forward only. No --force, ever. The branch is always exactly
-          # the prod tip, and prod only moves forward, so this is a
-          # fast-forward. If it is ever rejected, prod was rewritten, and a
-          # loud failure here is the correct outcome rather than a force-push
-          # that would hide it.
+          # This single git command never passes --force. But it is not an
+          # unconditional fast-forward guarantee end to end: the self-heal
+          # guard above can delete the branch first when it is not an ancestor
+          # of prod, and a delete followed by this push rewrites the ref even
+          # though nothing here forces it. In the normal case (branch already
+          # an ancestor, nothing deleted) this really is a fast-forward, and a
+          # rejection really does mean prod was rewritten underneath us.
           git push origin "${{ steps.compare.outputs.prod_sha }}:refs/heads/${BACKMERGE_BRANCH}"
 
       - name: Build the pull request body
