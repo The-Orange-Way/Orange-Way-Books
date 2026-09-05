@@ -30,6 +30,18 @@ export default function PrivacyChangelog() {
 
         <section className="space-y-6">
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.07.03</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Added Quiltt as a new optional sub-processor: the regulated bank-account aggregator
+                behind the upcoming "Connect a bank" feature, engaged only if you choose to link a
+                bank account. Also added a matching cross-border transfer entry. Published ahead of
+                the feature going live per our 30-day pre-change notice commitment.
+              </li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26c</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
