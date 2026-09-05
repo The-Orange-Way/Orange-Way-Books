@@ -38,8 +38,8 @@
  *
  * Walks the v2 onboarding wizard (VITE_ONBOARDING_V2), not v1's
  * OnboardingWizard: this build sets the flag 'true' for the E2E bundle
- * (OW-T0112 / PR #322), matching what deploy.yml already ships on dev, so
- * the walk exercises the same code path a real dev user hits.
+ * (OW-T0112), matching what deploy.yml already ships on dev, so the walk
+ * exercises the same code path a real dev user hits.
  *
  * Read-only environment: only OWB DEV (project ref allowlisted in the
  * provision script). Refuses to run on PROD.
