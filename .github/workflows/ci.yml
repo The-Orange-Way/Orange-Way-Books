@@ -106,6 +106,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # Vite inlines this at build time (import.meta.env), so it must be
+          # set here, not only in deploy.yml, or the v2 onboarding branch is
+          # dead-code eliminated from the bundle this job actually tests.
+          VITE_ONBOARDING_V2: 'true'
 
       # Serve the freshly built bundle on loopback and block until the port
       # answers. A preview that has not finished starting is the same timing
