@@ -2,14 +2,20 @@
 // Compares every SECURITY DEFINER function LIVE in the public schema against
 // the body declared in the migration file that most recently defines it, and
 // fails BY NAME on a mismatch, an unsafe grant, or a function with no
-// migration provenance at all.
+// migration provenance at all. Also reconciles the migration LEDGER
+// (supabase_migrations.schema_migrations) against those same objects, in
+// both directions.
 //
 // WHY: supabase_migrations.schema_migrations proves a migration FILENAME
-// ran. It does not prove the live object still matches the file. A function
-// whose body drifted away from its migration reads as fully applied and
-// fully green under a filename-only check. This script closes that gap for
-// SECURITY DEFINER functions specifically, because those are the ones that
-// run with elevated privilege regardless of who calls them.
+// ran. It does not prove the live object still matches the file, and it
+// does not prove the object's existence and the ledger agree at all. Three
+// failure shapes, all measured live on this estate (OWB-T0164, widened by
+// the DBA on 2026-09-04 after the Auditor's OWM DEV measurement):
+//   (1) file says X, live object says Y                  (body/grant drift)
+//   (2) ledger says a migration ran, the object is absent (silent loss)
+//   (3) the object exists live, the ledger has no row for it (silent gap)
+// A check that only does (1) reads (2) and (3) as green. This script does
+// all three.
 //
 // This talks to the Supabase Management API with an access token, not a
 // database password, so it needs only the SUPABASE_ACCESS_TOKEN secret this
@@ -31,15 +37,6 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!PROJECT_REF) {
-  fail('DRIFT_CHECK_PROJECT_REF was not set. Refusing to report green: no target project.');
-}
-if (!ACCESS_TOKEN) {
-  fail(
-    'SUPABASE_ACCESS_TOKEN was not set. Refusing to report green: cannot read the live database.',
-  );
-}
-
 const LIVE_QUERY = `
   select
     p.proname as name,
@@ -53,7 +50,9 @@ const LIVE_QUERY = `
   order by p.proname;
 `;
 
-async function queryLive() {
+const LEDGER_QUERY = `select version from supabase_migrations.schema_migrations order by version;`;
+
+async function runManagementQuery(query, describeFor) {
   const url = `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`;
   let res;
   try {
@@ -63,17 +62,17 @@ async function queryLive() {
         Authorization: `Bearer ${ACCESS_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query: LIVE_QUERY }),
+      body: JSON.stringify({ query }),
     });
   } catch (err) {
     fail(
-      `Could not reach the Supabase Management API for project ${PROJECT_REF}: ${err.message}. Refusing to report green.`,
+      `Could not reach the Supabase Management API for ${describeFor} on project ${PROJECT_REF}: ${err.message}. Refusing to report green.`,
     );
   }
   const text = await res.text();
   if (!res.ok) {
     fail(
-      `Supabase Management API returned ${res.status} for project ${PROJECT_REF}. Body: ${text.slice(0, 500)}. Refusing to report green.`,
+      `Supabase Management API returned ${res.status} fetching ${describeFor} for project ${PROJECT_REF}. Body: ${text.slice(0, 500)}. Refusing to report green.`,
     );
   }
   let rows;
@@ -81,29 +80,46 @@ async function queryLive() {
     rows = JSON.parse(text);
   } catch (err) {
     fail(
-      `Could not parse the Management API response as JSON: ${err.message}. Refusing to report green.`,
+      `Could not parse the Management API response for ${describeFor} as JSON: ${err.message}. Refusing to report green.`,
     );
   }
   if (!Array.isArray(rows)) {
     fail(
-      `Management API response was not a row array. Refusing to report green. Body: ${text.slice(0, 500)}`,
+      `Management API response for ${describeFor} was not a row array. Refusing to report green. Body: ${text.slice(0, 500)}`,
     );
   }
   return rows;
 }
 
-function normalizeWs(sql) {
+async function queryLive() {
+  if (!PROJECT_REF) {
+    fail('DRIFT_CHECK_PROJECT_REF was not set. Refusing to report green: no target project.');
+  }
+  if (!ACCESS_TOKEN) {
+    fail(
+      'SUPABASE_ACCESS_TOKEN was not set. Refusing to report green: cannot read the live database.',
+    );
+  }
+  return runManagementQuery(LIVE_QUERY, 'live SECURITY DEFINER functions');
+}
+
+async function queryLedger() {
+  const rows = await runManagementQuery(LEDGER_QUERY, 'the migration ledger');
+  return new Set(rows.map((r) => String(r.version)));
+}
+
+export function normalizeWs(sql) {
   // Line wrapping is not a defect; a changed comment or statement is.
   return sql.replace(/\s+/g, ' ').trim();
 }
 
-function md5(str) {
+export function md5(str) {
   return createHash('md5').update(str).digest('hex');
 }
 
 // Manual scanner, not a single regex: function argument lists and bodies can
 // nest parens and dollar-quote tags, which a naive regex mishandles.
-function extractFunctionDefinitions(sql) {
+export function extractFunctionDefinitions(sql) {
   const defs = [];
   const createRe =
     /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
@@ -131,6 +147,40 @@ function extractFunctionDefinitions(sql) {
   return defs;
 }
 
+// DROP FUNCTION IF EXISTS public.foo(...) -- name only, argument list is not
+// needed for this check since we reconcile by name.
+export function extractDropFunctionNames(sql) {
+  const dropRe = /DROP\s+FUNCTION\s+(?:IF\s+EXISTS\s+)?(?:public\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?/gi;
+  const names = [];
+  let m;
+  while ((m = dropRe.exec(sql)) !== null) names.push(m[1]);
+  return names;
+}
+
+function versionOf(filename) {
+  const m = filename.match(/^(\d{14})_/);
+  return m ? m[1] : null;
+}
+
+// Walks every migration file in chronological (filename) order and, per
+// function name, keeps the LAST action (create or drop) and every ledger
+// version at which a create happened. That is enough to answer both ledger
+// reconciliation directions without re-reading files per name.
+export function loadMigrationHistory(files, readFile) {
+  const lastAction = new Map(); // name -> { action: 'create'|'drop', version, file, body }
+  for (const file of files) {
+    const version = versionOf(file);
+    const content = readFile(file);
+    for (const def of extractFunctionDefinitions(content)) {
+      lastAction.set(def.name, { action: 'create', version, file, body: def.body });
+    }
+    for (const name of extractDropFunctionNames(content)) {
+      lastAction.set(name, { action: 'drop', version, file });
+    }
+  }
+  return lastAction;
+}
+
 function loadMigrationDefinitions() {
   let files;
   try {
@@ -147,20 +197,18 @@ function loadMigrationDefinitions() {
       `Found zero migration files under ${MIGRATIONS_DIR}. Refusing to report green: nothing to compare against.`,
     );
   }
+  const history = loadMigrationHistory(files, (f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8'));
   // Filename-order = chronological order, since every file starts with a
-  // 14-digit timestamp prefix. Later files override earlier ones per name,
-  // so the map ends up holding the LAST definition of each function.
+  // 14-digit timestamp prefix. history already holds the LAST create per
+  // name (a later file overwrites an earlier map entry).
   const byName = new Map();
-  for (const file of files) {
-    const content = readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
-    for (const def of extractFunctionDefinitions(content)) {
-      byName.set(def.name, { ...def, file });
-    }
+  for (const [name, entry] of history) {
+    if (entry.action === 'create') byName.set(name, entry);
   }
-  return byName;
+  return { byName, history };
 }
 
-function unsafeGrantees(acl) {
+export function unsafeGrantees(acl) {
   // proacl NULL means default privileges apply, and Postgres' default
   // privilege for a function is EXECUTE granted to PUBLIC -- that is unsafe
   // for a SECURITY DEFINER function and must fail exactly like an explicit
@@ -180,13 +228,16 @@ function unsafeGrantees(acl) {
   return bad;
 }
 
-async function main() {
-  const liveRows = await queryLive();
-  const migrationDefs = loadMigrationDefinitions();
-
+// The whole comparison, as a pure function of its inputs, so it can be
+// exercised with fixtures (see test-security-definer-drift.mjs) and not
+// only against a live database. This is what makes acceptance item 1
+// provable on every push and PR instead of only through a manual
+// workflow_dispatch nobody here holds a tool to fire.
+export function compareAll(liveRows, migrationDefs, ledgerVersions, migrationHistory) {
   let compared = 0;
   let failed = 0;
   const problems = [];
+  const liveNames = new Set(liveRows.map((r) => r.name));
 
   for (const row of liveRows) {
     compared++;
@@ -194,7 +245,7 @@ async function main() {
     if (!def) {
       failed++;
       problems.push(
-        `${row.name}: SECURITY DEFINER live, but no CREATE FUNCTION for it was found in any file under ${MIGRATIONS_DIR}. No provenance.`,
+        `${row.name}: SECURITY DEFINER live, but no CREATE FUNCTION for it was found in any migration file. No provenance.`,
       );
       continue;
     }
@@ -213,7 +264,43 @@ async function main() {
       failed++;
       problems.push(`${row.name}: unsafe EXECUTE grant(s) live: ${bad.join(', ')}. acl=${row.acl}`);
     }
+    // Ledger direction (b): the object is present and correct, but the
+    // migration that creates it never made it into the ledger.
+    if (!ledgerVersions.has(def.version)) {
+      failed++;
+      problems.push(
+        `${row.name}: live and file-faithful, but supabase_migrations.schema_migrations has NO row for ${def.version} (${def.file}), the migration that creates it. The ledger and the objects have diverged.`,
+      );
+    }
   }
+
+  // Ledger direction (a): a migration the ledger claims ran created a
+  // function that does not exist live, and nothing later legitimately
+  // dropped it.
+  for (const [name, entry] of migrationHistory) {
+    if (entry.action !== 'create') continue;
+    if (!ledgerVersions.has(entry.version)) continue; // not applied per ledger, nothing to reconcile here
+    if (liveNames.has(name)) continue; // present live, already compared above
+    problems.push(
+      `${name}: supabase_migrations.schema_migrations records ${entry.version} (${entry.file}) as applied, and that migration creates ${name}, but the function does not exist live and no later migration drops it. The ledger and the objects have diverged.`,
+    );
+    failed++;
+  }
+
+  return { compared, failed, problems };
+}
+
+async function main() {
+  const liveRows = await queryLive();
+  const { byName: migrationDefs, history: migrationHistory } = loadMigrationDefinitions();
+  const ledgerVersions = await queryLedger();
+
+  const { compared, failed, problems } = compareAll(
+    liveRows,
+    migrationDefs,
+    ledgerVersions,
+    migrationHistory,
+  );
 
   console.log(`compared ${compared} of ${liveRows.length} SECURITY DEFINER functions`);
   for (const row of liveRows) {
@@ -233,8 +320,12 @@ async function main() {
   }
 
   console.log(
-    'security-definer-drift-check: PASS (every live SECURITY DEFINER function matches its migration file, no unsafe grants)',
+    'security-definer-drift-check: PASS (every live SECURITY DEFINER function matches its migration file and its ledger row, no unsafe grants)',
   );
 }
 
-main();
+// Only run against a live database when invoked directly. The test file
+// imports the functions above and never calls main().
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
