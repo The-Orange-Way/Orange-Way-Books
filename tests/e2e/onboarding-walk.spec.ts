@@ -394,7 +394,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // page.goto reloads the SPA which loses the in-memory MEK; need to
     // re-unlock and wait for the authenticated shell to mount before
     // checking for the heading.
-    await page.goto(`${baseURL}/app/settings/master-recovery`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseURL}/app/settings/master-recovery`, { waitUntil: 'domcontentloaded' });
     const lock = page.locator('text="Unlock your encrypted vault"').first();
     if (await lock.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
@@ -421,7 +421,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // is a UI readback: the values are decrypted in the browser. A
     // service-role DB read would only ever see ciphertext, so it cannot
     // prove this.
-    await page.goto(`${baseURL}/app/admin`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseURL}/app/admin`, { waitUntil: 'domcontentloaded' });
     const adminLock = page.locator('text="Unlock your encrypted vault"').first();
     if (await adminLock.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
