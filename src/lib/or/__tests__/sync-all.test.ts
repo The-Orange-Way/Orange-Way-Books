@@ -60,7 +60,10 @@ describe('reportSyncAll: nothing syncable', () => {
       stealthSyncEnabled: true,
     });
     expect(report.toasts).toEqual([
-      { level: 'info', message: '2 private connections can only be scanned one at a time. Use Sync on each one.' },
+      {
+        level: 'info',
+        message: '2 private connections can only be scanned one at a time. Use Sync on each one.',
+      },
     ]);
   });
 });
@@ -140,7 +143,10 @@ describe('reportSyncAll: success and skip together', () => {
     });
     expect(report.toasts).toEqual([
       { level: 'success', message: 'Sync all: 2 transactions across 1 wallet.' },
-      { level: 'info', message: '1 private connection was skipped. Use Sync on each one to scan it.' },
+      {
+        level: 'info',
+        message: '1 private connection was skipped. Use Sync on each one to scan it.',
+      },
     ]);
   });
 
