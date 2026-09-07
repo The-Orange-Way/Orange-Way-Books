@@ -1,0 +1,124 @@
+name: PR commit-metadata scan
+
+# Scans every commit being proposed in a pull request for reserved-term
+# strings in commit metadata:
+#   - commit message body (Co-authored-by trailers, body text)
+#   - author name + email
+#   - committer name + email
+#
+# This is the PR-time counterpart to post-merge-identity-scan.yml, which
+# runs the same check on push to protected branches. Both must exist:
+# the post-merge scan catches any metadata that bypasses this check;
+# this scan blocks the PR before the reserved term enters public history.
+#
+# SCOPE: same-repository PRs only. Fork PRs never receive Actions secrets,
+# so OW_RESERVED_TERMS is unavailable and the check would fail closed on
+# every external contribution. Fork PRs are rare here because the builder
+# account pushes to branches in this repository directly. The post-merge
+# identity scan on the dev push is the backstop for fork PRs.
+
+on:
+  pull_request:
+    branches: [dev, prod]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-metadata-scan:
+    name: Commit metadata scan
+    runs-on: ubuntu-latest
+    # Fork PRs and Dependabot PRs never receive Actions secrets.
+    # Skip the job there; the post-merge identity scan on the dev push
+    # catches what this missed.
+    if: >-
+      github.actor != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout with full PR history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for range calculation
+        run: git fetch origin ${{ github.event.pull_request.base.ref }} --no-tags
+
+      - name: Scan commit metadata for reserved-term patterns
+        env:
+          RAW_PATTERN: ${{ secrets.OW_RESERVED_TERMS }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -uo pipefail
+          if [ -z "${RAW_PATTERN:-}" ]; then
+            echo "::error::OW_RESERVED_TERMS repository secret is not set; the commit-metadata scan cannot run and must not report clean. Set it in Settings > Secrets and variables > Actions, one term per line."
+            exit 1
+          fi
+
+          if [ ! -f scripts/canon-terms.sh ]; then
+            echo "::error::scripts/canon-terms.sh is missing, so the reserved-term list cannot be canonicalized. This scan must not report clean when it could not run."
+            exit 1
+          fi
+          # shellcheck source=scripts/canon-terms.sh
+          . scripts/canon-terms.sh
+
+          # Sourcing without an error is not the same as defining the
+          # functions this step is about to call. Ask for all three by name.
+          for FN in canon_terms canon_terms_usable canon_terms_reason_text; do
+            if ! declare -f "$FN" >/dev/null 2>&1; then
+              echo "::error::scripts/canon-terms.sh was sourced but defines no $FN; the commit-metadata scan cannot run."
+              exit 1
+            fi
+          done
+
+          PATTERN="$(printf '%s\n' "$RAW_PATTERN" | canon_terms)"
+          if [ -z "$PATTERN" ]; then
+            echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after canonicalization."
+            exit 1
+          fi
+
+          if ! canon_terms_usable "$PATTERN"; then
+            echo "::error::$(canon_terms_reason_text) This scan cannot run and must not report clean. No part of the value is printed."
+            exit 1
+          fi
+          TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
+          echo "Reserved-term list loaded: $TERM_COUNT term(s)."
+
+          RANGE="$BASE_SHA..$HEAD_SHA"
+          echo "Walking range: $RANGE"
+
+          # Collect commit metadata. A non-zero exit means git could not
+          # walk the range. An empty result from a failed walk must not be
+          # reported as clean.
+          COMMIT_DATA="$(git log $RANGE \
+            --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')" \
+            || { echo "::error::git log failed walking range '$RANGE'; the scan cannot run."; exit 1; }
+
+          COMMIT_COUNT=$(printf '%s\n' "$COMMIT_DATA" \
+            | grep -c '^[0-9a-f]\{40\} AUTHOR' || true)
+          echo "Commits in range: $COMMIT_COUNT"
+
+          MATCHES=0
+          if [ "$COMMIT_COUNT" -gt 0 ]; then
+            # GitHub auto-injects a "Co-authored-by: Claude <model> <noreply@anthropic.com>"
+            # trailer on squash/rebase commits. That address is Anthropic's public
+            # GitHub integration email. A publicly known model name can contain a
+            # reserved-term substring, so drop ONLY that trailer line before
+            # matching. Author, committer, and the rest of the body stay in scope.
+            while IFS= read -r line; do
+              if printf '%s' "$line" | grep -qEi "$PATTERN"; then
+                echo "::error::Reserved-term pattern found in PR commit metadata (redacted; see OW_RESERVED_TERMS). Rewrite the commit history of this PR to remove the term before merging."
+                MATCHES=$((MATCHES + 1))
+              fi
+            done < <(printf '%s\n' "$COMMIT_DATA" \
+              | grep -viE \
+                '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
+          fi
+
+          if [ "$MATCHES" -gt 0 ]; then
+            echo "::error::Commit-metadata scan failed: $MATCHES line(s) in this PR's commit metadata carry reserved-term strings. No matched text is printed to this public log."
+            exit 1
+          fi
+          echo "Commit-metadata scan clean: scanned $COMMIT_COUNT commit(s), 0 reserved-term matches."
