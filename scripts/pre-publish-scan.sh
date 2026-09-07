@@ -197,15 +197,22 @@ fi
 #   $2  grep pattern (extended regex)
 #   $3  grep flags (e.g. -i for case-insensitive). Empty string for none.
 #   $4  extra-exemption pattern (extended regex). Empty string for none.
-#   $5  "1" to redact matched text (print file:line only). Empty for none.
-#       Set for any category whose pattern comes from the internal list.
+#   Redaction is decided ONCE, globally, from REDACT_MATCHES above, never
+#   by the caller. A hardcoded pattern's own match text may be safe to
+#   show, but the surrounding line grep prints is not: a structural match
+#   can land on a line that also carries a personal name, an internal
+#   codename, or an operational date. A per-call flag that has to be
+#   remembered at every site is a flag that gets forgotten at most of
+#   them, which is exactly what happened here: 1 of 8 call sites passed
+#   it, 7 did not. There is no $5 any more, so there is nothing left to
+#   forget.
 
 scan() {
   local name="$1"
   local pattern="$2"
   local flags="$3"
   local extra_exempt="$4"
-  local redact="${5:-}"
+  local redact="$REDACT_MATCHES"
 
   local raw
   if [[ -n "$flags" ]]; then
@@ -290,8 +297,7 @@ if [[ -n "$RESERVED_TERMS" ]]; then
   scan "Reserved terms (internal list)" \
        "$RESERVED_TERMS" \
        "" \
-       "" \
-       "$REDACT_MATCHES"
+       ""
 else
   printf "  \033[33m–\033[0m  Reserved-term scan skipped (set OW_RESERVED_TERMS or add .reserved-terms)\n"
 fi
