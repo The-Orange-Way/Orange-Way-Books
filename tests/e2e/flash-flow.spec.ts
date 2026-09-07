@@ -67,7 +67,7 @@ function writeCaptions(): void {
 // authenticated app shell is present after navigation so a re-locked vault
 // cannot silently masquerade as the target page.
 async function gotoAuthed(page: Page, url: string): Promise<void> {
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await unlockVaultIfNeeded(page);
   const stillLocked = await page
     .locator('text="Unlock your encrypted vault"')

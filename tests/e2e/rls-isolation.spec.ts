@@ -45,7 +45,7 @@ const ORG_SCOPED_TABLES = [
 test('RLS isolation — every returned row has my org_id', async ({ page }) => {
   test.setTimeout(60_000);
   await signIn(page);
-  await page.goto('/app', { waitUntil: 'networkidle' });
+  await page.goto('/app', { waitUntil: 'domcontentloaded' });
   await unlockVaultIfNeeded(page);
   // Belt-and-suspenders: if helper missed the lock screen, re-check + fill manually.
   const stillLocked = await page

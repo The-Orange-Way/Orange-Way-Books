@@ -77,7 +77,7 @@ test('Import from Orange Rails — wizard E2E (single session)', async ({ page }
   await signInAndUnlock(page);
   // After unlock, V3's auth gate routes the user to the app shell. Give it
   // a moment to finish hydrating before screenshotting.
-  await page.waitForLoadState('networkidle').catch(() => undefined);
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await page.screenshot({
     path: path.join(SHOTS_DIR, '01-post-signin-and-unlock.png'),
     fullPage: true,
@@ -92,7 +92,7 @@ test('Import from Orange Rails — wizard E2E (single session)', async ({ page }
   // default 'organization' tab and the open-or-import-wizard button never
   // renders.
   await clientNavigate(page, '/app/admin?tab=or-import');
-  await page.waitForLoadState('networkidle').catch(() => undefined);
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   await page.screenshot({
     path: path.join(SHOTS_DIR, '02-admin-or-import-tab.png'),
     fullPage: true,
