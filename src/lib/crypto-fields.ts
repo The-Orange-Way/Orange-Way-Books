@@ -197,7 +197,7 @@ export interface WalletEncrypted {
   encrypted_name: string;
   encrypted_balance: string | null;
   asset: string;
-  account_type: string | null;
+  wallet_type: string | null;
   connection_type: string | null;
   external_account_code: string | null;
   initial_balance: number;
@@ -227,7 +227,7 @@ export async function encryptWallet(
     encrypted_name,
     encrypted_balance,
     asset,
-    account_type,
+    wallet_type: account_type,
     connection_type,
     external_account_code,
     initial_balance: 0,
@@ -242,7 +242,7 @@ export async function decryptWallet(row: any, decrypt: DecryptFn): Promise<Walle
       encrypted_name: row.encrypted_name,
       initial_balance: row.initial_balance,
       asset: row.asset,
-      account_type: row.account_type,
+      account_type: row.wallet_type ?? row.account_type,
       connection_type: row.connection_type,
       external_account_code: row.external_account_code,
     };
@@ -257,7 +257,7 @@ export async function decryptWallet(row: any, decrypt: DecryptFn): Promise<Walle
     decrypt(row.encrypted_name),
     decryptNumber(row.encrypted_balance, decrypt, kv, row.initial_balance),
     kv >= L2 ? decrypt(row.asset) : Promise.resolve(row.asset),
-    decryptNullable(row.account_type, decrypt, kv >= L2 ? kv : null),
+    decryptNullable(row.wallet_type ?? row.account_type, decrypt, kv >= L2 ? kv : null),
     decryptNullable(row.connection_type, decrypt, kv >= L2 ? kv : null),
     decryptNullable(row.external_account_code, decrypt, kv >= L2 ? kv : null),
   ]);
