@@ -37,7 +37,7 @@ jobs:
     # repo family) only refuses a duplicate VERSION prefix -- it would NOT
     # have caught this incident, because the two OWB files had DIFFERENT
     # timestamps and the SAME descriptive name. So this job checks both
-    # shapes, not just the one OWM covers.
+    # shapes, not just the one the Orange-Way-Me job covers.
     #
     # Scoped to files ADDED in this change (diffed against the PR base, or
     # the previous commit on a push), not the whole directory. An existing
