@@ -62,9 +62,9 @@ describe('decryptStealthRecord', () => {
   it('refuses a version other than 1 without touching WebCrypto', async () => {
     const credKey = await randomAesGcmKey();
     const sealed = await sealFixture(FIXTURE_TX, credKey);
-    await expect(
-      decryptStealthRecord({ ...sealed, version: 2 }, credKey),
-    ).rejects.toThrow(/Unsupported sealed_record shape/);
+    await expect(decryptStealthRecord({ ...sealed, version: 2 }, credKey)).rejects.toThrow(
+      /Unsupported sealed_record shape/,
+    );
   });
 
   it('refuses an algorithm other than AES-256-GCM', async () => {
