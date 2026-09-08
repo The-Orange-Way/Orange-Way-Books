@@ -336,7 +336,7 @@ async function hasExistingImport(
   const { data, error } = await supabase
     .from('transactions')
     .select('id')
-    .eq('account_id', walletId)
+    .eq('wallet_id', walletId)
     .contains('encrypted_metadata', {
       source: SOURCE_TAG,
       or_connection_id: orConnectionId,
@@ -402,8 +402,7 @@ async function importSingleTx(
   const accountRowId = isInflowForAcct ? uncategorized.revenueRowId : uncategorized.expenseRowId;
   const { error: txErr } = await supabase.from('transactions').insert({
     org_id: orgId,
-    account_id: destWallet.id,
-    account_id: accountRowId,
+    wallet_id: destWallet.id,
     date: txDate,
     encrypted_metadata: orSourceMeta as any,
     ...encTx,
@@ -600,7 +599,7 @@ export async function findImportedOrTxIds(
   const { data, error } = await supabase
     .from('transactions')
     .select('encrypted_metadata')
-    .in('account_id', walletIds)
+    .in('wallet_id', walletIds)
     .contains('encrypted_metadata', {
       source: SOURCE_TAG,
       or_connection_id: orConnectionId,
