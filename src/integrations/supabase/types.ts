@@ -2369,7 +2369,7 @@ export type Database = {
           status: string | null
           type: string
           usd_value: number | null
-          account_id: string | null
+          wallet_id: string | null
         }
         Insert: {
           account_id?: string | null
@@ -2575,7 +2575,7 @@ export type Database = {
         }
         Relationships: []
       }
-      accounts: {
+      wallets: {
         Row: {
           asset: string
           external_account_code: string | null
@@ -2593,7 +2593,7 @@ export type Database = {
           last_sync_at: string | null
           org_id: string
           sync_status: string | null
-          account_type: string | null
+          wallet_type: string | null
         }
         Insert: {
           asset?: string
