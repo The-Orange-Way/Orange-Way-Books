@@ -25,25 +25,9 @@ jobs:
   migration-hygiene:
     name: Migration filename hygiene
     runs-on: ubuntu-latest
-    # Why this job exists: an earlier OWB migration shipped two files with
-    # the same descriptive name at two different timestamps, both defining
-    # the same three columns on public.org_settings, one already merged to
-    # dev. It passed every existing check and got an approving review; it
-    # was caught only because the merge tool printed both filenames in its
-    # refusal message. Nothing in CI looked at supabase/migrations at all.
-    # Full incident writeup: OWB-T0179.
-    #
-    # Orange-Way-Me's own "Migration filename hygiene" job (twin name, same
-    # repo family) only refuses a duplicate VERSION prefix -- it would NOT
-    # have caught this incident, because the two OWB files had DIFFERENT
-    # timestamps and the SAME descriptive name. So this job checks both
-    # shapes, not just the one the Orange-Way-Me job covers.
-    #
-    # Scoped to files ADDED in this change (diffed against the PR base, or
-    # the previous commit on a push), not the whole directory. An existing
-    # duplicate that predates this guard is a DBA decision, not something
-    # this job should retroactively fail on -- same precedent OWM set by
-    # baselining its own pre-existing pair rather than failing on it.
+    # See OWB-T0179. Refuses a new migration file that duplicates an
+    # existing version prefix or descriptive name. Scoped to files added
+    # in this change, not the whole directory.
     steps:
       - name: Checkout
         uses: actions/checkout@v6
