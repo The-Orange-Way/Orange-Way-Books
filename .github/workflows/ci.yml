@@ -25,12 +25,13 @@ jobs:
   migration-hygiene:
     name: Migration filename hygiene
     runs-on: ubuntu-latest
-    # Why this job exists: OWB PR #304 shipped two migration files with the
-    # same descriptive name at two different timestamps, both defining the
-    # same three columns on public.org_settings, one already merged to dev.
-    # It passed every existing check and got an approving review; it was
-    # caught only because the merge tool printed both filenames in its
+    # Why this job exists: an earlier OWB migration shipped two files with
+    # the same descriptive name at two different timestamps, both defining
+    # the same three columns on public.org_settings, one already merged to
+    # dev. It passed every existing check and got an approving review; it
+    # was caught only because the merge tool printed both filenames in its
     # refusal message. Nothing in CI looked at supabase/migrations at all.
+    # Full incident writeup: OWB-T0179.
     #
     # Orange-Way-Me's own "Migration filename hygiene" job (twin name, same
     # repo family) only refuses a duplicate VERSION prefix -- it would NOT
@@ -101,13 +102,13 @@ jobs:
               echo "::error::${NF} shares its version prefix ${V} with: $(echo "$OTHER_V" | tr '\n' ' ')"
             fi
 
-            # The OWB PR #304 case: same descriptive name, different timestamp.
+            # The OWB-T0179 incident case: same descriptive name, different timestamp.
             # Two files defining the same change means one silently shadows or
             # double-applies the other's intent.
             OTHER_NAME=$(printf '%s\n' "$ALL" | grep -vFx "$NF" | sed -E 's/^[0-9]+_//' | grep -Fx "$NAME" || true)
             if [ -n "$OTHER_NAME" ]; then
               FAILED=1
-              echo "::error::${NF} shares its descriptive name '${NAME}' with an existing migration at a different timestamp. Two files defining the same change is exactly how OWB PR #304 shipped a silent duplicate: rename one of them before merging."
+              echo "::error::${NF} shares its descriptive name '${NAME}' with an existing migration at a different timestamp. Two files defining the same change is exactly how an earlier OWB migration shipped a silent duplicate (see OWB-T0179): rename one of them before merging."
             fi
           done
 
