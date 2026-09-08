@@ -130,7 +130,7 @@ export default function Dashboard() {
 
     const fetch = async () => {
       const [wRes, tRes, sRes, jeRes, acctRes] = await Promise.all([
-        supabase.from('accounts').select('*').eq('org_id', orgId),
+        supabase.from('wallets').select('*').eq('org_id', orgId),
         supabase
           .from('transactions')
           .select('*')
