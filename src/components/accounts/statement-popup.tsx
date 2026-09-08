@@ -135,7 +135,7 @@ export function StatementPopup({ open, onClose, wallet, orgId }: StatementPopupP
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .eq('account_id', wallet.id)
+        .eq('wallet_id', wallet.id)
         .order('date', { ascending: true });
       if (error) {
         console.error('Failed to load transactions', error);
