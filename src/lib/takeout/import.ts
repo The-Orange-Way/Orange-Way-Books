@@ -85,7 +85,7 @@ export async function wipeOrgData(orgId: string): Promise<void> {
     (await supabase.from('journal_entries').delete().eq('org_id', orgId)).error,
   );
   check('transactions', (await supabase.from('transactions').delete().eq('org_id', orgId)).error);
-  check('wallets', (await supabase.from('accounts').delete().eq('org_id', orgId)).error);
+  check('wallets', (await supabase.from('wallets').delete().eq('org_id', orgId)).error);
   check('contacts', (await supabase.from('contacts').delete().eq('org_id', orgId)).error);
   check(
     'chart_of_accounts',
@@ -159,7 +159,7 @@ export async function importTakeoutFile(
   if (!opts.force) {
     const [w, t, j] = await Promise.all([
       supabase
-        .from('accounts')
+        .from('wallets')
         .select('id', { count: 'exact', head: true })
         .eq('org_id', targetOrgId),
       supabase
@@ -261,7 +261,7 @@ export async function importTakeoutFile(
     const newLegacyAccountId = w.legacy_account_id
       ? (legacyAccountIdMap.get(w.legacy_account_id) ?? null)
       : null;
-    const { error } = await supabase.from('accounts').insert({
+    const { error } = await supabase.from('wallets').insert({
       id: walletIdMap.get(w.id),
       org_id: targetOrgId,
       external_account_id: newLegacyAccountId,
@@ -354,7 +354,7 @@ export async function importTakeoutFile(
     const { error } = await supabase.from('transactions').insert({
       id: txIdMap.get(t.id),
       org_id: targetOrgId,
-      account_id: t.account_id ? (walletIdMap.get(t.account_id) ?? null) : null,
+      wallet_id: t.account_id ? (walletIdMap.get(t.account_id) ?? null) : null,
       date: t.date,
       ...enc,
     } as any);
