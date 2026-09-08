@@ -15,7 +15,7 @@
  *     'or-provision' | 'or-connection-create' | 'or-connection-list'
  *     | 'or-connection-delete' | 'or-sync' | 'or-transactions-list'
  *     | 'or-discover-wallets' | 'or-source-wallets-set'
- *     | 'or-link-mint-token'
+ *     | 'or-link-mint-token' | 'or-stealth-transactions-list'
  *   org_id: uuid  the Orange Way Books org to act on (caller must be a member)
  *   payload: object  forwarded to OR; subaccount_id auto-injected for
  *                    non-provision endpoints if not present
@@ -24,6 +24,10 @@
  * For or-link-mint-token: app_user_id is set to the org_id, which is the same
  * value or-provision used as external_user_id, and ttl_seconds is forwarded
  * when the caller supplies a number. This endpoint takes no subaccount_id.
+ * For or-stealth-transactions-list: app_user_id is set to the org_id the same
+ * way, not subaccount_id — a stealth connection is never provisioned as an
+ * ordinary subaccount. connection_id, limit, before_block and
+ * before_txid_blind_index_hex are forwarded from payload as given.
  * For all others: subaccount_id is resolved server side from
  * organizations.or_subaccount_id on the already verified org_id and injected;
  * a client supplied value is never trusted. (This paragraph used to describe
@@ -88,6 +92,10 @@ const ALLOWED_ENDPOINTS = new Set([
   // caller can reach while carrying the platform key, so it is deliberately a
   // reviewed code change and not an env var.
   'or-link-mint-token',
+  // Stealth Sync: lists a private (stealth) connection's sealed transaction
+  // rows, paged. Uses app_user_id like or-link-mint-token, not
+  // subaccount_id — see the branch below.
+  'or-stealth-transactions-list',
 ]);
 
 async function callOr(endpoint: string, body: Record<string, unknown>): Promise<Response> {
@@ -211,6 +219,22 @@ Deno.serve(async (req: Request) => {
       orBody = {
         app_user_id: org_id,
         ttl_seconds: typeof requested === 'number' ? requested : undefined,
+      };
+    } else if (endpoint === 'or-stealth-transactions-list') {
+      // Same reasoning as or-link-mint-token above: a stealth connection is
+      // never provisioned as an ordinary subaccount, so this call is
+      // authenticated with app_user_id (forced to the verified org_id, never
+      // trusted from payload), not subaccount_id. connection_id/limit/
+      // before_block/before_txid_blind_index_hex are forwarded as given; OR
+      // verifies the connection actually belongs to this app_user_id on its
+      // side, so a member of org A cannot page org B's stealth connection
+      // just by guessing its id.
+      orBody = {
+        app_user_id: org_id,
+        connection_id: payload.connection_id,
+        limit: payload.limit,
+        before_block: payload.before_block,
+        before_txid_blind_index_hex: payload.before_txid_blind_index_hex,
       };
     } else {
       // For everything else, subaccount_id must be present on the OR call.
