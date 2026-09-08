@@ -15,10 +15,9 @@
  * into one function that takes either key, and do not swap the key this
  * module uses without re-reading OWM-T0109 first.
  *
- * WIRE CONTRACT, VERIFIED against Orange Rails source 2026-09-06 (delivery
- * message #2442 on OWB-T0088, from orangerails, quoting
- * supabase/functions/or-stealth-transactions-list/index.ts read in full
- * that session): POST or-stealth-transactions-list via owb-or-proxy, body
+ * WIRE CONTRACT, VERIFIED against Orange Rails source 2026-09-06 by reading
+ * supabase/functions/or-stealth-transactions-list/index.ts in the Orange
+ * Rails repo directly: POST or-stealth-transactions-list via owb-or-proxy, body
  * { connection_id, app_user_id, limit?, before_block?,
  * before_txid_blind_index_hex? }. Response transactions carry
  * `sealed_record: { version: 1, algorithm: 'AES-256-GCM', iv_b64,
