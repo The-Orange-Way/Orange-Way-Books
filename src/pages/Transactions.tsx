@@ -299,7 +299,7 @@ export default function Transactions() {
         .eq('org_id', orgId)
         .order('date', { ascending: false }),
       supabase
-        .from('accounts')
+        .from('wallets')
         .select('id, encrypted_name, asset, key_version, external_account_id')
         .eq('org_id', orgId),
       supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
@@ -2045,7 +2045,7 @@ export default function Transactions() {
 
           // Fetch lookups: wallets, accounts, contacts
           const [wRes, aRes, cRes] = await Promise.all([
-            supabase.from('accounts').select('*').eq('org_id', orgId),
+            supabase.from('wallets').select('*').eq('org_id', orgId),
             supabase
               .from('chart_of_accounts' as any)
               .select('*')
