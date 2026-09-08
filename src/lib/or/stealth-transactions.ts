@@ -9,11 +9,11 @@
  * transactions are sealed under a DIFFERENT key: `cred_key`
  * (deriveOrCredsKeyFromMek, HKDF info orangerails-creds-v1), not
  * `transactions_key` (deriveOrTxnsKeyFromMek, orangerails-txns-v1).
- * OWM-T0109 shipped this exact defect once already: decrypting the
+ * A sibling product shipped this exact defect once already: decrypting the
  * stealth path with the txns key, so every row failed its AES-GCM auth
  * tag and the failure counter was never surfaced. Do not "simplify" this
  * into one function that takes either key, and do not swap the key this
- * module uses without re-reading OWM-T0109 first.
+ * module uses without re-checking that history first.
  *
  * WIRE CONTRACT, VERIFIED against Orange Rails source 2026-09-06 by reading
  * supabase/functions/or-stealth-transactions-list/index.ts in the Orange
