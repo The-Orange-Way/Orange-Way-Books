@@ -175,7 +175,7 @@ export function DestinationAccountPicker({
       setWalletsError(null);
       try {
         const { data, error: dbErr } = await supabase
-          .from('accounts')
+          .from('wallets')
           .select('*')
           .eq('org_id', orgId)
           .order('created_at', { ascending: false });
@@ -462,7 +462,7 @@ function CreateWalletInlineDialog({
         encryptText,
       );
       const { data: newWallet, error: insErr } = await supabase
-        .from('accounts')
+        .from('wallets')
         .insert({
           org_id: orgId,
           ...enc,
@@ -479,7 +479,7 @@ function CreateWalletInlineDialog({
         const rate = await resolveAssetToBtcRate(asset);
         if (rate !== null) {
           await supabase
-            .from('accounts')
+            .from('wallets')
             .update({ exchange_rate: rate } as any)
             .eq('id', newId);
         }
