@@ -46,12 +46,12 @@ export function NotificationsBell({ orgId }: NotificationsBellProps) {
     const run = async () => {
       const [jeRes, walletsRes, txPendingRes] = await Promise.all([
         supabase.from('journal_entries').select('id, status, key_version').eq('org_id', orgId),
-        supabase.from('accounts').select('id, external_account_id').eq('org_id', orgId),
+        supabase.from('wallets').select('id, external_account_id').eq('org_id', orgId),
         supabase
           .from('transactions')
           .select('id', { count: 'exact', head: true })
           .eq('org_id', orgId)
-          .is('account_id', null),
+          .is('wallet_id', null),
       ]);
 
       if (cancelled) return;
