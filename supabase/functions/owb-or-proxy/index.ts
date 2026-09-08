@@ -25,7 +25,7 @@
  * value or-provision used as external_user_id, and ttl_seconds is forwarded
  * when the caller supplies a number. This endpoint takes no subaccount_id.
  * For or-stealth-transactions-list: app_user_id is set to the org_id the same
- * way, not subaccount_id — a stealth connection is never provisioned as an
+ * way, not subaccount_id; a stealth connection is never provisioned as an
  * ordinary subaccount. connection_id, limit, before_block and
  * before_txid_blind_index_hex are forwarded from payload as given.
  * For all others: subaccount_id is resolved server side from
@@ -94,7 +94,7 @@ const ALLOWED_ENDPOINTS = new Set([
   'or-link-mint-token',
   // Stealth Sync: lists a private (stealth) connection's sealed transaction
   // rows, paged. Uses app_user_id like or-link-mint-token, not
-  // subaccount_id — see the branch below.
+  // subaccount_id, see the branch below.
   'or-stealth-transactions-list',
 ]);
 
