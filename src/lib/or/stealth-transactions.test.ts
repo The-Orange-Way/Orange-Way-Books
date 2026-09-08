@@ -75,7 +75,7 @@ describe('decryptStealthRecord', () => {
     ).rejects.toThrow(/Unsupported sealed_record shape/);
   });
 
-  it('throws on the wrong key, this is the OWM-T0109 regression this file exists to close', async () => {
+  it('throws on the wrong key, this is the exact regression this file exists to close', async () => {
     const credKey = await randomAesGcmKey();
     const wrongKey = await randomAesGcmKey();
     const sealed = await sealFixture(FIXTURE_TX, credKey);
