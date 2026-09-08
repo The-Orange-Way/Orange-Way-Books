@@ -95,3 +95,51 @@ jobs:
           fi
 
           echo "negative control PASS: the guard exited ${rc} and refused the proof run."
+
+  drift-guard-age-negative-control:
+    name: Drift guard refuses a stale unpromoted commit
+    runs-on: ubuntu-latest
+    # The job above proves the PROOF_RUN escape hatch fires on a self-compare,
+    # but a self-compare never reaches the age logic below it: unpromoted is
+    # always 0, so lines 120-171 (the landing-clock code this guard exists to
+    # fix) never execute. This job drives that code directly with a synthetic
+    # compare payload, one commit dated 100 hours old, well past the 72-hour
+    # limit, so the guard must fail on the age check itself.
+    env:
+      BASE_BRANCH: prod
+      HEAD_BRANCH: prod
+      BEHIND_COMMIT_LIMIT: '50'
+      BEHIND_HOURS_LIMIT: '72'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: The guard must refuse a stale unpromoted commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+
+          stale_date="$(date -u -d '100 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          export BEHIND_JSON_OVERRIDE
+          BEHIND_JSON_OVERRIDE="$(jq -n --arg d "$stale_date" \
+            '{ahead_by: 1, commits: [{sha: "0000000000000000000000000000000000dead", commit: {committer: {date: $d}}}]}')"
+
+          rc=0
+          bash scripts/prod-drift-guard.sh > proof-run.log 2>&1 || rc=$?
+          echo "--- guard output (exit ${rc}) ---"
+          cat proof-run.log
+          echo "--- end guard output ---"
+
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::negative control FAILED: the guard reported green against a synthetic commit dated ${stale_date}, 100 hours old, over the 72-hour limit." >&2
+            exit 1
+          fi
+
+          if ! grep -q 'hours old, over the 72-hour limit' proof-run.log; then
+            echo "::error::negative control FAILED: the guard exited ${rc}, but not for the stale-commit age reason. See the guard output above." >&2
+            exit 1
+          fi
+
+          echo "negative control PASS: the guard refused a synthetic 100-hour-old unpromoted commit."
