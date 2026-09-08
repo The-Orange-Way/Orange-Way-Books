@@ -285,15 +285,15 @@ export function computeWalletBalances(
     initial_balance: number | null;
     external_account_id?: string | null;
   }>,
-  transactions: Array<{ account_id: string | null; amount: number }>,
+  transactions: Array<{ wallet_id: string | null; amount: number }>,
   journalLines?: JournalLine[],
   walletAccountMap?: WalletAccountMap[],
 ): WalletBalance[] {
   // Transaction-based native balance (legacy path, still load-bearing)
   const txByWallet = new Map<string, number>();
   for (const tx of transactions) {
-    if (!tx.account_id) continue;
-    txByWallet.set(tx.account_id, (txByWallet.get(tx.account_id) || 0) + Number(tx.amount));
+    if (!tx.wallet_id) continue;
+    txByWallet.set(tx.wallet_id, (txByWallet.get(tx.wallet_id) || 0) + Number(tx.amount));
   }
 
   // Build external_account_id → account_id map for JE-line primary balance
