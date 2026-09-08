@@ -102,7 +102,7 @@ jobs:
               echo "::error::${NF} shares its version prefix ${V} with: $(echo "$OTHER_V" | tr '\n' ' ')"
             fi
 
-            # The OWB PR #304 case: same descriptive name, different timestamp.
+            # The OWB-T0179 incident case: same descriptive name, different timestamp.
             # Two files defining the same change means one silently shadows or
             # double-applies the other's intent.
             OTHER_NAME=$(printf '%s\n' "$ALL" | grep -vFx "$NF" | sed -E 's/^[0-9]+_//' | grep -Fx "$NAME" || true)
