@@ -1139,8 +1139,7 @@ export default function Payments() {
     const { data, error } = await supabase
       .from('chart_of_accounts')
       .select('id, encrypted_name, encrypted_code')
-      .eq('org_id', orgId)
-      .eq('is_archived', false);
+      .eq('org_id', orgId);
     if (error || !data) return;
     const opts: AccountOpt[] = await Promise.all(
       data.map(async (a: any) => {
