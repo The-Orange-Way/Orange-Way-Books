@@ -312,7 +312,7 @@ export default function Invoices() {
       // the customer paid to (BTC, fiat, etc.). Each wallet's
       // external_account_id drives the Dr leg of the auto-posted JE.
       const { data: walletRows } = await (supabase as any)
-        .from('accounts')
+        .from('wallets')
         .select('id, encrypted_name, asset, key_version, external_account_id')
         .eq('org_id', orgId);
       const decWallets: WalletOption[] = await Promise.all(
