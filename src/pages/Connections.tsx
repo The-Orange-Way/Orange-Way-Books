@@ -491,7 +491,7 @@ export default function Connections() {
     }
 
     try {
-      const { data, error } = await supabase.from('accounts').select('*').eq('org_id', orgId);
+      const { data, error } = await supabase.from('wallets').select('*').eq('org_id', orgId);
       if (error) throw error;
       const byId = new Map<string, string>();
       const walletsById = new Map<string, DestinationWallet>();
