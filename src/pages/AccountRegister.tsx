@@ -98,7 +98,7 @@ export default function AccountRegister() {
           .from('transactions')
           .select('*')
           .eq('org_id', orgId)
-          .eq('account_id', accountId);
+          .eq('wallet_id', accountId);
 
         const txDecrypted: Omit<RegisterRow, 'running'>[] = [];
         for (const row of (txRows ?? []) as any[]) {
