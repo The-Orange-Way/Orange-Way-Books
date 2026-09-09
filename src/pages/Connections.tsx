@@ -169,10 +169,9 @@ const BANK_CONNECT_ENABLED =
 // Stealth Sync connect feature flag. Named to match the sibling app's
 // VITE_STEALTH_SYNC_ENABLED (Orange Way Me, src/lib/stealth/flags.ts) so the
 // two builds are switched by the same variable name, even though this build
-// does not yet read it from a runtime kill switch the way the sibling does
-// (that is app_flags-backed there and still pending its own Auditor pass,
-// see cold_start owm-stealth-killswitch-sqla-00252, do not port that half
-// yet. Off in both dev and prod until the team turns it on.
+// does not yet read it from a runtime kill switch the way the sibling does.
+// That kill switch is a separate, still pending piece of work, do not port
+// it here yet. Off in both dev and prod until the team turns it on.
 const STEALTH_SYNC_ENABLED =
   (import.meta.env.VITE_STEALTH_SYNC_ENABLED as string | undefined) === 'true';
 
