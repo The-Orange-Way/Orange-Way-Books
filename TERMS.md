@@ -7,18 +7,18 @@
 > prospective customer with a real budget, ask the maintainers for the
 > reviewed version.
 
-Last updated: 2026-07-13. Effective on the same date.
+Last updated: 2026-09-09. Effective on the same date.
 
 ---
 
 ## 1. Who we are
 
-Orange Way Books is operated by Morning Revolution, an Ontario-domiciled
-operator. References to "we", "us", or "Orange Way Books" in this
+Orange Way Books is operated by **The Orange Way Inc**, 620 Veterans Drive
+Suite 12, Barrie, ON L4N9J4, Canada. References to "we", "us", or "Orange Way Books" in this
 document mean the operator. References to "you" mean the individual or
 organisation creating an account or self-hosting the software.
 
-General and legal contact is `legal@orangeway.app`, the same address
+General and legal contact is `hello@orangeway.app`, the same address
 printed on the public Terms page at `/terms`. Privacy requests go to the
 contact named in the Contact section of the public Privacy page at
 `/privacy`. The public Contact page at `/contact` lists the other
@@ -95,7 +95,7 @@ renewal are not offered today.
 a paid plan by not paying the next cycle's payment link. Your access
 continues to the end of the billing period you have already paid for. If
 you want the billing account closed on the record before then, write to
-`legal@orangeway.app`.
+`hello@orangeway.app`.
 
 **Refunds.** A monthly billing cycle is non-refundable once it has
 begun.
@@ -113,10 +113,10 @@ applies.
 from a distance contract. The period begins on the purchase date. The
 right is forfeited once you have actively used the hosted service
 during the withdrawal window (EU Consumer Rights Directive Art. 16(m)).
-Write to `legal@orangeway.app` before the period expires to exercise
+Write to `hello@orangeway.app` before the period expires to exercise
 this right.
 
-**Disputed charges.** Write to `legal@orangeway.app` within 60 days of
+**Disputed charges.** Write to `hello@orangeway.app` within 60 days of
 any charge you believe was made in error. We will investigate and credit
 or refund confirmed errors.
 
@@ -233,7 +233,7 @@ prevail.
 
 ## 13. Contact
 
-- General contact, support, and billing: `legal@orangeway.app`. The same
+- General contact, support, and billing: `hello@orangeway.app`. The same
   address is printed on the public Terms page at `/terms`, so the page
   and this document agree on where to write.
 - Other channels: the public Contact page at `/contact` (public issue
