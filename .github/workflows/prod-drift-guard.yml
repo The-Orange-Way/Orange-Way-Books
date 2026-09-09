@@ -101,8 +101,8 @@ jobs:
     runs-on: ubuntu-latest
     # The job above proves the PROOF_RUN escape hatch fires on a self-compare,
     # but a self-compare never reaches the age logic below it: unpromoted is
-    # always 0, so lines 120-171 (the landing-clock code this guard exists to
-    # fix) never execute. This job drives that code directly with a synthetic
+    # always 0, so the landing-clock code (the path this guard exists to fix)
+    # never executes. This job drives that code directly with a synthetic
     # compare payload, one commit dated 100 hours old, well past the 72-hour
     # limit, so the guard must fail on the age check itself.
     env:
