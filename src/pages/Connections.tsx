@@ -171,8 +171,8 @@ const BANK_CONNECT_ENABLED =
 // two builds are switched by the same variable name, even though this build
 // does not yet read it from a runtime kill switch the way the sibling does
 // (that is app_flags-backed there and still pending its own Auditor pass,
-// see cold_start owm-stealth-killswitch-sqla-00252 — do not port that half
-// yet). Off in both dev and prod until the team turns it on.
+// see cold_start owm-stealth-killswitch-sqla-00252, do not port that half
+// yet. Off in both dev and prod until the team turns it on.
 const STEALTH_SYNC_ENABLED =
   (import.meta.env.VITE_STEALTH_SYNC_ENABLED as string | undefined) === 'true';
 
@@ -317,7 +317,7 @@ export default function Connections() {
   /** Branded delete confirmation — controlled state, replaces window.confirm. */
   const [deleteTarget, setDeleteTarget] = useState<ConnectionRow | null>(null);
 
-  // Stealth Sync connect button busy state — separate from bankConnectBusy
+  // Stealth Sync connect button busy state, separate from bankConnectBusy
   // and syncingId so the two connect paths never disable each other.
   const [stealthConnectBusy, setStealthConnectBusy] = useState(false);
 
@@ -823,7 +823,7 @@ export default function Connections() {
    * or-discover-wallets for here, unlike finishConnectionSetup's tail.
    *
    * Key material (credKeyB64/txnKeyB64) travels only in the URL fragment
-   * inside openOrConnect/buildConnectUrl — see that file's header comment.
+   * inside openOrConnect/buildConnectUrl, see that file's header comment.
    * This function never sees the plaintext provider credential.
    *
    * NOT handled here, left as follow-on scope on OWB-T0030: the sibling
