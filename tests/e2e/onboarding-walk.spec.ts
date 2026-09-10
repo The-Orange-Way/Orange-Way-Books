@@ -369,26 +369,28 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders, no "Finishing setup…"
+    // 08 — dashboard renders with ledger_status="ready", not "failed" or a
+    // stuck "provisioning". The pill's data-ledger-status attribute is
+    // state-aware (unlike checking for the absence of the "Finishing
+    // setup..." string, which reads false in both the ready and the failed
+    // case since the failed pill renders different text).
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2_000);
-    const stillFinishing = await page
-      .locator('text=Finishing setup')
+    await expect(
+      page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]'),
+      'dashboard must show ledger_status="ready" — chart-of-accounts seed must have completed',
+    ).toBeVisible({ timeout: 15_000 });
+    const failedPill = await page
+      .locator('[data-testid="ledger-status-pill"][data-ledger-status="failed"]')
       .first()
       .isVisible({ timeout: 500 })
       .catch(() => false);
-    expect(
-      stillFinishing,
-      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
-    ).toBe(false);
+    expect(failedPill, 'dashboard must NOT show ledger_status="failed"').toBe(false);
 
-    // 09 — chart_of_accounts seed verification.
-    // Direct REST queries from the browser would need either an exposed
-    // publishable-key global or session token shenanigans. Skip — step 07
-    // (sidebar visible) and step 08 (no "Finishing setup…" pill) already
-    // prove initChartOfAccounts ran to completion without throwing, since
-    // OnboardingWizard.tsx writes ledger_status='ready' AFTER the loop and
-    // step 08 verifies that state surfaced to the dashboard.
+    // 09 — chart_of_accounts seed verification is covered by step 08 above:
+    // the data-ledger-status="ready" attribute is only written after
+    // initChartOfAccounts completes without throwing (OnboardingWizard.tsx),
+    // so asserting on it directly, rather than on absent text, is the real
+    // regression check.
 
     // 10 — master-recovery page renders (React #310 regression).
     // page.goto reloads the SPA which loses the in-memory MEK; need to
