@@ -384,7 +384,14 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // runner. useLedgerStatus polls every 2s while provisioning, so it picks
     // up the DB 'ready' update within 2s of seeding completing. 120s covers
     // worst-case CI timing with headroom.
-    await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
+    // DO NOT call page.goto() before this assertion. initChartOfAccounts
+    // runs client-side as a fire-and-forget IIFE after onComplete() fires.
+    // A full page navigation terminates the browser JS context and kills the
+    // in-progress insert loop, leaving ledger_status permanently stuck at
+    // 'provisioning'. The MEK lives only in memory and is gone after a reload,
+    // so no process resumes the inserts. Step 07 already confirmed app-shell
+    // is mounted (the SPA is on the dashboard); wait for the pill here on the
+    // current page.
     await expect(
       page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]'),
       'ledger_status must be ready, not provisioning or failed, after onboarding',
