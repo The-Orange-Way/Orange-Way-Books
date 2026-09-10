@@ -826,7 +826,7 @@ export default function Connections() {
    * This function never sees the plaintext provider credential.
    *
    * NOT handled here, left as follow-on scope on OWB-T0030: the sibling
-   * app's repeated-xpub "you already had this" dedup (its OWM-T0504), and
+   * app's repeated-xpub "you already had this" dedup, and
    * is_stealth-aware badges on the connection list once one exists.
    */
   const handleConnectStealth = useCallback(async () => {
