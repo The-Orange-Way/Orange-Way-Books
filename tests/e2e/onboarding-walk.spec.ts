@@ -369,26 +369,24 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders, no "Finishing setup…"
+    // 08 — dashboard renders and ledger_status is actually 'ready', not just
+    // "not the provisioning pill". LedgerReadyBadge and LedgerStatusPill both
+    // render data-testid="ledger-status-pill" but are mutually exclusive on
+    // data-ledger-status (ready vs provisioning/failed), so this fails
+    // correctly if chart-of-accounts seeding errored (ledger_status='failed',
+    // pill text "Setup failed") instead of only checking for absence of the
+    // literal string "Finishing setup…", which failed and succeeded looked
+    // identical to.
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2_000);
-    const stillFinishing = await page
-      .locator('text=Finishing setup')
-      .first()
-      .isVisible({ timeout: 500 })
-      .catch(() => false);
-    expect(
-      stillFinishing,
-      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
-    ).toBe(false);
+    await expect(
+      page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]'),
+      'ledger_status must be ready, not provisioning or failed, after onboarding',
+    ).toBeAttached({ timeout: 15_000 });
 
-    // 09 — chart_of_accounts seed verification.
-    // Direct REST queries from the browser would need either an exposed
-    // publishable-key global or session token shenanigans. Skip — step 07
-    // (sidebar visible) and step 08 (no "Finishing setup…" pill) already
-    // prove initChartOfAccounts ran to completion without throwing, since
-    // OnboardingWizard.tsx writes ledger_status='ready' AFTER the loop and
-    // step 08 verifies that state surfaced to the dashboard.
+    // 09 — the above directly checks the seeded state (ledger_status flips
+    // to 'ready' only after initChartOfAccounts completes without throwing,
+    // per OnboardingWizard.tsx), so a separate chart_of_accounts REST query
+    // is not needed to catch a failed seed.
 
     // 10 — master-recovery page renders (React #310 regression).
     // page.goto reloads the SPA which loses the in-memory MEK; need to
