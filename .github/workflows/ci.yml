@@ -22,6 +22,86 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  migration-hygiene:
+    name: Migration filename hygiene
+    runs-on: ubuntu-latest
+    # See OWB-T0179. Refuses a new migration file that duplicates an
+    # existing version prefix or descriptive name. Scoped to files added
+    # in this change, not the whole directory.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Refuse a new migration that duplicates an existing version or descriptive name
+        shell: bash
+        run: |
+          set -uo pipefail
+          MIG_DIR="supabase/migrations"
+
+          # Fail loudly rather than green when there is nothing to inspect,
+          # same guard shape as the lint-and-build test-inventory step.
+          if [ ! -d "$MIG_DIR" ]; then
+            echo "::error::${MIG_DIR} does not exist -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+
+          ALL=$(ls "$MIG_DIR"/*.sql 2>/dev/null | sed 's|.*/||' | sort)
+          COUNT=$(printf '%s\n' "$ALL" | grep -c . || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No .sql files found under ${MIG_DIR} -- this job is checking nothing. Fix the path rather than let it report green."
+            exit 1
+          fi
+
+          if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
+            git fetch origin "${GITHUB_BASE_REF}" --depth=50 >/dev/null 2>&1 || true
+            MERGE_BASE=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}" 2>/dev/null || echo "origin/${GITHUB_BASE_REF}")
+          else
+            # push event: compare against the immediate previous commit. Does
+            # not cover a multi-commit push missing an intermediate add, which
+            # is an accepted gap -- the pull_request run is the one that gates
+            # a merge, this is a secondary net.
+            MERGE_BASE="HEAD^"
+          fi
+
+          NEW_FILES=$(git diff --name-only --diff-filter=A "$MERGE_BASE" HEAD -- "$MIG_DIR" 2>/dev/null | xargs -n1 basename 2>/dev/null || true)
+
+          if [ -z "$NEW_FILES" ]; then
+            echo "no new migration files in this change; nothing to check"
+            exit 0
+          fi
+
+          FAILED=0
+          for NF in $NEW_FILES; do
+            V=$(echo "$NF" | cut -d_ -f1)
+            NAME=$(echo "$NF" | sed -E 's/^[0-9]+_//')
+
+            # supabase_migrations.schema_migrations holds ONE row per version,
+            # so two files sharing a version prefix means at most one can ever
+            # be recorded as applied.
+            OTHER_V=$(printf '%s\n' "$ALL" | grep -vFx "$NF" | awk -F_ -v v="$V" '$1==v {print}')
+            if [ -n "$OTHER_V" ]; then
+              FAILED=1
+              echo "::error::${NF} shares its version prefix ${V} with: $(echo "$OTHER_V" | tr '\n' ' ')"
+            fi
+
+            # The OWB-T0179 incident case: same descriptive name, different timestamp.
+            # Two files defining the same change means one silently shadows or
+            # double-applies the other's intent.
+            OTHER_NAME=$(printf '%s\n' "$ALL" | grep -vFx "$NF" | sed -E 's/^[0-9]+_//' | grep -Fx "$NAME" || true)
+            if [ -n "$OTHER_NAME" ]; then
+              FAILED=1
+              echo "::error::${NF} shares its descriptive name '${NAME}' with an existing migration at a different timestamp. Two files defining the same change is exactly how an earlier OWB migration shipped a silent duplicate (see OWB-T0179): rename one of them before merging."
+            fi
+          done
+
+          if [ "$FAILED" -eq 0 ]; then
+            echo "checked new migration file(s) against ${COUNT} total on disk; no duplicate versions or descriptive names"
+          else
+            exit 1
+          fi
+
   lint-and-build:
     name: Lint + test + build
     runs-on: ubuntu-latest
