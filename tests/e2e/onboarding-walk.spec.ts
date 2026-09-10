@@ -377,11 +377,18 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // pill text "Setup failed") instead of only checking for absence of the
     // literal string "Finishing setup…", which failed and succeeded looked
     // identical to.
+    //
+    // Timeout is 120s because initChartOfAccounts (43 accounts, Argon2id +
+    // AES-GCM) runs fire-and-forget after onComplete() returns in
+    // OrgSetupSurface.tsx, taking ~30s on a laptop and 60-90s on a shared CI
+    // runner. useLedgerStatus polls every 2s while provisioning, so it picks
+    // up the DB 'ready' update within 2s of seeding completing. 120s covers
+    // worst-case CI timing with headroom.
     await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
     await expect(
       page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]'),
       'ledger_status must be ready, not provisioning or failed, after onboarding',
-    ).toBeAttached({ timeout: 15_000 });
+    ).toBeAttached({ timeout: 120_000 });
 
     // 09 — the above directly checks the seeded state (ledger_status flips
     // to 'ready' only after initChartOfAccounts completes without throwing,
