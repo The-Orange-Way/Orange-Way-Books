@@ -396,7 +396,16 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // checking for the heading.
     await page.goto(`${baseURL}/app/settings/master-recovery`, { waitUntil: 'domcontentloaded' });
     const lock = page.locator('text="Unlock your encrypted vault"').first();
-    if (await lock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    // Wait up to 15 s for EITHER the vault-lock prompt OR the authenticated
+    // app shell. VaultGate must finish an async org_members query before it
+    // renders VaultUnlockScreen; after a heavy onboarding flow that query
+    // can take longer than the old 2 s deadline, causing the unlock block to
+    // be silently skipped and the shell assertion to time out.
+    await expect(
+      lock.or(page.getByTestId('app-shell').first()),
+      'vault lock screen or app shell after master-recovery goto',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await lock.isVisible().catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
       await page.locator('button:has-text("Unlock Vault")').first().click();
       await lock.waitFor({ state: 'hidden', timeout: 30_000 });
@@ -423,7 +432,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // prove this.
     await page.goto(`${baseURL}/app/admin`, { waitUntil: 'domcontentloaded' });
     const adminLock = page.locator('text="Unlock your encrypted vault"').first();
-    if (await adminLock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    // Same robust pattern as step 10: settle the async VaultGate gate first,
+    // then decide whether to unlock based on what actually rendered.
+    await expect(
+      adminLock.or(page.getByTestId('app-shell').first()),
+      'vault lock screen or app shell on admin page',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await adminLock.isVisible().catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
       await page.locator('button:has-text("Unlock Vault")').first().click();
       await adminLock.waitFor({ state: 'hidden', timeout: 30_000 });
