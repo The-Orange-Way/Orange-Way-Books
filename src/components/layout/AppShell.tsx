@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { PendingRatesBanner } from '@/components/PendingRatesBanner';
 import { MaintenanceBanner } from '@/components/rekey/MaintenanceBanner';
-import { LedgerStatusPill } from '@/components/LedgerStatusPill';
+import { LedgerReadyBadge, LedgerStatusPill } from '@/components/LedgerStatusPill';
 import { supabase } from '@/lib/supabase';
 
 export default function AppShell() {
@@ -29,6 +29,10 @@ export default function AppShell() {
     <div className="flex min-h-screen w-full flex-col" data-testid="app-shell">
       <MaintenanceBanner orgId={orgId} currentUserId={userId} />
       <PendingRatesBanner orgId={orgId} />
+      {/* Signals ledger_status='ready' in the DOM for E2E detection.
+          LedgerStatusPill returns null when ready (no pill to dismiss),
+          so without this badge the test has no DOM signal to wait on. */}
+      <LedgerReadyBadge />
       <div className="flex flex-1">
         {/* Desktop sidebar — hidden on small viewports. */}
         <div className="hidden md:flex">
