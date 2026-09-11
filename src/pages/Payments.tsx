@@ -1153,7 +1153,12 @@ export default function Payments() {
             is_archived: fields.is_archived,
           };
         } catch {
-          return { id: a.id, name: '(decrypt failed)', code: null, is_archived: false };
+          return {
+            id: a.id,
+            name: '(decrypt failed)',
+            code: null,
+            is_archived: false,
+          };
         }
       }),
     );
