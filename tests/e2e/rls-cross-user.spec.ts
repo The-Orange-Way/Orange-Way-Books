@@ -33,10 +33,11 @@ function readSupaCreds(): SupaCreds | null {
     return JSON.parse(fs.readFileSync('/tmp/owb-pw/owb-dev-supabase.json', 'utf8'));
   } catch {
     // No local creds file (the normal case in CI and on a laptop that has
-    // never run the provision script). Fall back to the same env vars the
-    // "Run Playwright" CI step already sets from the dev environment scope,
-    // so this spec can run without ever writing the DEV service-role key
-    // to disk. The file path above stays as a laptop convenience only.
+    // never run the provision script). Fall back to the env vars exposed by
+    // the "Run Playwright" CI step. The service key is present only on push
+    // runs, so a missing key returns null and triggers the file-scope skip
+    // below without ever writing the DEV service-role key to disk. The file
+    // path above stays as a laptop convenience only.
     const url = process.env.OWB_E2E_SUPABASE_URL;
     const secret = process.env.OWB_E2E_SUPABASE_SECRET_KEY;
     if (url && secret) return { url, secret };
@@ -127,9 +128,9 @@ const PUBLISHABLE_KEY = process.env.OWB_E2E_SUPABASE_PUBLISHABLE_KEY!;
 
 // Skip when no Supabase admin creds are available at all: neither the
 // laptop convenience file nor the OWB_E2E_SUPABASE_URL /
-// OWB_E2E_SUPABASE_SECRET_KEY env vars. CI sets those env vars from the
-// dev environment scope on every push and same-repo PR run, so this spec
-// executes there; a fork PR or a laptop with neither still skips cleanly.
+// OWB_E2E_SUPABASE_SECRET_KEY env vars. CI provides them on push runs; the
+// service key is withheld on pull-request runs, so this spec skips cleanly
+// there. A laptop with neither also skips cleanly.
 const HAVE_LOCAL_CREDS = (() => {
   try {
     return !!readSupaCreds();

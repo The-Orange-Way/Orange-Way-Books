@@ -265,16 +265,6 @@ jobs:
           OWB_DEV_E2E_PASSWORD: ${{ secrets.OWB_DEV_E2E_PASSWORD }}
           OWB_DEV_E2E_VAULT_PASSWORD: ${{ secrets.OWB_DEV_E2E_VAULT_PASSWORD }}
 
-      # tests/e2e/rls-cross-user.spec.ts (the real cross-tenant isolation
-      # test: "user A cannot read user B's org data") used to file-scope skip
-      # unless /tmp/owb-pw/owb-dev-supabase.json existed. Nothing wrote that
-      # file in CI, so the spec was unconditionally skipped on every run.
-      # Fixed at the source instead of by writing a service-key file here:
-      # readSupaCreds() in the spec now falls back to the
-      # OWB_E2E_SUPABASE_URL / OWB_E2E_SUPABASE_SECRET_KEY env vars the
-      # "Run Playwright" step below already sets, so no file, and no
-      # DEV service-role key on disk, is needed for the spec to run.
-
       - name: Run Playwright
         run: bunx playwright test
         env:
@@ -292,21 +282,13 @@ jobs:
           # 33344922437), and anyone able to push a branch decides what this
           # job executes, so a pull request run is not a place to put a
           # credential that reads and writes every tenant's rows. On a pull
-          # request the value is empty and the two specs that need it do not
-          # run, by two different mechanisms: tests/e2e/rls-cross-user.spec.ts
-          # file-scope skips, because readSupaCreds() returns null on an empty
-          # secret, and tests/e2e/onboarding-walk.spec.ts is switched off at
-          # its own E2E_ONBOARDING_WALK opt-in below, because it throws rather
-          # than skips when the key is absent. The rest of the suite signs in
-          # with the OWB_DEV_E2E_* fixture user and still runs, so the
-          # zero-spec guard below still has real specs to count.
+          # request the value is empty. The suite's credential-dependent
+          # coverage and required-spec policy are kept with the specs and
+          # their execution guard, rather than duplicated in this workflow
+          # comment where a changing list would go stale.
           #
-          # rls-cross-user is on the required-spec list, so withholding the key
-          # here would fail every pull request by name. The next commit marks
-          # that entry "when": "push" in tests/e2e/required-specs.json, which is
-          # the waiver mechanism built for exactly this case. The spec stays
-          # required on pushes to dev and prod, and the waiver is printed by
-          # name in the job log so it is never silent.
+          # Push-only required coverage remains visible in the job log through
+          # the event-aware execution guard below.
           OWB_E2E_SUPABASE_SECRET_KEY: ${{ github.event_name == 'push' && secrets.OWB_E2E_SUPABASE_SECRET_KEY || '' }}
           OWB_E2E_ALLOWED_PROJECT_REFS: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
           OWB_E2E_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
@@ -329,19 +311,10 @@ jobs:
           #    login screen on every later run. The spec now resets its own
           #    user's password through the admin API before signing in.
           #
-          # It provisions its own user through the admin API, so it needs
-          # nothing from the "Provision E2E user" step above. It does need the
-          # DEV service-role key to do that, and the key is withheld on pull
-          # requests. The walk does not skip itself when the key is missing:
-          # its only file-scope skip is on this variable, and beforeAll throws
-          # when readSupaCreds() returns null. So the opt-in follows the key.
-          # On for pushes to dev and prod, where the walk EXECUTES; off on a
-          # pull request, where it stops at its documented opt-in instead of
-          # failing on a credential it was never given. The trade is that the
-          # walk's coverage moves post-merge rather than putting an
-          # RLS-bypassing key on a runner a branch author controls. It stays on
-          # the required-spec list with "when": "push", so the runs where it
-          # does apply cannot lose it quietly.
+          # Keep this privileged coverage post-merge rather than making a
+          # pull-request runner depend on the service-role key. The event-aware
+          # required-spec guard below makes that boundary visible in the job
+          # log without duplicating a list of affected specs here.
           E2E_ONBOARDING_WALK: ${{ github.event_name == 'push' && '1' || '0' }}
 
       # DL-0779: a Playwright run that finds no tests, or only tests that skip
