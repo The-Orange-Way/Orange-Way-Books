@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -42,6 +43,11 @@ interface Props {
 }
 
 export default function StepReporting({ data, onChange, onNext, onBack }: Props) {
+  // Detected once, on mount. The option list is built from the detected zone
+  // rather than the current one so that picking a listed zone does not drop
+  // the detected entry out of the list underneath the customer.
+  const [detectedTimezone] = useState(data.timezone);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 mb-1">
@@ -172,7 +178,7 @@ export default function StepReporting({ data, onChange, onNext, onBack }: Props)
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {timezoneOptionsIncluding(data.timezone).map((tz) => (
+              {timezoneOptionsIncluding(detectedTimezone).map((tz) => (
                 <SelectItem key={tz.value} value={tz.value}>
                   {tz.label}
                 </SelectItem>
