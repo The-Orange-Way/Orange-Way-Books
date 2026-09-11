@@ -76,7 +76,7 @@ jobs:
           # Any other domain is either PII (personal email) or internal
           # infrastructure (a Tailscale FQDN in an email field was the
           # exact vector for 3 of the 7 commits that carried reserved terms).
-          SAFE_EMAIL_RE='@(users\.noreply\.github\.com|github\.com|anthropic\.com)$'
+          SAFE_EMAIL_RE='@(users\.noreply\.github\.com|github\.com|anthropic\.com|orangerails\.com)$'
 
           # STRUCTURAL TAILNET CHECK.
           # Tailscale FQDNs are always internal infrastructure. They are
