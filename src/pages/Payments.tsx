@@ -38,6 +38,7 @@ import {
   decryptOrgSettings,
   encryptPaymentRequestLineItem,
   decryptPaymentRequestLineItem,
+  decryptChartOfAccount,
 } from '@/lib/crypto-fields';
 import { resolvePinnedRate } from '@/lib/exchange/rate-resolver';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
@@ -1138,23 +1139,21 @@ export default function Payments() {
     if (accountOptions.length > 0 || !orgId) return;
     const { data, error } = await supabase
       .from('chart_of_accounts')
-      .select('id, encrypted_name, encrypted_code')
-      .eq('org_id', orgId)
-      .eq('is_archived', false);
+      .select('id, encrypted_name, encrypted_code, encrypted_is_archived, key_version')
+      .eq('org_id', orgId);
     if (error || !data) return;
-    const opts: AccountOpt[] = await Promise.all(
+    const allOpts = await Promise.all(
       data.map(async (a: any) => {
         try {
-          const name = a.encrypted_name ? await decryptText(a.encrypted_name) : '(unnamed)';
-          const code = a.encrypted_code
-            ? await decryptText(a.encrypted_code).catch(() => null)
-            : null;
-          return { id: a.id, name, code };
+          const fields = await decryptChartOfAccount(a, decryptText);
+          return { id: a.id, name: fields.account_name ?? '(unnamed)', code: fields.account_code, is_archived: fields.is_archived };
         } catch {
-          return { id: a.id, name: '(decrypt failed)', code: null };
+          return { id: a.id, name: '(decrypt failed)', code: null, is_archived: false };
         }
       }),
     );
+    // is_archived is encrypted on prod; filter client-side after decryption
+    const opts: AccountOpt[] = allOpts.filter((a) => !a.is_archived);
     opts.sort((a, b) => (a.code ?? '').localeCompare(b.code ?? '') || a.name.localeCompare(b.name));
     setAccountOptions(opts);
   }, [accountOptions.length, orgId, decryptText]);
