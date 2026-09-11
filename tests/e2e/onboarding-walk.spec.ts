@@ -369,26 +369,38 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       'authenticated shell after onboarding',
     ).toBeVisible({ timeout: 45_000 });
 
-    // 08 — dashboard renders, no "Finishing setup…"
-    await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2_000);
-    const stillFinishing = await page
-      .locator('text=Finishing setup')
-      .first()
-      .isVisible({ timeout: 500 })
-      .catch(() => false);
-    expect(
-      stillFinishing,
-      'dashboard must NOT show "Finishing setup…" pill — ledger_status should be ready',
-    ).toBe(false);
+    // 08 — dashboard renders and ledger_status is actually 'ready', not just
+    // "not the provisioning pill". LedgerReadyBadge and LedgerStatusPill both
+    // render data-testid="ledger-status-pill" but are mutually exclusive on
+    // data-ledger-status (ready vs provisioning/failed), so this fails
+    // correctly if chart-of-accounts seeding errored (ledger_status='failed',
+    // pill text "Setup failed") instead of only checking for absence of the
+    // literal string "Finishing setup…", which failed and succeeded looked
+    // identical to.
+    //
+    // Timeout is 120s because initChartOfAccounts (43 accounts, Argon2id +
+    // AES-GCM) runs fire-and-forget after onComplete() returns in
+    // OrgSetupSurface.tsx, taking ~30s on a laptop and 60-90s on a shared CI
+    // runner. useLedgerStatus polls every 2s while provisioning, so it picks
+    // up the DB 'ready' update within 2s of seeding completing. 120s covers
+    // worst-case CI timing with headroom.
+    // DO NOT call page.goto() before this assertion. initChartOfAccounts
+    // runs client-side as a fire-and-forget IIFE after onComplete() fires.
+    // A full page navigation terminates the browser JS context and kills the
+    // in-progress insert loop, leaving ledger_status permanently stuck at
+    // 'provisioning'. The MEK lives only in memory and is gone after a reload,
+    // so no process resumes the inserts. Step 07 already confirmed app-shell
+    // is mounted (the SPA is on the dashboard); wait for the pill here on the
+    // current page.
+    await expect(
+      page.locator('[data-testid="ledger-status-pill"][data-ledger-status="ready"]'),
+      'ledger_status must be ready, not provisioning or failed, after onboarding',
+    ).toBeAttached({ timeout: 120_000 });
 
-    // 09 — chart_of_accounts seed verification.
-    // Direct REST queries from the browser would need either an exposed
-    // publishable-key global or session token shenanigans. Skip — step 07
-    // (sidebar visible) and step 08 (no "Finishing setup…" pill) already
-    // prove initChartOfAccounts ran to completion without throwing, since
-    // OnboardingWizard.tsx writes ledger_status='ready' AFTER the loop and
-    // step 08 verifies that state surfaced to the dashboard.
+    // 09 — the above directly checks the seeded state (ledger_status flips
+    // to 'ready' only after initChartOfAccounts completes without throwing,
+    // per OnboardingWizard.tsx), so a separate chart_of_accounts REST query
+    // is not needed to catch a failed seed.
 
     // 10 — master-recovery page renders (React #310 regression).
     // page.goto reloads the SPA which loses the in-memory MEK; need to
@@ -396,7 +408,16 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // checking for the heading.
     await page.goto(`${baseURL}/app/settings/master-recovery`, { waitUntil: 'domcontentloaded' });
     const lock = page.locator('text="Unlock your encrypted vault"').first();
-    if (await lock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    // Wait up to 15 s for EITHER the vault-lock prompt OR the authenticated
+    // app shell. VaultGate must finish an async org_members query before it
+    // renders VaultUnlockScreen; after a heavy onboarding flow that query
+    // can take longer than the old 2 s deadline, causing the unlock block to
+    // be silently skipped and the shell assertion to time out.
+    await expect(
+      lock.or(page.getByTestId('app-shell').first()),
+      'vault lock screen or app shell after master-recovery goto',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await lock.isVisible().catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
       await page.locator('button:has-text("Unlock Vault")').first().click();
       await lock.waitFor({ state: 'hidden', timeout: 30_000 });
@@ -423,7 +444,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     // prove this.
     await page.goto(`${baseURL}/app/admin`, { waitUntil: 'domcontentloaded' });
     const adminLock = page.locator('text="Unlock your encrypted vault"').first();
-    if (await adminLock.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    // Same robust pattern as step 10: settle the async VaultGate gate first,
+    // then decide whether to unlock based on what actually rendered.
+    await expect(
+      adminLock.or(page.getByTestId('app-shell').first()),
+      'vault lock screen or app shell on admin page',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await adminLock.isVisible().catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
       await page.locator('button:has-text("Unlock Vault")').first().click();
       await adminLock.waitFor({ state: 'hidden', timeout: 30_000 });
