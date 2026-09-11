@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -11,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BarChart3 } from 'lucide-react';
 import type { BitcoinDisplay } from '@/types';
 import { getFiatCurrencies } from '@/lib/exchange';
-import { timezoneOptionsIncluding } from '@/lib/timezones';
+import { browserTimezone, timezoneOptionsForDetection } from '@/lib/timezones';
 
 const secondaryCurrencies = [
   { value: 'none', label: 'None' },
@@ -42,6 +43,12 @@ interface Props {
 }
 
 export default function StepReporting({ data, onChange, onNext, onBack }: Props) {
+  // Detect once, on mount. Building the options from the live selection would
+  // remove an uncurated detected zone as soon as the customer tried another
+  // option, leaving no way to select their own zone again.
+  const [detectedTimezone] = useState(browserTimezone);
+  const timezoneOptions = timezoneOptionsForDetection(detectedTimezone);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 mb-1">
@@ -172,7 +179,7 @@ export default function StepReporting({ data, onChange, onNext, onBack }: Props)
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {timezoneOptionsIncluding(data.timezone).map((tz) => (
+              {timezoneOptions.map((tz) => (
                 <SelectItem key={tz.value} value={tz.value}>
                   {tz.label}
                 </SelectItem>
