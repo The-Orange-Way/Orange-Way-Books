@@ -220,7 +220,7 @@ export default function Accounts() {
     if (!orgId) return;
     const [{ data }, { data: sData }] = await Promise.all([
       supabase
-        .from('accounts')
+        .from('wallets')
         .select('*')
         .eq('org_id', orgId)
         .order('created_at', { ascending: false }),
@@ -404,7 +404,7 @@ export default function Accounts() {
           encryptText,
         );
         const { error } = await supabase
-          .from('accounts')
+          .from('wallets')
           .update({
             ...enc,
           } as any)
@@ -416,7 +416,7 @@ export default function Accounts() {
           const rate = await resolveAssetToBtcRate(asset);
           if (rate !== null) {
             await supabase
-              .from('accounts')
+              .from('wallets')
               .update({ exchange_rate: rate } as any)
               .eq('id', editing.id);
           }
@@ -437,7 +437,7 @@ export default function Accounts() {
           encryptText,
         );
         const { data: newWallet, error } = await supabase
-          .from('accounts')
+          .from('wallets')
           .insert({
             org_id: orgId,
             ...enc,
@@ -452,7 +452,7 @@ export default function Accounts() {
             const rate = await resolveAssetToBtcRate(asset);
             if (rate !== null) {
               await supabase
-                .from('accounts')
+                .from('wallets')
                 .update({ exchange_rate: rate } as any)
                 .eq('id', (newWallet as any).id);
             }
@@ -564,7 +564,7 @@ export default function Accounts() {
     try {
       // Re-fetch raw wallet rows (we need encrypted columns + initial_balance)
       const { data: rawWallets, error: wErr } = await supabase
-        .from('accounts')
+        .from('wallets')
         .select('*')
         .eq('org_id', orgId);
       if (wErr) throw wErr;
@@ -693,7 +693,7 @@ export default function Accounts() {
             const update: Record<string, any> = { sync_status: 'SYNCED' };
             if (rate !== null) update.exchange_rate = rate;
             const { error } = await supabase
-              .from('accounts')
+              .from('wallets')
               .update(update as any)
               .eq('id', w.id);
             if (error) throw error;
@@ -702,7 +702,7 @@ export default function Accounts() {
             errorCount++;
             console.error(`[Accounts] refresh failed for wallet ${w.id}:`, err);
             await supabase
-              .from('accounts')
+              .from('wallets')
               .update({ sync_status: 'ERROR' } as any)
               .eq('id', w.id);
           }
@@ -1356,7 +1356,7 @@ export default function Accounts() {
           // decryptWallet reads encrypted_name, encrypted_balance, asset, account_type, etc.
           // A partial select (e.g. only encrypted_name) leaves asset undefined → decrypt throws an atob error.
           const { data: existing } = await supabase
-            .from('accounts')
+            .from('wallets')
             .select('*')
             .eq('org_id', orgId);
           const decryptedExisting = await Promise.all(
@@ -1389,7 +1389,7 @@ export default function Accounts() {
               },
               encryptText,
             );
-            const { error } = await supabase.from('accounts').insert({
+            const { error } = await supabase.from('wallets').insert({
               org_id: orgId,
               ...enc,
             } as any);

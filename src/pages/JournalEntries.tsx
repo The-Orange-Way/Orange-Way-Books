@@ -621,7 +621,7 @@ export default function JournalEntries() {
         .eq('org_id', orgId)
         .order('date', { ascending: false }),
       supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
-      supabase.from('chart_of_accounts').select('*').eq('org_id', orgId).eq('is_archived', false),
+      supabase.from('chart_of_accounts').select('*').eq('org_id', orgId),
       supabase.from('organizations').select('name, key_version').eq('id', orgId).maybeSingle(),
     ]);
     if (orgRes.data) {
@@ -660,7 +660,7 @@ export default function JournalEntries() {
     }
 
     if (acctRes.data) {
-      const decryptedAccts = await Promise.all(
+      const allAccts = await Promise.all(
         (acctRes.data as any[]).map(async (a) => {
           const fields = await decryptChartOfAccount(a, decryptText);
           return {
@@ -668,10 +668,12 @@ export default function JournalEntries() {
             account_name: fields.account_name,
             account_code: fields.account_code,
             account_type: fields.account_type,
+            is_archived: fields.is_archived,
           };
         }),
       );
-      setAccounts(decryptedAccts);
+      // is_archived is encrypted on prod; filter client-side after decryption
+      setAccounts(allAccts.filter((a) => !a.is_archived));
     }
 
     if (sRes.data) {
