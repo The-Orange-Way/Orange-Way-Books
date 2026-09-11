@@ -1,21 +1,22 @@
 name: Post-merge identity + leak scan
 
 # Scans every commit that just landed on a protected branch for
-# reserved-term strings in:
-#   - commit message body (Co-authored-by trailers, body text)
-#   - author name + email
-#   - committer name + email
+# identity and structural leaks in:
+#   - author email and committer email (allowlist approach)
+#   - Tailscale FQDNs in any metadata field (structural check)
+#   - commit message body (Tailscale FQDNs only; see trade-off note)
 #
-# This catches the class of leak the pre-push gate cannot see: GitHub
-# auto-adds Co-authored-by trailers to squash / rebase merge commits at
-# merge time, and the trailer email comes from each contributor's local
-# git config. If a contributor's user.email contains an internal-only
-# string, the merge commit silently carries that string into public
-# history.
+# The OW_RESERVED_TERMS blacklist is intentionally absent. It was
+# retired from GitHub by founder ruling 2026-09-07 (it must not live as
+# a public-repo secret). The blacklist now runs on our own boxes via the
+# pre-push gate (scripts/pre-push-gate.sh reads .reserved-terms locally)
+# and a scheduled scan that files findings into delivery-db without
+# touching a public log.
 #
-# The pre-push gate at scripts/pre-push-gate.sh blocks the same class of
-# leak at push time on the contributor's laptop, but only if the gate is
-# installed. This workflow is the server-side belt to that suspenders.
+# Trade-off (stated plainly, not hidden): allowlist checks catch email
+# and hostname leaks well. They do not catch codenames or personal names
+# in commit bodies, because those have no structural signature. The
+# box-side scheduled scan covers that gap on a schedule.
 
 on:
   push:
@@ -46,18 +47,10 @@ jobs:
           set -euo pipefail
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.event.after }}"
-          # On a brand-new branch creation, github.event.before is a SHA of
-          # all zeros. Scan only the head commit in that case to avoid
-          # scanning the entire repo history every time a new branch lands.
           ZERO="0000000000000000000000000000000000000000"
           if [ "$BEFORE" = "$ZERO" ]; then
             echo "range=$AFTER -1" >> "$GITHUB_OUTPUT"
           else
-            # Exclude commits already reachable from the other protected branch.
-            # This prevents back-merge commits (prod->dev or dev->prod) from
-            # re-scanning the entire merged ancestry that was already checked when
-            # it first landed on the source branch. The merge commit itself is
-            # always new on the receiving branch and is always included.
             if [ "${{ github.ref_name }}" = "dev" ]; then
               if ! git rev-parse --verify origin/prod >/dev/null 2>&1; then
                 echo "::error::origin/prod does not resolve after fetch; cannot compute exclusion range."
@@ -73,99 +66,77 @@ jobs:
             fi
           fi
 
-      - name: Scan author + committer + body for reserved-term patterns
+      - name: Scan author and committer identity for non-public addresses
         env:
-          # The reserved-term list is NOT hardcoded here: committing it
-          # would publish the very strings it exists to keep out of the
-          # public repo. It lives in the OW_RESERVED_TERMS repository
-          # secret; scripts/pre-push-gate.sh and pre-publish-scan.sh source
-          # the same list locally (env var or gitignored .reserved-terms),
-          # so local and server-side enforcement cannot drift.
-          RAW_PATTERN: ${{ secrets.OW_RESERVED_TERMS }}
           RANGE: ${{ steps.range.outputs.range }}
         run: |
           set -uo pipefail
-          if [ -z "$RAW_PATTERN" ]; then
-            echo "::error::OW_RESERVED_TERMS repository secret is not set; the identity scan cannot run."
-            exit 1
-          fi
+          # PUBLIC-SAFE EMAIL DOMAIN ALLOWLIST.
+          # Author and committer emails must match one of these domains.
+          # Any other domain is either PII (personal email) or internal
+          # infrastructure (a Tailscale FQDN in an email field was the
+          # exact vector for 3 of the 7 commits that carried reserved terms).
+          SAFE_EMAIL_RE='@(users\.noreply\.github\.com|github\.com|anthropic\.com|orangerails\.com)$'
 
-          # Canonicalize through the SHARED implementation, not a copy of
-          # it. See scripts/canon-terms.sh: it drops blank and comment
-          # lines, deletes carriage returns, joins the rest into one regex
-          # alternation and trims stray separators. The copy that used to
-          # live here was missing the carriage-return step, so a secret
-          # saved with Windows line endings produced a pattern of dead
-          # branches while this step printed a term count and "clean".
-          if [ ! -f scripts/canon-terms.sh ]; then
-            echo "::error::scripts/canon-terms.sh is missing, so the reserved-term list cannot be canonicalized. This scan must not report clean when it could not run."
-            exit 1
-          fi
-          . scripts/canon-terms.sh
-          PATTERN="$(printf '%s\n' "$RAW_PATTERN" | canon_terms)"
-
-          if [ -z "$PATTERN" ]; then
-            echo "::error::OW_RESERVED_TERMS is set but contains no usable terms after dropping comments and blank lines."
-            exit 1
-          fi
-          # Non-empty is not the same as usable. Each line of the stored
-          # value is a regex FRAGMENT, so an unbalanced parenthesis or
-          # bracket is a realistic typo. grep exits 2 on a pattern it
-          # refuses, and the match below is an "if": exit 2 takes the same
-          # false branch a clean line does, the counter stays at zero and
-          # this step prints "Identity-scan clean" having compared nothing.
-          if ! canon_terms_usable "$PATTERN"; then
-            echo "::error::OW_RESERVED_TERMS does not compile as a regular expression, so this scan cannot run and must not report clean. At least one line is not valid regex; an unbalanced parenthesis or bracket is the usual cause. No part of the value is printed."
-            exit 1
-          fi
-          # Count only. The terms themselves are never printed to a public log.
-          TERM_COUNT=$(printf '%s' "$PATTERN" | tr '|' '\n' | grep -c .)
-          echo "Reserved-term list loaded: $TERM_COUNT term(s)."
+          # STRUCTURAL TAILNET CHECK.
+          # Tailscale FQDNs are always internal infrastructure. They are
+          # identifiable by structure without any blacklist.
+          TAILNET_RE='\.tail[0-9a-f]{6,}\.ts\.net'
 
           echo "Walking range: $RANGE"
-          # Collect commit metadata first; a non-zero exit means git could not
-          # walk the range. An empty result from a failed walk must not be
-          # reported as clean -- fail explicitly instead.
-          COMMIT_DATA="$(git log $RANGE --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')" \
+          COMMIT_DATA="$(git log $RANGE \
+            --format='%H AUTHOR %an <%ae> COMMITTER %cn <%ce>%n%B%n--END--')" \
             || { echo "::error::git log failed walking range '$RANGE'; the scan cannot run."; exit 1; }
 
-          COMMIT_COUNT=$(printf '%s\n' "$COMMIT_DATA" | grep -c '^[0-9a-f]\{40\} AUTHOR' || true)
+          COMMIT_COUNT=$(printf '%s\n' "$COMMIT_DATA" \
+            | grep -c '^[0-9a-f]\{40\} AUTHOR' || true)
           echo "Commits in range: $COMMIT_COUNT"
 
-          MATCHES=0
+          FAILURES=0
           if [ "$COMMIT_COUNT" -gt 0 ]; then
-            # GitHub auto-injects a "Co-authored-by: <name> <noreply@anthropic.com>"
-            # trailer on squash/rebase merge commits. That address is Anthropic's
-            # public GitHub integration email and the trailer carries no
-            # internal-only identifier, yet a publicly known model name can contain
-            # a reserved-term substring and trip the scan. Drop ONLY that trailer
-            # line before matching; author, committer, and the rest of the body
-            # stay fully in scope so no other line gets a free pass.
-            while IFS= read -r line; do
-              if printf '%s' "$line" | grep -qEi "$PATTERN"; then
-                echo "::error::Reserved-term pattern found in just-pushed commit metadata (redacted; see OW_RESERVED_TERMS)."
-                MATCHES=$((MATCHES + 1))
-              fi
-            done < <(printf '%s\n' "$COMMIT_DATA" \
-                     | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$')
+            # EMAIL DOMAIN CHECK.
+            while IFS= read -r header; do
+              SHA=$(printf '%s' "$header" | cut -d' ' -f1)
+              EMAILS=$(printf '%s' "$header" | grep -oE '<[^>]+>' | tr -d '<>')
+              while IFS= read -r EMAIL; do
+                [ -z "$EMAIL" ] && continue
+                # Claude's noreply address is a public Anthropic integration;
+                # allow it explicitly before the domain check.
+                if printf '%s' "$EMAIL" | grep -qE '^noreply@anthropic\.com$'; then
+                  continue
+                fi
+                if ! printf '%s' "$EMAIL" | grep -qE "$SAFE_EMAIL_RE"; then
+                  echo "::error::Non-public email in commit ${SHA:0:8}: domain not on the allowlist (value redacted). Author and committer addresses must use a noreply or public-integration domain."
+                  FAILURES=$((FAILURES + 1))
+                fi
+              done <<< "$EMAILS"
+            done < <(printf '%s\n' "$COMMIT_DATA" | grep '^[0-9a-f]\{40\} AUTHOR')
+
+            # TAILNET FQDN CHECK.
+            TAILNET_HITS=$(printf '%s\n' "$COMMIT_DATA" \
+              | grep -viE '^[[:space:]]*Co-authored-by:[[:space:]]*Claude[[:space:]]+[A-Za-z]+[[:space:]]+[0-9.]+[[:space:]]*<noreply@anthropic\.com>[[:space:]]*$' \
+              | grep -cE "$TAILNET_RE" || true)
+            if [ "$TAILNET_HITS" -gt 0 ]; then
+              echo "::error::Tailscale FQDN (*.tailXXXXXX.ts.net) found in commit metadata: internal infrastructure name in public history."
+              FAILURES=$((FAILURES + 1))
+            fi
           fi
 
-          if [ "$MATCHES" -gt 0 ]; then
-            echo "::error::Identity-scan failed: $MATCHES commit(s) carry reserved-term strings."
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "::error::Identity-scan failed: $FAILURES violation(s) across $COMMIT_COUNT scanned commit(s)."
             exit 1
           fi
-          echo "Identity-scan clean: scanned $COMMIT_COUNT commit(s), 0 reserved-term matches."
+          echo "Identity-scan clean: $COMMIT_COUNT commit(s) scanned, 0 identity violations."
 
       - name: Run repo tree pre-publish leak scan (defense in depth)
-        env:
-          OW_RESERVED_TERMS: ${{ secrets.OW_RESERVED_TERMS }}
         run: |
           set -euo pipefail
-          # Fail closed: an unrunnable scanner is a broken guard, not a
-          # clean tree. If this step cannot execute the scanner it must go
-          # red, never report a green it did not earn.
           if [ ! -x scripts/pre-publish-scan.sh ]; then
             echo "::error::scripts/pre-publish-scan.sh is missing or not executable; the tree scan cannot run."
             exit 1
           fi
+          # OW_RESERVED_TERMS is intentionally absent: the blacklist is
+          # retired from GitHub. pre-publish-scan.sh skips category 1
+          # gracefully when no terms are configured, and runs the structural
+          # checks (categories 2-3) as normal.
           bash scripts/pre-publish-scan.sh
