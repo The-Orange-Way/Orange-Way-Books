@@ -42,6 +42,18 @@ export default function PrivacyChangelog() {
           </div>
 
           <div>
+            <h2 className="text-xl font-semibold">Version 2026.09.05</h2>
+            <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
+              <li>
+                Corrected the Controller section per the founder's settled legal-identity decision:
+                the legal entity is now The Orange Way Inc (previously printed as "Orange Way") and
+                the registered address is 620 Veterans Drive Suite 12, Barrie, ON L4N9J4, Canada
+                (previously a stale address). No change to what is collected or who else sees it.
+              </li>
+            </ul>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold">Version 2026.06.26c</h2>
             <ul className="list-disc pl-6 space-y-1 text-muted-foreground mt-2">
               <li>
