@@ -1146,7 +1146,12 @@ export default function Payments() {
       data.map(async (a: any) => {
         try {
           const fields = await decryptChartOfAccount(a, decryptText);
-          return { id: a.id, name: fields.account_name ?? '(unnamed)', code: fields.account_code, is_archived: fields.is_archived };
+          return {
+            id: a.id,
+            name: fields.account_name ?? '(unnamed)',
+            code: fields.account_code,
+            is_archived: fields.is_archived,
+          };
         } catch {
           return { id: a.id, name: '(decrypt failed)', code: null, is_archived: false };
         }
