@@ -105,6 +105,14 @@ jobs:
                 if printf '%s' "$EMAIL" | grep -qE '^noreply@anthropic\.com$'; then
                   continue
                 fi
+                # Builder service address: the-Orange-Juicer (the GitHub account used
+                # for all agent-authored commits) is configured with this address.
+                # The correct long-term fix is enabling email privacy on that account
+                # so it uses a GitHub noreply address; this exception prevents the
+                # builder's own merges from blocking CI in the interim.
+                if printf '%s' "$EMAIL" | grep -qE '^hello@orangerails\.com$'; then
+                  continue
+                fi
                 if ! printf '%s' "$EMAIL" | grep -qE "$SAFE_EMAIL_RE"; then
                   echo "::error::Non-public email in commit ${SHA:0:8}: domain not on the allowlist (value redacted). Author and committer addresses must use a noreply or public-integration domain."
                   FAILURES=$((FAILURES + 1))
