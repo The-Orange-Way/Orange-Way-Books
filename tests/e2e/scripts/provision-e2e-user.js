@@ -327,7 +327,22 @@ function restGetJson(supaUrl, secretKey, pathAndQuery) {
     if (url && secret) return { url, secret };
     return JSON.parse(fs.readFileSync(path.join(CREDS_DIR, 'owb-dev-supabase.json'), 'utf8'));
   })();
-  const BASE = 'https://books.orangeway.dev';
+
+  // Same variable the Playwright specs are driven by (see playwright.config.ts).
+  // No independent default: this script and the specs must drive the SAME
+  // origin in a given run, or a deploy to dev can turn the specs red with no
+  // code change, and a bug in the candidate build can pass provisioning
+  // against the live site and never be caught. Fail loudly rather than fall
+  // back to a hardcoded host, matching the config's own contract.
+  const BASE = process.env.PLAYWRIGHT_BASE_URL;
+  if (!BASE) {
+    console.error(
+      '✗ PLAYWRIGHT_BASE_URL must be set to the target under test, the same origin the ' +
+        'Playwright specs run against. Refusing to default: a default would silently ' +
+        'provision against a different host than the specs test.',
+    );
+    process.exit(2);
+  }
 
   // Refuse to run if owb.url targets anything outside the DEV allowlist.
   const ref = (() => {
