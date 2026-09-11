@@ -251,6 +251,44 @@ fi
 check 'the everything fixture does match text containing no term' \
   'matched' "$EVERYTHING_MATCHES"
 
+# The other half of the match-everything class, and the half a blank-line
+# probe cannot see. A bare "." matches every NON-EMPTY line of every file
+# and matches a blank line nowhere, so a probe that asks only about the
+# empty string reports this pattern healthy. The list is documented as one
+# regex FRAGMENT per line, so a fragment edited down to "." is a realistic
+# edit, and the result flags every file in the tree.
+if canon_terms_usable 'zzalpha|.|zzbravo'; then
+  CATCH_ALL_VERDICT=usable
+else
+  CATCH_ALL_VERDICT=refused
+fi
+check 'a catch-all branch matching every non-empty line is refused' \
+  'refused' "$CATCH_ALL_VERDICT"
+
+# And that fixture is the hazard rather than a strawman: it matches a line
+# holding no reserved term at all. If this case ever reports "missed", the
+# refusal above is passing for some other reason and proves nothing.
+if printf '%s\n' 'an ordinary line with no reserved term in it' | grep -qE 'zzalpha|.|zzbravo'; then
+  CATCH_ALL_MATCHES=matched
+else
+  CATCH_ALL_MATCHES=missed
+fi
+check 'the catch-all fixture does match text containing no term' \
+  'matched' "$CATCH_ALL_MATCHES"
+
+# This is the case that pins WHY the probe needs a second line. The
+# catch-all fixture does not match a blank line, so the blank-line probe
+# alone answers "healthy" for it. Delete the second probe line and this
+# case and the refusal above disagree, which is how the reason for the
+# design survives an edit by someone who was not here for it.
+if printf '\n' | grep -qE 'zzalpha|.|zzbravo'; then
+  CATCH_ALL_ON_BLANK=matched
+else
+  CATCH_ALL_ON_BLANK=missed
+fi
+check 'the catch-all fixture does not match a blank line, so one probe line would miss it' \
+  'missed' "$CATCH_ALL_ON_BLANK"
+
 if canon_terms_usable ""; then
   EMPTY_VERDICT=usable
 else
@@ -259,7 +297,103 @@ fi
 check 'an empty pattern is never reported usable' \
   'refused' "$EMPTY_VERDICT"
 
-printf '\n%d passed, %d failed\n\n' "$PASSED" "$FAILED"
+# ----------------------------------------------------------------------
+# WHICH way it is unusable, not just that it is.
+#
+# canon_terms_usable refuses a pattern for three different reasons and the
+# four consumers print the one it records. Getting that mapping wrong ships
+# a confidently wrong diagnostic, which is worse than the vague one it
+# replaced: the value is a secret nobody can read back, so the message is
+# the only thing a maintainer has to go on.
+# ----------------------------------------------------------------------
+
+canon_terms_usable "$(printf 'zzalpha\nzzbravo\n' | canon_terms)"
+check 'a usable list records the reason as ok' \
+  'ok' "$CANON_TERMS_REASON"
+
+canon_terms_usable "$(printf 'zzalpha\nzz(bravo\n' | canon_terms)"
+check 'a fragment grep cannot compile is recorded as refused' \
+  'refused' "$CANON_TERMS_REASON"
+
+# Valid ERE everywhere, and it matches the empty string. Reporting this one
+# as "refused" is the bug: it compiles, and the consequence is inverted.
+canon_terms_usable '(zzalpha)?'
+check 'a pattern that matches everything is recorded as such, not as refused' \
+  'matches-everything' "$CANON_TERMS_REASON"
+
+# The catch-all class reaches the same reason code by the other probe line.
+# It compiles perfectly, so recording it as "refused" would send a
+# maintainer hunting a bracket that is not there.
+canon_terms_usable 'zzalpha|.|zzbravo'
+check 'a catch-all branch is recorded as matches-everything, not as refused' \
+  'matches-everything' "$CANON_TERMS_REASON"
+
+canon_terms_usable ''
+check 'an empty pattern is recorded as empty' \
+  'empty' "$CANON_TERMS_REASON"
+
+REFUSED_TEXT="$(canon_terms_reason_text refused)"
+EVERYTHING_TEXT="$(canon_terms_reason_text matches-everything)"
+
+if [ "$REFUSED_TEXT" = "$EVERYTHING_TEXT" ]; then
+  REASONS_DIFFER=identical
+else
+  REASONS_DIFFER=different
+fi
+check 'the two explanations are not the same sentence' \
+  'different' "$REASONS_DIFFER"
+
+if printf '%s\n' "$REFUSED_TEXT" | grep -q 'does not compile'; then
+  REFUSED_SAYS=states-its-cause
+else
+  REFUSED_SAYS=wrong-cause
+fi
+check 'the refused explanation still says the list does not compile' \
+  'states-its-cause' "$REFUSED_SAYS"
+
+# The half that was previously false. A list that matches everything makes
+# the scan flag the whole tree, the opposite of checking nothing, and a
+# maintainer told otherwise looks for a bracket that is not there.
+if printf '%s\n' "$EVERYTHING_TEXT" | grep -q 'every line of every file'; then
+  EVERYTHING_SAYS=states-its-consequence
+else
+  EVERYTHING_SAYS=wrong-consequence
+fi
+check 'the matches everything explanation says the whole tree would be flagged' \
+  'states-its-consequence' "$EVERYTHING_SAYS"
+
+# Every consumer's message promises that no part of the list is printed,
+# and these logs are public. The fixture terms all carry the zz prefix, so
+# any of them reaching the text would show up here.
+canon_terms_usable "$(printf 'zzalpha\nzz(bravo\n' | canon_terms)"
+if canon_terms_reason_text | grep -q 'zz'; then
+  REASON_LEAK=printed-a-term
+else
+  REASON_LEAK=withheld
+fi
+check 'the explanation prints no part of the list' \
+  'withheld' "$REASON_LEAK"
+
+# How many cases this file must actually RUN.
+#
+# Deciding the exit status on the failure counter alone means a file
+# truncated to nothing reports "0 passed, 0 failed", prints that the self
+# test passed, and exits 0. That is the absence-reads-as-green shape every
+# defect in this gate has had, in the file written to catch it. Raising
+# this number when a case is added is the point: it makes deleting a case
+# a deliberate act instead of a silent one.
+EXPECTED_CASES=35
+TOTAL=$((PASSED + FAILED))
+
+printf '\n%d passed, %d failed, %d ran of %d expected\n\n' \
+  "$PASSED" "$FAILED" "$TOTAL" "$EXPECTED_CASES"
+
+if [ "$TOTAL" -lt "$EXPECTED_CASES" ]; then
+  printf 'canon-terms self test FAILED: only %d case(s) ran, %d were expected.\n' \
+    "$TOTAL" "$EXPECTED_CASES"
+  printf 'Cases have been removed, or this file did not run to the end.\n\n'
+  exit 1
+fi
 
 if [ "$FAILED" -ne 0 ]; then
   printf 'canon-terms self test FAILED\n\n'
