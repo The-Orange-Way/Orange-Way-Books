@@ -205,18 +205,23 @@ function isPresent(value: unknown): boolean {
 }
 
 /**
- * True only when the row itself is missing, not merely empty.
+ * True when the row itself is absent or structurally invalid, not merely empty.
  *
  * `row` is typed as the non-nullable `OrKeyMaterialRow`, so this is
  * unreachable from typed code. It exists for the caller that loses its types
- * at a boundary: a failed vault-metadata lookup that returns null or
- * undefined instead of throwing. Taking `value: unknown` rather than
- * `OrKeyMaterialRow | null | undefined` sidesteps comparing a supposedly
- * non-nullable type to null, which some TypeScript configurations reject as
- * a comparison with no overlap.
+ * at a boundary: a failed vault-metadata lookup that returns null, undefined,
+ * or an unexpected primitive instead of throwing. Taking `value: unknown`
+ * rather than `OrKeyMaterialRow | null | undefined` sidesteps comparing a
+ * supposedly non-nullable type to null, which some TypeScript configurations
+ * reject as a comparison with no overlap.
+ *
+ * Non-objects and arrays are refused alongside null and undefined: a value at
+ * a type boundary that was supposed to be a row cannot have its columns
+ * inspected, and guessing at them is the class of mistake this module exists
+ * to prevent.
  */
 function isMissingRow(value: unknown): boolean {
-  return value === null || value === undefined;
+  return value === null || value === undefined || typeof value !== 'object' || Array.isArray(value);
 }
 
 /**
