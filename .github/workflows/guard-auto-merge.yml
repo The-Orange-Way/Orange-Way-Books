@@ -1,0 +1,80 @@
+name: guard auto-merge arming
+
+# Why this exists.
+#
+# Our merge control is "the builder does not press merge." Nothing anywhere
+# checks "the builder did not ARM a merge" -- arming auto-merge is a write
+# available to anyone holding pull-requests: write, and it bypasses that
+# control just as completely as pressing Merge would, only later and
+# quieter. Release found the gap: zero workflows here reacted to the PR
+# event auto_merge_enabled.
+#
+# The one sanctioned exception is prod-backmerge.yml's own automation
+# branch (BACKMERGE_BRANCH there, automation/backmerge-prod-to-dev): that
+# workflow enables auto-merge on its own back-merge PR as documented,
+# intentional behavior. A prod-to-dev back-merge carries no new work and is
+# history-only, so landing it mechanically is correct and not a bypass.
+#
+# Every other PR that arms auto-merge gets it disarmed again immediately
+# and the job fails loudly, so this is never a silent no-op.
+#
+# pull_request_target, not pull_request: this repo is public, a fork could
+# open the PR, and pull_request hands a read-only token that cannot disarm
+# anything. This job never checks out PR head code, only the workflow file
+# itself, which GitHub already loaded to run it -- running with base-ref
+# permissions is safe under that constraint and would not be if a checkout
+# of the PR branch were added later. Do not add one.
+
+on:
+  pull_request_target:
+    types: [auto_merge_enabled]
+
+permissions:
+  pull-requests: write
+
+env:
+  BACKMERGE_BRANCH: automation/backmerge-prod-to-dev
+
+jobs:
+  guard:
+    name: Refuse an armed auto-merge outside the back-merge automation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether this is the sanctioned back-merge automation
+        id: check
+        run: |
+          if [ "${{ github.event.pull_request.head.ref }}" = "${BACKMERGE_BRANCH}" ]; then
+            echo "sanctioned=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sanctioned=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sanctioned back-merge PR, no action
+        if: steps.check.outputs.sanctioned == 'true'
+        run: |
+          echo "Head branch is ${BACKMERGE_BRANCH}: the prod-to-dev back-merge automation. Auto-merge is expected here. No action."
+
+      - name: Disarm the auto-merge and fail loudly
+        if: steps.check.outputs.sanctioned == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          actor="${{ github.event.sender.login }}"
+          number="${{ github.event.pull_request.number }}"
+          repo="${{ github.repository }}"
+
+          {
+            echo "### Auto-merge disarmed on PR #${number}"
+            echo ""
+            echo "@${actor} armed auto-merge on this PR. Arming auto-merge is not a merge path on this repo: the merge belongs to the CTO or Release once the Auditor has approved (builders-do-not-merge). This PR should be merged by a seat, not by auto-merge."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          gh pr merge --disable-auto "${number}" --repo "${repo}" || \
+            echo "::warning title=Could not disable auto-merge::gh pr merge --disable-auto failed; the token may lack permission. See the workflow's PR description for the fallback (FLEET_PAT)."
+
+          gh pr comment "${number}" --repo "${repo}" --body \
+            "@${actor} auto-merge was disarmed on this PR. Arming auto-merge is not a merge path on this repo: the merge belongs to the CTO or Release once the Auditor has approved. This PR should be merged by a seat." \
+            || true
+
+          echo "::error title=Auto-merge is not a merge path here::@${actor} armed auto-merge on PR #${number}. Disarmed. The merge belongs to the CTO or Release once the Auditor has approved."
+          exit 1
