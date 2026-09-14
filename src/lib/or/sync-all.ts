@@ -22,13 +22,10 @@
  * them and says so out loud, rather than including them and reporting
  * nothing.
  *
- * NOT YET WIRED. OWB's `connections` table has no `is_stealth` column today
- * (checked via code_search over this repo, zero hits) and there is no
- * "Sync all" action in src/pages/Connections.tsx yet, only a per-connection
- * `or-sync` call. This lands first, on its own, the same way OWB-T0156's
- * or-key-material.ts did, so the rule is reviewable before anything depends
- * on it. Wiring it into a bulk-sync UI action is separate follow-on scope on
- * OWB-T0088, not part of this change.
+ * WIRED as of OWB-T0030 step 1: Connections.tsx's ConnectionRow interface
+ * carries `is_stealth?: boolean` and handleSyncAll calls planSyncAll to
+ * split the request, then reportSyncAll to compose the toasts. See that
+ * file's handleSync/handleSyncAll for the caller.
  *
  * Pure and exported so both halves can be tested without a browser, a popup,
  * or a network call.
