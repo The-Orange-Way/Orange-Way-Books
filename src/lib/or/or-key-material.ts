@@ -74,6 +74,26 @@ export interface OrKeyMaterialRow {
   or_key_epoch: number | string | null;
 }
 
+/**
+ * A stable, non-prose reason a plan refused, so a consumer can branch on
+ * behaviour without matching on the human-facing text.
+ *
+ * - `unreadable`: the row itself could not be read (null, undefined, or not
+ *   a plain object), distinct from a row that was read and is genuinely empty.
+ * - `partial`: some but not all of the three columns are present and usable.
+ * - `unknown-generation`: all three columns are present and usable but the
+ *   generation is not one this build understands.
+ * - `no-salt`: nothing is pinned and there is no current salt to pin against.
+ * - `unpinned-unproven`: nothing is pinned and the caller has not shown that
+ *   deriving now is safe (see SealedRowEvidence).
+ */
+export type OrKeyMaterialRefuseCause =
+  | 'unreadable'
+  | 'partial'
+  | 'unknown-generation'
+  | 'no-salt'
+  | 'unpinned-unproven';
+
 export type OrKeyMaterialPlan =
   | {
       /**
@@ -105,6 +125,9 @@ export type OrKeyMaterialPlan =
        * bug being fixed. The namespace is disabled and says so, loudly.
        */
       mode: 'refuse';
+      /** Machine-readable. Branch on this, never on `reason`. */
+      cause: OrKeyMaterialRefuseCause;
+      /** Human-facing. Free to reword without changing behaviour. */
       reason: string;
     };
 
@@ -163,9 +186,9 @@ export interface PlanOrKeyMaterialOptions {
  * Anything that is not a whole number, in either shape, is treated as absent
  * rather than coerced. A fractional or unparseable generation is not a
  * generation, and guessing at one is the class of thing this module exists to
- * refuse. Both shapes require a SAFE integer, so a magnitude beyond exact
- * representation is refused whichever way it arrives, rather than being
- * accepted as a number and rejected as its own string spelling.
+ * refuse. Both branches check Number.isSafeInteger, not just Number.isInteger,
+ * so an unsafe-magnitude value is rejected the same way whichever shape it
+ * arrives in.
  */
 function readEpoch(raw: number | string | null): number | null {
   if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null;
@@ -179,6 +202,26 @@ function readEpoch(raw: number | string | null): number | null {
 /** Present means the column holds something. It does not mean it is usable. */
 function isPresent(value: unknown): boolean {
   return value !== null && value !== undefined;
+}
+
+/**
+ * True when the row itself is absent or structurally invalid, not merely empty.
+ *
+ * `row` is typed as the non-nullable `OrKeyMaterialRow`, so this is
+ * unreachable from typed code. It exists for the caller that loses its types
+ * at a boundary: a failed vault-metadata lookup that returns null, undefined,
+ * or an unexpected primitive instead of throwing. Taking `value: unknown`
+ * rather than `OrKeyMaterialRow | null | undefined` sidesteps comparing a
+ * supposedly non-nullable type to null, which some TypeScript configurations
+ * reject as a comparison with no overlap.
+ *
+ * Non-objects and arrays are refused alongside null and undefined: a value at
+ * a type boundary that was supposed to be a row cannot have its columns
+ * inspected, and guessing at them is the class of mistake this module exists
+ * to prevent.
+ */
+function isMissingRow(value: unknown): boolean {
+  return value === null || value === undefined || typeof value !== 'object' || Array.isArray(value);
 }
 
 /**
@@ -197,8 +240,15 @@ function isPresent(value: unknown): boolean {
  * destructive answer. This does not depend on how the eventual Books
  * migration declares its defaults, which is the point of deciding it here.
  *
- * @param row      what the vault metadata row holds for this org. A missing
- *                 row is an unreadable state, not an empty one, and refuses.
+ * A row that is itself null or undefined is a THIRD thing, distinct from
+ * both a pinned row and a genuinely empty one: it means the caller's read of
+ * the vault metadata did not actually complete. Reading it as absent (the
+ * effect of unconditional optional chaining) would derive-and-pin over a
+ * state that is simply unknown, which is exactly the guess this module
+ * exists to refuse instead of make. That case is checked first and refuses
+ * before any column is inspected.
+ *
+ * @param row      what the vault metadata row holds for this org
  * @param orgSalt  the salt in force right now, used only when pinning
  * @param options  what the caller established about rows already sealed. See
  *                 SealedRowEvidence: only proof that nothing can be lost
@@ -209,18 +259,12 @@ export function planOrKeyMaterial(
   orgSalt: string,
   options: PlanOrKeyMaterialOptions,
 ): OrKeyMaterialPlan {
-  // The row itself has to be a row. Every read below is optional-chained, so a
-  // null or undefined row yields undefined three times and looks exactly like a
-  // row whose three columns are genuinely null. Those two states mean opposite
-  // things: a row of nulls is a fresh account with nothing to lose, a missing
-  // row is a read that did not complete. Falling through would answer
-  // derive-and-pin for a lookup we never got an answer from, which is the
-  // destructive guess this module exists to refuse.
-  if (row === null || typeof row !== 'object' || Array.isArray(row)) {
+  if (isMissingRow(row)) {
     return {
       mode: 'refuse',
+      cause: 'unreadable',
       reason:
-        'Orange Rails key material could not be read: no vault metadata row was available, so whether anything is pinned is unknown. Deriving in that state could produce a key that opens none of the rows already synced, so it is refused.',
+        'Orange Rails key material state could not be read: the vault metadata row was missing, not merely empty, so nothing here can be trusted enough to derive against.',
     };
   }
 
@@ -242,6 +286,7 @@ export function planOrKeyMaterial(
       // that migration was a no-op.
       return {
         mode: 'refuse',
+        cause: 'unknown-generation',
         reason: `Orange Rails key material is generation ${epoch} and this app understands generation ${CURRENT_OR_KEY_EPOCH}.`,
       };
     }
@@ -260,6 +305,7 @@ export function planOrKeyMaterial(
     ].filter((x): x is string => x !== null);
     return {
       mode: 'refuse',
+      cause: 'partial',
       reason: `Orange Rails key material is partly stored: ${missing.join(' and ')} missing or empty, so the subkeys cannot be reproduced.`,
     };
   }
@@ -267,6 +313,7 @@ export function planOrKeyMaterial(
   if (typeof orgSalt !== 'string' || orgSalt.length === 0) {
     return {
       mode: 'refuse',
+      cause: 'no-salt',
       reason: 'No vault salt is available to pin Orange Rails key material against.',
     };
   }
@@ -282,6 +329,7 @@ export function planOrKeyMaterial(
     // are known to exist unverified.
     return {
       mode: 'refuse',
+      cause: 'unpinned-unproven',
       reason:
         'Orange Rails key material was never pinned for this account, and it is not established that deriving now reproduces the key that sealed the rows already synced. Deriving could produce a key that opens none of them, so it is refused. Either prove the derived key opens an existing sealed row, or re-sync anything synced before this point.',
     };
@@ -300,14 +348,18 @@ export function planOrKeyMaterial(
  * not help, so a surface should disable itself and say why. Matching on
  * message text would make every consumer depend on wording that a copy edit
  * can break, and a broad catch would swallow real errors, which is exactly
- * what a banner built on one must not do.
+ * what a banner built on one must not do. `cause` carries the same
+ * discriminator as OrKeyMaterialPlan's refuse variant, optional because this
+ * error is also thrown for reasons that never went through planOrKeyMaterial.
  */
 export class OrNamespaceDisabledError extends Error {
   readonly reason: string;
-  constructor(reason: string) {
+  readonly cause?: OrKeyMaterialRefuseCause;
+  constructor(reason: string, cause?: OrKeyMaterialRefuseCause) {
     super(`Orange Rails is unavailable in this session: ${reason}`);
     this.name = 'OrNamespaceDisabledError';
     this.reason = reason;
+    this.cause = cause;
     // Required for `instanceof` to survive the ES5 downlevel target.
     Object.setPrototypeOf(this, OrNamespaceDisabledError.prototype);
   }
