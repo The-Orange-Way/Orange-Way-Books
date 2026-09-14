@@ -1,0 +1,122 @@
+name: Prod migration check
+
+# Watches every push to the prod branch. If it adds one or more files
+# under supabase/migrations, it opens exactly one GitHub issue naming
+# every added migration version, so an unapplied migration is a loud,
+# visible, red item instead of a silent gap nobody is watching.
+#
+# It does not know whether the migration was actually applied. It only
+# knows the file shipped. See the workflow file's own commit message
+# and the linked ticket for the full scope and the parts this does not
+# cover.
+
+on:
+  push:
+    branches:
+      - prod
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find migration files added by this push
+        id: find
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          ZERO="0000000000000000000000000000000000000000"
+
+          if [ "$BEFORE" = "$ZERO" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            # New branch, or a before commit we cannot see (shallow
+            # history edge case). Fall back to what this one commit
+            # added, rather than skipping the check.
+            ADDED=$(git diff --diff-filter=A --name-only "$AFTER"^ "$AFTER" -- supabase/migrations/ 2>/dev/null || true)
+          else
+            ADDED=$(git diff --diff-filter=A --name-only "$BEFORE" "$AFTER" -- supabase/migrations/)
+          fi
+
+          if [ -z "$ADDED" ]; then
+            echo "No migration files added by this push. Nothing to do."
+            echo "has_migrations=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_migrations=true" >> "$GITHUB_OUTPUT"
+
+          VERSIONS=$(printf '%s\n' "$ADDED" | xargs -n1 basename | sed -E 's/^([0-9]+).*/\1/' | sort -u | paste -sd, -)
+          {
+            echo "versions<<MIGEOF"
+            echo "$VERSIONS"
+            echo "MIGEOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "files<<MIGEOF"
+            printf '%s\n' "$ADDED"
+            echo "MIGEOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue if one is not already open
+        if: steps.find.outputs.has_migrations == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const versions = `${{ steps.find.outputs.versions }}`.trim();
+            const files = `${{ steps.find.outputs.files }}`.trim();
+            const title = `PROD MIGRATIONS SHIPPED AND NOT YET APPLIED: ${versions}`;
+            const label = "prod-migration-pending";
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: label,
+            });
+            const already = existing.data.find((i) => i.title === title);
+            if (already) {
+              core.info(`An issue for these versions is already open: ${already.html_url}`);
+              return;
+            }
+
+            const fileList = files
+              .split("\n")
+              .filter(Boolean)
+              .map((f) => `- ${f}`)
+              .join("\n");
+
+            const body = [
+              "These migration files just landed on the production branch:",
+              "",
+              fileList,
+              "",
+              "The application has already been redeployed with this code.",
+              "The database changes in these files have not been run yet.",
+              "",
+              "The DBA is the one who applies these against the production database.",
+              "",
+              "This issue closes only when the migrations have actually been run",
+              "against production and the ledger row exists for each one. Merging",
+              "the pull request that added these files does not close it.",
+              "",
+              "This check knows a migration file was shipped. It does not know what",
+              "production actually contains, so it cannot see a migration applied",
+              "out of band, a removed file, or drift from any other cause.",
+            ].join("\n");
+
+            const created = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: [label],
+            });
+            core.info(`Opened ${created.data.html_url}`);
