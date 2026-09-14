@@ -12,6 +12,7 @@ import {
   Pencil,
   Settings,
   Landmark,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ import {
 import { DestinationAccountChips } from '@/components/connections/DestinationAccountChips';
 import { ConfirmDialog } from '@/components/connections/ConfirmDialog';
 import { decryptWallet, decryptOrgSettings } from '@/lib/crypto-fields';
+import { openOrConnect } from '@/lib/or/widget';
 import {
   fetchAndDecryptMappings,
   saveMappingsForConnection,
@@ -163,6 +165,15 @@ const OR_LINK_WIDGET_URL =
 // a broken button while those dependencies are still unconfirmed.
 const BANK_CONNECT_ENABLED =
   (import.meta.env.VITE_BANK_CONNECT_ENABLED as string | undefined) === 'true';
+
+// Stealth Sync connect feature flag. Named to match the sibling app's
+// VITE_STEALTH_SYNC_ENABLED (Orange Way Me, src/lib/stealth/flags.ts) so the
+// two builds are switched by the same variable name, even though this build
+// does not yet read it from a runtime kill switch the way the sibling does.
+// That kill switch is a separate, still pending piece of work, do not port
+// it here yet. Off in both dev and prod until the team turns it on.
+const STEALTH_SYNC_ENABLED =
+  (import.meta.env.VITE_STEALTH_SYNC_ENABLED as string | undefined) === 'true';
 
 // TODO: OR's provider catalog should drive this list dynamically
 // (filtered to bank-category providers) so OWB never diverges from what
@@ -304,6 +315,10 @@ export default function Connections() {
   const [incompleteConnIds, setIncompleteConnIds] = useState<Set<string>>(new Set());
   /** Branded delete confirmation — controlled state, replaces window.confirm. */
   const [deleteTarget, setDeleteTarget] = useState<ConnectionRow | null>(null);
+
+  // Stealth Sync connect button busy state, separate from bankConnectBusy
+  // and syncingId so the two connect paths never disable each other.
+  const [stealthConnectBusy, setStealthConnectBusy] = useState(false);
 
   // ── Bank-connect (Quiltt popup) lifecycle ──────────────────────────
   const [bankConnectBusy, setBankConnectBusy] = useState(false);
@@ -798,6 +813,62 @@ export default function Connections() {
   useEffect(() => stopBankConnectWatchers, [stopBankConnectWatchers]);
 
   /**
+   * Stealth Sync connect: opens the Orange Rails hosted widget directly
+   * (openOrConnect, reviewed and merged in OWB-T0086), and on success routes
+   * the returned source_wallets through the SAME WalletPickerStep +
+   * handleSaveWalletPicks pipeline the bank and manual-key connect paths
+   * already use. No new proxy call and no new crypto: openOrConnect already
+   * returns the discovered wallets, so there is nothing to call
+   * or-discover-wallets for here, unlike finishConnectionSetup's tail.
+   *
+   * Key material (credKeyB64/txnKeyB64) travels only in the URL fragment
+   * inside openOrConnect/buildConnectUrl, see that file's header comment.
+   * This function never sees the plaintext provider credential.
+   *
+   * NOT handled here, left as follow-on scope on OWB-T0030: the sibling
+   * app's repeated-xpub "you already had this" dedup, and
+   * is_stealth-aware badges on the connection list once one exists.
+   */
+  const handleConnectStealth = useCallback(async () => {
+    if (!orgId) {
+      toast.error('Organization not ready yet, try again in a moment.');
+      return;
+    }
+    setStealthConnectBusy(true);
+    try {
+      const credKeyB64 = await exportOrCredsKey();
+      const txnKeyB64 = await exportOrTxnsKey();
+      const result = await openOrConnect({ orgId, credKeyB64, txnKeyB64 });
+      await refreshList();
+      toast.success('Wallet connected via Stealth Sync.');
+      const discovered = (result.source_wallets ?? []).map((w) => ({
+        external_wallet_id: w.external_wallet_id,
+        currency: w.currency,
+        label: w.label,
+      }));
+      if (discovered.length > 0) {
+        setWalletPicker({
+          connectionId: result.connection_id,
+          providerType: 'stealth',
+          providerName: 'Stealth Sync',
+          discovered,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'Wallet connection cancelled' || msg === 'Widget closed before completion') {
+        toast.info('Connection cancelled.');
+      } else {
+        console.error('[Connections] openOrConnect failed', err);
+        captureException(err, { tags: { source: 'stealth-connect' } });
+        toast.error(`Couldn't connect the wallet: ${msg}`);
+      }
+    } finally {
+      setStealthConnectBusy(false);
+    }
+  }, [orgId, exportOrCredsKey, exportOrTxnsKey, refreshList]);
+
+  /**
    * Phase 3 — encrypt each picked wallet's metadata with ORK in the browser,
    * then send the selection to or-source-wallets-set. On success, refresh and
    * advance to the destination-account picker.
@@ -1245,6 +1316,21 @@ export default function Connections() {
                   <Landmark className="w-4 h-4 mr-2" />
                 )}
                 Connect a bank
+              </Button>
+            )}
+            {STEALTH_SYNC_ENABLED && (
+              <Button
+                variant="outline"
+                onClick={() => void handleConnectStealth()}
+                disabled={stealthConnectBusy}
+                data-testid="connections-connect-stealth"
+              >
+                {stealthConnectBusy ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Lock className="w-4 h-4 mr-2" />
+                )}
+                Connect via Stealth Sync
               </Button>
             )}
             <Button onClick={() => setAddOpen(true)} data-testid="connections-add">
