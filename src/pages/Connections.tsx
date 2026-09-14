@@ -44,6 +44,12 @@ import { DestinationAccountChips } from '@/components/connections/DestinationAcc
 import { ConfirmDialog } from '@/components/connections/ConfirmDialog';
 import { decryptWallet, decryptOrgSettings } from '@/lib/crypto-fields';
 import { openOrConnect } from '@/lib/or/widget';
+import { planSyncAll, reportSyncAll } from '@/lib/or/sync-all';
+import {
+  fetchAllStealthTransactions,
+  decryptStealthTx,
+  type StealthTransactionsPage,
+} from '@/lib/or/stealth-transactions';
 import {
   fetchAndDecryptMappings,
   saveMappingsForConnection,
@@ -113,6 +119,13 @@ interface ConnectionRow {
   encrypted_last_error: string | null;
   /** Phase 3: per-wallet sync selection — empty for legacy connections. */
   source_wallets?: RawSourceWallet[];
+  /**
+   * Stealth Sync marker, set server-side by OR. Absent on every ordinary
+   * connection and on any row written before this field existed — treat
+   * that as ordinary, never as private (planSyncAll in @/lib/or/sync-all
+   * enforces the same strict `=== true` check on this same field).
+   */
+  is_stealth?: boolean;
   // Decrypted client-side after fetch.
   decrypted_label?: string | null;
   decrypted_last_error?: string | null;
@@ -259,6 +272,22 @@ async function callProxy(endpoint: string, payload: Record<string, unknown>): Pr
     throw new Error(String((data as { error: unknown }).error));
   }
   return data;
+}
+
+/**
+ * Import the cred_key raw bytes (as exported by VaultContext's
+ * exportOrCredsKey, base64, meant for wire transit to the widget/or-sync)
+ * as a local, non-exportable CryptoKey so stealth-transactions.ts's
+ * decrypt functions can use it. VaultContext does not expose the
+ * CryptoKey itself, only the base64 wire form and ciphertext-string
+ * decrypt wrappers bound to its own internal ref, so this re-imports it
+ * locally rather than adding a new VaultContext surface for one caller.
+ */
+async function importCredKey(credKeyB64: string): Promise<CryptoKey> {
+  const raw = Uint8Array.from(atob(credKeyB64), (c) => c.charCodeAt(0));
+  return window.crypto.subtle.importKey('raw', raw as BufferSource, { name: 'AES-GCM' }, false, [
+    'decrypt',
+  ]);
 }
 
 export default function Connections() {
@@ -1019,6 +1048,23 @@ export default function Connections() {
   }
 
   async function handleSync(conn: ConnectionRow) {
+    if (conn.is_stealth) {
+      // A stealth connection's id is not one `or-sync` (or subaccount_id)
+      // knows anything about — it lives in OR's app-user-scoped store, not
+      // the ordinary `connections` table or-sync reads (see planSyncAll in
+      // @/lib/or/sync-all). Re-scanning it for new chain activity needs the
+      // hosted widget, opened by a user gesture (handleConnectStealth).
+      // "Sync now" here means: pull whatever sealed transactions OR
+      // already has for this connection and bridge them into the ledger.
+      setSyncingId(conn.id);
+      try {
+        await bridgeStealthConnection(conn);
+        setExpanded((prev) => ({ ...prev, [conn.id]: true }));
+      } finally {
+        setSyncingId(null);
+      }
+      return;
+    }
     if (!subaccountId) return;
     setSyncingId(conn.id);
     try {
@@ -1077,47 +1123,75 @@ export default function Connections() {
     if (!subaccountId || connections.length === 0) return;
     setSyncingId('__all__');
     try {
-      const credentials_key = await exportOrCredsKey();
-      const transactions_key = await exportOrTxnsKey();
-      const ids = connections.map((c) => c.id);
-      const res = (await callProxy('or-sync', {
-        subaccount_id: subaccountId,
-        connection_ids: ids,
-        credentials_key,
-        transactions_key,
-      })) as {
-        synced: number;
-        connections: Array<{ connection_id: string; synced: number; error?: string }>;
-      };
+      // Split ordinary (or-sync-able) from stealth connections. A stealth
+      // connection's id means nothing to or-sync — sending it anyway got it
+      // silently dropped from the response, which used to read as "up to
+      // date" for a wallet that was never actually touched (OWB-T0030 step 1).
+      const plan = planSyncAll(connections);
 
-      const errs = res.connections.filter((c) => c.error);
-      if (errs.length > 0) {
-        toast.warning(`Synced ${res.synced}; ${errs.length} connection(s) had errors.`);
-      } else if (res.synced === 0) {
-        toast.info('No new transactions found across any connection.');
-      } else {
-        toast.success(
-          `Synced ${res.synced} transaction${res.synced === 1 ? '' : 's'} across ${ids.length} connection${ids.length === 1 ? '' : 's'}.`,
-        );
+      let synced = 0;
+      let returned: Array<{ connection_id: string; synced: number; error?: string }> = [];
+      let firstErrorMessage: string | undefined;
+
+      if (plan.syncableIds.length > 0) {
+        const credentials_key = await exportOrCredsKey();
+        const transactions_key = await exportOrTxnsKey();
+        const res = (await callProxy('or-sync', {
+          subaccount_id: subaccountId,
+          connection_ids: plan.syncableIds,
+          credentials_key,
+          transactions_key,
+        })) as {
+          synced: number;
+          connections: Array<{ connection_id: string; synced: number; error?: string }>;
+        };
+        synced = res.synced;
+        returned = res.connections;
+        firstErrorMessage = returned.find((c) => c.error)?.error;
       }
-      // Auto-expand every synced connection + bump its tx-refresh key, same
-      // as the per-connection handleSync does, so "Sync all" doesn't leave
-      // the user staring at stale collapsed rows after a successful sync.
+
+      const report = reportSyncAll({
+        requestedIds: plan.syncableIds,
+        returned,
+        synced,
+        skippedPrivateCount: plan.skippedPrivateIds.length,
+        stealthSyncEnabled: STEALTH_SYNC_ENABLED,
+        firstErrorMessage,
+      });
+      for (const t of report.toasts) {
+        if (t.level === 'success') toast.success(t.message);
+        else if (t.level === 'warning') toast.warning(t.message);
+        else if (t.level === 'error') toast.error(t.message);
+        else toast.info(t.message);
+      }
+
+      // Auto-expand every synced (ordinary) connection + bump its
+      // tx-refresh key, same as the per-connection handleSync does, so
+      // "Sync all" doesn't leave the user staring at stale collapsed rows
+      // after a successful sync. Stealth connections get the same
+      // treatment below once their bridge runs.
       setExpanded((prev) => {
         const next = { ...prev };
-        for (const id of ids) next[id] = true;
+        for (const id of plan.syncableIds) next[id] = true;
         return next;
       });
       setTxRefreshKeys((prev) => {
         const next = { ...prev };
-        for (const id of ids) next[id] = (prev[id] ?? 0) + 1;
+        for (const id of plan.syncableIds) next[id] = (prev[id] ?? 0) + 1;
         return next;
       });
       await refreshList();
 
       if (orgId) {
         for (const conn of connections) {
-          await bridgeConnection(conn);
+          if (conn.is_stealth) {
+            // Not sent to or-sync above; bridge whatever OR already has
+            // sealed for it straight into the ledger.
+            await bridgeStealthConnection(conn);
+            setExpanded((prev) => ({ ...prev, [conn.id]: true }));
+          } else {
+            await bridgeConnection(conn);
+          }
         }
       }
     } catch (err) {
@@ -1222,6 +1296,84 @@ export default function Connections() {
       setTxRefreshKeys((prev) => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
     } catch (err) {
       console.error('[Connections] bridge failed', err);
+      toast.warning(
+        `Could not import to ledger: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setBridgingId(null);
+    }
+  }
+
+  /**
+   * Stealth Sync bridge — fetch every sealed transaction OR already has for
+   * this connection (or-stealth-transactions-list, paged via
+   * fetchAllStealthTransactions), decrypt each row under cred_key (NOT
+   * transactions_key — see src/lib/or/stealth-transactions.ts header
+   * comment for why that swap is a specific defect a sibling app shipped
+   * once already), and fan the decrypted rows out to the ledger through the
+   * same importOrTransactionsToV3 the ordinary bridge above uses.
+   *
+   * NOT INDEPENDENTLY CONFIRMED against a live or-stealth-transactions-list
+   * response in this change (OWB-T0030): the plaintext JSON shape inside
+   * sealed_record is assumed identical to the ordinary path's
+   * DecryptedOrTx, per stealth-transactions.ts's own header note. Needs a
+   * real stealth connection and a real response to confirm before this is
+   * relied on for a customer's books.
+   */
+  async function bridgeStealthConnection(conn: ConnectionRow): Promise<void> {
+    if (!orgId) return;
+    setBridgingId(conn.id);
+    try {
+      const credKeyB64 = await exportOrCredsKey();
+      const credKey = await importCredKey(credKeyB64);
+
+      const rows = await fetchAllStealthTransactions(conn.id, async (args) => {
+        return (await callProxy('or-stealth-transactions-list', args)) as StealthTransactionsPage;
+      });
+      if (rows.length === 0) return;
+
+      const decrypted: DecryptedOrTx[] = [];
+      const failed: Array<{ id: string; error: string }> = [];
+      for (const row of rows) {
+        const { tx, error } = await decryptStealthTx(row, credKey);
+        if (tx) decrypted.push(tx);
+        else failed.push({ id: row.id, error: error ?? 'unknown decrypt failure' });
+      }
+      if (failed.length > 0) {
+        console.warn('[Connections] stealth bridge: failed to decrypt rows', failed);
+      }
+      if (decrypted.length === 0) return;
+
+      const result = await importOrTransactionsToV3({
+        orgId,
+        orConnectionId: conn.id,
+        orTxs: decrypted,
+        mappings,
+        walletsById: accountLookup.walletsById,
+        primaryCurrency,
+        encryptText,
+        decryptText,
+      });
+
+      if (result.imported > 0) {
+        toast.success(
+          `Imported ${result.imported} transaction${result.imported === 1 ? '' : 's'} into your wallet ledger.`,
+        );
+      } else if (result.unrouted > 0 && result.duplicates === 0) {
+        toast.info(
+          `${result.unrouted} OR transaction${result.unrouted === 1 ? '' : 's'} await mapping — open Edit mapping to route them.`,
+        );
+      } else if (result.errors.length > 0) {
+        toast.warning(
+          `Bridge completed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'} — see console.`,
+        );
+      }
+      if (result.errors.length > 0) {
+        console.warn('[Connections] stealth bridge errors:', result.errors);
+      }
+      setTxRefreshKeys((prev) => ({ ...prev, [conn.id]: (prev[conn.id] ?? 0) + 1 }));
+    } catch (err) {
+      console.error('[Connections] stealth bridge failed', err);
       toast.warning(
         `Could not import to ledger: ${err instanceof Error ? err.message : String(err)}`,
       );
