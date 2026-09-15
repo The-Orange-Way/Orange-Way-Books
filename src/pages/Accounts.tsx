@@ -1355,10 +1355,7 @@ export default function Accounts() {
             };
           // decryptWallet reads encrypted_name, encrypted_balance, asset, account_type, etc.
           // A partial select (e.g. only encrypted_name) leaves asset undefined → decrypt throws an atob error.
-          const { data: existing } = await supabase
-            .from('wallets')
-            .select('*')
-            .eq('org_id', orgId);
+          const { data: existing } = await supabase.from('wallets').select('*').eq('org_id', orgId);
           const decryptedExisting = await Promise.all(
             (existing || []).map(async (w: any) => {
               const fields = await decryptWallet(w, decryptText);
