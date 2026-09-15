@@ -157,7 +157,7 @@ export default function DemoDataPage() {
         ),
       );
       const { error: wErr } = await supabase
-        .from('accounts')
+        .from('wallets')
         .insert(wallets.map((enc) => ({ org_id: orgId, ...enc }) as any));
       if (wErr) throw new Error(`wallets: ${wErr.message}`);
 

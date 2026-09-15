@@ -61,7 +61,7 @@ export async function buildTakeoutFile(
   ] = await Promise.all([
     supabase.from('organizations').select('*').eq('id', orgId).maybeSingle(),
     supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
-    supabase.from('accounts').select('*').eq('org_id', orgId),
+    supabase.from('wallets').select('*').eq('org_id', orgId),
     supabase
       .from('chart_of_accounts' as any)
       .select('*')
