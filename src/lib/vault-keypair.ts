@@ -33,7 +33,15 @@
  * importing the full generated schema types.
  */
 
-import { encryptString, decryptString, importAesKeyNonExtractable } from './vault';
+import {
+  encryptString,
+  decryptString,
+  importAesKeyNonExtractable,
+  encryptTextBound,
+  decryptTextBound,
+  buildVaultAad,
+  BOUND_ENVELOPE_PREFIX,
+} from './vault';
 import { derivePqcSecretWrapKey } from './key-derivation';
 import { generateHybridKemKeyPair } from './pqc';
 
@@ -96,7 +104,13 @@ export interface SupabaseKeypairClient {
  * the IV without parsing base64.
  */
 function extractIvFromEncryptedString(b64: string): string {
-  const combined = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  // A bound envelope (OWB-T0092) carries the BOUND_ENVELOPE_PREFIX ahead of
+  // the base64 payload; strip it before decoding so the IV offset below is
+  // unchanged for both the legacy and the bound wire format.
+  const payload = b64.startsWith(BOUND_ENVELOPE_PREFIX)
+    ? b64.slice(BOUND_ENVELOPE_PREFIX.length)
+    : b64;
+  const combined = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
   if (combined.length < 12) {
     throw new Error('user_vault_keys: encrypted blob too short to contain IV');
   }
@@ -109,14 +123,27 @@ function extractIvFromEncryptedString(b64: string): string {
  * freshly-generated keypair. Extracted so `ensureUserKeypair` and the
  * future 4.3 invite flow can share the same encoding logic.
  */
-async function buildUserVaultKeysRow(mek: CryptoKey, saltB64: string): Promise<UserVaultKeysRow> {
+async function buildUserVaultKeysRow(
+  userId: string,
+  mek: CryptoKey,
+  saltB64: string,
+): Promise<UserVaultKeysRow> {
   const wrapKey = await derivePqcSecretWrapKey(mek, saltB64);
   const kem = generateHybridKemKeyPair();
 
-  // Wrap the hybrid secret key with the MEK-derived subkey. encryptString
-  // is AES-256-GCM with a fresh random IV — same wire format used for
-  // every other vault ciphertext in this repo.
-  const encrypted_private_key = await encryptString(bytesToBase64(kem.secretKey), wrapKey);
+  // Wrap the hybrid secret key with the MEK-derived subkey, bound to this
+  // user's row (OWB-T0092) so the ciphertext does not open if it is ever
+  // copied onto a different user_vault_keys row.
+  const aad = buildVaultAad({
+    table: 'user_vault_keys',
+    column: 'encrypted_private_key',
+    rowId: userId,
+  });
+  const encrypted_private_key = await encryptTextBound(
+    bytesToBase64(kem.secretKey),
+    wrapKey,
+    aad,
+  );
 
   return {
     public_key_b64: bytesToBase64(kem.publicKey),
@@ -170,7 +197,7 @@ export async function ensureUserKeypair(
     return { generated: false };
   }
 
-  const row = await buildUserVaultKeysRow(mek, saltB64);
+  const row = await buildUserVaultKeysRow(userId, mek, saltB64);
 
   const insert = await supabase
     .from('user_vault_keys')
@@ -235,11 +262,18 @@ export async function rewrapUserKeypair(
     return { rewrapped: false, reason: 'no-row' };
   }
 
-  // Unwrap under the old MEK, then re-wrap under the new MEK.
+  // Unwrap under the old MEK, then re-wrap under the new MEK. Both sides are
+  // bound to this user's row (OWB-T0092); decryptTextBound falls back to the
+  // legacy unbound read for a row written before this change.
+  const aad = buildVaultAad({
+    table: 'user_vault_keys',
+    column: 'encrypted_private_key',
+    rowId: userId,
+  });
   const oldWrapKey = await derivePqcSecretWrapKey(oldMek, saltB64);
   const newWrapKey = await derivePqcSecretWrapKey(newMek, saltB64);
-  const secretKeyB64 = await decryptString(existing.data.encrypted_private_key, oldWrapKey);
-  const newEncrypted = await encryptString(secretKeyB64, newWrapKey);
+  const secretKeyB64 = await decryptTextBound(existing.data.encrypted_private_key, oldWrapKey, aad);
+  const newEncrypted = await encryptTextBound(secretKeyB64, newWrapKey, aad);
 
   // Atomic UPDATE on the existing row. No DELETE + INSERT.
   const update = await supabase
