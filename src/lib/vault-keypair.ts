@@ -34,8 +34,6 @@
  */
 
 import {
-  encryptString,
-  decryptString,
   importAesKeyNonExtractable,
   encryptTextBound,
   decryptTextBound,
