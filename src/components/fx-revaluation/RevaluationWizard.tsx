@@ -120,7 +120,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           .select('*, journal_entries!inner(date, org_id)')
           .eq('journal_entries.org_id', orgId)
           .lte('journal_entries.date', periodEnd),
-        supabase.from('accounts').select('id, asset, external_account_id').eq('org_id', orgId),
+        supabase.from('wallets').select('id, asset, external_account_id').eq('org_id', orgId),
       ]);
 
       const rawAccounts = (acctRes.data as any[]) ?? [];
