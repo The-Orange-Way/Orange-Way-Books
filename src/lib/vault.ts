@@ -104,6 +104,132 @@ export async function decryptText(ciphertext: string, key: CryptoKey): Promise<s
   return new TextDecoder().decode(plaintext);
 }
 
+// ---------- AEAD binding: additional authenticated data (OWB-T0092, ported from OWM-T0206) ----------
+//
+// WHY THIS EXISTS. AES-GCM proves a ciphertext has not been altered. It does
+// not prove the ciphertext is still where we put it. Without additional data
+// bound in, any value sealed under a key opens under that same key no matter
+// which row or which column it is sitting in, so a database-level copy of one
+// sealed column over another produces a row that still reads healthy and
+// opens cleanly. Binding the location into the AAD makes that transplant
+// fail to open. Full reasoning and the column inventory: OWB-T0092.
+//
+// THE FORMULA IS BYTE-IDENTICAL TO THE ORANGE WAY ME TWIN, by design, so a
+// reviewer can diff the two builders and see exactly one difference (the
+// domain tag). Do not change the shape here without reopening that decision
+// on OWB-T0092: a value already sealed under one shape does not open under
+// another, so an edit to this string is a data migration.
+//
+//     <domain>/v1|<schema>.<table>|<column>|<row id>
+//
+// domain is 'owb' here (the Me twin uses 'owm'). schema.table and column are
+// both required: several Books tables carry more than one sealed value in a
+// single row (org_settings has six; journal_entry_lines has encrypted_debit
+// and encrypted_credit side by side), so the column name is load-bearing,
+// not defensive. row id is the natural key the client already holds at
+// encrypt time for a phase-1 (one-row-per-subject) column; a row keyed by a
+// server-generated surrogate id the client does not hold at encrypt time is
+// phase 2 and is out of scope here.
+
+export const VAULT_AAD_DOMAIN = 'owb';
+
+/**
+ * Marks a ciphertext as carrying bound additional data.
+ *
+ * The prefix is what lets old and new rows coexist without a migration. A
+ * value written before this change has no prefix, so decryptTextBound opens
+ * it on the legacy path with no AAD; a value written after it does, so the
+ * AAD is required and a transplant fails. That is deliberate and it is the
+ * only reason existing vaults keep unlocking.
+ */
+export const BOUND_ENVELOPE_PREFIX = 'v1.';
+
+/**
+ * Build the additional authenticated data for one sealed column.
+ *
+ * The pipe is the separator because it cannot appear in an unquoted Postgres
+ * identifier or in a uuid, so no combination of table, column and id can be
+ * made to collide with a different one by choosing clever names.
+ */
+export function buildVaultAad(params: {
+  table: string;
+  column: string;
+  rowId: string;
+  schema?: string;
+  domain?: string;
+}): Uint8Array {
+  const schema = params.schema ?? 'public';
+  const domain = params.domain ?? VAULT_AAD_DOMAIN;
+  if (!params.table || !params.column || !params.rowId) {
+    // Refusing beats sealing under an empty field: an AAD of
+    // "owb/v1|public.org_settings||<id>" would bind nothing about the
+    // column while looking exactly like a bound value at rest.
+    throw new Error('buildVaultAad: table, column and rowId are all required');
+  }
+  const aad = `${domain}/v1|${schema}.${params.table}|${params.column}|${params.rowId}`;
+  return new TextEncoder().encode(aad);
+}
+
+/**
+ * Seal with additional data bound in, and stamp the envelope.
+ *
+ * The aad parameter is REQUIRED, with no default. A default would silently
+ * produce an unbound ciphertext at the one call site the author forgot, and
+ * that value would look identical to a correctly bound one until someone
+ * transplanted it.
+ */
+export async function encryptTextBound(
+  plaintext: string,
+  key: CryptoKey,
+  aad: Uint8Array,
+): Promise<string> {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: aad as BufferSource },
+    key,
+    new TextEncoder().encode(plaintext),
+  );
+  const combined = new Uint8Array(12 + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), 12);
+  return BOUND_ENVELOPE_PREFIX + uint8ArrayToBase64(combined);
+}
+
+/**
+ * Open a value that may or may not be bound, and decide which by the
+ * envelope rather than by what the caller expects.
+ *
+ * Reading the marker off the stored value is the point. If we instead
+ * decided from a flag or a version column, an attacker who can write the
+ * database could clear that flag and downgrade a bound ciphertext to an
+ * unbound read, which would hand back exactly the transplant this change
+ * exists to stop. The marker travels with the ciphertext, so stripping it
+ * corrupts it.
+ */
+export async function decryptTextBound(
+  ciphertextB64: string,
+  key: CryptoKey,
+  aad: Uint8Array,
+): Promise<string> {
+  if (!ciphertextB64.startsWith(BOUND_ENVELOPE_PREFIX)) {
+    // Written before this change. Opens exactly as it always did.
+    return decryptText(ciphertextB64, key);
+  }
+  const combined = Uint8Array.from(
+    atob(ciphertextB64.slice(BOUND_ENVELOPE_PREFIX.length)),
+    (c) => c.charCodeAt(0),
+  );
+  if (combined.length < 12) throw new Error('Invalid ciphertext');
+  const iv = combined.slice(0, 12);
+  const data = combined.slice(12);
+  const plaintext = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv, additionalData: aad as BufferSource },
+    key,
+    data,
+  );
+  return new TextDecoder().decode(plaintext);
+}
+
 /**
  * Encrypts raw bytes (e.g. a File / Blob) with AES-256-GCM.
  * Returns a Blob whose content is: [iv (12 bytes)][ciphertext + auth tag].
