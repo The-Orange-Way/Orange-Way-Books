@@ -137,11 +137,7 @@ async function buildUserVaultKeysRow(
     column: 'encrypted_private_key',
     rowId: userId,
   });
-  const encrypted_private_key = await encryptTextBound(
-    bytesToBase64(kem.secretKey),
-    wrapKey,
-    aad,
-  );
+  const encrypted_private_key = await encryptTextBound(bytesToBase64(kem.secretKey), wrapKey, aad);
 
   return {
     public_key_b64: bytesToBase64(kem.publicKey),
