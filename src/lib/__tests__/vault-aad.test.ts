@@ -48,12 +48,7 @@ describe('vault — buildVaultAad', () => {
   });
 
   it('honors an explicit schema', () => {
-    const aad = buildVaultAad({
-      schema: 'internal',
-      table: 't',
-      column: 'c',
-      rowId: 'r',
-    });
+    const aad = buildVaultAad({ schema: 'internal', table: 't', column: 'c', rowId: 'r' });
     expect(new TextDecoder().decode(aad)).toBe('owb/v1|internal.t|c|r');
   });
 
