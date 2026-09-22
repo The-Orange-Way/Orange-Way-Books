@@ -128,9 +128,17 @@ jobs:
       # rather than leaving a contributor staring at "exit code 1".
       - name: Format check
         run: |
-          if ! bun run format:check; then
+          set +e
+          FORMAT_OUTPUT=$(bun run format:check 2>&1)
+          FORMAT_STATUS=$?
+          set -e
+          echo "$FORMAT_OUTPUT"
+          if [ "$FORMAT_STATUS" -ne 0 ]; then
             echo ""
             echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
+            echo "$FORMAT_OUTPUT" | grep -v '^Checking formatting' | head -20 | while IFS= read -r line; do
+              echo "::error::prettier: ${line}"
+            done
             exit 1
           fi
 
