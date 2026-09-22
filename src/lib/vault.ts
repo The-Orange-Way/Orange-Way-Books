@@ -151,15 +151,13 @@ export const BOUND_ENVELOPE_PREFIX = 'v1.';
  * identifier or in a uuid, so no combination of table, column and id can be
  * made to collide with a different one by choosing clever names.
  */
-export function buildVaultAad(
-  params: {
-    table: string;
-    column: string;
-    rowId: string;
-    schema?: string;
-    domain?: string;
-  },
-): Uint8Array {
+export function buildVaultAad(params: {
+  table: string;
+  column: string;
+  rowId: string;
+  schema?: string;
+  domain?: string;
+}): Uint8Array {
   const schema = params.schema ?? 'public';
   const domain = params.domain ?? VAULT_AAD_DOMAIN;
   if (!params.table || !params.column || !params.rowId) {
