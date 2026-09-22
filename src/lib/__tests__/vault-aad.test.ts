@@ -67,7 +67,11 @@ describe('vault — buildVaultAad', () => {
 describe('vault — encryptTextBound / decryptTextBound', () => {
   it('round-trips under a matching AAD', async () => {
     const key = await freshAesKey();
-    const aad = buildVaultAad({ table: 'journal_entry_lines', column: 'encrypted_debit', rowId: 'row-1' });
+    const aad = buildVaultAad({
+      table: 'journal_entry_lines',
+      column: 'encrypted_debit',
+      rowId: 'row-1',
+    });
     const sealed = await encryptTextBound('42.00', key, aad);
     expect(sealed.startsWith(BOUND_ENVELOPE_PREFIX)).toBe(true);
     const opened = await decryptTextBound(sealed, key, aad);
@@ -76,16 +80,32 @@ describe('vault — encryptTextBound / decryptTextBound', () => {
 
   it('OWB-T0092 acceptance #2: rejects a ciphertext presented under a different row id', async () => {
     const key = await freshAesKey();
-    const slotA = buildVaultAad({ table: 'journal_entry_lines', column: 'encrypted_debit', rowId: 'row-A' });
-    const slotB = buildVaultAad({ table: 'journal_entry_lines', column: 'encrypted_debit', rowId: 'row-B' });
+    const slotA = buildVaultAad({
+      table: 'journal_entry_lines',
+      column: 'encrypted_debit',
+      rowId: 'row-A',
+    });
+    const slotB = buildVaultAad({
+      table: 'journal_entry_lines',
+      column: 'encrypted_debit',
+      rowId: 'row-B',
+    });
     const sealed = await encryptTextBound('sealed-under-row-A', key, slotA);
     await expect(decryptTextBound(sealed, key, slotB)).rejects.toThrow();
   });
 
   it('rejects a ciphertext presented under a different column of the same row', async () => {
     const key = await freshAesKey();
-    const debit = buildVaultAad({ table: 'journal_entry_lines', column: 'encrypted_debit', rowId: 'row-1' });
-    const credit = buildVaultAad({ table: 'journal_entry_lines', column: 'encrypted_credit', rowId: 'row-1' });
+    const debit = buildVaultAad({
+      table: 'journal_entry_lines',
+      column: 'encrypted_debit',
+      rowId: 'row-1',
+    });
+    const credit = buildVaultAad({
+      table: 'journal_entry_lines',
+      column: 'encrypted_credit',
+      rowId: 'row-1',
+    });
     const sealed = await encryptTextBound('100.00', key, debit);
     // This is the concrete threat model from OWB-T0092: swapping debit and
     // credit on the same row must not decrypt, or a ledger entry's sign
