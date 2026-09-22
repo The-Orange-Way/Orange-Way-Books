@@ -134,8 +134,8 @@ jobs:
           set -e
           if [ "$FMT_STATUS" -ne 0 ]; then
             echo "$FMT_OUTPUT"
-            echo "$FMT_OUTPUT" | grep -E '^\[warn\]' | head -20 | while IFS= read -r line; do
-              echo "::error::prettier: $line"
+            echo "$FMT_OUTPUT" | grep -E '\S' | head -20 | while IFS= read -r line; do
+              echo "::error::prettier-out: $line"
             done
             echo ""
             echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
