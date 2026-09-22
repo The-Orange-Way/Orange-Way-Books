@@ -104,7 +104,7 @@ export async function decryptText(ciphertext: string, key: CryptoKey): Promise<s
   return new TextDecoder().decode(plaintext);
 }
 
-// ---------- AEAD binding: additional authenticated data (OWB-T0092, ported from OWM-T0206) ----------
+// ---------- AEAD binding: additional authenticated data (OWB-T0092) ----------
 //
 // WHY THIS EXISTS. AES-GCM proves a ciphertext has not been altered. It does
 // not prove the ciphertext is still where we put it. Without additional data
