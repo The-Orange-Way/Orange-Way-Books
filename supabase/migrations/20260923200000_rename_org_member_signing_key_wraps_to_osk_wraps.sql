@@ -21,7 +21,7 @@
 -- None of that was ever recorded as a migration, so a fresh build that
 -- replays every migration file in order would still land on the OLD
 -- table name, while every application call site and edge function
--- (see OWB-T0210, PR #417) queries the NEW one. This file is the missing
+-- (see OWB-T0210) queries the NEW one. This file is the missing
 -- record.
 --
 -- It is a documented no-op on both live databases as of 2026-09-23 (both
