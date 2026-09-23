@@ -35,7 +35,7 @@ const MIGRATIONS_DIR = process.env.DRIFT_CHECK_MIGRATIONS_DIR || 'supabase/migra
 // are called before a user is authenticated (public invoice lookups, beta
 // allowlist check, rate limiting, invoice recording). Adding a new exception
 // here requires a deliberate code review -- the list is intentionally named
-// rather than inferred at runtime, matching OWM precedent (DL-1546).
+// rather than inferred at runtime (DL-1546).
 // Each entry is documented on OWB-E0002.
 export const ANON_GRANTABLE_EXCEPTIONS = new Set([
   'get_public_invoice',
