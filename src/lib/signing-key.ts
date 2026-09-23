@@ -7,7 +7,7 @@
  *     can fetch it to verify peer writes).
  *   - Private half is wrapped per writer via the same hybrid-KEM
  *     strategy used for org_keys invite wraps, and stored in
- *     `org_member_signing_key_wraps` keyed on (user_id, org_id, key_version).
+ *     `org_member_osk_wraps` keyed on (user_id, org_id, key_version).
  *
  * Auditor and Viewer members never get a wrap, which is the
  * cryptographic read-only enforcement — see
@@ -188,7 +188,7 @@ export async function generateAndWrapSigningKey(
 }
 
 /**
- * Unwrap a stored `org_member_signing_key_wraps` row to recover the user's
+ * Unwrap a stored `org_member_osk_wraps` row to recover the user's
  * ML-DSA-65 secret key. Inverse of generateAndWrapSigningKey's wrap path.
  *
  * The recipient's hybrid secret key (x25519 | ML-KEM-768) must be

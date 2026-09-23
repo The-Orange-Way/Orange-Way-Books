@@ -17,7 +17,7 @@
  *   bytes 1132..   : AES-GCM ciphertext + auth tag (data key + 16-byte tag)
  *
  * Callers store the wrapped blob as base64 in whichever per-recipient
- * wrapping table fits the surface (e.g. `org_member_signing_key_wraps`).
+ * wrapping table fits the surface (e.g. `org_member_osk_wraps`).
  */
 
 import {
