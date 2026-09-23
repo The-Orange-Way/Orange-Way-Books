@@ -902,7 +902,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
    * Phase 4.4: lazily unwrap the user's Org Signing Key for a given
    * org. The flow:
    *   1. Return cached handle if we already unwrapped this org's signing key.
-   *   2. Fetch `org_member_signing_key_wraps` for (auth.uid, org_id, latest
+   *   2. Fetch `org_member_osk_wraps` for (auth.uid, org_id, latest
    *      key_version). Null result = read-only role (Auditor / Viewer).
    *   3. Fetch the user's own `user_vault_keys.encrypted_private_key`
    *      and decrypt it with the pqc-secret-wrap subkey derived from
@@ -929,8 +929,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     if (!user) return null;
 
     // Step 1: latest signing-key wrap for this user in this org.
-    const { data: wrapRow, error: wrapErr } = await (supabase as any)
-      .from('org_member_signing_key_wraps')
+    const { data: wrapRow, error: wrapErr } = await supabase
+      .from('org_member_osk_wraps')
       .select('wrapped_private_key, key_version, wrap_algo')
       .eq('user_id', user.id)
       .eq('org_id', orgId)
@@ -938,7 +938,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       .limit(1)
       .maybeSingle();
     if (wrapErr) {
-      console.warn('[vault] loadOrgSigningKey: org_member_signing_key_wraps read failed', wrapErr);
+      console.warn('[vault] loadOrgSigningKey: org_member_osk_wraps read failed', wrapErr);
       return null;
     }
     if (!wrapRow) {
