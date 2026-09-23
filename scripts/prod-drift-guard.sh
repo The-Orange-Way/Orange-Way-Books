@@ -113,9 +113,10 @@ fi
 
 # 2. dev ahead of prod: unpromoted commits over the divergence limit.
 # BEHIND_JSON_OVERRIDE lets a test drive this path with a synthetic compare
-# payload instead of a live API call, so the landing-clock and age logic
-# below can be exercised without a real stale branch existing in GitHub.
-# Never set in a real run; only a negative-control test job sets it.
+# payload instead of a live 'gh api compare' call for the unpromoted-commit
+# check, so the landing-clock and age logic below can be exercised without a
+# real stale branch existing in GitHub. Never set in a real run; only a
+# negative-control test job sets it.
 if [ -n "${BEHIND_JSON_OVERRIDE:-}" ]; then
   behind_json="$BEHIND_JSON_OVERRIDE"
   echo "::notice::using BEHIND_JSON_OVERRIDE (synthetic compare payload, test only)"
