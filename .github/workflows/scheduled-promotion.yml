@@ -252,8 +252,19 @@ jobs:
           # one exists we update it and never reach gh pr create. A hotfix opened
           # straight against prod from some other branch is deliberately NOT
           # matched: it is not the promotion and must not be retitled as one.
+          #
+          # The API's default ordering for this endpoint is unstated, so when
+          # both a pinned release/prod- head and a legacy dev head are open at
+          # once, `.[0]` picked whichever GitHub happened to list first.
+          # Sort explicitly instead: a pinned release/prod- head
+          # always wins over a legacy dev head (dev moves, so feeding a dev-
+          # headed pull request silently voids the pin), and ties within the
+          # same kind break on the lowest pull request number, i.e. the oldest
+          # one open.
           EXISTING=$(gh api "repos/${GH_REPO}/pulls?state=open&base=prod&per_page=100" \
-                       --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))] | .[0].number // ""')
+                       --jq '[.[] | select(.head.ref == "dev" or (.head.ref | startswith("release/prod-")))]
+                             | sort_by([(if (.head.ref | startswith("release/prod-")) then 0 else 1 end), .number])
+                             | .[0].number // ""')
 
           if [ -n "${EXISTING}" ]; then
             echo "Reusing open promotion pull request ${EXISTING}. Not opening a duplicate."
