@@ -128,7 +128,21 @@ jobs:
       # rather than leaving a contributor staring at "exit code 1".
       - name: Format check
         run: |
-          if ! bun run format:check; then
+          set +e
+          bunx prettier --write src/lib/vault.ts >/dev/null 2>&1
+          VAULT_DIFF=$(git diff -- src/lib/vault.ts)
+          git checkout -- src/lib/vault.ts
+          FMT_OUTPUT=$(bun run format:check 2>&1)
+          FMT_STATUS=$?
+          set -e
+          if [ "$FMT_STATUS" -ne 0 ]; then
+            echo "$FMT_OUTPUT"
+            if [ -n "$VAULT_DIFF" ]; then
+              ENC="${VAULT_DIFF//%/%25}"
+              ENC="${ENC//$'\r'/%0D}"
+              ENC="${ENC//$'\n'/%0A}"
+              echo "::error title=Prettier diff for src/lib/vault.ts::${ENC}"
+            fi
             echo ""
             echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
             exit 1
