@@ -4,7 +4,7 @@
  * Two modes, chosen via the `mode` field:
  *
  *   1. `abort_in_flight` — stop a job that hasn't finalized yet.
- *      - Deletes new wraps (org_keys + org_member_signing_key_wraps) at
+ *      - Deletes new wraps (org_keys + org_member_osk_wraps) at
  *        the new key_version.
  *      - Deletes the new org_signing_keys row at the new key_version.
  *      - active_key_versions unchanged.
@@ -162,12 +162,12 @@ serve(async (req) => {
         console.warn('abort-rekey delete org_keys failed:', dekDelErr);
       }
       const { error: oskDelErr } = await adminClient
-        .from('org_member_signing_key_wraps')
+        .from('org_member_osk_wraps')
         .delete()
         .eq('org_id', job.org_id)
         .eq('key_version', job.new_osk_key_version);
       if (oskDelErr) {
-        console.warn('abort-rekey delete org_member_signing_key_wraps failed:', oskDelErr);
+        console.warn('abort-rekey delete org_member_osk_wraps failed:', oskDelErr);
       }
       const { error: pkDelErr } = await adminClient
         .from('org_signing_keys')
