@@ -18,7 +18,7 @@
  *
  * ── Key-rotation rules ────────────────────────────────────────────────
  *
- *   - New wraps go into org_keys / org_member_signing_key_wraps ADDITIVELY with
+ *   - New wraps go into org_keys / org_member_osk_wraps ADDITIVELY with
  *     the new key_version. Old wraps stay readable until the 30-day
  *     rollback window closes and purge_expired_old_key_wraps() fires.
  *   - Business rows get `dek_key_version` bumped atomically with their
