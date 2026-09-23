@@ -1365,6 +1365,47 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_href: string | null
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          org_id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          action_href?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          kind: string
+          org_id: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          action_href?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          org_id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_keys: {
         Row: {
           created_at: string | null
