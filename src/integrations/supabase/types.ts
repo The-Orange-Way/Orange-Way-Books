@@ -1485,7 +1485,7 @@ export type Database = {
           },
         ]
       }
-      org_member_signing_key_wraps: {
+      org_member_osk_wraps: {
         Row: {
           created_at: string
           iv: string
@@ -1515,7 +1515,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "org_member_signing_key_wraps_org_id_fkey"
+            foreignKeyName: "org_member_osk_wraps_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
