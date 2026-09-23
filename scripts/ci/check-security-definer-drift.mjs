@@ -31,6 +31,19 @@ const PROJECT_REF = process.env.DRIFT_CHECK_PROJECT_REF;
 const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const MIGRATIONS_DIR = process.env.DRIFT_CHECK_MIGRATIONS_DIR || 'supabase/migrations';
 
+// Pre-auth RPCs that legitimately need anon EXECUTE grants. These functions
+// are called before a user is authenticated (public invoice lookups, beta
+// allowlist check, rate limiting, invoice recording). Adding a new exception
+// here requires a deliberate code review -- the list is intentionally named
+// rather than inferred at runtime (DL-1546).
+// Each entry is documented on OWB-E0002.
+export const ANON_GRANTABLE_EXCEPTIONS = new Set([
+  'get_public_invoice',
+  'is_email_in_beta_allowlist',
+  'rate_limit_try',
+  'record_public_invoice_view',
+]);
+
 function fail(message) {
   console.error(`::error::${message}`);
   process.exit(1);
@@ -259,7 +272,7 @@ export function compareAll(liveRows, migrationDefs, ledgerVersions, migrationHis
       );
     }
     const bad = unsafeGrantees(row.acl);
-    if (bad.length > 0) {
+    if (bad.length > 0 && !ANON_GRANTABLE_EXCEPTIONS.has(row.name)) {
       failed++;
       problems.push(`${row.name}: unsafe EXECUTE grant(s) live: ${bad.join(', ')}. acl=${row.acl}`);
     }
