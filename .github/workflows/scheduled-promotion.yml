@@ -255,8 +255,8 @@ jobs:
           #
           # The API's default ordering for this endpoint is unstated, so when
           # both a pinned release/prod- head and a legacy dev head are open at
-          # once, `.[0]` picked whichever GitHub happened to list first
-          # (OWM-T0556). Sort explicitly instead: a pinned release/prod- head
+          # once, `.[0]` picked whichever GitHub happened to list first.
+          # Sort explicitly instead: a pinned release/prod- head
           # always wins over a legacy dev head (dev moves, so feeding a dev-
           # headed pull request silently voids the pin), and ties within the
           # same kind break on the lowest pull request number, i.e. the oldest
