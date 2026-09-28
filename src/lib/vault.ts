@@ -215,9 +215,8 @@ export async function decryptTextBound(
     // Written before this change. Opens exactly as it always did.
     return decryptText(ciphertextB64, key);
   }
-  const combined = Uint8Array.from(
-    atob(ciphertextB64.slice(BOUND_ENVELOPE_PREFIX.length)),
-    (c) => c.charCodeAt(0),
+  const combined = Uint8Array.from(atob(ciphertextB64.slice(BOUND_ENVELOPE_PREFIX.length)), (c) =>
+    c.charCodeAt(0),
   );
   if (combined.length < 12) throw new Error('Invalid ciphertext');
   const iv = combined.slice(0, 12);
