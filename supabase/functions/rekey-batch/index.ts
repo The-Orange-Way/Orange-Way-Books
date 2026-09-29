@@ -496,7 +496,7 @@ async function handleWrapMembers(
   }
 
   const { error: wrapErr } = await adminClient
-    .from('org_member_signing_key_wraps')
+    .from('org_member_osk_wraps')
     .upsert(oskRows, { onConflict: 'user_id,org_id,key_version' });
   if (wrapErr) {
     console.error('rekey-batch osk wrap upsert failed:', safeErr(wrapErr));

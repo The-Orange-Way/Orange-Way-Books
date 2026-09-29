@@ -6,7 +6,7 @@
  *
  *   - Insert one `org_signing_keys` row with (org_id, key_version,
  *     public_key_b64, algorithm, created_by = caller).
- *   - Insert one `org_member_signing_key_wraps` row per entry in `wraps[]`,
+ *   - Insert one `org_member_osk_wraps` row per entry in `wraps[]`,
  *     keyed on (user_id, org_id, key_version).
  *   - Write a `vault_security_events` row for `org.signing_key_minted`.
  *
@@ -247,7 +247,7 @@ serve(async (req) => {
     }));
 
     const { error: wrapInsertErr } = await adminClient
-      .from('org_member_signing_key_wraps')
+      .from('org_member_osk_wraps')
       .upsert(wrapRows, { onConflict: 'user_id,org_id,key_version' });
     if (wrapInsertErr) {
       console.error('mint-org-signing-key insert wraps failed:', wrapInsertErr);
