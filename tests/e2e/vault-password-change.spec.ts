@@ -195,9 +195,7 @@ test.describe('Vault password change -- AEAD binding regression (OWB-T0092)', ()
     // AES-GCM decryption with a wrong key throws a DOMException.
     // handleSubmit catches it and calls setError(err.message).
     // The rendered element is: <p className="text-sm text-destructive">{error}</p>
-    await expect(
-      page.locator('.text-destructive').first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.text-destructive').first()).toBeVisible({ timeout: 15_000 });
 
     // Must NOT have advanced to the recovery kit page.
     const onKit = await page
