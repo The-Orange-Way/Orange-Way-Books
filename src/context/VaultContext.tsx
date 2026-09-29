@@ -962,8 +962,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       // does, then decrypt the hybrid private key bytes.
       const mekForHkdf = await importMekForHkdf(mekRawRef.current);
       const wrapKey = await derivePqcSecretWrapKey(mekForHkdf, orgSaltRef.current);
-      const { decryptText: cryptoDecryptInner } = await import('@/lib/vault');
-      const hybridPrivKeyB64 = await cryptoDecryptInner(keyRow.encrypted_private_key, wrapKey);
+      const { decryptTextBound: cryptoDecryptInner, buildVaultAad } = await import('@/lib/vault');
+      const aad = buildVaultAad({
+        table: 'user_vault_keys',
+        column: 'encrypted_private_key',
+        rowId: user.id,
+      });
+      const hybridPrivKeyB64 = await cryptoDecryptInner(keyRow.encrypted_private_key, wrapKey, aad);
       const hybridPrivKey = Uint8Array.from(atob(hybridPrivKeyB64), (c) => c.charCodeAt(0));
 
       const privateKeyBytes = await unwrapSigningKeyForSelf(
