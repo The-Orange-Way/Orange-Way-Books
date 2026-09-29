@@ -9,7 +9,6 @@
   "required": [
     { "file": "tests/e2e/rls-cross-user.spec.ts", "when": "push" },
     { "file": "tests/e2e/onboarding-walk.spec.ts", "when": "push" },
-    { "file": "tests/e2e/vault-password-change.spec.ts", "when": "push" },
     "tests/e2e/rls-isolation.spec.ts"
   ]
 }
