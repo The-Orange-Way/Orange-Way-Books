@@ -59,6 +59,12 @@ const OPT_IN = process.env.E2E_ONBOARDING_WALK === '1';
 const EMAIL = process.env.OWB_E2E_WALK_EMAIL ?? 'e2e-walk@orangewaybooks.test';
 const PASSWORD = process.env.OWB_E2E_WALK_PASSWORD ?? 'OwbE2E-Stable-2026!Pw';
 const VAULT_PW = process.env.OWB_E2E_WALK_VAULT_PW ?? 'OwbE2EVault-Stable-2026!';
+// New vault password for the password-change test (second test in this serial
+// describe). Deliberately a separate variable so the change target is never the
+// same value as VAULT_PW, and so the beforeAll reset (which deletes
+// user_vault_keys) leaves VAULT_PW as the correct unlock password at the start
+// of every run.
+const VAULT_PW_NEW = process.env.OWB_E2E_WALK_VAULT_PW_NEW ?? 'OwbE2EWalk-NewVault-2026!';
 const ORG_NAME = process.env.OWB_E2E_WALK_ORG_NAME ?? 'OWB E2E Walk Org';
 
 // The shared fixture every other spec signs in with. Read only so the guard
@@ -120,6 +126,35 @@ function adminFetch(
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
+}
+
+// The admin list endpoint ignores ?email= (GoTrue only reads sort, filter,
+// page, per_page and cursor). Page through the full list and match exactly.
+// Copied from rls-cross-user.spec.ts; do not import to keep both specs
+// self-contained.
+const ADMIN_LIST_PAGE_SIZE = 200;
+const ADMIN_LIST_MAX_PAGES = 50;
+
+async function findUserIdByEmail(supa: SupaCreds, email: string): Promise<string> {
+  const wanted = email.toLowerCase();
+  for (let page = 1; page <= ADMIN_LIST_MAX_PAGES; page += 1) {
+    const res = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users?page=${page}&per_page=${ADMIN_LIST_PAGE_SIZE}`,
+      'GET',
+    );
+    if (res.status >= 400) {
+      throw new Error(`admin list users page ${page}: HTTP ${res.status} ${res.body}`);
+    }
+    const users: Array<{ id?: string; email?: string }> = JSON.parse(res.body).users ?? [];
+    const hit = users.find((u) => (u.email ?? '').toLowerCase() === wanted);
+    if (hit?.id) return hit.id;
+    if (users.length < ADMIN_LIST_PAGE_SIZE) break;
+  }
+  throw new Error(
+    `findUserIdByEmail: no account with address ${email} found in the admin user list; refusing to guess`,
+  );
 }
 
 // Click a wizard button that sits immediately after a Radix Select interaction.
@@ -201,15 +236,10 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     //
     // Strategy: find user_id → list their org_members → DELETE organizations
     // (cascade via FK does the rest).
-    const userQ = await adminFetch(
-      supa.url,
-      supa.secret,
-      `/auth/v1/admin/users?email=${encodeURIComponent(EMAIL)}`,
-      'GET',
-    );
-    const userPayload = JSON.parse(userQ.body);
-    const userId = userPayload.users?.[0]?.id;
-    if (!userId) throw new Error(`could not resolve user_id for ${EMAIL}`);
+    // findUserIdByEmail pages through the admin list to match the address
+    // exactly. GoTrue ignores ?email= on the list endpoint; taking users[0]
+    // from that response picks the newest account and would delete its orgs.
+    const userId = await findUserIdByEmail(supa, EMAIL);
 
     // admin user-create answers 422 when the user is already there and leaves
     // the password alone. A fixture created once with a different password
@@ -228,6 +258,23 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     );
     if (pwReset.status >= 400) {
       throw new Error(`admin password reset failed: HTTP ${pwReset.status} ${pwReset.body}`);
+    }
+
+    // Cancel-safety: delete the user_vault_keys row so onboarding step 05
+    // always creates fresh vault keys under VAULT_PW, regardless of whether
+    // a vault-password-change test in this file already rotated the password.
+    // user_vault_keys cascades from auth.users (not from organizations), so
+    // it is not cleared by the org DELETE below.
+    const delVaultKeys = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}`,
+      'DELETE',
+    );
+    if (delVaultKeys.status >= 400) {
+      throw new Error(
+        `user_vault_keys delete failed: HTTP ${delVaultKeys.status} ${delVaultKeys.body}`,
+      );
     }
 
     // org_members lookup
