@@ -645,7 +645,9 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       await page.waitForTimeout(2_000);
 
       // --- Sign out, sign back in, old pw rejected (once), new pw unlocks ---
-      await page.evaluate(() => { window.localStorage.clear(); });
+      await page.evaluate(() => {
+        window.localStorage.clear();
+      });
       await page.goto('/login', { waitUntil: 'domcontentloaded' });
       await expect(
         page.locator('input[type="email"]').first(),
