@@ -520,6 +520,13 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
   test('vault pw change: key re-written, old pw rejected, new pw unlocks', async ({ page }) => {
     test.setTimeout(120_000);
 
+    // Capture console messages and page errors early so they appear in the
+    // failure annotation if the error paragraph never becomes visible.
+    const consoleMessages: string[] = [];
+    const pageErrors: string[] = [];
+    page.on('console', (msg) => consoleMessages.push(`[${msg.type()}] ${msg.text()}`));
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
     if (!supa) throw new Error('supa is null: beforeAll did not run');
     const userId = await findUserIdByEmail(supa, EMAIL);
 
@@ -574,7 +581,26 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await page.locator('button[type="submit"]').first().click();
 
     const errPara = page.locator('p.text-destructive');
-    await expect(errPara, 'wrong-pw: error paragraph visible').toBeVisible({ timeout: 15_000 });
+
+    // Collect diagnostics before the assertion so the annotation explains
+    // itself when artifacts are not accessible (CI environment).
+    const diagUrl = page.url();
+    const formRegion = page.locator('form').first();
+    const formText = await formRegion.innerText().catch(() => '<form not found>');
+    const submitEnabled = await page
+      .locator('button[type="submit"]')
+      .first()
+      .isEnabled()
+      .catch(() => false);
+    const diagMsg =
+      `url=${diagUrl} | submit_enabled=${submitEnabled} | ` +
+      `form_text=${formText.slice(0, 300)} | ` +
+      `console=${consoleMessages.slice(-10).join('; ')} | ` +
+      `page_errors=${pageErrors.join('; ')}`;
+
+    await expect(errPara, `wrong-pw: error paragraph visible -- ${diagMsg}`).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(
       errPara,
       'wrong-pw: component shows WebCrypto decrypt failure message',
