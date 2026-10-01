@@ -516,7 +516,8 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     ).toContainText('Eastern', { timeout: 15_000 });
   });
 
-  test('vault password change: v1. re-written, old pw rejected, new pw unlocks (OWB-T0092)', async ({ page }) => {
+  // OWB-T0092
+  test('vault pw change: key re-written, old pw rejected, new pw unlocks', async ({ page }) => {
     test.setTimeout(120_000);
 
     if (!supa) throw new Error('supa is null: beforeAll did not run');
