@@ -59,6 +59,12 @@ const OPT_IN = process.env.E2E_ONBOARDING_WALK === '1';
 const EMAIL = process.env.OWB_E2E_WALK_EMAIL ?? 'e2e-walk@orangewaybooks.test';
 const PASSWORD = process.env.OWB_E2E_WALK_PASSWORD ?? 'OwbE2E-Stable-2026!Pw';
 const VAULT_PW = process.env.OWB_E2E_WALK_VAULT_PW ?? 'OwbE2EVault-Stable-2026!';
+// New vault password for the password-change test (second test in this serial
+// describe). Deliberately a separate variable so the change target is never the
+// same value as VAULT_PW, and so the beforeAll reset (which deletes
+// user_vault_keys) leaves VAULT_PW as the correct unlock password at the start
+// of every run.
+const VAULT_PW_NEW = process.env.OWB_E2E_WALK_VAULT_PW_NEW ?? 'OwbE2EWalk-NewVault-2026!';
 const ORG_NAME = process.env.OWB_E2E_WALK_ORG_NAME ?? 'OWB E2E Walk Org';
 
 // The shared fixture every other spec signs in with. Read only so the guard
@@ -120,6 +126,35 @@ function adminFetch(
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
+}
+
+// The admin list endpoint ignores ?email= (GoTrue only reads sort, filter,
+// page, per_page and cursor). Page through the full list and match exactly.
+// Copied from rls-cross-user.spec.ts; do not import to keep both specs
+// self-contained.
+const ADMIN_LIST_PAGE_SIZE = 200;
+const ADMIN_LIST_MAX_PAGES = 50;
+
+async function findUserIdByEmail(supa: SupaCreds, email: string): Promise<string> {
+  const wanted = email.toLowerCase();
+  for (let page = 1; page <= ADMIN_LIST_MAX_PAGES; page += 1) {
+    const res = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/auth/v1/admin/users?page=${page}&per_page=${ADMIN_LIST_PAGE_SIZE}`,
+      'GET',
+    );
+    if (res.status >= 400) {
+      throw new Error(`admin list users page ${page}: HTTP ${res.status} ${res.body}`);
+    }
+    const users: Array<{ id?: string; email?: string }> = JSON.parse(res.body).users ?? [];
+    const hit = users.find((u) => (u.email ?? '').toLowerCase() === wanted);
+    if (hit?.id) return hit.id;
+    if (users.length < ADMIN_LIST_PAGE_SIZE) break;
+  }
+  throw new Error(
+    `findUserIdByEmail: no account with address ${email} found in the admin user list; refusing to guess`,
+  );
 }
 
 // Click a wizard button that sits immediately after a Radix Select interaction.
@@ -201,15 +236,10 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     //
     // Strategy: find user_id → list their org_members → DELETE organizations
     // (cascade via FK does the rest).
-    const userQ = await adminFetch(
-      supa.url,
-      supa.secret,
-      `/auth/v1/admin/users?email=${encodeURIComponent(EMAIL)}`,
-      'GET',
-    );
-    const userPayload = JSON.parse(userQ.body);
-    const userId = userPayload.users?.[0]?.id;
-    if (!userId) throw new Error(`could not resolve user_id for ${EMAIL}`);
+    // findUserIdByEmail pages through the admin list to match the address
+    // exactly. GoTrue ignores ?email= on the list endpoint; taking users[0]
+    // from that response picks the newest account and would delete its orgs.
+    const userId = await findUserIdByEmail(supa, EMAIL);
 
     // admin user-create answers 422 when the user is already there and leaves
     // the password alone. A fixture created once with a different password
@@ -228,6 +258,23 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     );
     if (pwReset.status >= 400) {
       throw new Error(`admin password reset failed: HTTP ${pwReset.status} ${pwReset.body}`);
+    }
+
+    // Cancel-safety: delete the user_vault_keys row so onboarding step 05
+    // always creates fresh vault keys under VAULT_PW, regardless of whether
+    // a vault-password-change test in this file already rotated the password.
+    // user_vault_keys cascades from auth.users (not from organizations), so
+    // it is not cleared by the org DELETE below.
+    const delVaultKeys = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}`,
+      'DELETE',
+    );
+    if (delVaultKeys.status >= 400) {
+      throw new Error(
+        `user_vault_keys delete failed: HTTP ${delVaultKeys.status} ${delVaultKeys.body}`,
+      );
     }
 
     // org_members lookup
@@ -467,5 +514,177 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
       page.getByTestId('admin-timezone'),
       'admin timezone readback must show Eastern (DL-0721)',
     ).toContainText('Eastern', { timeout: 15_000 });
+  });
+
+  // OWB-T0092
+  test('vault pw change: key re-written, old pw rejected, new pw unlocks', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    if (!supa) throw new Error('supa is null: beforeAll did not run');
+    const userId = await findUserIdByEmail(supa, EMAIL);
+
+    // Read the encrypted_private_key before any change so we can assert it is
+    // unchanged after a wrong-password attempt and different after a correct one.
+    const rowBeforeRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowBeforeRes.status >= 400)
+      throw new Error(`vault-keys read before: HTTP ${rowBeforeRes.status} ${rowBeforeRes.body}`);
+    const rowBeforeArr: Array<{ encrypted_private_key: string }> = JSON.parse(rowBeforeRes.body);
+    if (!rowBeforeArr[0])
+      throw new Error('no user_vault_keys row: onboarding step 05 did not complete in this run');
+    const rowBefore = rowBeforeArr[0].encrypted_private_key;
+    expect(rowBefore.startsWith('v1.'), 'pre-test row starts with v1.').toBe(true);
+
+    // Sign in fresh (each serial test receives a new browser context).
+    const baseURL = '';
+    await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
+    const emailInput = page.locator('input[type="email"]').first();
+    await expect(emailInput, 'login email field').toBeVisible({ timeout: 10_000 });
+    await emailInput.fill(EMAIL);
+    await page.locator('input[type="password"]').first().fill(PASSWORD);
+    await page.locator('button[type="submit"]').first().click();
+    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
+
+    // Navigate to the vault-password-change page.
+    await page.goto(`${baseURL}/app/settings/change-password`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    // Handle vault lock screen (vault is always locked after a fresh sign-in).
+    const lockPw = page.locator('text="Unlock your encrypted vault"').first();
+    await expect(
+      lockPw.or(page.getByTestId('app-shell').first()),
+      'lock or app-shell on change-password page',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await lockPw.isVisible().catch(() => false)) {
+      await page.locator('input[type="password"]').first().fill(VAULT_PW);
+      await page.locator('button:has-text("Unlock Vault")').first().click();
+      await lockPw.waitFor({ state: 'hidden', timeout: 30_000 });
+    }
+
+    // --- Wrong current password ---
+    // The component renders the WebCrypto DOMException in p.text-destructive.
+    await page.locator('#current').fill('DefinitelyWrongVaultPw-WalkE2E!');
+    await page.locator('#new').fill(VAULT_PW_NEW);
+    await page.locator('#confirm').fill(VAULT_PW_NEW);
+    await page.locator('button[type="submit"]').first().click();
+
+    const errPara = page.locator('p.text-destructive');
+    await expect(errPara, 'wrong-pw: error paragraph visible').toBeVisible({ timeout: 15_000 });
+    await expect(
+      errPara,
+      'wrong-pw: component shows WebCrypto decrypt failure message',
+    ).toContainText('The operation failed for an operation-specific reason');
+
+    // Must NOT have advanced to the recovery kit page.
+    await expect(
+      page
+        .locator('h1')
+        .filter({ hasText: /Save Your New Recovery Kit/i })
+        .first(),
+      'wrong-pw: recovery kit heading must not appear',
+    ).not.toBeVisible();
+
+    // DB row must be unchanged after the failed attempt (booleans only, no values printed).
+    const rowUnchangedRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowUnchangedRes.status >= 400)
+      throw new Error(
+        `vault-keys read after wrong-pw: HTTP ${rowUnchangedRes.status} ${rowUnchangedRes.body}`,
+      );
+    const rowUnchangedArr: Array<{ encrypted_private_key: string }> = JSON.parse(
+      rowUnchangedRes.body,
+    );
+    const rowUnchanged = rowUnchangedArr[0]?.encrypted_private_key ?? '';
+    expect(rowUnchanged.startsWith('v1.'), 'wrong-pw: row still starts with v1.').toBe(true);
+    expect(rowUnchanged === rowBefore, 'wrong-pw: row is unchanged').toBe(true);
+
+    // --- Successful password change ---
+    await page.locator('#current').fill(VAULT_PW);
+    await page.locator('#new').fill(VAULT_PW_NEW);
+    await page.locator('#confirm').fill(VAULT_PW_NEW);
+    await page.locator('button[type="submit"]').first().click();
+
+    await expect(
+      page
+        .locator('h1')
+        .filter({ hasText: /Save Your New Recovery Kit/i })
+        .first(),
+      'successful change: recovery kit heading',
+    ).toBeVisible({ timeout: 30_000 });
+
+    // DB row must start with v1. and differ from the pre-test snapshot.
+    const rowChangedRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowChangedRes.status >= 400)
+      throw new Error(
+        `vault-keys read after change: HTTP ${rowChangedRes.status} ${rowChangedRes.body}`,
+      );
+    const rowChangedArr: Array<{ encrypted_private_key: string }> = JSON.parse(rowChangedRes.body);
+    const rowChanged = rowChangedArr[0]?.encrypted_private_key ?? '';
+    expect(rowChanged.startsWith('v1.'), 'after change: row starts with v1.').toBe(true);
+    expect(rowChanged !== rowBefore, 'after change: row differs from snapshot').toBe(true);
+
+    // Acknowledge the new recovery kit and dismiss.
+    const ackCb = page.locator('button[role="checkbox"]').first();
+    await expect(ackCb, 'recovery kit ack checkbox').toBeVisible({ timeout: 10_000 });
+    await ackCb.click({ force: true });
+    await page.locator('button:has-text("Done")').first().click();
+    await page.waitForTimeout(2_000);
+
+    // --- Sign out, sign back in, old pw rejected (once), new pw unlocks ---
+    await page.evaluate(() => {
+      window.localStorage.clear();
+    });
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await expect(
+      page.locator('input[type="email"]').first(),
+      'login email after sign-out',
+    ).toBeVisible({ timeout: 10_000 });
+    await page.locator('input[type="email"]').first().fill(EMAIL);
+    await page.locator('input[type="password"]').first().fill(PASSWORD);
+    await page.locator('button[type="submit"]').first().click();
+    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
+
+    // Navigate to a vault-gated page to trigger the lock screen.
+    await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
+    const lockAfter = page.locator('text="Unlock your encrypted vault"').first();
+    await expect(
+      lockAfter.or(page.getByTestId('app-shell').first()),
+      'lock or app-shell after re-sign-in',
+    ).toBeVisible({ timeout: 15_000 });
+
+    if (!(await lockAfter.isVisible().catch(() => false))) {
+      throw new Error(
+        'expected vault lock screen after re-sign-in: MEK must not persist across sessions',
+      );
+    }
+
+    // Old vault password is rejected (one attempt only, per the OWB-T0092 spec).
+    await page.locator('input[type="password"]').first().fill(VAULT_PW);
+    await page.locator('button:has-text("Unlock Vault")').first().click();
+    await page.waitForTimeout(3_000);
+    await expect(lockAfter, 'lock must remain after old vault password').toBeVisible();
+
+    // New vault password unlocks.
+    await page.locator('input[type="password"]').first().fill(VAULT_PW_NEW);
+    await page.locator('button:has-text("Unlock Vault")').first().click();
+    await lockAfter.waitFor({ state: 'hidden', timeout: 30_000 });
+    await expect(
+      page.getByTestId('app-shell').first(),
+      'app shell visible after new vault password (OWB-T0092)',
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
