@@ -527,6 +527,35 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     page.on('console', (msg) => consoleMessages.push(`[${msg.type()}] ${msg.text()}`));
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
+    // Capture every request/response to the API origin so a failure
+    // annotation can show whether the submit handler reached the network at
+    // all (OWB-T0092 diagnostics round 2). Registered at the top of the
+    // test, same as the listeners above, so nothing is missed. Only method,
+    // path and status are kept: no bodies, no headers, no query strings.
+    const apiLog: string[] = [];
+    page.on('request', (req) => {
+      try {
+        if (!supa) return;
+        const u = new URL(req.url());
+        if (u.origin === new URL(supa.url).origin) {
+          apiLog.push(`REQ ${req.method()} ${u.pathname}`);
+        }
+      } catch {
+        /* ignore malformed urls */
+      }
+    });
+    page.on('response', (res) => {
+      try {
+        if (!supa) return;
+        const u = new URL(res.url());
+        if (u.origin === new URL(supa.url).origin) {
+          apiLog.push(`RES ${res.status()} ${u.pathname}`);
+        }
+      } catch {
+        /* ignore malformed urls */
+      }
+    });
+
     if (!supa) throw new Error('supa is null: beforeAll did not run');
     const userId = await findUserIdByEmail(supa, EMAIL);
 
@@ -578,6 +607,7 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     await page.locator('#current').fill('DefinitelyWrongVaultPw-WalkE2E!');
     await page.locator('#new').fill(VAULT_PW_NEW);
     await page.locator('#confirm').fill(VAULT_PW_NEW);
+    const apiLogMarkBeforeClick = apiLog.length;
     await page.locator('button[type="submit"]').first().click();
 
     const errPara = page.locator('p.text-destructive');
@@ -599,11 +629,73 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
         .first()
         .isEnabled()
         .catch(() => false);
+
+      // (i) Settle candidate A: does a deliberately failing AES-GCM decrypt
+      // throw an Error with a non-empty message in this exact browser?
+      const decryptProbe = await page
+        .evaluate(async () => {
+          try {
+            const key = await window.crypto.subtle.generateKey(
+              { name: 'AES-GCM', length: 256 },
+              true,
+              ['encrypt', 'decrypt'],
+            );
+            const iv = new Uint8Array(12); // 12 zero bytes, per spec
+            const ciphertext = window.crypto.getRandomValues(new Uint8Array(32));
+            await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+            return { isError: false, name: '', messageLength: 0, message: '' };
+          } catch (e) {
+            const isErr = e instanceof Error;
+            return {
+              isError: isErr,
+              name: isErr ? (e as Error).name : typeof e,
+              messageLength: isErr ? (e as Error).message.length : 0,
+              message: isErr ? (e as Error).message : String(e),
+            };
+          }
+        })
+        .catch((e) => ({
+          isError: true,
+          name: 'evaluate-threw',
+          messageLength: 0,
+          message: e instanceof Error ? e.message : String(e),
+        }));
+
+      // (ii) Every submit button on the page: text, disabled state, and
+      // whether it sits inside the first form.
+      const submitButtons = await page
+        .locator('button[type="submit"]')
+        .evaluateAll((btns) =>
+          btns.map((b) => {
+            const form = document.querySelector('form');
+            return {
+              text: (b.textContent || '').trim().slice(0, 60),
+              disabled: (b as HTMLButtonElement).disabled,
+              inFirstForm: form ? form.contains(b) : false,
+            };
+          }),
+        )
+        .catch(() => []);
+
+      // (iii) The text of every <p> element on the page.
+      const pTexts = await page
+        .locator('p')
+        .evaluateAll((ps) => ps.map((p) => (p.textContent || '').trim().slice(0, 120)))
+        .catch(() => ['<p query failed>']);
+
+      // (iv) Every request/response to the API origin seen after the click.
+      const apiAfterClick = apiLog.slice(apiLogMarkBeforeClick);
+
       const diagMsg =
         `url=${diagUrl} | submit_enabled=${submitEnabled} | ` +
         `form_text=${formText.slice(0, 300)} | ` +
         `console=${consoleMessages.slice(-10).join('; ')} | ` +
-        `page_errors=${pageErrors.join('; ')}`;
+        `page_errors=${pageErrors.join('; ')} | ` +
+        `decrypt_probe=isError:${decryptProbe.isError},name:${decryptProbe.name}` +
+        `,messageLength:${decryptProbe.messageLength},message:${decryptProbe.message} | ` +
+        `submit_buttons=${JSON.stringify(submitButtons)} | ` +
+        `p_texts=${JSON.stringify(pTexts.slice(0, 20))} | ` +
+        `api_after_click=${apiAfterClick.slice(0, 20).join('; ')}`;
       throw new Error(`wrong-pw: error paragraph visible -- ${diagMsg}`);
     }
     await expect(
