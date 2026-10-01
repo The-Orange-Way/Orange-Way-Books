@@ -15,4 +15,4 @@ initSentry();
 // so the SDK is never initialised at all inside the authenticated app.
 // See src/lib/observability/analytics-surface.ts for the allowlist.
 
-createRoot(document.getElementById('root')!).render(<App   />)   ;
+createRoot(document.getElementById('root')!).render(<App />);
