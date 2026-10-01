@@ -516,176 +516,174 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
     ).toContainText('Eastern', { timeout: 15_000 });
   });
 
-  test(
-    'vault password change: v1. re-written, old pw rejected, new pw unlocks (OWB-T0092)',
-    async ({ page }) => {
-      test.setTimeout(120_000);
+  test('vault password change: v1. re-written, old pw rejected, new pw unlocks (OWB-T0092)', async ({ page }) => {
+    test.setTimeout(120_000);
 
-      if (!supa) throw new Error('supa is null: beforeAll did not run');
-      const userId = await findUserIdByEmail(supa, EMAIL);
+    if (!supa) throw new Error('supa is null: beforeAll did not run');
+    const userId = await findUserIdByEmail(supa, EMAIL);
 
-      // Read the encrypted_private_key before any change so we can assert it is
-      // unchanged after a wrong-password attempt and different after a correct one.
-      const rowBeforeRes = await adminFetch(
-        supa.url,
-        supa.secret,
-        `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
-        'GET',
-      );
-      if (rowBeforeRes.status >= 400)
-        throw new Error(
-          `vault-keys read before: HTTP ${rowBeforeRes.status} ${rowBeforeRes.body}`,
-        );
-      const rowBeforeArr: Array<{ encrypted_private_key: string }> =
-        JSON.parse(rowBeforeRes.body);
-      if (!rowBeforeArr[0])
-        throw new Error(
-          'no user_vault_keys row: onboarding step 05 did not complete in this run',
-        );
-      const rowBefore = rowBeforeArr[0].encrypted_private_key;
-      expect(rowBefore.startsWith('v1.'), 'pre-test row starts with v1.').toBe(true);
+    // Read the encrypted_private_key before any change so we can assert it is
+    // unchanged after a wrong-password attempt and different after a correct one.
+    const rowBeforeRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowBeforeRes.status >= 400)
+      throw new Error(`vault-keys read before: HTTP ${rowBeforeRes.status} ${rowBeforeRes.body}`);
+    const rowBeforeArr: Array<{ encrypted_private_key: string }> = JSON.parse(rowBeforeRes.body);
+    if (!rowBeforeArr[0])
+      throw new Error('no user_vault_keys row: onboarding step 05 did not complete in this run');
+    const rowBefore = rowBeforeArr[0].encrypted_private_key;
+    expect(rowBefore.startsWith('v1.'), 'pre-test row starts with v1.').toBe(true);
 
-      // Sign in fresh (each serial test receives a new browser context).
-      const baseURL = '';
-      await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
-      const emailInput = page.locator('input[type="email"]').first();
-      await expect(emailInput, 'login email field').toBeVisible({ timeout: 10_000 });
-      await emailInput.fill(EMAIL);
-      await page.locator('input[type="password"]').first().fill(PASSWORD);
-      await page.locator('button[type="submit"]').first().click();
-      await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
+    // Sign in fresh (each serial test receives a new browser context).
+    const baseURL = '';
+    await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
+    const emailInput = page.locator('input[type="email"]').first();
+    await expect(emailInput, 'login email field').toBeVisible({ timeout: 10_000 });
+    await emailInput.fill(EMAIL);
+    await page.locator('input[type="password"]').first().fill(PASSWORD);
+    await page.locator('button[type="submit"]').first().click();
+    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
 
-      // Navigate to the vault-password-change page.
-      await page.goto(`${baseURL}/app/settings/change-password`, {
-        waitUntil: 'domcontentloaded',
-      });
+    // Navigate to the vault-password-change page.
+    await page.goto(`${baseURL}/app/settings/change-password`, {
+      waitUntil: 'domcontentloaded',
+    });
 
-      // Handle vault lock screen (vault is always locked after a fresh sign-in).
-      const lockPw = page.locator('text="Unlock your encrypted vault"').first();
-      await expect(
-        lockPw.or(page.getByTestId('app-shell').first()),
-        'lock or app-shell on change-password page',
-      ).toBeVisible({ timeout: 15_000 });
-      if (await lockPw.isVisible().catch(() => false)) {
-        await page.locator('input[type="password"]').first().fill(VAULT_PW);
-        await page.locator('button:has-text("Unlock Vault")').first().click();
-        await lockPw.waitFor({ state: 'hidden', timeout: 30_000 });
-      }
-
-      // --- Wrong current password ---
-      // The component renders the WebCrypto DOMException in p.text-destructive.
-      await page.locator('#current').fill('DefinitelyWrongVaultPw-WalkE2E!');
-      await page.locator('#new').fill(VAULT_PW_NEW);
-      await page.locator('#confirm').fill(VAULT_PW_NEW);
-      await page.locator('button[type="submit"]').first().click();
-
-      const errPara = page.locator('p.text-destructive');
-      await expect(errPara, 'wrong-pw: error paragraph visible').toBeVisible({ timeout: 15_000 });
-      await expect(
-        errPara,
-        'wrong-pw: component shows WebCrypto decrypt failure message',
-      ).toContainText('The operation failed for an operation-specific reason');
-
-      // Must NOT have advanced to the recovery kit page.
-      await expect(
-        page.locator('h1').filter({ hasText: /Save Your New Recovery Kit/i }).first(),
-        'wrong-pw: recovery kit heading must not appear',
-      ).not.toBeVisible();
-
-      // DB row must be unchanged after the failed attempt (booleans only, no values printed).
-      const rowUnchangedRes = await adminFetch(
-        supa.url,
-        supa.secret,
-        `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
-        'GET',
-      );
-      if (rowUnchangedRes.status >= 400)
-        throw new Error(
-          `vault-keys read after wrong-pw: HTTP ${rowUnchangedRes.status} ${rowUnchangedRes.body}`,
-        );
-      const rowUnchangedArr: Array<{ encrypted_private_key: string }> =
-        JSON.parse(rowUnchangedRes.body);
-      const rowUnchanged = rowUnchangedArr[0]?.encrypted_private_key ?? '';
-      expect(rowUnchanged.startsWith('v1.'), 'wrong-pw: row still starts with v1.').toBe(true);
-      expect(rowUnchanged === rowBefore, 'wrong-pw: row is unchanged').toBe(true);
-
-      // --- Successful password change ---
-      await page.locator('#current').fill(VAULT_PW);
-      await page.locator('#new').fill(VAULT_PW_NEW);
-      await page.locator('#confirm').fill(VAULT_PW_NEW);
-      await page.locator('button[type="submit"]').first().click();
-
-      await expect(
-        page.locator('h1').filter({ hasText: /Save Your New Recovery Kit/i }).first(),
-        'successful change: recovery kit heading',
-      ).toBeVisible({ timeout: 30_000 });
-
-      // DB row must start with v1. and differ from the pre-test snapshot.
-      const rowChangedRes = await adminFetch(
-        supa.url,
-        supa.secret,
-        `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
-        'GET',
-      );
-      if (rowChangedRes.status >= 400)
-        throw new Error(
-          `vault-keys read after change: HTTP ${rowChangedRes.status} ${rowChangedRes.body}`,
-        );
-      const rowChangedArr: Array<{ encrypted_private_key: string }> =
-        JSON.parse(rowChangedRes.body);
-      const rowChanged = rowChangedArr[0]?.encrypted_private_key ?? '';
-      expect(rowChanged.startsWith('v1.'), 'after change: row starts with v1.').toBe(true);
-      expect(rowChanged !== rowBefore, 'after change: row differs from snapshot').toBe(true);
-
-      // Acknowledge the new recovery kit and dismiss.
-      const ackCb = page.locator('button[role="checkbox"]').first();
-      await expect(ackCb, 'recovery kit ack checkbox').toBeVisible({ timeout: 10_000 });
-      await ackCb.click({ force: true });
-      await page.locator('button:has-text("Done")').first().click();
-      await page.waitForTimeout(2_000);
-
-      // --- Sign out, sign back in, old pw rejected (once), new pw unlocks ---
-      await page.evaluate(() => {
-        window.localStorage.clear();
-      });
-      await page.goto('/login', { waitUntil: 'domcontentloaded' });
-      await expect(
-        page.locator('input[type="email"]').first(),
-        'login email after sign-out',
-      ).toBeVisible({ timeout: 10_000 });
-      await page.locator('input[type="email"]').first().fill(EMAIL);
-      await page.locator('input[type="password"]').first().fill(PASSWORD);
-      await page.locator('button[type="submit"]').first().click();
-      await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
-
-      // Navigate to a vault-gated page to trigger the lock screen.
-      await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
-      const lockAfter = page.locator('text="Unlock your encrypted vault"').first();
-      await expect(
-        lockAfter.or(page.getByTestId('app-shell').first()),
-        'lock or app-shell after re-sign-in',
-      ).toBeVisible({ timeout: 15_000 });
-
-      if (!(await lockAfter.isVisible().catch(() => false))) {
-        throw new Error(
-          'expected vault lock screen after re-sign-in: MEK must not persist across sessions',
-        );
-      }
-
-      // Old vault password is rejected (one attempt only, per CTO spec).
+    // Handle vault lock screen (vault is always locked after a fresh sign-in).
+    const lockPw = page.locator('text="Unlock your encrypted vault"').first();
+    await expect(
+      lockPw.or(page.getByTestId('app-shell').first()),
+      'lock or app-shell on change-password page',
+    ).toBeVisible({ timeout: 15_000 });
+    if (await lockPw.isVisible().catch(() => false)) {
       await page.locator('input[type="password"]').first().fill(VAULT_PW);
       await page.locator('button:has-text("Unlock Vault")').first().click();
-      await page.waitForTimeout(3_000);
-      await expect(lockAfter, 'lock must remain after old vault password').toBeVisible();
+      await lockPw.waitFor({ state: 'hidden', timeout: 30_000 });
+    }
 
-      // New vault password unlocks.
-      await page.locator('input[type="password"]').first().fill(VAULT_PW_NEW);
-      await page.locator('button:has-text("Unlock Vault")').first().click();
-      await lockAfter.waitFor({ state: 'hidden', timeout: 30_000 });
-      await expect(
-        page.getByTestId('app-shell').first(),
-        'app shell visible after new vault password (OWB-T0092)',
-      ).toBeVisible({ timeout: 15_000 });
-    },
-  );
+    // --- Wrong current password ---
+    // The component renders the WebCrypto DOMException in p.text-destructive.
+    await page.locator('#current').fill('DefinitelyWrongVaultPw-WalkE2E!');
+    await page.locator('#new').fill(VAULT_PW_NEW);
+    await page.locator('#confirm').fill(VAULT_PW_NEW);
+    await page.locator('button[type="submit"]').first().click();
+
+    const errPara = page.locator('p.text-destructive');
+    await expect(errPara, 'wrong-pw: error paragraph visible').toBeVisible({ timeout: 15_000 });
+    await expect(
+      errPara,
+      'wrong-pw: component shows WebCrypto decrypt failure message',
+    ).toContainText('The operation failed for an operation-specific reason');
+
+    // Must NOT have advanced to the recovery kit page.
+    await expect(
+      page
+        .locator('h1')
+        .filter({ hasText: /Save Your New Recovery Kit/i })
+        .first(),
+      'wrong-pw: recovery kit heading must not appear',
+    ).not.toBeVisible();
+
+    // DB row must be unchanged after the failed attempt (booleans only, no values printed).
+    const rowUnchangedRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowUnchangedRes.status >= 400)
+      throw new Error(
+        `vault-keys read after wrong-pw: HTTP ${rowUnchangedRes.status} ${rowUnchangedRes.body}`,
+      );
+    const rowUnchangedArr: Array<{ encrypted_private_key: string }> = JSON.parse(
+      rowUnchangedRes.body,
+    );
+    const rowUnchanged = rowUnchangedArr[0]?.encrypted_private_key ?? '';
+    expect(rowUnchanged.startsWith('v1.'), 'wrong-pw: row still starts with v1.').toBe(true);
+    expect(rowUnchanged === rowBefore, 'wrong-pw: row is unchanged').toBe(true);
+
+    // --- Successful password change ---
+    await page.locator('#current').fill(VAULT_PW);
+    await page.locator('#new').fill(VAULT_PW_NEW);
+    await page.locator('#confirm').fill(VAULT_PW_NEW);
+    await page.locator('button[type="submit"]').first().click();
+
+    await expect(
+      page
+        .locator('h1')
+        .filter({ hasText: /Save Your New Recovery Kit/i })
+        .first(),
+      'successful change: recovery kit heading',
+    ).toBeVisible({ timeout: 30_000 });
+
+    // DB row must start with v1. and differ from the pre-test snapshot.
+    const rowChangedRes = await adminFetch(
+      supa.url,
+      supa.secret,
+      `/rest/v1/user_vault_keys?user_id=eq.${userId}&select=encrypted_private_key`,
+      'GET',
+    );
+    if (rowChangedRes.status >= 400)
+      throw new Error(
+        `vault-keys read after change: HTTP ${rowChangedRes.status} ${rowChangedRes.body}`,
+      );
+    const rowChangedArr: Array<{ encrypted_private_key: string }> = JSON.parse(rowChangedRes.body);
+    const rowChanged = rowChangedArr[0]?.encrypted_private_key ?? '';
+    expect(rowChanged.startsWith('v1.'), 'after change: row starts with v1.').toBe(true);
+    expect(rowChanged !== rowBefore, 'after change: row differs from snapshot').toBe(true);
+
+    // Acknowledge the new recovery kit and dismiss.
+    const ackCb = page.locator('button[role="checkbox"]').first();
+    await expect(ackCb, 'recovery kit ack checkbox').toBeVisible({ timeout: 10_000 });
+    await ackCb.click({ force: true });
+    await page.locator('button:has-text("Done")').first().click();
+    await page.waitForTimeout(2_000);
+
+    // --- Sign out, sign back in, old pw rejected (once), new pw unlocks ---
+    await page.evaluate(() => {
+      window.localStorage.clear();
+    });
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await expect(
+      page.locator('input[type="email"]').first(),
+      'login email after sign-out',
+    ).toBeVisible({ timeout: 10_000 });
+    await page.locator('input[type="email"]').first().fill(EMAIL);
+    await page.locator('input[type="password"]').first().fill(PASSWORD);
+    await page.locator('button[type="submit"]').first().click();
+    await page.waitForURL((u) => !u.toString().includes('/login'), { timeout: 20_000 });
+
+    // Navigate to a vault-gated page to trigger the lock screen.
+    await page.goto(`${baseURL}/app`, { waitUntil: 'domcontentloaded' });
+    const lockAfter = page.locator('text="Unlock your encrypted vault"').first();
+    await expect(
+      lockAfter.or(page.getByTestId('app-shell').first()),
+      'lock or app-shell after re-sign-in',
+    ).toBeVisible({ timeout: 15_000 });
+
+    if (!(await lockAfter.isVisible().catch(() => false))) {
+      throw new Error(
+        'expected vault lock screen after re-sign-in: MEK must not persist across sessions',
+      );
+    }
+
+    // Old vault password is rejected (one attempt only, per the OWB-T0092 spec).
+    await page.locator('input[type="password"]').first().fill(VAULT_PW);
+    await page.locator('button:has-text("Unlock Vault")').first().click();
+    await page.waitForTimeout(3_000);
+    await expect(lockAfter, 'lock must remain after old vault password').toBeVisible();
+
+    // New vault password unlocks.
+    await page.locator('input[type="password"]').first().fill(VAULT_PW_NEW);
+    await page.locator('button:has-text("Unlock Vault")').first().click();
+    await lockAfter.waitFor({ state: 'hidden', timeout: 30_000 });
+    await expect(
+      page.getByTestId('app-shell').first(),
+      'app shell visible after new vault password (OWB-T0092)',
+    ).toBeVisible({ timeout: 15_000 });
+  });
 });
