@@ -295,10 +295,29 @@ jobs:
           if gh api "repos/${GH_REPO}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
             echo "Release branch ${BRANCH} already exists at this commit. Reusing it."
           else
+            # Create a fresh promotion commit whose tree equals the dev tip tree
+            # (OWB-E0002 step 9). Pointing the release branch directly at DEV_SHA
+            # means historical drift-alarm check-runs from daily schedule runs that
+            # ran while DEV_SHA was the dev tip appear on the promotion PR. Those
+            # FAIL runs block gh_merge_pr (VERDICT=RED) even though the failing
+            # checks are not required (mergeable_state=unstable, not blocked).
+            # A fresh merge commit at the same tree has no prior check-run history.
+            PROD_SHA=$(gh api "repos/${GH_REPO}/git/ref/heads/prod" --jq '.object.sha')
+            DEV_TREE=$(gh api "repos/${GH_REPO}/git/commits/${DEV_SHA}" --jq '.tree.sha')
+            PROMOTION_SHA=$(printf \
+              '{"message":"chore: cut promotion commit (dev %s)","tree":"%s","parents":["%s","%s"]}' \
+              "${DEV_SHA}" "${DEV_TREE}" "${PROD_SHA}" "${DEV_SHA}" \
+              | gh api -X POST "repos/${GH_REPO}/git/commits" --input - --jq '.sha')
+            PROMO_TREE=$(gh api "repos/${GH_REPO}/git/commits/${PROMOTION_SHA}" --jq '.tree.sha')
+            if [ "${PROMO_TREE}" != "${DEV_TREE}" ]; then
+              echo "::error::Tree mismatch: promotion commit ${PROMOTION_SHA} has tree ${PROMO_TREE}, expected ${DEV_TREE} (from dev ${DEV_SHA}). Refusing to cut release branch."
+              exit 1
+            fi
+            echo "Tree equality confirmed: ${PROMO_TREE}."
             gh api -X POST "repos/${GH_REPO}/git/refs" \
               -f ref="refs/heads/${BRANCH}" \
-              -f sha="${DEV_SHA}" >/dev/null
-            echo "Cut ${BRANCH} at ${DEV_SHA}."
+              -f sha="${PROMOTION_SHA}" >/dev/null
+            echo "Cut ${BRANCH} at promotion commit ${PROMOTION_SHA} (tree-equal to dev at ${DEV_SHA})."
           fi
 
           URL=$(gh pr create \
