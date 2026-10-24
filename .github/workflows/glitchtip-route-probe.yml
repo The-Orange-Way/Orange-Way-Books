@@ -1,0 +1,86 @@
+name: glitchtip-route-probe
+
+# One-off probe. Runs only on probe/** branches. Not for merge.
+on:
+  push:
+    branches: ['probe/**']
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cls: ${{ steps.post.outputs.cls }}
+    steps:
+      - id: post
+        env:
+          DSN: ${{ vars.VITE_SENTRY_DSN }}
+          APP: owb
+        run: |
+          set -u
+          if [ -z "${DSN}" ]; then echo "cls=nodsn" >> "$GITHUB_OUTPUT"; exit 0; fi
+          proto="${DSN%%://*}"
+          rest="${DSN#*://}"
+          key="${rest%%@*}"
+          hostpath="${rest#*@}"
+          host="${hostpath%%/*}"
+          project="${hostpath#*/}"
+          project="${project%%/*}"
+          echo "target host=${host} project=${project}"
+          id="$(tr -d '-' < /proc/sys/kernel/random/uuid)"
+          now="$(date -u +%Y-%m-%dT%H:%M:%S)"
+          body="{\"event_id\":\"${id}\",\"timestamp\":\"${now}\",\"platform\":\"javascript\",\"level\":\"error\",\"environment\":\"prod\",\"logger\":\"ow-t0390-probe\",\"message\":\"OW-T0390 synthetic test event (${APP} prod route check ${now}Z), safe to resolve\",\"tags\":{\"probe\":\"ow-t0390\",\"app\":\"${APP}\"}}"
+          code="$(curl -sS -m 30 -o resp.txt -w '%{http_code}' -X POST "${proto}://${host}/api/${project}/store/" -H 'Content-Type: application/json' -H "X-Sentry-Auth: Sentry sentry_version=7, sentry_client=ow-probe/1.0, sentry_key=${key}" --data "${body}" || true)"
+          echo "store http=${code} event_id=${id}"
+          head -c 300 resp.txt || true
+          echo
+          case "${code}" in
+            200) cls=ok ;;
+            4*) cls=rejected ;;
+            5*) cls=server ;;
+            *) cls=unreachable ;;
+          esac
+          echo "cls=${cls}" >> "$GITHUB_OUTPUT"
+
+  r-ok:
+    name: RESULT ok event accepted
+    needs: send
+    if: needs.send.outputs.cls == 'ok'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo accepted
+
+  r-rejected:
+    name: RESULT rejected 4xx key or project or route wrong
+    needs: send
+    if: needs.send.outputs.cls == 'rejected'
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+
+  r-server:
+    name: RESULT server 5xx instance up but failing
+    needs: send
+    if: needs.send.outputs.cls == 'server'
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+
+  r-unreachable:
+    name: RESULT unreachable no HTTP answer
+    needs: send
+    if: needs.send.outputs.cls == 'unreachable'
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+
+  r-nodsn:
+    name: RESULT nodsn variable empty or not visible
+    needs: send
+    if: needs.send.outputs.cls == 'nodsn'
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
