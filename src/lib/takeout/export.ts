@@ -96,7 +96,9 @@ export async function buildTakeoutFile(
       initial_balance: f.initial_balance ?? 0,
       legacy_account_id: (w.external_account_id ?? null) as string | null,
       connection_type: f.connection_type,
-      legacy_account_code: f.legacy_account_code,
+      // The takeout file keeps its legacy field name; the wallet field is
+      // external_account_code.
+      legacy_account_code: f.external_account_code,
     };
   });
 
