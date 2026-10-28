@@ -76,6 +76,13 @@ export interface VoidTransactionParams {
   signMutation: SignMutationFn;
 }
 
+/**
+ * Shown when the transaction already has a reversing entry. The partial
+ * unique index uq_journal_entries_reversal_of_id is the real guard: it refuses
+ * a second reversal even when two voids race past the check below.
+ */
+export const ALREADY_VOID_MESSAGE = 'This transaction is already void.';
+
 export interface VoidTransactionResult {
   reversalJournalEntryId: string;
   voidedTransactionIds: string[];
@@ -97,6 +104,14 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
         'JE write path (Track 2 T4) before they can be voided.',
     );
   }
+
+  const { data: existingReversal, error: existingErr } = await supabase
+    .from('journal_entries')
+    .select('id')
+    .eq('reversal_of_id', origTx.journal_entry_id)
+    .maybeSingle();
+  if (existingErr) throw existingErr;
+  if (existingReversal) throw new Error(ALREADY_VOID_MESSAGE);
 
   const { data: origJe, error: jeErr } = await supabase
     .from('journal_entries')
@@ -166,6 +181,9 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     } as any)
     .select('id')
     .single();
+  // 23505 = unique_violation on uq_journal_entries_reversal_of_id: another
+  // void got there first.
+  if (reversalJeErr?.code === '23505') throw new Error(ALREADY_VOID_MESSAGE);
   if (reversalJeErr) throw reversalJeErr;
   const reversalJeId = (reversalJeRow as any).id;
 

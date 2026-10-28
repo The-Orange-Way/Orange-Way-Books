@@ -97,7 +97,7 @@ import {
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { writeAuditLog } from '@/lib/audit-logger';
 import { postJournalEntry } from '@/lib/journal-entry-post';
-import { voidTransaction } from '@/lib/transactions/void-transaction';
+import { voidTransaction, ALREADY_VOID_MESSAGE } from '@/lib/transactions/void-transaction';
 import { exportToCsv } from '@/lib/exports/csv';
 import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
@@ -748,6 +748,10 @@ export default function Transactions() {
     if (!tx) return;
     if (tx.cleared_status === 'RECONCILED') {
       setLockedDialogOpen(true);
+      return;
+    }
+    if (tx.status === 'VOID') {
+      alert(ALREADY_VOID_MESSAGE);
       return;
     }
     if (!tx.journal_entry_id) {
@@ -1463,7 +1467,12 @@ export default function Transactions() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-amber-600"
-                              title="Void (post reversing entry)"
+                              title={
+                                tx.status === 'VOID'
+                                  ? ALREADY_VOID_MESSAGE
+                                  : 'Void (post reversing entry)'
+                              }
+                              disabled={tx.status === 'VOID'}
                               onClick={() => handleVoid(tx.id)}
                             >
                               <Ban className="w-3.5 h-3.5" />
@@ -1627,7 +1636,12 @@ export default function Transactions() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-amber-600"
-                            title="Void (post reversing entry)"
+                            title={
+                              tx.status === 'VOID'
+                                ? ALREADY_VOID_MESSAGE
+                                : 'Void (post reversing entry)'
+                            }
+                            disabled={tx.status === 'VOID'}
                             onClick={() => handleVoid(tx.id)}
                           >
                             <Ban className="w-3.5 h-3.5" />

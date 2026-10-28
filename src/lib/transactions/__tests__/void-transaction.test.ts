@@ -28,6 +28,8 @@ interface FakeStore {
 }
 
 let store: FakeStore;
+/** When set, an insert into this table fails like a unique-index violation. */
+let uniqueViolationOn: keyof FakeStore | null = null;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -84,6 +86,13 @@ function makeSupabase() {
         return apiSelect;
       },
       insert(payload: unknown) {
+        if (uniqueViolationOn === table) {
+          const failed = Promise.resolve({
+            data: null,
+            error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+          });
+          return { select: () => ({ single: () => failed }), then: failed.then.bind(failed) };
+        }
         const rows = Array.isArray(payload) ? payload : [payload];
         const withIds = rows.map((row) => ({
           ...(row as Record<string, unknown>),
@@ -163,7 +172,7 @@ const decryptText = async (cipher: string) => {
 };
 
 // Lazy import so mocks are installed first.
-import { voidTransaction } from '../void-transaction';
+import { voidTransaction, ALREADY_VOID_MESSAGE } from '../void-transaction';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
@@ -314,6 +323,7 @@ beforeEach(() => {
     // unless a test says otherwise.
     org_settings: [{ org_id: ORG, primary_currency: 'USD', key_version: null }],
   };
+  uniqueViolationOn = null;
   resolvePinnedRate.mockClear();
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
@@ -587,5 +597,46 @@ describe('voidTransaction', () => {
     expect(origAfter!.signature_b64).toBeNull();
     expect(origAfter!.signature_key_version).toBeNull();
     expect(signMutation).not.toHaveBeenCalled();
+  });
+
+  describe('a transaction that is already void', () => {
+    const params = () => ({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+
+    it('is refused in plain words when voided a second time directly, writing nothing', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      await voidTransaction(params());
+      const jes = store.journal_entries.length;
+      const lines = store.journal_entry_lines.length;
+      signMutation.mockClear();
+
+      await expect(voidTransaction(params())).rejects.toThrow(ALREADY_VOID_MESSAGE);
+      expect(store.journal_entries).toHaveLength(jes);
+      expect(store.journal_entry_lines).toHaveLength(lines);
+      expect(signMutation).not.toHaveBeenCalled();
+    });
+
+    it('turns a lost race (unique index refusal) into the same plain message', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      uniqueViolationOn = 'journal_entries';
+      await expect(voidTransaction(params())).rejects.toThrow(ALREADY_VOID_MESSAGE);
+      expect(store.transactions.find((t) => t.id === 'tx-1')!.status).toBe('enc(POSTED)');
+    });
+
+    it('negative control: other insert errors are not relabelled', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      uniqueViolationOn = 'journal_entry_lines';
+      // A duplicate on the lines table is not a second void: the raw error
+      // must reach the caller unchanged.
+      await expect(voidTransaction(params())).rejects.toMatchObject({ code: '23505' });
+    });
   });
 });
