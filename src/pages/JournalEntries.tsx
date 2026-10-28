@@ -88,6 +88,7 @@ import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { toast } from 'sonner';
+import { fetchJournalEntryLines } from '@/lib/journal-entry-lines-fetch';
 import {
   ImportPopup,
   type ImportPreviewRow,
@@ -537,6 +538,7 @@ export default function JournalEntries() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkActing, setBulkActing] = useState(false);
   const [lines, setLines] = useState<Record<string, JournalLine[]>>({});
+  const [linesLoadFailed, setLinesLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [btcDisplay, setBtcDisplay] = useState<BitcoinDisplay>('sats');
   const [primaryCurrency, setPrimaryCurrency] = useState('USD');
@@ -640,12 +642,19 @@ export default function JournalEntries() {
 
     if (je.length > 0) {
       const ids = je.map((e) => e.id);
-      const { data: lineData } = await supabase
-        .from('journal_entry_lines')
-        .select('*')
-        .in('journal_entry_id', ids);
+      let lineData: any[];
+      try {
+        lineData = await fetchJournalEntryLines<any>(supabase, ids);
+        setLinesLoadFailed(false);
+      } catch (err) {
+        // Never show entries as empty when their lines did not load.
+        console.error('[JournalEntries] journal_entry_lines fetch failed:', err);
+        setLinesLoadFailed(true);
+        toast.error('Could not load journal entry lines. Refresh the page to try again.');
+        lineData = [];
+      }
       const grouped: Record<string, JournalLine[]> = {};
-      ((lineData as any[]) ?? []).forEach((l) => {
+      lineData.forEach((l) => {
         if (!grouped[l.journal_entry_id]) grouped[l.journal_entry_id] = [];
         grouped[l.journal_entry_id].push(l);
       });
@@ -905,6 +914,12 @@ export default function JournalEntries() {
 
   const openEdit = (entry: JournalEntry) => {
     if (entry.status !== 'DRAFT' || entry.period_locked) return;
+    // An entry whose lines did not load would open blank, and saving it
+    // would replace the stored lines.
+    if (linesLoadFailed) {
+      toast.error('Lines for this entry did not load. Refresh the page before editing.');
+      return;
+    }
     setEditingEntry(entry);
     setFDate(new Date(entry.date));
     setFCurrency(entry.currency);
