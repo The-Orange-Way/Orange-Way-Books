@@ -125,7 +125,7 @@ export default function AccountRegister() {
         const { data: jelRows } = await supabase
           .from('journal_entry_lines')
           .select(
-            '*, journal_entries!inner(id, date, status, key_version, source_type, org_id, encrypted_memo, memo)',
+            '*, journal_entries!inner(id, date, status, key_version, source_type, org_id, encrypted_memo)',
           )
           .eq('account_id', accountId)
           .eq('journal_entries.org_id', orgId);
