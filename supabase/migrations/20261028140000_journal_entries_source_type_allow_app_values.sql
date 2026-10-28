@@ -1,27 +1,28 @@
--- Widen journal_entries.source_type to the values the app already writes.
+-- Widen journal_entries.source_type to the values the app and the database
+-- functions already write.
 --
 -- The phase-1 check (20260601000030) allows: manual, or_import, invoice,
 -- payment, void_reversal, fx_revaluation, opening_balance, takeout_import.
--- Several app flows insert values outside that list, so the insert fails
--- with 23514 journal_entries_source_type_check and nothing is saved:
+-- These writers insert values outside that list, so the insert fails with
+-- 23514 journal_entries_source_type_check and nothing is saved:
 --
 --   TRANSACTION_TRANSFER     src/components/transactions/transaction-modal.tsx
 --   TRANSACTION_SPLIT        src/components/transactions/transaction-modal.tsx
---   VOID_REVERSAL            src/lib/transactions/void-transaction.ts,
---                            src/lib/transactions/reverse-journal-entry.ts
---                            (JournalEntries.tsx also reads this exact value)
 --   fx_revaluation_reversal  src/components/fx-revaluation/RevaluationWizard.tsx
 --   quickbooks               src/lib/imports/quickbooks/commit.ts
 --   orangerails              src/lib/orImportBridge.ts
+--   invoice_payment          SQL function apply_invoice_payment
+--   invoice_payment_merge    SQL function merge_invoice_payment
+--
+-- Voids and reversals now write the existing 'void_reversal' (same change),
+-- so no second spelling of that value is added.
 --
 -- This migration only ADDS allowed values. Every existing row already
 -- satisfies the old list, so it satisfies the new one; no data changes.
--- The original eight values are kept unchanged.
+-- One statement, so the drop and the add apply together.
 
 ALTER TABLE public.journal_entries
-  DROP CONSTRAINT IF EXISTS journal_entries_source_type_check;
-
-ALTER TABLE public.journal_entries
+  DROP CONSTRAINT IF EXISTS journal_entries_source_type_check,
   ADD CONSTRAINT journal_entries_source_type_check
   CHECK (source_type IS NULL OR source_type IN (
     'manual',
@@ -34,11 +35,12 @@ ALTER TABLE public.journal_entries
     'takeout_import',
     'TRANSACTION_TRANSFER',
     'TRANSACTION_SPLIT',
-    'VOID_REVERSAL',
     'fx_revaluation_reversal',
     'quickbooks',
-    'orangerails'
+    'orangerails',
+    'invoice_payment',
+    'invoice_payment_merge'
   ));
 
 COMMENT ON COLUMN public.journal_entries.source_type IS
-  'D9 plaintext. Which workflow created this entry: manual, or_import, invoice, payment, void_reversal, fx_revaluation, opening_balance, takeout_import, TRANSACTION_TRANSFER, TRANSACTION_SPLIT, VOID_REVERSAL, fx_revaluation_reversal, quickbooks, orangerails. Not customer content.';
+  'D9 plaintext. Which workflow created this entry: manual, or_import, invoice, payment, void_reversal, fx_revaluation, opening_balance, takeout_import, TRANSACTION_TRANSFER, TRANSACTION_SPLIT, fx_revaluation_reversal, quickbooks, orangerails, invoice_payment, invoice_payment_merge. Not customer content.';

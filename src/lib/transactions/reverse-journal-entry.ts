@@ -7,7 +7,7 @@
  *
  *   1. Load original JE + lines.
  *   2. Decrypt via decryptJournalEntry / decryptJournalEntryLine.
- *   3. Create a new journal_entries row with source_type='VOID_REVERSAL' and
+ *   3. Create a new journal_entries row with source_type='void_reversal' and
  *      reversal_of_id pointing at the original. Status starts POSTED (a
  *      reversal is meant to be live the moment it's written; the
  *      handleReverse).
@@ -20,7 +20,7 @@
  *     lock enforcement ships, this can branch on original_period vs
  *     current_period.
  *   - Reversing entries created by this helper themselves cannot be reversed
- *     (canReverse check on the UI already filters source_type='VOID_REVERSAL').
+ *     (canReverse check on the UI already filters source_type='void_reversal').
  */
 
 import { supabase } from '@/lib/supabase';
@@ -92,7 +92,7 @@ export async function reverseJournalEntry(
       // Reversals post immediately — they're meant to live the moment they're
       // written, same as the reverse behavior in the JE module.
       status: 'POSTED',
-      source_type: 'VOID_REVERSAL',
+      source_type: 'void_reversal',
       period_locked: false,
     },
     p.encryptText,

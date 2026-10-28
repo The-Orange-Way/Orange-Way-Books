@@ -310,7 +310,7 @@ describe('voidTransaction', () => {
     expect(reversalJe).toBeDefined();
     // Post-Phase-1: source_type is plaintext (server reads it to gate
     // the immutability trigger). Not encrypted.
-    expect(reversalJe!.source_type).toBe('VOID_REVERSAL');
+    expect(reversalJe!.source_type).toBe('void_reversal');
     expect(reversalJe!.reversal_of_id).toBe('je-1');
 
     // Lines were inserted with debit / credit swapped.

@@ -1200,7 +1200,7 @@ export default function JournalEntries() {
     try {
       for (const id of selected) {
         const e = entries.find((en) => en.id === id);
-        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'VOID_REVERSAL')
+        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'void_reversal')
           continue;
         try {
           await reverseJournalEntry({

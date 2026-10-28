@@ -12,6 +12,11 @@ import { describe, expect, it } from 'vitest';
 const ROOT = join(__dirname, '..', '..', '..');
 const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
 const SRC = join(ROOT, 'src');
+const EDGE = join(ROOT, 'supabase', 'functions');
+
+// Written by SQL functions in the migrations (apply_invoice_payment and
+// merge_invoice_payment), which this test does not parse.
+const SQL_FUNCTION_VALUES = ['invoice_payment', 'invoice_payment_merge'];
 
 // The generated samples write 'seed'; they only reach the database through the
 // takeout restore, which stores any value the constraint refuses as null.
@@ -47,7 +52,7 @@ function writtenSourceTypes(): Map<string, string[]> {
   const found = new Map<string, string[]>();
   const add = (value: string, file: string) =>
     found.set(value, [...(found.get(value) ?? []), file]);
-  for (const p of sourceFiles(SRC)) {
+  for (const p of [...sourceFiles(SRC), ...sourceFiles(EDGE)]) {
     const rel = relative(ROOT, p);
     if (RESTORE_ONLY.has(rel)) continue;
     const code = readFileSync(p, 'utf8');
@@ -74,5 +79,15 @@ describe('journal_entries.source_type', () => {
       .filter(([value]) => !allowed.has(value))
       .map(([value, files]) => `${value} (${[...new Set(files)].join(', ')})`);
     expect(refused).toEqual([]);
+  });
+
+  it('allows the values the SQL functions write', () => {
+    const allowed = allowedSourceTypes();
+    expect(SQL_FUNCTION_VALUES.filter((v) => !allowed.has(v))).toEqual([]);
+  });
+
+  it('has one spelling per value', () => {
+    const lower = [...allowedSourceTypes()].map((v) => v.toLowerCase());
+    expect(lower.filter((v, i) => lower.indexOf(v) !== i)).toEqual([]);
   });
 });
