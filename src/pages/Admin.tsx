@@ -564,7 +564,7 @@ function OrganizationTab({
       // The new org gets its own vault, unlocked with the same password as
       // the org that is open now. Check the password against this org first
       // so a typo cannot seal the new org under a password nobody knows.
-      const { data: current, error: currentErr } = await (supabase as any)
+      const { data: current, error: currentErr } = await supabase
         .from('org_settings')
         .select('vault_verifier, vault_salt, vault_key_version')
         .eq('org_id', orgId)
@@ -610,7 +610,14 @@ function OrganizationTab({
       // Same atomic RPC onboarding uses: organizations, the OWNER membership
       // (trigger) and org_settings with the vault material, in one
       // transaction. A direct insert into organizations is refused by RLS.
-      const { data: newOrgId, error: rpcError } = await (supabase as any).rpc(
+      // create_org_for_current_user is not in the generated types yet.
+      const untypedRpc = supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: string | null; error: { message: string } | null }>;
+      };
+      const { data: newOrgId, error: rpcError } = await untypedRpc.rpc(
         'create_org_for_current_user',
         {
           p_org_name: encName,
