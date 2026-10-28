@@ -65,18 +65,30 @@ FAIL=0
 # worktree, so the marker could never be found and every push from a worktree
 # would be refused. Not --git-common-dir: that is shared across worktrees and
 # would let one worktree's marker authorise a push from a different branch.
+# Compared against LOCAL_SHAS (the shas from pre-push stdin), not HEAD: in a
+# shared checkout another agent's commit can move HEAD after /pr-this ran, making
+# an exact HEAD compare refuse a push whose commit the gauntlet DID certify.
 MARKER="$(git rev-parse --absolute-git-dir)/.pr-this-ran"
-HEAD_SHA=$(git rev-parse HEAD)
 if [ ! -f "$MARKER" ]; then
   red "✗ /pr-this has NEVER been recorded for this clone."
+  red "  Marker path: $MARKER"
   red "  Invoke /pr-this via the Skill tool before pushing."
   FAIL=1
-elif [ "$(cat "$MARKER")" != "$HEAD_SHA" ]; then
-  red "✗ /pr-this marker is stale (recorded $(head -c 8 "$MARKER"), HEAD is $(echo "$HEAD_SHA" | head -c 8))."
-  red "  Invoke /pr-this on the current HEAD before pushing."
-  FAIL=1
 else
-  green "✓ /pr-this marker matches HEAD."
+  MARKER_SHA="$(cat "$MARKER")"
+  MARKER_OK=0
+  for _sha in "${LOCAL_SHAS[@]}"; do
+    [ "$MARKER_SHA" = "$_sha" ] && MARKER_OK=1 && break
+  done
+  if [ "$MARKER_OK" = "0" ]; then
+    red "✗ /pr-this marker is stale."
+    red "  Recorded: $(printf '%.8s' "$MARKER_SHA")   pushing: $(printf '%.8s' "${LOCAL_SHAS[0]}")"
+    red "  Marker path: $MARKER"
+    red "  Invoke /pr-this on the commit being pushed before retrying."
+    FAIL=1
+  else
+    green "✓ /pr-this marker matches the commit being pushed."
+  fi
 fi
 
 # ---- Check 2: pre-publish leak scan ----
