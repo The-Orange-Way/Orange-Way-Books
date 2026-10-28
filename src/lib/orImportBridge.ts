@@ -424,7 +424,7 @@ async function importSingleTx(
       currency: asset,
       exchange_rate: null,
       status: 'POSTED',
-      source_type: 'orangerails',
+      source_type: 'or_import',
       period_locked: false,
     },
     encryptText,

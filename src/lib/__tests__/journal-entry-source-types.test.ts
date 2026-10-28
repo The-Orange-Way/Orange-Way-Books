@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { journalEntrySourceType } from '../imports/orange-rails/contract';
 
 // Every source_type the app writes on journal_entries must be allowed by the
 // journal_entries_source_type_check constraint, or the insert fails with
@@ -84,6 +85,12 @@ describe('journal_entries.source_type', () => {
   it('allows the values the SQL functions write', () => {
     const allowed = allowedSourceTypes();
     expect(SQL_FUNCTION_VALUES.filter((v) => !allowed.has(v))).toEqual([]);
+  });
+
+  it('allows the values the Orange Rails importer writes', () => {
+    const allowed = allowedSourceTypes();
+    const values = (['wave', 'quickbooks', 'orange_rails'] as const).map(journalEntrySourceType);
+    expect(values.filter((v) => !allowed.has(v))).toEqual([]);
   });
 
   it('has one spelling per value', () => {
