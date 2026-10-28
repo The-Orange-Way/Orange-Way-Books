@@ -32,6 +32,7 @@ import {
   type DecryptFn,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { describeImportError } from './error-text';
 import type {
   AccountType,
   ContactKind,
@@ -297,7 +298,7 @@ async function ensureUncategorizedAccounts(
       result.errors.push({
         phase: 'accounts',
         item: UNCATEGORIZED_EXPENSE_NAME,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
@@ -316,7 +317,7 @@ async function ensureUncategorizedAccounts(
       result.errors.push({
         phase: 'accounts',
         item: UNCATEGORIZED_REVENUE_NAME,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
@@ -414,7 +415,7 @@ async function commitAccounts(
       result.errors.push({
         phase: 'accounts',
         item: account.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
     onStep(done, total);
@@ -517,7 +518,7 @@ async function commitContacts(
       result.errors.push({
         phase: 'contacts',
         item: contact.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
     onStep(done, total);
@@ -669,7 +670,7 @@ async function commitJournalEntryBatch(
     result.errors.push({
       phase: 'journal-entries',
       item: `batch[${batch[0]?.refNum ?? '?'}…${batch[batch.length - 1]?.refNum ?? '?'}]`,
-      error: err instanceof Error ? err.message : String(err),
+      error: describeImportError(err),
     });
     return;
   }
@@ -838,7 +839,7 @@ async function commitJournalEntriesPerEntry(
       result.errors.push({
         phase: 'journal-entries',
         item: entry.refNum,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
