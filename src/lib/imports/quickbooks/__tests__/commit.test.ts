@@ -605,3 +605,106 @@ describe('commitQuickBooksImport', () => {
     expect(stages).toContain('finalizing');
   });
 });
+
+describe('commitQuickBooksImport: journal line account_id', () => {
+  it('sets account_id on every line to the chart row of its account', async () => {
+    const accounts = [mkAccount('Checking'), mkAccount('Sales')];
+    const parsed = mkParsed({ accounts, journalEntries: [mkJE('QB-ACCT-1', 50)] });
+
+    const result = await commitQuickBooksImport({
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications: classifyAll(accounts),
+      encryptText,
+      decryptText,
+    });
+
+    expect(result.errors).toEqual([]);
+    const idByName = new Map(
+      store.chart_of_accounts.map((row) => [
+        String(row.encrypted_name).replace(/^enc\((.*)\)$/, '$1'),
+        row.id as string,
+      ]),
+    );
+    const lines = store.journal_entry_lines as Array<Record<string, unknown>>;
+    expect(lines).toHaveLength(2);
+    for (const line of lines) {
+      expect(line.account_id).toBeTruthy();
+      expect(line.account_id).toBe(idByName.get(line.account_name as string));
+    }
+  });
+
+  it('rejects an entry whose account is not in the chart and writes nothing for it', async () => {
+    // Only Checking is in the trial balance; the entry also posts to Sales.
+    const accounts = [mkAccount('Checking')];
+    const parsed = mkParsed({ accounts, journalEntries: [mkJE('QB-ACCT-2', 50)] });
+
+    const result = await commitQuickBooksImport({
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications: classifyAll(accounts),
+      encryptText,
+      decryptText,
+    });
+
+    expect(result.journalEntriesCreated).toBe(0);
+    expect(store.journal_entries).toHaveLength(0);
+    expect(store.journal_entry_lines).toHaveLength(0);
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        phase: 'journal-entries',
+        item: 'QB-ACCT-2',
+        error: expect.stringContaining('Sales'),
+      }),
+    ]);
+  });
+
+  const existingSales = (id: string) => ({
+    id,
+    org_id: ORG,
+    encrypted_name: 'enc(Sales)',
+    encrypted_account_type: 'enc(INCOME)',
+  });
+
+  it('posts to an existing chart row when the account already exists', async () => {
+    store.chart_of_accounts.push(existingSales('existing-sales'));
+    const accounts = [mkAccount('Checking'), mkAccount('Sales')];
+    const parsed = mkParsed({ accounts, journalEntries: [mkJE('QB-ACCT-3', 50)] });
+
+    const result = await commitQuickBooksImport({
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications: classifyAll(accounts),
+      encryptText,
+      decryptText,
+    });
+
+    expect(result.errors).toEqual([]);
+    const lines = store.journal_entry_lines as Array<Record<string, unknown>>;
+    expect(lines.find((l) => l.account_name === 'Sales')?.account_id).toBe('existing-sales');
+  });
+
+  it('rejects an entry whose account name matches more than one chart row', async () => {
+    store.chart_of_accounts.push(existingSales('sales-a'), existingSales('sales-b'));
+    const accounts = [mkAccount('Checking')];
+    const parsed = mkParsed({ accounts, journalEntries: [mkJE('QB-ACCT-4', 50)] });
+
+    const result = await commitQuickBooksImport({
+      orgId: ORG,
+      primaryCurrency: 'USD',
+      parsed,
+      classifications: classifyAll(accounts),
+      encryptText,
+      decryptText,
+    });
+
+    expect(store.journal_entries).toHaveLength(0);
+    expect(store.journal_entry_lines).toHaveLength(0);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ item: 'QB-ACCT-4', error: expect.stringContaining('Sales') }),
+    ]);
+  });
+});
