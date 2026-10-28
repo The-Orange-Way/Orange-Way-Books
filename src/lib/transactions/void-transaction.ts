@@ -83,6 +83,9 @@ export interface VoidTransactionParams {
  */
 export const ALREADY_VOID_MESSAGE = 'This transaction is already void.';
 
+/** Shown when someone tries to edit a voided transaction. */
+export const VOID_NOT_EDITABLE_MESSAGE = 'This transaction is void, so it cannot be edited.';
+
 export interface VoidTransactionResult {
   reversalJournalEntryId: string;
   voidedTransactionIds: string[];

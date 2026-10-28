@@ -97,7 +97,11 @@ import {
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { writeAuditLog } from '@/lib/audit-logger';
 import { postJournalEntry } from '@/lib/journal-entry-post';
-import { voidTransaction, ALREADY_VOID_MESSAGE } from '@/lib/transactions/void-transaction';
+import {
+  voidTransaction,
+  ALREADY_VOID_MESSAGE,
+  VOID_NOT_EDITABLE_MESSAGE,
+} from '@/lib/transactions/void-transaction';
 import { exportToCsv } from '@/lib/exports/csv';
 import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
@@ -711,6 +715,10 @@ export default function Transactions() {
   const openEdit = (tx: TxRow) => {
     if (tx.cleared_status === 'RECONCILED') {
       setLockedDialogOpen(true);
+      return;
+    }
+    if (tx.status === 'VOID') {
+      toast.error(VOID_NOT_EDITABLE_MESSAGE);
       return;
     }
     setEditingTx(tx);
@@ -1456,6 +1464,8 @@ export default function Transactions() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
+                              title={tx.status === 'VOID' ? VOID_NOT_EDITABLE_MESSAGE : undefined}
+                              disabled={tx.status === 'VOID'}
                               onClick={() => openEdit(tx)}
                               data-testid="tx-edit-button"
                             >
@@ -1625,6 +1635,8 @@ export default function Transactions() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
+                            title={tx.status === 'VOID' ? VOID_NOT_EDITABLE_MESSAGE : undefined}
+                            disabled={tx.status === 'VOID'}
                             onClick={() => openEdit(tx)}
                             data-testid="tx-edit-button"
                           >
