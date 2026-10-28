@@ -96,6 +96,7 @@ import {
 // Phase 2 removal: external-ledger dual-write deleted from CSV import path.
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { postJournalEntry } from '@/lib/journal-entry-post';
 import { voidTransaction } from '@/lib/transactions/void-transaction';
 import { exportToCsv } from '@/lib/exports/csv';
 import { printTable } from '@/lib/exports/print-table';
@@ -801,20 +802,28 @@ export default function Transactions() {
   const handleBulkPost = async () => {
     if (selected.size === 0) return;
     setBulkActing(true);
+    let failed = 0;
     try {
+      // transactions.status is encrypted; journal_entries.status is plaintext.
       const encStatus = await encryptText('POSTED');
       for (const id of selected) {
         const tx = txs.find((t) => t.id === id);
-        await supabase
+        const { error: txErr } = await supabase
           .from('transactions')
           .update({ status: encStatus, key_version: 2 } as any)
           .eq('id', id);
+        if (txErr) {
+          failed += 1;
+          console.error('[Transactions] bulk post failed:', id, txErr);
+          continue;
+        }
         // Mirror to the parent JE wrapper for split + transfer transactions.
         if (tx?.journal_entry_id) {
-          await supabase
-            .from('journal_entries')
-            .update({ status: encStatus, key_version: 2 } as any)
-            .eq('id', tx.journal_entry_id);
+          const { error: jeErr } = await postJournalEntry(supabase, tx.journal_entry_id);
+          if (jeErr) {
+            failed += 1;
+            console.error('[Transactions] bulk post: journal entry not posted:', id, jeErr);
+          }
         }
         writeAuditLog({
           orgId: orgId!,
@@ -824,6 +833,11 @@ export default function Transactions() {
           summary: 'Bulk posted transaction',
           encrypt: encryptText,
         });
+      }
+      if (failed > 0) {
+        toast.error(
+          `${failed} of the selected transactions could not be fully posted. Refresh the page and try again.`,
+        );
       }
       setSelected(new Set());
       await fetchData();
