@@ -44,6 +44,7 @@ import {
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
+import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -615,28 +616,12 @@ export default function TransactionModal({
 
   // ── signing-key helper ─────────────────────────────────────────────────────
   //
-  // Phase 4.4: every mutation signed. The standard-save path above keeps its
-  // existing "tolerate missing signing key and write unsigned" behavior for back-compat
-  // with Bookkeeper/legacy callers; the split + transfer + void write paths
-  // call this helper and THROW when no signing-key wrap exists, because Phase 4.2 RLS
-  // already blocks unsigned writes for Auditor + Viewer, anyone reaching
-  // these code paths is supposed to have a wrap.
-  async function buildSignature(
-    payload: string,
-  ): Promise<{ signature_b64: string; signature_key_version: number }> {
-    await loadOrgSigningKey(orgId);
-    const payloadBytes = new TextEncoder().encode(`${orgId}|${payload}`);
-    const sig = signMutation(payloadBytes, orgId);
-    if (!sig) {
-      throw new Error(
-        'No signing key available for this org. ' +
-          'Please refresh the page; if the problem persists contact support.',
-      );
-    }
-    return {
-      signature_b64: sig.signature_b64,
-      signature_key_version: sig.key_version,
-    };
+  // Phase 4.4: the split and transfer paths prepare the signer BEFORE their
+  // first write, so an org whose key this user cannot use is refused with
+  // nothing saved. An org with no signing key yet writes unsigned, which is
+  // what the database accepts (see mutation-signer.ts).
+  function prepareSigner() {
+    return prepareMutationSigner({ client: supabase, orgId, loadOrgSigningKey, signMutation });
   }
 
   // ── Standard save ──────────────────────────────────────────────────────────
@@ -793,6 +778,8 @@ export default function TransactionModal({
         encryptText,
       )
     ).get(selectedWallet.id)!;
+    // Decide how the row will be signed before the first write (see prepareSigner).
+    const signer = await prepareSigner();
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
@@ -911,10 +898,8 @@ export default function TransactionModal({
       encryptText,
     );
 
-    // Phase 4.4 mutation signing for split path. Throws if the caller has no signing key
-    // wrap, Phase 4.2 RLS already blocks unsigned writes for non-writers,
-    // so anyone reaching here is supposed to have one.
-    const splitSig = await buildSignature(
+    // Phase 4.4 mutation signing for split path (signer prepared before any write).
+    const splitSig = signer.sign(
       `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
     );
 
@@ -1030,9 +1015,10 @@ export default function TransactionModal({
     const sentValue = sa + (feeOnSource ? fee : 0);
     const receivedValue = ra - (feeOnReceived ? fee : 0);
 
-    // Resolve every chart account the lines post to before anything is
-    // written, so a missing account stops the save instead of leaving an
-    // entry with no lines.
+    // Decide how the rows will be signed, and resolve every chart account the
+    // lines post to, before anything is written, so a refusal stops the save
+    // instead of leaving an entry behind.
+    const signer = await prepareSigner();
     const walletAccountIds = await ensureWalletChartAccountIds(
       supabase,
       orgId,
@@ -1203,10 +1189,10 @@ export default function TransactionModal({
 
     // Phase 4.4 mutation signing for transfer path. One signature per leg so each
     // transactions row carries its own, verifier reads the row, not the pair.
-    const srcSig = await buildSignature(
+    const srcSig = signer.sign(
       `transfer-src|${journalEntryId}|${dateStr}|${sourceAsset}|${sentValue}`,
     );
-    const destSig = await buildSignature(
+    const destSig = signer.sign(
       `transfer-dest|${journalEntryId}|${dateStr}|${destAsset}|${receivedValue}`,
     );
 

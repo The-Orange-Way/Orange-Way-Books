@@ -42,15 +42,16 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 // Phase 2 removal: the ledger reversal posting deleted; Postgres reversing JE
 // is the single source of truth.
 import { writeAuditLog } from '@/lib/audit-logger';
+import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
 
 /**
  * Phase 4.4 mutation signing: callers pass the same helpers from VaultContext
- * that the transaction modal uses. We throw if the caller has no signing-key wrap.
- * Phase 4.2 RLS already blocks unsigned writes for non-writers, and
- * voiding is a writer action.
+ * that the transaction modal uses. The signer is prepared before the first
+ * write: signed when this user holds the org's key, unsigned when the org has
+ * no key yet (as the database accepts), refused otherwise.
  */
 type LoadOskFn = (orgId: string) => Promise<unknown>;
 type SignMutationFn = (
@@ -124,6 +125,15 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     ),
   );
 
+  // Decide how the status flip will be signed before anything is written,
+  // so a refusal leaves no reversing entry behind (see mutation-signer.ts).
+  const signer = await prepareMutationSigner({
+    client: supabase,
+    orgId: p.orgId,
+    loadOrgSigningKey: p.loadOrgSigningKey,
+    signMutation: p.signMutation,
+  });
+
   // ── Phase 3: create reversing JE ──────────────────────────────────────
   const reversalMemo = `Reversal of ${origJeDec.memo || `tx ${p.txId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
@@ -182,15 +192,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // Phase 4.4: sign the status flip. We compute one signature over the
   // reversal JE id + the void status, then stamp it on each affected row.
   // The verifier reads each row and can reconstruct the same payload bytes.
-  await p.loadOrgSigningKey(p.orgId);
-  const voidSigBytes = new TextEncoder().encode(`${p.orgId}|void|${reversalJeId}|${p.date}`);
-  const voidSig = p.signMutation(voidSigBytes, p.orgId);
-  if (!voidSig) {
-    throw new Error(
-      'No signing key available for this org. ' +
-        'Please refresh the page; if the problem persists contact support.',
-    );
-  }
+  const voidSig = signer.sign(`void|${reversalJeId}|${p.date}`);
 
   const encVoidStatus = await p.encryptText('VOID');
   const voidedIds: string[] = [origTx.id];
@@ -202,8 +204,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     .update({
       status: encVoidStatus,
       key_version: FIELD_KEY_VERSION,
-      signature_b64: voidSig.signature_b64,
-      signature_key_version: voidSig.key_version,
+      ...voidSig,
     } as any)
     .in('id', voidedIds);
   if (voidErr) throw voidErr;

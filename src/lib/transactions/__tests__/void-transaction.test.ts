@@ -23,6 +23,7 @@ interface FakeStore {
   wallets: Array<Record<string, unknown>>;
   chart_of_accounts: Array<Record<string, unknown>>;
   audit_log: Array<Record<string, unknown>>;
+  org_signing_keys: Array<Record<string, unknown>>;
 }
 
 let store: FakeStore;
@@ -48,6 +49,9 @@ function makeSupabase() {
       },
       maybeSingle() {
         modeMaybeSingle = true;
+        return run();
+      },
+      limit(_n: number) {
         return run();
       },
       then(onFulfilled: (v: { data: unknown; error: null }) => unknown) {
@@ -286,6 +290,7 @@ beforeEach(() => {
     wallets: [],
     chart_of_accounts: [],
     audit_log: [],
+    org_signing_keys: [],
   };
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
@@ -462,5 +467,52 @@ describe('voidTransaction', () => {
         signMutation: noSign,
       }),
     ).rejects.toThrow(/No signing key/);
+  });
+
+  it('refuses before writing anything when the org has a key this user cannot use', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_signing_keys.push({ org_id: ORG, key_version: 1 });
+    const entriesBefore = store.journal_entries.length;
+    const linesBefore = store.journal_entry_lines.length;
+
+    await expect(
+      voidTransaction({
+        txId: 'tx-1',
+        orgId: ORG,
+        legacyJournalId: null,
+        date: '2026-05-21',
+        encryptText,
+        decryptText,
+        loadOrgSigningKey: vi.fn(async () => null),
+        signMutation,
+      }),
+    ).rejects.toThrow(/No signing key/);
+
+    // No reversing entry and no reversed lines were left behind.
+    expect(store.journal_entries).toHaveLength(entriesBefore);
+    expect(store.journal_entry_lines).toHaveLength(linesBefore);
+    expect(store.transactions.find((t) => t.id === 'tx-1')!.status).not.toBe('enc(VOID)');
+  });
+
+  it('voids unsigned when the org has no signing key yet', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+
+    const result = await voidTransaction({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey: vi.fn(async () => null),
+      signMutation,
+    });
+
+    expect(result.reversalJournalEntryId).toBeTruthy();
+    const origAfter = store.transactions.find((t) => t.id === 'tx-1');
+    expect(origAfter!.status).toBe('enc(VOID)');
+    expect(origAfter!.signature_b64).toBeNull();
+    expect(origAfter!.signature_key_version).toBeNull();
+    expect(signMutation).not.toHaveBeenCalled();
   });
 });
