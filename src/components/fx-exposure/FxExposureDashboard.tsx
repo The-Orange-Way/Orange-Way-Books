@@ -9,6 +9,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { useVault } from '@/context/VaultContext';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { decryptJournalEntryLine, decryptChartOfAccount } from '@/lib/crypto-fields';
@@ -45,10 +47,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
     setLoading(true);
     try {
       const [jeRes, acctRes, ratesRes, pendingRes] = await Promise.all([
-        supabase
-          .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, org_id)')
-          .eq('journal_entries.org_id', orgId),
+        fetchOrgJournalLines(supabase, orgId),
         supabase
           .from('chart_of_accounts' as any)
           .select('*')
@@ -63,6 +62,7 @@ export function FxExposureDashboard({ orgId, primaryCurrency }: FxExposureDashbo
           .select('id', { count: 'exact', head: true })
           .eq('rate_pending', true),
       ]);
+      if (jeRes.error) toast.error(LINES_LOAD_ERROR);
 
       // Decrypt accounts
       const rawAccounts = (acctRes.data as any[]) ?? [];

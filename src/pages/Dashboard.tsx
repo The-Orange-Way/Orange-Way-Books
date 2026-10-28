@@ -9,6 +9,8 @@ import {
   type PeriodPreset,
 } from '@/lib/dashboard-trends';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { useSecondaryDisplayRate } from '@/lib/exchange/hooks';
@@ -138,15 +140,13 @@ export default function Dashboard() {
           .order('date', { ascending: false })
           .limit(10),
         supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
-        supabase
-          .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, org_id)')
-          .eq('journal_entries.org_id', orgId),
+        fetchOrgJournalLines(supabase, orgId),
         supabase
           .from('chart_of_accounts' as any)
           .select('*')
           .eq('org_id', orgId),
       ]);
+      if (jeRes.error) toast.error(LINES_LOAD_ERROR);
       const decryptedWallets = await Promise.all(
         ((wRes.data as any[]) ?? []).map(async (w) => {
           const fields = await decryptWallet(w, decryptText);
