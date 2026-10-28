@@ -28,6 +28,11 @@ import {
   encryptJournalEntry,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import {
+  ensureWalletChartAccountIds,
+  loadChartNameIndex,
+  requireAccountIdByName,
+} from '@/lib/transactions/line-accounts';
 import { getSymbol } from '@/lib/exchange/currency-registry';
 import { StatementPopup } from '@/components/accounts/statement-popup';
 import { formatCrypto, formatFiat } from '@/lib/formatters';
@@ -496,6 +501,19 @@ export default function Accounts() {
           // Also post a beginning balance journal entry (DR wallet / CR Owner's Equity)
           // so the ledger engine picks it up via JE lines (the proper accounting path)
           try {
+            // Both accounts are resolved before the entry is written.
+            const walletAccountId = (
+              await ensureWalletChartAccountIds(
+                supabase,
+                orgId,
+                [{ id: (newWallet as any).id, name: name.trim() }],
+                encryptText,
+              )
+            ).get((newWallet as any).id)!;
+            const equityAccountId = requireAccountIdByName(
+              await loadChartNameIndex(supabase, orgId, decryptText),
+              "Owner's Equity",
+            );
             const jeDate = format(balanceDate, 'yyyy-MM-dd');
             const encJe = await encryptJournalEntry(
               {
@@ -518,13 +536,15 @@ export default function Accounts() {
               } as any)
               .select('id')
               .single();
-            if (!jeErr && je) {
+            if (jeErr || !je) throw jeErr ?? new Error('Journal entry insert returned no row.');
+            {
               const debitLine = await buildJournalEntryLineInsert({
                 wallet_currency: asset,
                 primary_currency: primaryCurrency,
                 date: jeDate,
                 debit: balance,
                 credit: 0,
+                account_id: walletAccountId,
                 account_name: name.trim(),
                 description: 'Opening balance',
                 encrypt: encryptText,
@@ -535,17 +555,26 @@ export default function Accounts() {
                 date: jeDate,
                 debit: 0,
                 credit: balance,
+                account_id: equityAccountId,
                 account_name: "Owner's Equity",
                 description: 'Opening balance',
                 encrypt: encryptText,
               });
-              await supabase.from('journal_entry_lines').insert([
+              const { error: linesErr } = await supabase.from('journal_entry_lines').insert([
                 { journal_entry_id: (je as any).id, ...debitLine.insert },
                 { journal_entry_id: (je as any).id, ...creditLine.insert },
               ] as any);
+              if (linesErr) throw linesErr;
             }
           } catch (jeErr) {
-            console.error('Opening balance JE insert failed (non-fatal):', jeErr);
+            // The wallet is saved; say plainly that its opening balance is not
+            // in the books, instead of only logging it.
+            console.error('Opening balance JE insert failed:', jeErr);
+            toast.error(
+              `The account was created, but its opening balance was not posted to the books: ${
+                (jeErr as { message?: string } | null)?.message ?? 'unknown error'
+              }`,
+            );
           }
         }
       }

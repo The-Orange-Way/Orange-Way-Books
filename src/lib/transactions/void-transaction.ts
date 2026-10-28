@@ -116,7 +116,12 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // ── Phase 2: decrypt original entries ─────────────────────────────────
   const origJeDec = await decryptJournalEntry(origJe, p.decryptText);
   const origLineDecs = await Promise.all(
-    origLines.map((l: any) => decryptJournalEntryLine(l, p.decryptText).then((dec) => ({ dec }))),
+    origLines.map((l: any) =>
+      decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
+        dec,
+        accountId: l.account_id as string,
+      })),
+    ),
   );
 
   // ── Phase 3: create reversing JE ──────────────────────────────────────
@@ -151,13 +156,15 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
 
   // ── Phase 4: insert reversed lines (debit ↔ credit swapped) ───────────
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async ({ dec }) => {
+    origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
         primary_currency: origJeDec.currency,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
+        // The reversing line posts to the same account as the line it reverses.
+        account_id: accountId,
         account_name: dec.account_name,
         account_code: dec.account_code,
         description: `Reversal of: ${dec.description ?? ''}`.trim(),

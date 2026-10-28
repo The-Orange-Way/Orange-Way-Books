@@ -112,12 +112,14 @@ vi.mock('@/lib/exchange/build-je-line-insert', () => ({
   async buildJournalEntryLineInsert(args: {
     debit: number;
     credit: number;
+    account_id: string;
     account_name?: string | null;
     account_code?: string | null;
     description?: string | null;
   }) {
     return {
       insert: {
+        account_id: args.account_id,
         account_name: args.account_name ?? null,
         account_code: args.account_code ?? null,
         description: args.description ?? null,

@@ -588,6 +588,7 @@ export default function JournalEntries() {
       date: string;
       debit: number;
       credit: number;
+      account_id: string;
       account_name?: string | null;
       account_code?: string | null;
       description?: string | null;
@@ -1008,6 +1009,22 @@ export default function JournalEntries() {
     if (isLocked) return;
     setSaving(true);
     try {
+      const savedLines = fLines.filter((l) => l.debit || l.credit);
+      // journal_entry_lines.account_id is required: each line must name an
+      // account that exists in this organization's chart.
+      const lineAccountId = (name: string): string => {
+        const acct =
+          accountsByName.get((name || '').toLowerCase()) ??
+          accountsByName.get((name || '').trim().toLowerCase());
+        if (!acct) {
+          throw new Error(
+            name.trim()
+              ? `Account "${name.trim()}" is not in the chart of accounts.`
+              : 'Every line needs an account.',
+          );
+        }
+        return acct.id;
+      };
       if (editingEntry) {
         const encEntry = await encryptJournalEntry(
           {
@@ -1021,33 +1038,41 @@ export default function JournalEntries() {
           },
           encryptText,
         );
-        await supabase
+        // Build the new lines first, so an unknown account stops the save
+        // before the old lines are removed.
+        const encLines = await Promise.all(
+          savedLines.map(async (l) => {
+            const enc = await buildLineInsert({
+              wallet_currency: fCurrency,
+              primary_currency: primaryCurrency,
+              date: format(fDate, 'yyyy-MM-dd'),
+              account_id: lineAccountId(l.account_name),
+              account_name: l.account_name || null,
+              account_code: l.account_code || null,
+              description: l.description || null,
+              debit: parseFloat(l.debit) || 0,
+              credit: parseFloat(l.credit) || 0,
+            });
+            return { journal_entry_id: editingEntry.id, ...enc };
+          }),
+        );
+        const { error: updErr } = await supabase
           .from('journal_entries')
           .update({
             date: format(fDate, 'yyyy-MM-dd'),
             ...encEntry,
           } as any)
           .eq('id', editingEntry.id);
-
-        await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', editingEntry.id);
-        const encLines = await Promise.all(
-          fLines
-            .filter((l) => l.debit || l.credit)
-            .map(async (l) => {
-              const enc = await buildLineInsert({
-                wallet_currency: fCurrency,
-                primary_currency: primaryCurrency,
-                date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name || null,
-                account_code: l.account_code || null,
-                description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
-              });
-              return { journal_entry_id: editingEntry.id, ...enc };
-            }),
-        );
-        await supabase.from('journal_entry_lines').insert(encLines as any);
+        if (updErr) throw updErr;
+        const { error: delErr } = await supabase
+          .from('journal_entry_lines')
+          .delete()
+          .eq('journal_entry_id', editingEntry.id);
+        if (delErr) throw delErr;
+        const { error: insErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encLines as any);
+        if (insErr) throw insErr;
       } else {
         const encEntry = await encryptJournalEntry(
           {
@@ -1061,6 +1086,9 @@ export default function JournalEntries() {
           },
           encryptText,
         );
+        // Resolve every line's account before the entry is created, so an
+        // unknown account stops the save instead of leaving an empty entry.
+        const lineAccountIds = savedLines.map((l) => lineAccountId(l.account_name));
         const { data: je, error } = await supabase
           .from('journal_entries')
           .insert({
@@ -1073,23 +1101,25 @@ export default function JournalEntries() {
         if (error) throw error;
 
         const encLines = await Promise.all(
-          fLines
-            .filter((l) => l.debit || l.credit)
-            .map(async (l) => {
-              const enc = await buildLineInsert({
-                wallet_currency: fCurrency,
-                primary_currency: primaryCurrency,
-                date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name || null,
-                account_code: l.account_code || null,
-                description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
-              });
-              return { journal_entry_id: (je as any).id, ...enc };
-            }),
+          savedLines.map(async (l, i) => {
+            const enc = await buildLineInsert({
+              wallet_currency: fCurrency,
+              primary_currency: primaryCurrency,
+              date: format(fDate, 'yyyy-MM-dd'),
+              account_id: lineAccountIds[i],
+              account_name: l.account_name || null,
+              account_code: l.account_code || null,
+              description: l.description || null,
+              debit: parseFloat(l.debit) || 0,
+              credit: parseFloat(l.credit) || 0,
+            });
+            return { journal_entry_id: (je as any).id, ...enc };
+          }),
         );
-        await supabase.from('journal_entry_lines').insert(encLines as any);
+        const { error: insErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encLines as any);
+        if (insErr) throw insErr;
       }
 
       if (action === 'save_close') setModalOpen(false);

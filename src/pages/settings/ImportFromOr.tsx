@@ -48,7 +48,7 @@ async function sha256Hex(text: string): Promise<string> {
 
 export default function ImportFromOr() {
   const { orgId } = useUserOrg();
-  const { encryptText, blindIndex } = useVault();
+  const { encryptText, decryptText, blindIndex } = useVault();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [parsedPayload, setParsedPayload] = useState<StagedImportPayload | null>(null);
@@ -90,6 +90,7 @@ export default function ImportFromOr() {
       const r = await commitStagedImportPayload(
         supabase,
         encryptText,
+        decryptText,
         blindIndex,
         orgId,
         parsedPayload,
