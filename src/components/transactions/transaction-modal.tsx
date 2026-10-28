@@ -46,6 +46,7 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
+import { saveErrorText } from '@/lib/transactions/save-error-text';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -609,7 +610,7 @@ export default function TransactionModal({
       }
     } catch (err: unknown) {
       console.error('Transaction save failed:', err);
-      toast.error('Save failed: ' + (err instanceof Error ? err.message : String(err)));
+      toast.error('Save failed: ' + saveErrorText(err));
     } finally {
       setSaving(false);
     }
