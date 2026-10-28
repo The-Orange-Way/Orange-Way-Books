@@ -310,7 +310,7 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
       'encrypted_name',
       'encrypted_balance',
       'asset',
-      'account_type',
+      'wallet_type',
       'connection_type',
       'external_account_code',
     ],
