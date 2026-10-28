@@ -43,6 +43,10 @@ import {
   decryptContact,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
+import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
+import { saveErrorText } from '@/lib/transactions/save-error-text';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -606,7 +610,7 @@ export default function TransactionModal({
       }
     } catch (err: unknown) {
       console.error('Transaction save failed:', err);
-      toast.error('Save failed: ' + (err instanceof Error ? err.message : String(err)));
+      toast.error('Save failed: ' + saveErrorText(err));
     } finally {
       setSaving(false);
     }
@@ -614,28 +618,12 @@ export default function TransactionModal({
 
   // ── signing-key helper ─────────────────────────────────────────────────────
   //
-  // Phase 4.4: every mutation signed. The standard-save path above keeps its
-  // existing "tolerate missing signing key and write unsigned" behavior for back-compat
-  // with Bookkeeper/legacy callers; the split + transfer + void write paths
-  // call this helper and THROW when no signing-key wrap exists, because Phase 4.2 RLS
-  // already blocks unsigned writes for Auditor + Viewer, anyone reaching
-  // these code paths is supposed to have a wrap.
-  async function buildSignature(
-    payload: string,
-  ): Promise<{ signature_b64: string; signature_key_version: number }> {
-    await loadOrgSigningKey(orgId);
-    const payloadBytes = new TextEncoder().encode(`${orgId}|${payload}`);
-    const sig = signMutation(payloadBytes, orgId);
-    if (!sig) {
-      throw new Error(
-        'No signing key available for this org. ' +
-          'Please refresh the page; if the problem persists contact support.',
-      );
-    }
-    return {
-      signature_b64: sig.signature_b64,
-      signature_key_version: sig.key_version,
-    };
+  // Phase 4.4: the split and transfer paths prepare the signer BEFORE their
+  // first write, so an org whose key this user cannot use is refused with
+  // nothing saved. An org with no signing key yet writes unsigned, which is
+  // what the database accepts (see mutation-signer.ts).
+  function prepareSigner() {
+    return prepareMutationSigner({ client: supabase, orgId, loadOrgSigningKey, signMutation });
   }
 
   // ── Standard save ──────────────────────────────────────────────────────────
@@ -782,6 +770,22 @@ export default function TransactionModal({
     // Filter to lines that are actually populated (account + amount).
     const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
 
+    // Resolve the chart account behind the wallet before anything is written,
+    // so a missing account stops the save instead of leaving an entry with no lines.
+    const walletAccountId = (
+      await ensureWalletChartAccountIds(
+        supabase,
+        orgId,
+        [{ id: selectedWallet.id, name: selectedWallet.encrypted_name }],
+        encryptText,
+      )
+    ).get(selectedWallet.id)!;
+    // Decide how the row will be signed before the first write (see prepareSigner).
+    // Lines are priced into the ORG's primary currency, read now; never the
+    // picked wallet's currency (see org-primary-currency.ts).
+    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
+    const signer = await prepareSigner();
+
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
@@ -805,7 +809,11 @@ export default function TransactionModal({
       if (error) throw error;
       journalEntryId = editingTx.journal_entry_id;
       // Wipe the old lines so we can re-insert the new ones cleanly.
-      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
+      const { error: wipeErr } = await supabase
+        .from('journal_entry_lines')
+        .delete()
+        .eq('journal_entry_id', journalEntryId);
+      if (wipeErr) throw wipeErr;
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -828,10 +836,11 @@ export default function TransactionModal({
 
     const walletLineRes = await buildJournalEntryLineInsert({
       wallet_currency: walletCurrency,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: walletDebit,
       credit: walletCredit,
+      account_id: walletAccountId,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
       description: memo || `Split across ${validLines.length} accounts`,
@@ -844,10 +853,11 @@ export default function TransactionModal({
         const lineAmt = parseAmount(line.amount)!;
         const res = await buildJournalEntryLineInsert({
           wallet_currency: walletCurrency,
-          primary_currency: primaryCurrency,
+          primary_currency: orgPrimary,
           date: dateStr,
           debit: direction === 'OUT' ? lineAmt : 0,
           credit: direction === 'IN' ? lineAmt : 0,
+          account_id: line.accountId,
           account_name: acct?.name ?? null,
           account_code: acct?.code ?? null,
           description: line.memo ?? null,
@@ -893,10 +903,8 @@ export default function TransactionModal({
       encryptText,
     );
 
-    // Phase 4.4 mutation signing for split path. Throws if the caller has no signing key
-    // wrap, Phase 4.2 RLS already blocks unsigned writes for non-writers,
-    // so anyone reaching here is supposed to have one.
-    const splitSig = await buildSignature(
+    // Phase 4.4 mutation signing for split path (signer prepared before any write).
+    const splitSig = signer.sign(
       `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
     );
 
@@ -1012,6 +1020,26 @@ export default function TransactionModal({
     const sentValue = sa + (feeOnSource ? fee : 0);
     const receivedValue = ra - (feeOnReceived ? fee : 0);
 
+    // Decide how the rows will be signed, and resolve every chart account the
+    // lines post to, before anything is written, so a refusal stops the save
+    // instead of leaving an entry behind.
+    // Lines are priced into the ORG's primary currency, read now; never the
+    // picked wallet's currency (see org-primary-currency.ts).
+    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
+    const signer = await prepareSigner();
+    const walletAccountIds = await ensureWalletChartAccountIds(
+      supabase,
+      orgId,
+      [
+        { id: sourceWallet.id, name: sourceWallet.encrypted_name },
+        { id: destWallet.id, name: destWallet.encrypted_name },
+      ],
+      encryptText,
+    );
+    const sourceAccountId = walletAccountIds.get(sourceWallet.id)!;
+    const destAccountId = walletAccountIds.get(destWallet.id)!;
+    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
+
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
@@ -1036,7 +1064,11 @@ export default function TransactionModal({
       journalEntryId = editingTx.journal_entry_id;
       // Wipe old lines + clear legacy_transaction_id from old transactions rows so
       // void semantics stay clean (T3: void = direction-flip; here we re-create).
-      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
+      const { error: wipeErr } = await supabase
+        .from('journal_entry_lines')
+        .delete()
+        .eq('journal_entry_id', journalEntryId);
+      if (wipeErr) throw wipeErr;
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -1068,14 +1100,14 @@ export default function TransactionModal({
     //
     // Each currency balances independently (debits = credits per currency),
     // which is what the downstream report compute relies on.
-    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     const destWalletDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: Math.abs(receivedValue),
       credit: 0,
+      account_id: destAccountId,
       account_name: destWallet.encrypted_name,
       account_code: null,
       description: memo || `Transfer from ${sourceWallet.encrypted_name}`,
@@ -1083,10 +1115,11 @@ export default function TransactionModal({
     });
     const clearingDestCreditLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: 0,
       credit: Math.abs(receivedValue),
+      account_id: transferClearing.id,
       account_name: transferClearing.account_name,
       account_code: null,
       description: memo || `Transfer clearing (in ${destAsset})`,
@@ -1094,10 +1127,11 @@ export default function TransactionModal({
     });
     const clearingSrcDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: sourceAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: Math.abs(sentValue),
       credit: 0,
+      account_id: transferClearing.id,
       account_name: transferClearing.account_name,
       account_code: null,
       description: memo || `Transfer clearing (out ${sourceAsset})`,
@@ -1105,10 +1139,11 @@ export default function TransactionModal({
     });
     const srcWalletCreditLine = await buildJournalEntryLineInsert({
       wallet_currency: sourceAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: 0,
       credit: Math.abs(sentValue),
+      account_id: sourceAccountId,
       account_name: sourceWallet.encrypted_name,
       account_code: null,
       description: memo || `Transfer to ${destWallet.encrypted_name}`,
@@ -1162,10 +1197,10 @@ export default function TransactionModal({
 
     // Phase 4.4 mutation signing for transfer path. One signature per leg so each
     // transactions row carries its own, verifier reads the row, not the pair.
-    const srcSig = await buildSignature(
+    const srcSig = signer.sign(
       `transfer-src|${journalEntryId}|${dateStr}|${sourceAsset}|${sentValue}`,
     );
-    const destSig = await buildSignature(
+    const destSig = signer.sign(
       `transfer-dest|${journalEntryId}|${dateStr}|${destAsset}|${receivedValue}`,
     );
 

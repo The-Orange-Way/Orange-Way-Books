@@ -23,9 +23,13 @@ interface FakeStore {
   wallets: Array<Record<string, unknown>>;
   chart_of_accounts: Array<Record<string, unknown>>;
   audit_log: Array<Record<string, unknown>>;
+  org_signing_keys: Array<Record<string, unknown>>;
+  org_settings: Array<Record<string, unknown>>;
 }
 
 let store: FakeStore;
+/** When set, an insert into this table fails like a unique-index violation. */
+let uniqueViolationOn: keyof FakeStore | null = null;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -48,6 +52,9 @@ function makeSupabase() {
       },
       maybeSingle() {
         modeMaybeSingle = true;
+        return run();
+      },
+      limit(_n: number) {
         return run();
       },
       then(onFulfilled: (v: { data: unknown; error: null }) => unknown) {
@@ -79,6 +86,13 @@ function makeSupabase() {
         return apiSelect;
       },
       insert(payload: unknown) {
+        if (uniqueViolationOn === table) {
+          const failed = Promise.resolve({
+            data: null,
+            error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+          });
+          return { select: () => ({ single: () => failed }), then: failed.then.bind(failed) };
+        }
         const rows = Array.isArray(payload) ? payload : [payload];
         const withIds = rows.map((row) => ({
           ...(row as Record<string, unknown>),
@@ -127,6 +141,24 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
+// Rate resolver: same currency needs no rate; anything else gets a fixed
+// confirmed pin, so a test can see which currency pair each line asked for.
+const resolvePinnedRate = vi.fn(
+  async ({ source, target }: { source: string; target: string; at: string }) =>
+    source === target
+      ? { rate: 1, rateId: null, bucketTs: null, pending: false }
+      : {
+          rate: 2,
+          rateId: `rate-${source}-${target}`,
+          bucketTs: '2026-05-21T00:00:00.000Z',
+          pending: false,
+        },
+);
+vi.mock('@/lib/exchange/rate-resolver', () => ({
+  resolvePinnedRate: (args: { source: string; target: string; at: string }) =>
+    resolvePinnedRate(args),
+}));
+
 // Stub the audit logger, write is async and we don't care about its shape.
 vi.mock('@/lib/audit-logger', () => ({
   writeAuditLog: () => undefined,
@@ -140,7 +172,7 @@ const decryptText = async (cipher: string) => {
 };
 
 // Lazy import so mocks are installed first.
-import { voidTransaction } from '../void-transaction';
+import { voidTransaction, ALREADY_VOID_MESSAGE } from '../void-transaction';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
@@ -216,6 +248,7 @@ function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   // Wallet leg: credit 100 (money out of Checking).
   store.journal_entry_lines.push({
     id: 'jel-wallet',
+    account_id: 'wallet-chart-1',
     journal_entry_id: 'je-1',
     account_name: 'enc(Checking)',
     account_code: null,
@@ -243,6 +276,7 @@ function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   // Account leg: debit 100 (Sales Revenue posted as expense for the split test).
   store.journal_entry_lines.push({
     id: 'jel-account',
+    account_id: 'acct-row-1',
     journal_entry_id: 'je-1',
     account_name: 'enc(Sales Revenue)',
     account_code: null,
@@ -284,7 +318,13 @@ beforeEach(() => {
     wallets: [],
     chart_of_accounts: [],
     audit_log: [],
+    org_signing_keys: [],
+    // Plaintext (key_version null) settings row; the org primary is USD
+    // unless a test says otherwise.
+    org_settings: [{ org_id: ORG, primary_currency: 'USD', key_version: null }],
   };
+  uniqueViolationOn = null;
+  resolvePinnedRate.mockClear();
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
 });
@@ -310,7 +350,7 @@ describe('voidTransaction', () => {
     expect(reversalJe).toBeDefined();
     // Post-Phase-1: source_type is plaintext (server reads it to gate
     // the immutability trigger). Not encrypted.
-    expect(reversalJe!.source_type).toBe('VOID_REVERSAL');
+    expect(reversalJe!.source_type).toBe('void_reversal');
     expect(reversalJe!.reversal_of_id).toBe('je-1');
 
     // Lines were inserted with debit / credit swapped.
@@ -318,6 +358,8 @@ describe('voidTransaction', () => {
       (l) => l.journal_entry_id === result.reversalJournalEntryId,
     );
     expect(reversedLines).toHaveLength(2);
+    // Each reversing line posts to the same account as the line it reverses.
+    expect(reversedLines.map((l) => l.account_id).sort()).toEqual(['acct-row-1', 'wallet-chart-1']);
 
     // Original transaction was flipped to VOID with the canonical field key
     // version (Fix 5), not a local literal.
@@ -333,6 +375,56 @@ describe('voidTransaction', () => {
     expect(loadOrgSigningKey).toHaveBeenCalledWith(ORG);
     expect(signMutation).toHaveBeenCalledTimes(1);
     expect(signMutation.mock.calls[0][1]).toBe(ORG);
+  });
+
+  it("values the reversal in the org's primary currency, not the entry's own currency", async () => {
+    // A USD entry in an org whose primary currency is BTC: every reversal
+    // line must be priced USD -> BTC, the way the original was.
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_settings[0].primary_currency = 'BTC';
+
+    const result = await voidTransaction({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+
+    const reversedLines = store.journal_entry_lines.filter(
+      (l) => l.journal_entry_id === result.reversalJournalEntryId,
+    );
+    expect(reversedLines).toHaveLength(2);
+    expect(resolvePinnedRate).toHaveBeenCalledTimes(2);
+    expect(resolvePinnedRate.mock.calls.map((c) => c[0].target)).toEqual(['BTC', 'BTC']);
+    expect(reversedLines.every((l) => l.pinned_rate_id === 'rate-USD-BTC')).toBe(true);
+    expect(reversedLines.every((l) => l.rate_pending === false)).toBe(true);
+  });
+
+  it('writes nothing when the org primary currency cannot be read', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_settings = [];
+    const jesBefore = store.journal_entries.length;
+    const linesBefore = store.journal_entry_lines.length;
+
+    await expect(
+      voidTransaction({
+        txId: 'tx-1',
+        orgId: ORG,
+        legacyJournalId: null,
+        date: '2026-05-21',
+        encryptText,
+        decryptText,
+        loadOrgSigningKey,
+        signMutation,
+      }),
+    ).rejects.toThrow(/primary currency/);
+    expect(store.journal_entries).toHaveLength(jesBefore);
+    expect(store.journal_entry_lines).toHaveLength(linesBefore);
+    expect(store.transactions.find((t) => t.id === 'tx-1')!.status).toBe('enc(POSTED)');
   });
 
   it('uses FIELD_KEY_VERSION (=2 today) and not the deprecated literal', () => {
@@ -393,6 +485,7 @@ describe('voidTransaction', () => {
     // status flip semantics here, not the ledger.
     store.journal_entry_lines.push({
       id: 'jel-src',
+      account_id: 'wallet-chart-1',
       journal_entry_id: 'je-pair',
       account_name: 'enc(Checking)',
       account_code: null,
@@ -457,5 +550,93 @@ describe('voidTransaction', () => {
         signMutation: noSign,
       }),
     ).rejects.toThrow(/No signing key/);
+  });
+
+  it('refuses before writing anything when the org has a key this user cannot use', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_signing_keys.push({ org_id: ORG, key_version: 1 });
+    const entriesBefore = store.journal_entries.length;
+    const linesBefore = store.journal_entry_lines.length;
+
+    await expect(
+      voidTransaction({
+        txId: 'tx-1',
+        orgId: ORG,
+        legacyJournalId: null,
+        date: '2026-05-21',
+        encryptText,
+        decryptText,
+        loadOrgSigningKey: vi.fn(async () => null),
+        signMutation,
+      }),
+    ).rejects.toThrow(/No signing key/);
+
+    // No reversing entry and no reversed lines were left behind.
+    expect(store.journal_entries).toHaveLength(entriesBefore);
+    expect(store.journal_entry_lines).toHaveLength(linesBefore);
+    expect(store.transactions.find((t) => t.id === 'tx-1')!.status).not.toBe('enc(VOID)');
+  });
+
+  it('voids unsigned when the org has no signing key yet', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+
+    const result = await voidTransaction({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey: vi.fn(async () => null),
+      signMutation,
+    });
+
+    expect(result.reversalJournalEntryId).toBeTruthy();
+    const origAfter = store.transactions.find((t) => t.id === 'tx-1');
+    expect(origAfter!.status).toBe('enc(VOID)');
+    expect(origAfter!.signature_b64).toBeNull();
+    expect(origAfter!.signature_key_version).toBeNull();
+    expect(signMutation).not.toHaveBeenCalled();
+  });
+
+  describe('a transaction that is already void', () => {
+    const params = () => ({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+
+    it('is refused in plain words when voided a second time directly, writing nothing', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      await voidTransaction(params());
+      const jes = store.journal_entries.length;
+      const lines = store.journal_entry_lines.length;
+      signMutation.mockClear();
+
+      await expect(voidTransaction(params())).rejects.toThrow(ALREADY_VOID_MESSAGE);
+      expect(store.journal_entries).toHaveLength(jes);
+      expect(store.journal_entry_lines).toHaveLength(lines);
+      expect(signMutation).not.toHaveBeenCalled();
+    });
+
+    it('turns a lost race (unique index refusal) into the same plain message', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      uniqueViolationOn = 'journal_entries';
+      await expect(voidTransaction(params())).rejects.toThrow(ALREADY_VOID_MESSAGE);
+      expect(store.transactions.find((t) => t.id === 'tx-1')!.status).toBe('enc(POSTED)');
+    });
+
+    it('negative control: other insert errors are not relabelled', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      uniqueViolationOn = 'journal_entry_lines';
+      // A duplicate on the lines table is not a second void: the raw error
+      // must reach the caller unchanged.
+      await expect(voidTransaction(params())).rejects.toMatchObject({ code: '23505' });
+    });
   });
 });

@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } f
 import { exportToCsv } from '@/lib/exports/csv';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { useVault } from '@/context/VaultContext';
@@ -59,16 +60,14 @@ export default function CashFlowPage() {
     let active = true;
     (async () => {
       const [jeRes, acctRes] = await Promise.all([
-        supabase
-          .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, org_id)')
-          .eq('journal_entries.org_id', orgId),
+        fetchOrgJournalLines(supabase, orgId),
         supabase
           .from('chart_of_accounts' as any)
           .select('*')
           .eq('org_id', orgId),
       ]);
       if (!active) return;
+      if (jeRes.error) toast.error(LINES_LOAD_ERROR);
 
       const rawLines = (jeRes.data as any[]) ?? [];
       const decryptedLines = await Promise.all(

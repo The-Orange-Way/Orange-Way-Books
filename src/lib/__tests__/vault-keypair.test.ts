@@ -301,4 +301,48 @@ describe('vault-keypair — rewrapUserKeypair', () => {
     // the wrap rotates):
     expect(rowAfter.public_key_b64).toBe(publicBefore);
   });
+
+  it('OWB-T0092: rejects a ciphertext transplanted from a different user row', async () => {
+    // Two users, sealed under the SAME mek on purpose — that isolates the
+    // one variable this ticket is about (which row the ciphertext is
+    // bound to) from the mek being different, which would mask the bug
+    // this test exists to catch.
+    const OTHER_USER_ID = 'ffffffff-1111-2222-3333-444444444444';
+    const sharedMek = await freshMek('shared-across-both-users');
+
+    await ensureUserKeypair({
+      userId: USER_ID,
+      mek: sharedMek,
+      saltB64: SALT_B64,
+      supabase: store.client(),
+    });
+    await ensureUserKeypair({
+      userId: OTHER_USER_ID,
+      mek: sharedMek,
+      saltB64: SALT_B64,
+      supabase: store.client(),
+    });
+
+    // Simulate the database-level transplant: copy user A's sealed private
+    // key and IV onto user B's row. Before OWB-T0092 this would decrypt
+    // cleanly and hand user B's rewrap the wrong secret key.
+    const rowA = store.rows.get(USER_ID)!;
+    const rowB = store.rows.get(OTHER_USER_ID)!;
+    store.rows.set(OTHER_USER_ID, {
+      ...rowB,
+      encrypted_private_key: rowA.encrypted_private_key,
+      iv: rowA.iv,
+    });
+
+    const newMek = await freshMek('rotated-after-transplant');
+    await expect(
+      rewrapUserKeypair({
+        userId: OTHER_USER_ID,
+        oldMek: sharedMek,
+        newMek,
+        saltB64: SALT_B64,
+        supabase: store.client(),
+      }),
+    ).rejects.toThrow();
+  });
 });

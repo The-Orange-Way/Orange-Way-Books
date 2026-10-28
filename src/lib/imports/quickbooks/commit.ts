@@ -32,6 +32,7 @@ import {
   type DecryptFn,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { describeImportError } from './error-text';
 import type {
   AccountType,
   ContactKind,
@@ -221,11 +222,16 @@ export async function commitQuickBooksImport(
   );
 
   // ── Phase 3: Journal entries ────────────────────────────────────────────
+  // journal_entry_lines.account_id is NOT NULL (FK to chart_of_accounts), so
+  // every line must name the chart row it posts to. Read the chart once,
+  // after Phase 1/1b created any missing accounts.
+  const accountIdByName = await loadPostingAccountIndex(orgId, decryptText);
   await commitJournalEntries(
     orgId,
     importId,
     parsed.journalEntries,
     fallbacks,
+    accountIdByName,
     params.primaryCurrency,
     encryptText,
     (done, total) => emitProgress(onProgress, 'journal-entries', done, total),
@@ -292,7 +298,7 @@ async function ensureUncategorizedAccounts(
       result.errors.push({
         phase: 'accounts',
         item: UNCATEGORIZED_EXPENSE_NAME,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
@@ -311,7 +317,7 @@ async function ensureUncategorizedAccounts(
       result.errors.push({
         phase: 'accounts',
         item: UNCATEGORIZED_REVENUE_NAME,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
@@ -409,7 +415,7 @@ async function commitAccounts(
       result.errors.push({
         phase: 'accounts',
         item: account.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
     onStep(done, total);
@@ -435,6 +441,32 @@ async function loadExistingAccountIndex(
       // cannot read (key mismatch / pre-migration / L0).
     }
   }
+  return index;
+}
+
+/** Name to chart_of_accounts id for posting journal lines. A name held by
+ *  more than one readable row is left OUT, so lines naming it are rejected
+ *  rather than posted to an arbitrary one of them. */
+async function loadPostingAccountIndex(
+  orgId: string,
+  decrypt: DecryptFn,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from('chart_of_accounts').select('*').eq('org_id', orgId);
+  if (error) throw error;
+  const index = new Map<string, string>();
+  const ambiguous = new Set<string>();
+  for (const row of (data as Array<Record<string, unknown>>) ?? []) {
+    try {
+      const fields = await decryptChartOfAccount(row, decrypt);
+      const name = fields.account_name?.trim();
+      if (!name) continue;
+      if (index.has(name)) ambiguous.add(name);
+      else index.set(name, row.id as string);
+    } catch {
+      // Undecryptable rows are never posted to.
+    }
+  }
+  for (const name of ambiguous) index.delete(name);
   return index;
 }
 
@@ -486,7 +518,7 @@ async function commitContacts(
       result.errors.push({
         phase: 'contacts',
         item: contact.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
     onStep(done, total);
@@ -533,6 +565,7 @@ async function commitJournalEntries(
   importId: string,
   entries: ParsedJournalEntry[],
   fallbacks: FallbackMap,
+  accountIdByName: Map<string, string>,
   primaryCurrency: string,
   encrypt: EncryptFn,
   onStep: (done: number, total: number) => void,
@@ -570,6 +603,7 @@ async function commitJournalEntries(
       importId,
       batch,
       fallbacks,
+      accountIdByName,
       primaryCurrency,
       encrypt,
       result,
@@ -588,10 +622,16 @@ async function commitJournalEntryBatch(
   importId: string,
   batch: ParsedJournalEntry[],
   fallbacks: FallbackMap,
+  accountIdByName: Map<string, string>,
   primaryCurrency: string,
   encrypt: EncryptFn,
   result: CommitQuickBooksImportResult,
 ): Promise<void> {
+  // Reject entries with a line whose account is not in the chart BEFORE any
+  // header is written, so a rejected entry leaves nothing behind.
+  batch = dropEntriesWithUnknownAccounts(batch, fallbacks, accountIdByName, result);
+  if (batch.length === 0) return;
+
   // Encrypt all headers in parallel.
   let encHeaders: Array<{ entry: ParsedJournalEntry; row: Record<string, unknown> }>;
   try {
@@ -630,7 +670,7 @@ async function commitJournalEntryBatch(
     result.errors.push({
       phase: 'journal-entries',
       item: `batch[${batch[0]?.refNum ?? '?'}…${batch[batch.length - 1]?.refNum ?? '?'}]`,
-      error: err instanceof Error ? err.message : String(err),
+      error: describeImportError(err),
     });
     return;
   }
@@ -647,6 +687,7 @@ async function commitJournalEntryBatch(
       importId,
       batch,
       fallbacks,
+      accountIdByName,
       primaryCurrency,
       encrypt,
       result,
@@ -678,19 +719,27 @@ async function commitJournalEntryBatch(
     }
     for (const line of entry.lines) {
       const routed = applyFallbackRouting(line, fallbacks);
+      const accountId = accountIdByName.get(routed.accountName.trim());
+      if (!accountId) {
+        throw new Error(`Account "${routed.accountName}" is not in the chart of accounts.`);
+      }
       const built = await buildJournalEntryLineInsert({
         wallet_currency: line.nativeCurrency || primaryCurrency,
         primary_currency: primaryCurrency,
         date: entry.date,
         debit: Number(line.debit),
         credit: Number(line.credit),
+        account_id: accountId,
         account_name: routed.accountName,
         account_code: routed.accountCode,
         description: routed.description,
         encrypt,
       });
       if (built.pending) pendingThisBatch += 1;
-      allLines.push({ journal_entry_id: journalEntryId, ...built.insert });
+      allLines.push({
+        journal_entry_id: journalEntryId,
+        ...built.insert,
+      });
     }
   }
 
@@ -721,10 +770,12 @@ async function commitJournalEntriesPerEntry(
   importId: string,
   batch: ParsedJournalEntry[],
   fallbacks: FallbackMap,
+  accountIdByName: Map<string, string>,
   primaryCurrency: string,
   encrypt: EncryptFn,
   result: CommitQuickBooksImportResult,
 ): Promise<void> {
+  batch = dropEntriesWithUnknownAccounts(batch, fallbacks, accountIdByName, result);
   for (const entry of batch) {
     try {
       const encHeader = await encryptJournalEntry(
@@ -761,19 +812,27 @@ async function commitJournalEntriesPerEntry(
       let pending = 0;
       for (const line of entry.lines) {
         const routed = applyFallbackRouting(line, fallbacks);
+        const accountId = accountIdByName.get(routed.accountName.trim());
+        if (!accountId) {
+          throw new Error(`Account "${routed.accountName}" is not in the chart of accounts.`);
+        }
         const built = await buildJournalEntryLineInsert({
           wallet_currency: line.nativeCurrency || primaryCurrency,
           primary_currency: primaryCurrency,
           date: entry.date,
           debit: Number(line.debit),
           credit: Number(line.credit),
+          account_id: accountId,
           account_name: routed.accountName,
           account_code: routed.accountCode,
           description: routed.description,
           encrypt,
         });
         if (built.pending) pending += 1;
-        lineInserts.push({ journal_entry_id: journalEntryId, ...built.insert });
+        lineInserts.push({
+          journal_entry_id: journalEntryId,
+          ...built.insert,
+        });
       }
       if (lineInserts.length > 0) {
         const { error: lineErr } = await supabase
@@ -788,10 +847,38 @@ async function commitJournalEntriesPerEntry(
       result.errors.push({
         phase: 'journal-entries',
         item: entry.refNum,
-        error: err instanceof Error ? err.message : String(err),
+        error: describeImportError(err),
       });
     }
   }
+}
+
+/** Returns the entries whose every line resolves to a chart_of_accounts row,
+ *  recording one error per entry that does not. */
+function dropEntriesWithUnknownAccounts(
+  batch: ParsedJournalEntry[],
+  fallbacks: FallbackMap,
+  accountIdByName: Map<string, string>,
+  result: CommitQuickBooksImportResult,
+): ParsedJournalEntry[] {
+  const kept: ParsedJournalEntry[] = [];
+  for (const entry of batch) {
+    const missing = entry.lines
+      .map((line) => applyFallbackRouting(line, fallbacks).accountName.trim())
+      .filter((name) => !accountIdByName.has(name));
+    if (missing.length > 0) {
+      result.errors.push({
+        phase: 'journal-entries',
+        item: entry.refNum,
+        error:
+          `Account not found in chart of accounts, or more than one account has this name: ` +
+          [...new Set(missing)].join(', '),
+      });
+      continue;
+    }
+    kept.push(entry);
+  }
+  return kept;
 }
 
 function applyFallbackRouting(

@@ -27,6 +27,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { encryptJournalEntry, type JournalEntryFields } from '../../crypto-fields';
 import { buildJournalEntryLineInsert } from '../../exchange/build-je-line-insert';
+import { loadChartNameIndex, requireAccountIdByName } from '../../transactions/line-accounts';
 import {
   buildImportRefNumber,
   computeImportExternalIdHmac,
@@ -35,6 +36,7 @@ import {
 } from '../../journal-entry-ref-numbers';
 import {
   assertStagedImportPayload,
+  journalEntrySourceType,
   mapSourceToType,
   type StagedImportPayload,
   type V3StagedRow,
@@ -136,6 +138,7 @@ function groupJournalEntries(rows: V3StagedRow[]): JournalEntryGroup[] {
 export async function commitStagedImportPayload(
   supabase: SupabaseClient,
   encryptText: Encrypt,
+  decryptText: Encrypt,
   blindIndex: BlindIndex,
   orgId: string,
   payloadIn: unknown,
@@ -229,12 +232,31 @@ export async function commitStagedImportPayload(
   }
 
   const groups = groupJournalEntries(journalEntryRows);
+  // Every line posts to a chart account, looked up by name.
+  const chartIndex = await loadChartNameIndex(supabase, orgId, decryptText);
 
   const errors: string[] = [];
   let entriesCreated = 0;
   let linesCreated = 0;
 
   for (const group of groups) {
+    // Resolve every line's account before the entry is written, so an
+    // unknown account rejects the entry instead of leaving it with no lines.
+    const postedLines = group.lines.filter(
+      (lineRow) =>
+        parseAmount(rowField(lineRow, 'debit')) !== 0 ||
+        parseAmount(rowField(lineRow, 'credit')) !== 0,
+    );
+    let lineAccountIds: string[];
+    try {
+      lineAccountIds = postedLines.map((lineRow) =>
+        requireAccountIdByName(chartIndex, rowField(lineRow, 'account_name')),
+      );
+    } catch (err) {
+      errors.push(`JE ${group.refNumber}: ${err instanceof Error ? err.message : String(err)}`);
+      continue;
+    }
+
     try {
       // The ref number from the payload is already the human-readable label
       // (e.g. "WAVE-1402..."). Parse to get (source, externalId) for HMAC.
@@ -254,7 +276,7 @@ export async function commitStagedImportPayload(
         currency: group.currency,
         exchange_rate: null,
         status: group.status,
-        source_type: sourceMapped,
+        source_type: journalEntrySourceType(sourceMapped),
         period_locked: false,
       };
       const enc = await encryptJournalEntry(fields, encryptText);
@@ -289,16 +311,16 @@ export async function commitStagedImportPayload(
       const journalEntryId = (jeData as any).id as string;
 
       const lineInserts: any[] = [];
-      for (const lineRow of group.lines) {
+      for (const [i, lineRow] of postedLines.entries()) {
         const debit = parseAmount(rowField(lineRow, 'debit'));
         const credit = parseAmount(rowField(lineRow, 'credit'));
-        if (debit === 0 && credit === 0) continue; // skip header-only rows
         const lineBuilt = await buildJournalEntryLineInsert({
           wallet_currency: group.currency,
           primary_currency: group.currency, // v1: same; full FX path in v2
           date: group.date,
           debit,
           credit,
+          account_id: lineAccountIds[i],
           account_name: rowField(lineRow, 'account_name') || null,
           account_code: rowField(lineRow, 'account_code') || null,
           description: rowField(lineRow, 'line_description') || null,

@@ -42,6 +42,7 @@ import {
   type DecryptFn,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { lookupRouting, type DecryptedConnectionAccountMapping } from '@/lib/connectionAccountMap';
 
 /**
@@ -374,6 +375,17 @@ async function importSingleTx(
     return 'duplicate';
   }
 
+  // The wallet line posts to the wallet's own chart account; resolve it
+  // before anything is written.
+  const walletAccountId = (
+    await ensureWalletChartAccountIds(
+      supabase,
+      orgId,
+      [{ id: destWallet.id, name: destWallet.name }],
+      encryptText,
+    )
+  ).get(destWallet.id)!;
+
   const txDate = (orTx.timestamp || new Date().toISOString()).split('T')[0];
   const { amount: rawAmount, asset } = computeAmount(orTx, destWallet.asset);
   // Statement popup uses signed amounts: + inflow, − outflow. Mirror that
@@ -424,7 +436,7 @@ async function importSingleTx(
       currency: asset,
       exchange_rate: null,
       status: 'POSTED',
-      source_type: 'orangerails',
+      source_type: 'or_import',
       period_locked: false,
     },
     encryptText,
@@ -456,6 +468,7 @@ async function importSingleTx(
     date: txDate,
     debit: walletLineDebit,
     credit: walletLineCredit,
+    account_id: walletAccountId,
     account_name: destWallet.name,
     description: memo || null,
     encrypt: encryptText,
@@ -466,6 +479,7 @@ async function importSingleTx(
     date: txDate,
     debit: counterLineDebit,
     credit: counterLineCredit,
+    account_id: isInflow ? uncategorized.revenueRowId : uncategorized.expenseRowId,
     account_name: counterAccountName,
     description: memo || null,
     encrypt: encryptText,

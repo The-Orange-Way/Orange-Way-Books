@@ -45,6 +45,7 @@ import {
 } from '@/lib/crypto-fields';
 import { reverseJournalEntry } from '@/lib/transactions/reverse-journal-entry';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { postJournalEntry } from '@/lib/journal-entry-post';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +89,7 @@ import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { toast } from 'sonner';
+import { fetchJournalEntryLines } from '@/lib/journal-entry-lines-fetch';
 import {
   ImportPopup,
   type ImportPreviewRow,
@@ -537,6 +539,7 @@ export default function JournalEntries() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkActing, setBulkActing] = useState(false);
   const [lines, setLines] = useState<Record<string, JournalLine[]>>({});
+  const [linesLoadFailed, setLinesLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [btcDisplay, setBtcDisplay] = useState<BitcoinDisplay>('sats');
   const [primaryCurrency, setPrimaryCurrency] = useState('USD');
@@ -588,6 +591,7 @@ export default function JournalEntries() {
       date: string;
       debit: number;
       credit: number;
+      account_id: string;
       account_name?: string | null;
       account_code?: string | null;
       description?: string | null;
@@ -639,12 +643,19 @@ export default function JournalEntries() {
 
     if (je.length > 0) {
       const ids = je.map((e) => e.id);
-      const { data: lineData } = await supabase
-        .from('journal_entry_lines')
-        .select('*')
-        .in('journal_entry_id', ids);
+      let lineData: any[];
+      try {
+        lineData = await fetchJournalEntryLines<any>(supabase, ids);
+        setLinesLoadFailed(false);
+      } catch (err) {
+        // Never show entries as empty when their lines did not load.
+        console.error('[JournalEntries] journal_entry_lines fetch failed:', err);
+        setLinesLoadFailed(true);
+        toast.error('Could not load journal entry lines. Refresh the page to try again.');
+        lineData = [];
+      }
       const grouped: Record<string, JournalLine[]> = {};
-      ((lineData as any[]) ?? []).forEach((l) => {
+      lineData.forEach((l) => {
         if (!grouped[l.journal_entry_id]) grouped[l.journal_entry_id] = [];
         grouped[l.journal_entry_id].push(l);
       });
@@ -904,6 +915,12 @@ export default function JournalEntries() {
 
   const openEdit = (entry: JournalEntry) => {
     if (entry.status !== 'DRAFT' || entry.period_locked) return;
+    // An entry whose lines did not load would open blank, and saving it
+    // would replace the stored lines.
+    if (linesLoadFailed) {
+      toast.error('Lines for this entry did not load. Refresh the page before editing.');
+      return;
+    }
     setEditingEntry(entry);
     setFDate(new Date(entry.date));
     setFCurrency(entry.currency);
@@ -1008,6 +1025,22 @@ export default function JournalEntries() {
     if (isLocked) return;
     setSaving(true);
     try {
+      const savedLines = fLines.filter((l) => l.debit || l.credit);
+      // journal_entry_lines.account_id is required: each line must name an
+      // account that exists in this organization's chart.
+      const lineAccountId = (name: string): string => {
+        const acct =
+          accountsByName.get((name || '').toLowerCase()) ??
+          accountsByName.get((name || '').trim().toLowerCase());
+        if (!acct) {
+          throw new Error(
+            name.trim()
+              ? `Account "${name.trim()}" is not in the chart of accounts.`
+              : 'Every line needs an account.',
+          );
+        }
+        return acct.id;
+      };
       if (editingEntry) {
         const encEntry = await encryptJournalEntry(
           {
@@ -1021,33 +1054,41 @@ export default function JournalEntries() {
           },
           encryptText,
         );
-        await supabase
+        // Build the new lines first, so an unknown account stops the save
+        // before the old lines are removed.
+        const encLines = await Promise.all(
+          savedLines.map(async (l) => {
+            const enc = await buildLineInsert({
+              wallet_currency: fCurrency,
+              primary_currency: primaryCurrency,
+              date: format(fDate, 'yyyy-MM-dd'),
+              account_id: lineAccountId(l.account_name),
+              account_name: l.account_name || null,
+              account_code: l.account_code || null,
+              description: l.description || null,
+              debit: parseFloat(l.debit) || 0,
+              credit: parseFloat(l.credit) || 0,
+            });
+            return { journal_entry_id: editingEntry.id, ...enc };
+          }),
+        );
+        const { error: updErr } = await supabase
           .from('journal_entries')
           .update({
             date: format(fDate, 'yyyy-MM-dd'),
             ...encEntry,
           } as any)
           .eq('id', editingEntry.id);
-
-        await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', editingEntry.id);
-        const encLines = await Promise.all(
-          fLines
-            .filter((l) => l.debit || l.credit)
-            .map(async (l) => {
-              const enc = await buildLineInsert({
-                wallet_currency: fCurrency,
-                primary_currency: primaryCurrency,
-                date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name || null,
-                account_code: l.account_code || null,
-                description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
-              });
-              return { journal_entry_id: editingEntry.id, ...enc };
-            }),
-        );
-        await supabase.from('journal_entry_lines').insert(encLines as any);
+        if (updErr) throw updErr;
+        const { error: delErr } = await supabase
+          .from('journal_entry_lines')
+          .delete()
+          .eq('journal_entry_id', editingEntry.id);
+        if (delErr) throw delErr;
+        const { error: insErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encLines as any);
+        if (insErr) throw insErr;
       } else {
         const encEntry = await encryptJournalEntry(
           {
@@ -1061,6 +1102,9 @@ export default function JournalEntries() {
           },
           encryptText,
         );
+        // Resolve every line's account before the entry is created, so an
+        // unknown account stops the save instead of leaving an empty entry.
+        const lineAccountIds = savedLines.map((l) => lineAccountId(l.account_name));
         const { data: je, error } = await supabase
           .from('journal_entries')
           .insert({
@@ -1073,23 +1117,25 @@ export default function JournalEntries() {
         if (error) throw error;
 
         const encLines = await Promise.all(
-          fLines
-            .filter((l) => l.debit || l.credit)
-            .map(async (l) => {
-              const enc = await buildLineInsert({
-                wallet_currency: fCurrency,
-                primary_currency: primaryCurrency,
-                date: format(fDate, 'yyyy-MM-dd'),
-                account_name: l.account_name || null,
-                account_code: l.account_code || null,
-                description: l.description || null,
-                debit: parseFloat(l.debit) || 0,
-                credit: parseFloat(l.credit) || 0,
-              });
-              return { journal_entry_id: (je as any).id, ...enc };
-            }),
+          savedLines.map(async (l, i) => {
+            const enc = await buildLineInsert({
+              wallet_currency: fCurrency,
+              primary_currency: primaryCurrency,
+              date: format(fDate, 'yyyy-MM-dd'),
+              account_id: lineAccountIds[i],
+              account_name: l.account_name || null,
+              account_code: l.account_code || null,
+              description: l.description || null,
+              debit: parseFloat(l.debit) || 0,
+              credit: parseFloat(l.credit) || 0,
+            });
+            return { journal_entry_id: (je as any).id, ...enc };
+          }),
         );
-        await supabase.from('journal_entry_lines').insert(encLines as any);
+        const { error: insErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encLines as any);
+        if (insErr) throw insErr;
       }
 
       if (action === 'save_close') setModalOpen(false);
@@ -1157,16 +1203,17 @@ export default function JournalEntries() {
     if (selected.size === 0) return;
     setBulkActing(true);
     let moved = 0;
+    let failed = 0;
     try {
-      const encStatus = await encryptText('POSTED');
       for (const id of selected) {
         const e = entries.find((en) => en.id === id);
         if (!e || e.status !== 'DRAFT' || e.period_locked) continue;
-        const { error } = await supabase
-          .from('journal_entries')
-          .update({ status: encStatus, key_version: 2 } as any)
-          .eq('id', id);
-        if (error) continue;
+        const { error } = await postJournalEntry(supabase, id);
+        if (error) {
+          failed += 1;
+          console.error('[JournalEntries] bulk post failed:', id, error);
+          continue;
+        }
         writeAuditLog({
           orgId: orgId!,
           action: 'POST',
@@ -1177,7 +1224,10 @@ export default function JournalEntries() {
         });
         moved += 1;
       }
-      alert(`${moved} journal entr${moved === 1 ? 'y' : 'ies'} posted.`);
+      alert(
+        `${moved} journal entr${moved === 1 ? 'y' : 'ies'} posted.` +
+          (failed > 0 ? ` ${failed} could not be posted. Refresh the page and try again.` : ''),
+      );
       setSelected(new Set());
       await fetchData();
     } finally {
@@ -1200,7 +1250,7 @@ export default function JournalEntries() {
     try {
       for (const id of selected) {
         const e = entries.find((en) => en.id === id);
-        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'VOID_REVERSAL')
+        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'void_reversal')
           continue;
         try {
           await reverseJournalEntry({

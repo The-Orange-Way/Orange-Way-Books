@@ -145,3 +145,12 @@ export function mapSourceToType(name: string): 'wave' | 'quickbooks' | 'orange_r
   if (lower === 'orange_rails' || lower === 'or') return 'orange_rails';
   return null;
 }
+
+/** The journal_entries.source_type an import from this source writes. Entries
+ *  that came from Orange Rails itself use the existing 'or_import' value, so the
+ *  database has one spelling for them. */
+export function journalEntrySourceType(
+  source: 'wave' | 'quickbooks' | 'orange_rails',
+): 'wave' | 'quickbooks' | 'or_import' {
+  return source === 'orange_rails' ? 'or_import' : source;
+}

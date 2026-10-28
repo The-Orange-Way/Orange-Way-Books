@@ -42,6 +42,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { encryptNumber, encryptTransaction } from '@/lib/crypto-fields';
+import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 
 export type EncryptTextFn = (plaintext: string) => Promise<string>;
 export type DecryptTextFn = (ciphertext: string) => Promise<string>;
@@ -201,17 +202,16 @@ export async function recordPlaceholderPayment(
   //    aborts cleanly without partial state. Payload binds (org,
   //    invoice, wallet, date, amount) so the attestation can be
   //    verified by replaying canonical bytes.
-  await p.loadOrgSigningKey(p.orgId);
-  const payloadStr =
-    `${p.orgId}|placeholder|${p.invoiceId}|${p.walletId}|` +
-    `${p.appliedAt}|${p.amount.toFixed(8)}`;
-  const sig = p.signMutation(new TextEncoder().encode(payloadStr), p.orgId);
-  if (!sig) {
-    throw new Error(
-      'No signing key available for this org. ' +
-        'Refresh the page; if it persists contact support.',
-    );
-  }
+  //    An org with no signing key yet writes unsigned (see mutation-signer.ts).
+  const signer = await prepareMutationSigner({
+    client: supabase,
+    orgId: p.orgId,
+    loadOrgSigningKey: p.loadOrgSigningKey,
+    signMutation: p.signMutation,
+  });
+  const sig = signer.sign(
+    `placeholder|${p.invoiceId}|${p.walletId}|${p.appliedAt}|${p.amount.toFixed(8)}`,
+  );
 
   // 4. Get the auth user — required by invoice_payments RLS
   //    (applied_by = auth.uid()) AND by the apply_invoice_payment RPC.
@@ -302,8 +302,7 @@ export async function recordPlaceholderPayment(
     .from('invoice_payments')
     .update({
       is_placeholder: true,
-      signature_b64: sig.signature_b64,
-      signature_key_version: sig.key_version,
+      ...sig,
     })
     .eq('id', applyRow.payment_id);
   if (flagErr) throw flagErr;

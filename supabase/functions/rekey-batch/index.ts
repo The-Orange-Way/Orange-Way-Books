@@ -158,7 +158,7 @@ const ALLOWED_CIPHERTEXT_COLUMNS: Readonly<Record<string, Set<string>>> = Object
     'encrypted_name',
     'encrypted_balance',
     'asset',
-    'account_type',
+    'wallet_type',
     'connection_type',
     'external_account_code',
   ]),

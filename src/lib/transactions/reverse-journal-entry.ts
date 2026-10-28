@@ -7,7 +7,7 @@
  *
  *   1. Load original JE + lines.
  *   2. Decrypt via decryptJournalEntry / decryptJournalEntryLine.
- *   3. Create a new journal_entries row with source_type='VOID_REVERSAL' and
+ *   3. Create a new journal_entries row with source_type='void_reversal' and
  *      reversal_of_id pointing at the original. Status starts POSTED (a
  *      reversal is meant to be live the moment it's written; the
  *      handleReverse).
@@ -20,7 +20,7 @@
  *     lock enforcement ships, this can branch on original_period vs
  *     current_period.
  *   - Reversing entries created by this helper themselves cannot be reversed
- *     (canReverse check on the UI already filters source_type='VOID_REVERSAL').
+ *     (canReverse check on the UI already filters source_type='void_reversal').
  */
 
 import { supabase } from '@/lib/supabase';
@@ -31,6 +31,7 @@ import {
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
@@ -76,8 +77,17 @@ export async function reverseJournalEntry(
   // ── Decrypt ──────────────────────────────────────────────────────────
   const origJeDec = await decryptJournalEntry(origJe as any, p.decryptText);
   const origLineDecs = await Promise.all(
-    origLines.map((l: any) => decryptJournalEntryLine(l, p.decryptText)),
+    origLines.map((l: any) =>
+      decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
+        dec,
+        accountId: l.account_id as string,
+      })),
+    ),
   );
+
+  // Reversal lines are valued in the org's primary currency, not the original
+  // entry's header currency. Read it before anything is written.
+  const orgPrimary = await loadOrgPrimaryCurrency(supabase, p.orgId, p.decryptText);
 
   // ── Build reversing wrapper JE ───────────────────────────────────────
   const reversalMemo = `Reversal of ${origJeDec.ref_number || origJeDec.memo || `JE ${p.journalEntryId.slice(0, 8)}`}${
@@ -92,7 +102,7 @@ export async function reverseJournalEntry(
       // Reversals post immediately — they're meant to live the moment they're
       // written, same as the reverse behavior in the JE module.
       status: 'POSTED',
-      source_type: 'VOID_REVERSAL',
+      source_type: 'void_reversal',
       period_locked: false,
     },
     p.encryptText,
@@ -113,13 +123,15 @@ export async function reverseJournalEntry(
 
   // ── Build reversed lines (debit ↔ credit swapped) ────────────────────
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async (dec) => {
+    origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: origJeDec.currency,
+        primary_currency: orgPrimary,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
+        // The reversing line posts to the same account as the line it reverses.
+        account_id: accountId,
         account_name: dec.account_name,
         account_code: dec.account_code,
         description: `Reversal of: ${dec.description ?? ''}`.trim(),

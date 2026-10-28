@@ -97,7 +97,11 @@ import {
   decryptOrgSettings,
   encryptChartOfAccount,
   decryptChartOfAccount,
+  FIELD_KEY_VERSION,
 } from '@/lib/crypto-fields';
+import { buildNewOrgVault } from '@/lib/new-org-vault';
+import { initChartOfAccounts } from '@/lib/init-chart-of-accounts';
+import { verifyVaultPassword } from '@/lib/vault';
 import { buildTakeoutFile, downloadTakeout } from '@/lib/takeout/export';
 import { importTakeoutFile, wipeOrgData } from '@/lib/takeout/import';
 import type { TakeoutFile } from '@/lib/takeout/schema';
@@ -346,7 +350,12 @@ interface OrgTile {
   id: string;
   name: string;
   is_archived: boolean;
+  /** True when this org has its own vault key and its name cannot be read
+   *  with the key of the org that is open now. */
+  locked: boolean;
 }
+
+const LOCKED_ORG_LABEL = 'Locked organization (switch to it to see its name)';
 
 function OrganizationTab({
   orgId,
@@ -369,7 +378,17 @@ function OrganizationTab({
   // Add Org modal
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  // Closing the dialog, by any route, drops the typed password.
+  const closeAddOrg = (open: boolean) => {
+    setAddOpen(open);
+    if (!open) setAddPassword('');
+  };
   const [addSaving, setAddSaving] = useState(false);
+  // Recovery code of the org just created, shown once.
+  const [newOrgRecovery, setNewOrgRecovery] = useState<{ orgId: string; code: string } | null>(
+    null,
+  );
 
   // Edit Org modal
   const [editOpen, setEditOpen] = useState(false);
@@ -426,8 +445,25 @@ function OrganizationTab({
     if (orgRows) {
       const decrypted: OrgTile[] = await Promise.all(
         orgRows.map(async (org) => {
-          const dec = await decryptOrganization(org, decryptText);
-          return { id: org.id, name: dec.name, is_archived: org.is_archived ?? false };
+          // Each org has its own vault key, so only the active org's name is
+          // guaranteed to decrypt here. One unreadable name must not hide
+          // the whole list.
+          try {
+            const dec = await decryptOrganization(org, decryptText);
+            return {
+              id: org.id,
+              name: dec.name,
+              is_archived: org.is_archived ?? false,
+              locked: false,
+            };
+          } catch {
+            return {
+              id: org.id,
+              name: LOCKED_ORG_LABEL,
+              is_archived: org.is_archived ?? false,
+              locked: true,
+            };
+          }
         }),
       );
       setOrgs(decrypted);
@@ -518,7 +554,7 @@ function OrganizationTab({
   };
 
   const handleAddOrg = async () => {
-    if (!addName.trim()) return;
+    if (addSaving || !orgId || !addName.trim() || !addPassword) return;
     setAddSaving(true);
     try {
       const {
@@ -530,31 +566,38 @@ function OrganizationTab({
         return;
       }
 
-      const enc = await encryptOrganization({ name: addName.trim() }, encryptText);
-      const { data: newOrg, error: orgError } = await supabase
-        .from('organizations')
-        .insert({ ...enc, is_archived: false })
-        .select('id')
-        .single();
-
-      if (orgError || !newOrg) {
-        toast.error(`Failed to create org: ${orgError?.message || 'Unknown error'}`);
+      // The new org gets its own vault, unlocked with the same password as
+      // the org that is open now. Check the password against this org first
+      // so a typo cannot seal the new org under a password nobody knows.
+      const { data: current, error: currentErr } = await supabase
+        .from('org_settings')
+        .select('vault_verifier, vault_salt, vault_key_version')
+        .eq('org_id', orgId)
+        .maybeSingle();
+      if (currentErr || !current?.vault_verifier || !current?.vault_salt) {
+        toast.error('Could not check your vault password. Please try again.');
+        setAddSaving(false);
+        return;
+      }
+      const passwordOk = await verifyVaultPassword(
+        addPassword,
+        user.id,
+        current.vault_verifier,
+        current.vault_salt,
+        current.vault_key_version ?? 1,
+      );
+      if (!passwordOk) {
+        toast.error('Incorrect vault password');
         setAddSaving(false);
         return;
       }
 
-      // Ensure the creator is OWNER of the new org.
-      // An AFTER INSERT trigger on organizations handles this automatically
-      // but we upsert defensively in case the trigger hasn't been deployed.
-      await supabase
-        .from('org_members')
-        .upsert(
-          { org_id: newOrg.id, user_id: user.id, role: 'OWNER' },
-          { onConflict: 'user_id,org_id' },
-        );
-
-      // Create default org_settings
-      const defaultSettings = await encryptOrgSettings(
+      // Fresh vault material for the new org. Does not touch the key of the
+      // org that is open now. Every field of the new org is sealed with the
+      // new org's own key, never with the current org's.
+      const vault = await buildNewOrgVault(addPassword, user.id);
+      const encName = await vault.encryptForNewOrg(addName.trim());
+      const encSettings = await encryptOrgSettings(
         {
           primary_currency: 'USD',
           secondary_currency: null,
@@ -566,23 +609,93 @@ function OrganizationTab({
           number_format: 'us',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
-        encryptText,
+        vault.encryptForNewOrg,
       );
-      await supabase.from('org_settings').insert({
-        org_id: newOrg.id,
-        ...defaultSettings,
-      });
+
+      // Same atomic RPC onboarding uses: organizations, the OWNER membership
+      // (trigger) and org_settings with the vault material, in one
+      // transaction. A direct insert into organizations is refused by RLS.
+      // create_org_for_current_user is not in the generated types yet.
+      const untypedRpc = supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: string | null; error: { message: string } | null }>;
+      };
+      const { data: newOrgId, error: rpcError } = await untypedRpc.rpc(
+        'create_org_for_current_user',
+        {
+          p_org_name: encName,
+          p_key_version: FIELD_KEY_VERSION,
+          p_settings_primary_currency: encSettings.primary_currency,
+          p_settings_secondary_currency: encSettings.secondary_currency,
+          p_settings_bitcoin_display: encSettings.bitcoin_display,
+          p_settings_fiscal_year_type: encSettings.fiscal_year_type,
+          p_settings_encrypted_fiscal_month: encSettings.encrypted_fiscal_month,
+          p_settings_date_format: encSettings.date_format,
+          p_settings_time_format: encSettings.time_format,
+          p_settings_number_format: encSettings.number_format,
+          p_settings_timezone: encSettings.timezone,
+          p_settings_key_version: encSettings.key_version,
+          p_vault_verifier: vault.verifier,
+          p_vault_salt: vault.vaultSalt,
+          p_vault_key_version: vault.vaultKeyVersion,
+          p_enc_mek_ciphertext: vault.encMekCiphertext,
+          p_recovery_ciphertext: vault.recoveryCiphertext,
+        },
+      );
+      if (rpcError || !newOrgId) {
+        toast.error(`Failed to create org: ${rpcError?.message || 'Unknown error'}`);
+        setAddSaving(false);
+        return;
+      }
+
+      // The org exists now, so show its recovery code straight away: a later
+      // error or a closed tab must not lose the only copy.
+      setNewOrgRecovery({ orgId: newOrgId as string, code: vault.recoveryCode });
+      setAddOpen(false);
+      setAddPassword('');
+
+      // Seed the default chart of accounts with the NEW org's key, with the
+      // same ledger_status transitions onboarding uses. Awaited, not
+      // fire-and-forget: switching to the new org reloads the page, which
+      // would cut seeding short and leave the org stuck in 'provisioning'.
+      const createdOrgId = newOrgId as string;
+      await supabase
+        .from('organizations')
+        .update({ ledger_status: 'provisioning', ledger_status_error: null } as never)
+        .eq('id', createdOrgId);
+      try {
+        await initChartOfAccounts(createdOrgId, vault.encryptForNewOrg);
+        await supabase
+          .from('organizations')
+          .update({ ledger_status: 'ready', ledger_status_error: null } as never)
+          .eq('id', createdOrgId);
+      } catch (coaErr) {
+        const errMsg = coaErr instanceof Error ? coaErr.message : String(coaErr);
+        console.error('Chart of accounts seeding failed:', coaErr);
+        await supabase
+          .from('organizations')
+          .update({ ledger_status: 'failed', ledger_status_error: errMsg } as never)
+          .eq('id', createdOrgId)
+          .then(
+            () => undefined,
+            () => undefined,
+          );
+        toast.error('Chart of accounts setup hit an issue', {
+          description: errMsg || 'You can retry from the dashboard.',
+        });
+      }
 
       writeAuditLog({
-        orgId: newOrg.id,
+        orgId: newOrgId as string,
         action: 'CREATE',
         entityType: 'organization',
-        entityId: newOrg.id,
+        entityId: newOrgId as string,
         summary: `Created organization: ${addName.trim()}`,
-        encrypt: encryptText,
+        encrypt: vault.encryptForNewOrg,
       });
       toast.success('Organization created');
-      setAddOpen(false);
       setAddName('');
       fetchOrgs();
     } catch (err: any) {
@@ -593,6 +706,12 @@ function OrganizationTab({
 
   const handleEditSave = async () => {
     if (!editOrg || !editName.trim()) return;
+    // A name is encrypted with the active org's key, so only the active org
+    // can be renamed from here.
+    if (editOrg.id !== orgId) {
+      toast.error('Switch to this organization to rename it.');
+      return;
+    }
     setEditSaving(true);
     try {
       const enc = await encryptOrganization({ name: editName.trim() }, encryptText);
@@ -757,6 +876,10 @@ function OrganizationTab({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (org.id !== orgId) {
+                              toast.error('Switch to this organization to rename it.');
+                              return;
+                            }
                             setEditOrg(org);
                             setEditName(org.name);
                             setEditOpen(true);
@@ -1084,8 +1207,45 @@ function OrganizationTab({
         )}
       </div>
 
+      {/* ── New organization recovery code, shown once ── */}
+      <Dialog open={!!newOrgRecovery} onOpenChange={() => undefined}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save this organization's recovery code</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm">
+              This code is the only way to recover this organization's data if the vault password is
+              lost. It is shown once and is not stored anywhere we can read.
+            </p>
+            <pre className="p-3 rounded bg-muted text-sm whitespace-pre-wrap break-words select-all">
+              {newOrgRecovery?.code}
+            </pre>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!newOrgRecovery) return;
+                if (!navigator.clipboard) {
+                  toast.error('Copy is not available here. Write the code down instead.');
+                  return;
+                }
+                navigator.clipboard.writeText(newOrgRecovery.code).then(
+                  () => toast.success('Recovery code copied'),
+                  () => toast.error('Copy failed. Write the code down instead.'),
+                );
+              }}
+            >
+              Copy
+            </Button>
+            <Button onClick={() => setNewOrgRecovery(null)}>I have saved it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Add Organization Modal ── */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={addOpen} onOpenChange={closeAddOrg}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Organization</DialogTitle>
@@ -1095,21 +1255,37 @@ function OrganizationTab({
               <Label>Organization Name *</Label>
               <Input
                 value={addName}
+                disabled={addSaving}
                 onChange={(e) => setAddName(e.target.value)}
                 placeholder="e.g. My Company LLC"
+              />
+            </div>
+            <div>
+              <Label>Vault password *</Label>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={addPassword}
+                disabled={addSaving}
+                onChange={(e) => setAddPassword(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && addName.trim()) handleAddOrg();
+                  if (e.key === 'Enter' && addName.trim() && addPassword && !addSaving)
+                    handleAddOrg();
                 }}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                The new organization gets its own encryption key, unlocked with this same password.
+                You will get a separate recovery code for it.
+              </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
+            <Button variant="outline" onClick={() => closeAddOrg(false)}>
               Cancel
             </Button>
             <Button
               className="bg-[var(--color-brand-orange)] hover:bg-[var(--color-brand-orange-hover)] text-white"
-              disabled={!addName.trim() || addSaving}
+              disabled={!addName.trim() || !addPassword || addSaving}
               onClick={handleAddOrg}
             >
               {addSaving ? (

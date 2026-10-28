@@ -96,7 +96,12 @@ import {
 // Phase 2 removal: external-ledger dual-write deleted from CSV import path.
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { writeAuditLog } from '@/lib/audit-logger';
-import { voidTransaction } from '@/lib/transactions/void-transaction';
+import { postJournalEntry } from '@/lib/journal-entry-post';
+import {
+  voidTransaction,
+  ALREADY_VOID_MESSAGE,
+  VOID_NOT_EDITABLE_MESSAGE,
+} from '@/lib/transactions/void-transaction';
 import { exportToCsv } from '@/lib/exports/csv';
 import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
@@ -712,6 +717,10 @@ export default function Transactions() {
       setLockedDialogOpen(true);
       return;
     }
+    if (tx.status === 'VOID') {
+      toast.error(VOID_NOT_EDITABLE_MESSAGE);
+      return;
+    }
     setEditingTx(tx);
     setModalOpen(true);
   };
@@ -747,6 +756,10 @@ export default function Transactions() {
     if (!tx) return;
     if (tx.cleared_status === 'RECONCILED') {
       setLockedDialogOpen(true);
+      return;
+    }
+    if (tx.status === 'VOID') {
+      alert(ALREADY_VOID_MESSAGE);
       return;
     }
     if (!tx.journal_entry_id) {
@@ -801,20 +814,28 @@ export default function Transactions() {
   const handleBulkPost = async () => {
     if (selected.size === 0) return;
     setBulkActing(true);
+    let failed = 0;
     try {
+      // transactions.status is encrypted; journal_entries.status is plaintext.
       const encStatus = await encryptText('POSTED');
       for (const id of selected) {
         const tx = txs.find((t) => t.id === id);
-        await supabase
+        const { error: txErr } = await supabase
           .from('transactions')
           .update({ status: encStatus, key_version: 2 } as any)
           .eq('id', id);
+        if (txErr) {
+          failed += 1;
+          console.error('[Transactions] bulk post failed:', id, txErr);
+          continue;
+        }
         // Mirror to the parent JE wrapper for split + transfer transactions.
         if (tx?.journal_entry_id) {
-          await supabase
-            .from('journal_entries')
-            .update({ status: encStatus, key_version: 2 } as any)
-            .eq('id', tx.journal_entry_id);
+          const { error: jeErr } = await postJournalEntry(supabase, tx.journal_entry_id);
+          if (jeErr) {
+            failed += 1;
+            console.error('[Transactions] bulk post: journal entry not posted:', id, jeErr);
+          }
         }
         writeAuditLog({
           orgId: orgId!,
@@ -824,6 +845,11 @@ export default function Transactions() {
           summary: 'Bulk posted transaction',
           encrypt: encryptText,
         });
+      }
+      if (failed > 0) {
+        toast.error(
+          `${failed} of the selected transactions could not be fully posted. Refresh the page and try again.`,
+        );
       }
       setSelected(new Set());
       await fetchData();
@@ -1438,6 +1464,8 @@ export default function Transactions() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
+                              title={tx.status === 'VOID' ? VOID_NOT_EDITABLE_MESSAGE : undefined}
+                              disabled={tx.status === 'VOID'}
                               onClick={() => openEdit(tx)}
                               data-testid="tx-edit-button"
                             >
@@ -1449,7 +1477,12 @@ export default function Transactions() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-amber-600"
-                              title="Void (post reversing entry)"
+                              title={
+                                tx.status === 'VOID'
+                                  ? ALREADY_VOID_MESSAGE
+                                  : 'Void (post reversing entry)'
+                              }
+                              disabled={tx.status === 'VOID'}
                               onClick={() => handleVoid(tx.id)}
                             >
                               <Ban className="w-3.5 h-3.5" />
@@ -1602,6 +1635,8 @@ export default function Transactions() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
+                            title={tx.status === 'VOID' ? VOID_NOT_EDITABLE_MESSAGE : undefined}
+                            disabled={tx.status === 'VOID'}
                             onClick={() => openEdit(tx)}
                             data-testid="tx-edit-button"
                           >
@@ -1613,7 +1648,12 @@ export default function Transactions() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-amber-600"
-                            title="Void (post reversing entry)"
+                            title={
+                              tx.status === 'VOID'
+                                ? ALREADY_VOID_MESSAGE
+                                : 'Void (post reversing entry)'
+                            }
+                            disabled={tx.status === 'VOID'}
                             onClick={() => handleVoid(tx.id)}
                           >
                             <Ban className="w-3.5 h-3.5" />
@@ -1972,6 +2012,10 @@ export default function Transactions() {
                   status: editingTx.status,
                   cleared_status: editingTx.cleared_status,
                   linked_transfer_id: editingTx.linked_transfer_id ?? null,
+                  // Without it the modal cannot load a split's lines and its
+                  // save paths insert a second journal entry instead of
+                  // updating this one.
+                  journal_entry_id: editingTx.journal_entry_id ?? null,
                   account_id: editingTx.account_id ?? null,
                   contact_id: editingTx.contact_id ?? null,
                 }

@@ -4,7 +4,7 @@
  * Always emits a reverse-JE in the current period (never edits the original):
  *
  *   1. Load the original transaction + its journal_entries wrapper + lines.
- *   2. Create a new journal_entries row with source_type='VOID_REVERSAL' and
+ *   2. Create a new journal_entries row with source_type='void_reversal' and
  *      reversal_of_id pointing at the original JE id. Date = current date
  *      (period-lock branching lands when P1 enforcement ships).
  *   3. Insert N+1 reversed journal_entry_lines (debit ↔ credit swapped from
@@ -42,15 +42,17 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 // Phase 2 removal: the ledger reversal posting deleted; Postgres reversing JE
 // is the single source of truth.
 import { writeAuditLog } from '@/lib/audit-logger';
+import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
 
 /**
  * Phase 4.4 mutation signing: callers pass the same helpers from VaultContext
- * that the transaction modal uses. We throw if the caller has no signing-key wrap.
- * Phase 4.2 RLS already blocks unsigned writes for non-writers, and
- * voiding is a writer action.
+ * that the transaction modal uses. The signer is prepared before the first
+ * write: signed when this user holds the org's key, unsigned when the org has
+ * no key yet (as the database accepts), refused otherwise.
  */
 type LoadOskFn = (orgId: string) => Promise<unknown>;
 type SignMutationFn = (
@@ -74,6 +76,16 @@ export interface VoidTransactionParams {
   signMutation: SignMutationFn;
 }
 
+/**
+ * Shown when the transaction already has a reversing entry. The partial
+ * unique index uq_journal_entries_reversal_of_id is the real guard: it refuses
+ * a second reversal even when two voids race past the check below.
+ */
+export const ALREADY_VOID_MESSAGE = 'This transaction is already void.';
+
+/** Shown when someone tries to edit a voided transaction. */
+export const VOID_NOT_EDITABLE_MESSAGE = 'This transaction is void, so it cannot be edited.';
+
 export interface VoidTransactionResult {
   reversalJournalEntryId: string;
   voidedTransactionIds: string[];
@@ -96,6 +108,14 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     );
   }
 
+  const { data: existingReversal, error: existingErr } = await supabase
+    .from('journal_entries')
+    .select('id')
+    .eq('reversal_of_id', origTx.journal_entry_id)
+    .maybeSingle();
+  if (existingErr) throw existingErr;
+  if (existingReversal) throw new Error(ALREADY_VOID_MESSAGE);
+
   const { data: origJe, error: jeErr } = await supabase
     .from('journal_entries')
     .select('*')
@@ -116,8 +136,26 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // ── Phase 2: decrypt original entries ─────────────────────────────────
   const origJeDec = await decryptJournalEntry(origJe, p.decryptText);
   const origLineDecs = await Promise.all(
-    origLines.map((l: any) => decryptJournalEntryLine(l, p.decryptText).then((dec) => ({ dec }))),
+    origLines.map((l: any) =>
+      decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
+        dec,
+        accountId: l.account_id as string,
+      })),
+    ),
   );
+
+  // Reversal lines are valued in the org's primary currency, not the original
+  // entry's header currency. Read it before anything is written.
+  const orgPrimary = await loadOrgPrimaryCurrency(supabase, p.orgId, p.decryptText);
+
+  // Decide how the status flip will be signed before anything is written,
+  // so a refusal leaves no reversing entry behind (see mutation-signer.ts).
+  const signer = await prepareMutationSigner({
+    client: supabase,
+    orgId: p.orgId,
+    loadOrgSigningKey: p.loadOrgSigningKey,
+    signMutation: p.signMutation,
+  });
 
   // ── Phase 3: create reversing JE ──────────────────────────────────────
   const reversalMemo = `Reversal of ${origJeDec.memo || `tx ${p.txId.slice(0, 8)}`}${
@@ -130,7 +168,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
       currency: origJeDec.currency,
       exchange_rate: origJeDec.exchange_rate,
       status: 'DRAFT',
-      source_type: 'VOID_REVERSAL',
+      source_type: 'void_reversal',
       period_locked: false,
     },
     p.encryptText,
@@ -146,18 +184,23 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     } as any)
     .select('id')
     .single();
+  // 23505 = unique_violation on uq_journal_entries_reversal_of_id: another
+  // void got there first.
+  if (reversalJeErr?.code === '23505') throw new Error(ALREADY_VOID_MESSAGE);
   if (reversalJeErr) throw reversalJeErr;
   const reversalJeId = (reversalJeRow as any).id;
 
   // ── Phase 4: insert reversed lines (debit ↔ credit swapped) ───────────
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async ({ dec }) => {
+    origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: origJeDec.currency,
+        primary_currency: orgPrimary,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
+        // The reversing line posts to the same account as the line it reverses.
+        account_id: accountId,
         account_name: dec.account_name,
         account_code: dec.account_code,
         description: `Reversal of: ${dec.description ?? ''}`.trim(),
@@ -175,15 +218,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // Phase 4.4: sign the status flip. We compute one signature over the
   // reversal JE id + the void status, then stamp it on each affected row.
   // The verifier reads each row and can reconstruct the same payload bytes.
-  await p.loadOrgSigningKey(p.orgId);
-  const voidSigBytes = new TextEncoder().encode(`${p.orgId}|void|${reversalJeId}|${p.date}`);
-  const voidSig = p.signMutation(voidSigBytes, p.orgId);
-  if (!voidSig) {
-    throw new Error(
-      'No signing key available for this org. ' +
-        'Please refresh the page; if the problem persists contact support.',
-    );
-  }
+  const voidSig = signer.sign(`void|${reversalJeId}|${p.date}`);
 
   const encVoidStatus = await p.encryptText('VOID');
   const voidedIds: string[] = [origTx.id];
@@ -195,8 +230,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     .update({
       status: encVoidStatus,
       key_version: FIELD_KEY_VERSION,
-      signature_b64: voidSig.signature_b64,
-      signature_key_version: voidSig.key_version,
+      ...voidSig,
     } as any)
     .in('id', voidedIds);
   if (voidErr) throw voidErr;
