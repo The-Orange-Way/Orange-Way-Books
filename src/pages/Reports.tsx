@@ -1709,7 +1709,7 @@ export default function Reports() {
         supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
         supabase
           .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, memo, org_id)')
+          .select('*, journal_entries!inner(date, org_id)')
           .eq('journal_entries.org_id', orgId),
         supabase
           .from('chart_of_accounts' as any)
