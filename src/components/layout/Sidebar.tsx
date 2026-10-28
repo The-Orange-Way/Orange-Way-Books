@@ -1,7 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useVault } from '@/context/VaultContext';
 import { supabase } from '@/lib/supabase';
-import { decryptOrganization } from '@/lib/crypto-fields';
+import { decryptOrgNames } from '@/lib/org-names';
 import { useEffect, useState, useRef } from 'react';
 import {
   Home,
@@ -112,12 +112,9 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
           .in('id', orgIds);
 
         if (orgRows && isActive) {
-          const decrypted = await Promise.all(
-            orgRows.map(async (org) => {
-              const dec = await decryptOrganization(org, decryptText);
-              return { id: org.id, name: dec.name };
-            }),
-          );
+          // A second organization has its own vault key; its name stays
+          // locked here instead of emptying the whole list.
+          const decrypted = await decryptOrgNames(orgRows, decryptText);
           setOrgs(decrypted);
 
           // Determine active org
