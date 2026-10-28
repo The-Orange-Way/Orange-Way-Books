@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { useVault } from '@/context/VaultContext';
 import { MIN_VAULT_PASSWORD_LENGTH } from '@/lib/vault';
 import { toast } from 'sonner';
+import { describeVaultPasswordChangeError } from '@/lib/vault-password-errors';
 
 export default function ChangeVaultPassword() {
   const navigate = useNavigate();
@@ -141,8 +142,7 @@ export default function ChangeVaultPassword() {
       setNewRecoveryCode(fresh);
       toast.success('Vault password changed.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to change vault password.';
-      setError(msg);
+      setError(describeVaultPasswordChangeError(err));
     }
     setSubmitting(false);
   };

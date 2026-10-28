@@ -698,10 +698,9 @@ test.describe.serial('Onboarding walk — fresh org for the e2e user', () => {
         `api_after_click=${apiAfterClick.slice(0, 20).join('; ')}`;
       throw new Error(`wrong-pw: error paragraph visible -- ${diagMsg}`);
     }
-    await expect(
-      errPara,
-      'wrong-pw: component shows WebCrypto decrypt failure message',
-    ).toContainText('The operation failed for an operation-specific reason');
+    await expect(errPara, 'wrong-pw: component says the current password is wrong').toContainText(
+      'Current vault password is incorrect.',
+    );
 
     // Must NOT have advanced to the recovery kit page.
     await expect(
