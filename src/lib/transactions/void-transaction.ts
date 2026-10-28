@@ -43,6 +43,7 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 // is the single source of truth.
 import { writeAuditLog } from '@/lib/audit-logger';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
@@ -125,6 +126,10 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     ),
   );
 
+  // Reversal lines are valued in the org's primary currency, not the original
+  // entry's header currency. Read it before anything is written.
+  const orgPrimary = await loadOrgPrimaryCurrency(supabase, p.orgId, p.decryptText);
+
   // Decide how the status flip will be signed before anything is written,
   // so a refusal leaves no reversing entry behind (see mutation-signer.ts).
   const signer = await prepareMutationSigner({
@@ -169,7 +174,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: origJeDec.currency,
+        primary_currency: orgPrimary,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,

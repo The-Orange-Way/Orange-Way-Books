@@ -31,6 +31,7 @@ import {
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
@@ -84,6 +85,10 @@ export async function reverseJournalEntry(
     ),
   );
 
+  // Reversal lines are valued in the org's primary currency, not the original
+  // entry's header currency. Read it before anything is written.
+  const orgPrimary = await loadOrgPrimaryCurrency(supabase, p.orgId, p.decryptText);
+
   // ── Build reversing wrapper JE ───────────────────────────────────────
   const reversalMemo = `Reversal of ${origJeDec.ref_number || origJeDec.memo || `JE ${p.journalEntryId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
@@ -121,7 +126,7 @@ export async function reverseJournalEntry(
     origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: origJeDec.currency,
+        primary_currency: orgPrimary,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
