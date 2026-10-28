@@ -24,6 +24,7 @@ interface FakeStore {
   chart_of_accounts: Array<Record<string, unknown>>;
   audit_log: Array<Record<string, unknown>>;
   org_signing_keys: Array<Record<string, unknown>>;
+  org_settings: Array<Record<string, unknown>>;
 }
 
 let store: FakeStore;
@@ -129,6 +130,24 @@ vi.mock('@/lib/supabase', () => ({
   get supabase() {
     return makeSupabase();
   },
+}));
+
+// Rate resolver: same currency needs no rate; anything else gets a fixed
+// confirmed pin, so a test can see which currency pair each line asked for.
+const resolvePinnedRate = vi.fn(
+  async ({ source, target }: { source: string; target: string; at: string }) =>
+    source === target
+      ? { rate: 1, rateId: null, bucketTs: null, pending: false }
+      : {
+          rate: 2,
+          rateId: `rate-${source}-${target}`,
+          bucketTs: '2026-05-21T00:00:00.000Z',
+          pending: false,
+        },
+);
+vi.mock('@/lib/exchange/rate-resolver', () => ({
+  resolvePinnedRate: (args: { source: string; target: string; at: string }) =>
+    resolvePinnedRate(args),
 }));
 
 // Stub the audit logger, write is async and we don't care about its shape.
@@ -291,7 +310,11 @@ beforeEach(() => {
     chart_of_accounts: [],
     audit_log: [],
     org_signing_keys: [],
+    // Plaintext (key_version null) settings row; the org primary is USD
+    // unless a test says otherwise.
+    org_settings: [{ org_id: ORG, primary_currency: 'USD', key_version: null }],
   };
+  resolvePinnedRate.mockClear();
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
 });
@@ -342,6 +365,56 @@ describe('voidTransaction', () => {
     expect(loadOrgSigningKey).toHaveBeenCalledWith(ORG);
     expect(signMutation).toHaveBeenCalledTimes(1);
     expect(signMutation.mock.calls[0][1]).toBe(ORG);
+  });
+
+  it("values the reversal in the org's primary currency, not the entry's own currency", async () => {
+    // A USD entry in an org whose primary currency is BTC: every reversal
+    // line must be priced USD -> BTC, the way the original was.
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_settings[0].primary_currency = 'BTC';
+
+    const result = await voidTransaction({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+
+    const reversedLines = store.journal_entry_lines.filter(
+      (l) => l.journal_entry_id === result.reversalJournalEntryId,
+    );
+    expect(reversedLines).toHaveLength(2);
+    expect(resolvePinnedRate).toHaveBeenCalledTimes(2);
+    expect(resolvePinnedRate.mock.calls.map((c) => c[0].target)).toEqual(['BTC', 'BTC']);
+    expect(reversedLines.every((l) => l.pinned_rate_id === 'rate-USD-BTC')).toBe(true);
+    expect(reversedLines.every((l) => l.rate_pending === false)).toBe(true);
+  });
+
+  it('writes nothing when the org primary currency cannot be read', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    store.org_settings = [];
+    const jesBefore = store.journal_entries.length;
+    const linesBefore = store.journal_entry_lines.length;
+
+    await expect(
+      voidTransaction({
+        txId: 'tx-1',
+        orgId: ORG,
+        legacyJournalId: null,
+        date: '2026-05-21',
+        encryptText,
+        decryptText,
+        loadOrgSigningKey,
+        signMutation,
+      }),
+    ).rejects.toThrow(/primary currency/);
+    expect(store.journal_entries).toHaveLength(jesBefore);
+    expect(store.journal_entry_lines).toHaveLength(linesBefore);
+    expect(store.transactions.find((t) => t.id === 'tx-1')!.status).toBe('enc(POSTED)');
   });
 
   it('uses FIELD_KEY_VERSION (=2 today) and not the deprecated literal', () => {
