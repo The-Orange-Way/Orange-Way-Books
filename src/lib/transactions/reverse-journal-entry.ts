@@ -76,7 +76,12 @@ export async function reverseJournalEntry(
   // ── Decrypt ──────────────────────────────────────────────────────────
   const origJeDec = await decryptJournalEntry(origJe as any, p.decryptText);
   const origLineDecs = await Promise.all(
-    origLines.map((l: any) => decryptJournalEntryLine(l, p.decryptText)),
+    origLines.map((l: any) =>
+      decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
+        dec,
+        accountId: l.account_id as string,
+      })),
+    ),
   );
 
   // ── Build reversing wrapper JE ───────────────────────────────────────
@@ -113,13 +118,15 @@ export async function reverseJournalEntry(
 
   // ── Build reversed lines (debit ↔ credit swapped) ────────────────────
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async (dec) => {
+    origLineDecs.map(async ({ dec, accountId }) => {
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
         primary_currency: origJeDec.currency,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
+        // The reversing line posts to the same account as the line it reverses.
+        account_id: accountId,
         account_name: dec.account_name,
         account_code: dec.account_code,
         description: `Reversal of: ${dec.description ?? ''}`.trim(),

@@ -39,6 +39,7 @@ import {
   parseJournalAmountCell,
 } from '@/lib/csv/journal-entries';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { loadChartNameIndex, requireAccountIdByName } from '@/lib/transactions/line-accounts';
 import { mintInternalJeRefNumber } from '@/lib/journal-entry-ref-numbers';
 import type { ImportPreviewRow, ImportResult } from '@/components/ui/import-popup';
 
@@ -266,6 +267,9 @@ export async function commitJournalEntriesFromStaged(
     );
   }
 
+  // Every line posts to a chart account, looked up by name.
+  const chartIndex = await loadChartNameIndex(supabase, orgId, decryptText);
+
   const groups = groupJournalImportRows(rows);
   let created = 0;
   let skipped = 0;
@@ -338,6 +342,17 @@ export async function commitJournalEntriesFromStaged(
       continue;
     }
 
+    // Resolve every line's account before the entry is written, so an
+    // unknown account rejects the entry instead of leaving it with no lines.
+    let lineAccountIds: string[];
+    try {
+      lineAccountIds = formLines.map((l) => requireAccountIdByName(chartIndex, l.account_name));
+    } catch (e: unknown) {
+      failed += g.length;
+      errors.push(`${groupLabel}: ${e instanceof Error ? e.message : 'unknown account'}`);
+      continue;
+    }
+
     try {
       const encEntry = await encryptJournalEntry(
         {
@@ -363,11 +378,12 @@ export async function commitJournalEntriesFromStaged(
       if (jeErr) throw jeErr;
 
       const encLines = await Promise.all(
-        formLines.map(async (l) => {
+        formLines.map(async (l, i) => {
           const result = await buildJournalEntryLineInsert({
             wallet_currency: currency,
             primary_currency: primaryCurrency,
             date: dateStr,
+            account_id: lineAccountIds[i],
             account_name: l.account_name || null,
             account_code: l.account_code || null,
             description: l.description || null,

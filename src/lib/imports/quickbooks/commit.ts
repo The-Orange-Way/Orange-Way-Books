@@ -719,12 +719,17 @@ async function commitJournalEntryBatch(
     }
     for (const line of entry.lines) {
       const routed = applyFallbackRouting(line, fallbacks);
+      const accountId = accountIdByName.get(routed.accountName.trim());
+      if (!accountId) {
+        throw new Error(`Account "${routed.accountName}" is not in the chart of accounts.`);
+      }
       const built = await buildJournalEntryLineInsert({
         wallet_currency: line.nativeCurrency || primaryCurrency,
         primary_currency: primaryCurrency,
         date: entry.date,
         debit: Number(line.debit),
         credit: Number(line.credit),
+        account_id: accountId,
         account_name: routed.accountName,
         account_code: routed.accountCode,
         description: routed.description,
@@ -734,7 +739,6 @@ async function commitJournalEntryBatch(
       allLines.push({
         journal_entry_id: journalEntryId,
         ...built.insert,
-        account_id: accountIdByName.get(routed.accountName.trim()),
       });
     }
   }
@@ -808,12 +812,17 @@ async function commitJournalEntriesPerEntry(
       let pending = 0;
       for (const line of entry.lines) {
         const routed = applyFallbackRouting(line, fallbacks);
+        const accountId = accountIdByName.get(routed.accountName.trim());
+        if (!accountId) {
+          throw new Error(`Account "${routed.accountName}" is not in the chart of accounts.`);
+        }
         const built = await buildJournalEntryLineInsert({
           wallet_currency: line.nativeCurrency || primaryCurrency,
           primary_currency: primaryCurrency,
           date: entry.date,
           debit: Number(line.debit),
           credit: Number(line.credit),
+          account_id: accountId,
           account_name: routed.accountName,
           account_code: routed.accountCode,
           description: routed.description,
@@ -823,7 +832,6 @@ async function commitJournalEntriesPerEntry(
         lineInserts.push({
           journal_entry_id: journalEntryId,
           ...built.insert,
-          account_id: accountIdByName.get(routed.accountName.trim()),
         });
       }
       if (lineInserts.length > 0) {

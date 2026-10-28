@@ -216,6 +216,7 @@ function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   // Wallet leg: credit 100 (money out of Checking).
   store.journal_entry_lines.push({
     id: 'jel-wallet',
+    account_id: 'wallet-chart-1',
     journal_entry_id: 'je-1',
     account_name: 'enc(Checking)',
     account_code: null,
@@ -243,6 +244,7 @@ function seedSplitTransaction(opts: { withExternalLedger: boolean }) {
   // Account leg: debit 100 (Sales Revenue posted as expense for the split test).
   store.journal_entry_lines.push({
     id: 'jel-account',
+    account_id: 'acct-row-1',
     journal_entry_id: 'je-1',
     account_name: 'enc(Sales Revenue)',
     account_code: null,
@@ -318,6 +320,8 @@ describe('voidTransaction', () => {
       (l) => l.journal_entry_id === result.reversalJournalEntryId,
     );
     expect(reversedLines).toHaveLength(2);
+    // Each reversing line posts to the same account as the line it reverses.
+    expect(reversedLines.map((l) => l.account_id).sort()).toEqual(['acct-row-1', 'wallet-chart-1']);
 
     // Original transaction was flipped to VOID with the canonical field key
     // version (Fix 5), not a local literal.
@@ -393,6 +397,7 @@ describe('voidTransaction', () => {
     // status flip semantics here, not the ledger.
     store.journal_entry_lines.push({
       id: 'jel-src',
+      account_id: 'wallet-chart-1',
       journal_entry_id: 'je-pair',
       account_name: 'enc(Checking)',
       account_code: null,

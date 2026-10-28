@@ -43,6 +43,7 @@ import {
   decryptContact,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -782,6 +783,17 @@ export default function TransactionModal({
     // Filter to lines that are actually populated (account + amount).
     const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
 
+    // Resolve the chart account behind the wallet before anything is written,
+    // so a missing account stops the save instead of leaving an entry with no lines.
+    const walletAccountId = (
+      await ensureWalletChartAccountIds(
+        supabase,
+        orgId,
+        [{ id: selectedWallet.id, name: selectedWallet.encrypted_name }],
+        encryptText,
+      )
+    ).get(selectedWallet.id)!;
+
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
@@ -805,7 +817,11 @@ export default function TransactionModal({
       if (error) throw error;
       journalEntryId = editingTx.journal_entry_id;
       // Wipe the old lines so we can re-insert the new ones cleanly.
-      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
+      const { error: wipeErr } = await supabase
+        .from('journal_entry_lines')
+        .delete()
+        .eq('journal_entry_id', journalEntryId);
+      if (wipeErr) throw wipeErr;
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -832,6 +848,7 @@ export default function TransactionModal({
       date: dateStr,
       debit: walletDebit,
       credit: walletCredit,
+      account_id: walletAccountId,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
       description: memo || `Split across ${validLines.length} accounts`,
@@ -848,6 +865,7 @@ export default function TransactionModal({
           date: dateStr,
           debit: direction === 'OUT' ? lineAmt : 0,
           credit: direction === 'IN' ? lineAmt : 0,
+          account_id: line.accountId,
           account_name: acct?.name ?? null,
           account_code: acct?.code ?? null,
           description: line.memo ?? null,
@@ -1012,6 +1030,22 @@ export default function TransactionModal({
     const sentValue = sa + (feeOnSource ? fee : 0);
     const receivedValue = ra - (feeOnReceived ? fee : 0);
 
+    // Resolve every chart account the lines post to before anything is
+    // written, so a missing account stops the save instead of leaving an
+    // entry with no lines.
+    const walletAccountIds = await ensureWalletChartAccountIds(
+      supabase,
+      orgId,
+      [
+        { id: sourceWallet.id, name: sourceWallet.encrypted_name },
+        { id: destWallet.id, name: destWallet.encrypted_name },
+      ],
+      encryptText,
+    );
+    const sourceAccountId = walletAccountIds.get(sourceWallet.id)!;
+    const destAccountId = walletAccountIds.get(destWallet.id)!;
+    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
+
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
       {
@@ -1036,7 +1070,11 @@ export default function TransactionModal({
       journalEntryId = editingTx.journal_entry_id;
       // Wipe old lines + clear legacy_transaction_id from old transactions rows so
       // void semantics stay clean (T3: void = direction-flip; here we re-create).
-      await supabase.from('journal_entry_lines').delete().eq('journal_entry_id', journalEntryId);
+      const { error: wipeErr } = await supabase
+        .from('journal_entry_lines')
+        .delete()
+        .eq('journal_entry_id', journalEntryId);
+      if (wipeErr) throw wipeErr;
     } else {
       const { data: je, error } = await supabase
         .from('journal_entries')
@@ -1068,7 +1106,6 @@ export default function TransactionModal({
     //
     // Each currency balances independently (debits = credits per currency),
     // which is what the downstream report compute relies on.
-    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     const destWalletDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
@@ -1076,6 +1113,7 @@ export default function TransactionModal({
       date: dateStr,
       debit: Math.abs(receivedValue),
       credit: 0,
+      account_id: destAccountId,
       account_name: destWallet.encrypted_name,
       account_code: null,
       description: memo || `Transfer from ${sourceWallet.encrypted_name}`,
@@ -1087,6 +1125,7 @@ export default function TransactionModal({
       date: dateStr,
       debit: 0,
       credit: Math.abs(receivedValue),
+      account_id: transferClearing.id,
       account_name: transferClearing.account_name,
       account_code: null,
       description: memo || `Transfer clearing (in ${destAsset})`,
@@ -1098,6 +1137,7 @@ export default function TransactionModal({
       date: dateStr,
       debit: Math.abs(sentValue),
       credit: 0,
+      account_id: transferClearing.id,
       account_name: transferClearing.account_name,
       account_code: null,
       description: memo || `Transfer clearing (out ${sourceAsset})`,
@@ -1109,6 +1149,7 @@ export default function TransactionModal({
       date: dateStr,
       debit: 0,
       credit: Math.abs(sentValue),
+      account_id: sourceAccountId,
       account_name: sourceWallet.encrypted_name,
       account_code: null,
       description: memo || `Transfer to ${destWallet.encrypted_name}`,

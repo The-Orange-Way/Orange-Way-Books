@@ -29,6 +29,7 @@ import {
 } from '@/lib/crypto-fields';
 import { computeAccountBalances } from '@/lib/ledger-engine';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import { loadChartNameIndex, requireAccountIdByName } from '@/lib/transactions/line-accounts';
 import {
   previewRevaluation,
   postRevaluation,
@@ -197,6 +198,15 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
     setLoading(true);
     setError(null);
     try {
+      // Resolve the offset account before anything is written. Every line
+      // needs a chart account, and without the offset the entry would not
+      // balance, so a missing account stops the run here.
+      const fxOffsetName = preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss';
+      const fxGainLossAccountId = requireAccountIdByName(
+        await loadChartNameIndex(supabase, orgId, decryptText),
+        fxOffsetName,
+      );
+
       // Insert the run record (draft status)
       const result = await postRevaluation(preview, orgId, userId, notes || undefined);
 
@@ -226,17 +236,6 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
 
       // Build one line per monetary account (delta line) + offset FX gain/loss line
       const encLines: any[] = [];
-      let fxGainLossAccountId: string | null = null;
-
-      // Find or use a placeholder for the FX Gain/Loss account
-      const fxAcctRes = await supabase
-        .from('chart_of_accounts' as any)
-        .select('external_account_id')
-        .eq('org_id', orgId)
-        .ilike('account_group' as any, '%fx%')
-        .limit(1)
-        .maybeSingle();
-      fxGainLossAccountId = (fxAcctRes.data as any)?.external_account_id ?? null;
 
       for (const line of preview.lines) {
         const debit = line.delta > 0 ? 0 : Math.abs(line.delta);
@@ -245,6 +244,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           wallet_currency: primaryCurrency,
           primary_currency: primaryCurrency,
           date: jeDate,
+          account_id: line.accountId,
           account_name: line.accountName,
           account_code: null,
           description: `FX reval: ${line.currency} closing rate ${line.closingRate}`,
@@ -252,29 +252,33 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           credit,
           encrypt: encryptText,
         });
-        encLines.push({ journal_entry_id: jeId, account_id: line.accountId, ...enc });
+        encLines.push({ journal_entry_id: jeId, ...enc.insert });
       }
 
       // Offset line: FX Gain/Loss
-      if (encLines.length > 0 && fxGainLossAccountId) {
+      if (encLines.length > 0) {
         const netDebit = preview.netDelta < 0 ? Math.abs(preview.netDelta) : 0;
         const netCredit = preview.netDelta > 0 ? preview.netDelta : 0;
         const enc = await buildJournalEntryLineInsert({
           wallet_currency: primaryCurrency,
           primary_currency: primaryCurrency,
           date: jeDate,
-          account_name: preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss',
+          account_id: fxGainLossAccountId,
+          account_name: fxOffsetName,
           account_code: null,
           description: `FX revaluation offset — net delta ${preview.netDelta.toFixed(8)} ${primaryCurrency}`,
           debit: netDebit,
           credit: netCredit,
           encrypt: encryptText,
         });
-        encLines.push({ journal_entry_id: jeId, account_id: fxGainLossAccountId, ...enc });
+        encLines.push({ journal_entry_id: jeId, ...enc.insert });
       }
 
       if (encLines.length > 0) {
-        await supabase.from('journal_entry_lines').insert(encLines as any);
+        const { error: linesErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encLines as any);
+        if (linesErr) throw new Error(`Failed to save revaluation lines: ${linesErr.message}`);
       }
 
       // Mark run as posted
@@ -319,6 +323,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           wallet_currency: primaryCurrency,
           primary_currency: primaryCurrency,
           date: reverseDate,
+          account_id: line.accountId,
           account_name: line.accountName,
           account_code: null,
           description: `Reversal of FX reval: ${line.currency}`,
@@ -326,30 +331,32 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           credit,
           encrypt: encryptText,
         });
-        encReverseLines.push({ journal_entry_id: reverseJeId, account_id: line.accountId, ...enc });
+        encReverseLines.push({ journal_entry_id: reverseJeId, ...enc.insert });
       }
-      if (fxGainLossAccountId) {
+      {
         const netDebit = preview.netDelta >= 0 ? 0 : Math.abs(preview.netDelta);
         const netCredit = preview.netDelta >= 0 ? preview.netDelta : 0;
         const enc = await buildJournalEntryLineInsert({
           wallet_currency: primaryCurrency,
           primary_currency: primaryCurrency,
           date: reverseDate,
-          account_name: preview.netDelta >= 0 ? 'Unrealized FX Gain' : 'Unrealized FX Loss',
+          account_id: fxGainLossAccountId,
+          account_name: fxOffsetName,
           account_code: null,
           description: `Reversal of FX revaluation offset`,
           debit: netDebit,
           credit: netCredit,
           encrypt: encryptText,
         });
-        encReverseLines.push({
-          journal_entry_id: reverseJeId,
-          account_id: fxGainLossAccountId,
-          ...enc,
-        });
+        encReverseLines.push({ journal_entry_id: reverseJeId, ...enc.insert });
       }
       if (encReverseLines.length > 0) {
-        await supabase.from('journal_entry_lines').insert(encReverseLines as any);
+        const { error: revLinesErr } = await supabase
+          .from('journal_entry_lines')
+          .insert(encReverseLines as any);
+        if (revLinesErr) {
+          throw new Error(`Failed to save reversal lines: ${revLinesErr.message}`);
+        }
       }
 
       await scheduleReversal(result.runId, reverseJeId);

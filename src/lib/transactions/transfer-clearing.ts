@@ -38,8 +38,8 @@ export const TRANSFER_CLEARING_CODE = '1500';
 export interface TransferClearingAccount {
   /** chart_of_accounts.id (PK). */
   id: string;
-  /** Placeholder external id carried for compat with downstream readers
-   *  that still expect an external_account_id field on this shape. */
+  /** Same value as `id`, kept for readers that still expect this field.
+   *  chart_of_accounts has no external_account_id column. */
   external_account_id: string;
   /** Plaintext account name (decrypted). JE lines reference this string
    *  when they post the clearing legs. */
@@ -69,7 +69,7 @@ export async function findTransferClearingAccount(
       ) {
         return {
           id: row.id,
-          external_account_id: row.external_account_id,
+          external_account_id: row.id,
           account_name: fields.account_name,
         };
       }
@@ -119,7 +119,6 @@ export async function ensureTransferClearingAccount(
     console.warn('COA Wave 2 migration failed (continuing):', err);
   }
 
-  const legacyAccountId = crypto.randomUUID();
   const enc = await encryptChartOfAccount(
     {
       account_name: TRANSFER_CLEARING_NAME,
@@ -135,16 +134,16 @@ export async function ensureTransferClearingAccount(
     .from('chart_of_accounts')
     .insert({
       org_id: orgId,
-      external_account_id: legacyAccountId,
       ...enc,
     } as any)
     .select('id')
     .single();
   if (error) throw error;
   if (!data) throw new Error('Transfer Clearing account insert returned no row.');
+  const id = (data as { id: string }).id;
   return {
-    id: (data as { id: string }).id,
-    external_account_id: legacyAccountId,
+    id,
+    external_account_id: id,
     account_name: TRANSFER_CLEARING_NAME,
   };
 }

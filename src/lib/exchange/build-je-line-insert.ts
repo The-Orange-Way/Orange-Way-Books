@@ -24,6 +24,9 @@ export interface BuildJeLineInsertParams {
   debit: number;
   /** Positive credit amount in wallet currency (0 if this is a debit line). */
   credit: number;
+  /** chart_of_accounts.id the line posts to. journal_entry_lines.account_id is
+   *  NOT NULL, so a line without it is refused by the database. */
+  account_id: string;
   /** Optional account fields passed through to encryptJournalEntryLine. */
   account_name?: string | null;
   account_code?: string | null;
@@ -39,7 +42,7 @@ export interface BuildJeLineInsertParams {
 
 export interface BuildJeLineInsertResult {
   /** Ready-to-insert row for the journal_entry_lines table. */
-  insert: JournalEntryLineEncrypted;
+  insert: JournalEntryLineEncrypted & { account_id: string };
   /** True when the exchange rate could not be resolved — line is stored but
    *  excluded from formal reports until the rate is resolved manually. */
   pending: boolean;
@@ -72,6 +75,7 @@ export async function buildJournalEntryLineInsert(
     date,
     debit,
     credit,
+    account_id,
     account_name,
     account_code,
     description,
@@ -79,6 +83,10 @@ export async function buildJournalEntryLineInsert(
     manualRate,
     encrypt,
   } = params;
+
+  if (!account_id) {
+    throw new Error('Every journal entry line needs an account.');
+  }
 
   // Validate manual rate reason length at the boundary
   if (manualRate && manualRate.reason.length < 40) {
@@ -152,7 +160,7 @@ export async function buildJournalEntryLineInsert(
     manual_rate_source: manualRateSource,
   };
 
-  const insert = await encryptJournalEntryLine(fields, encrypt, meta);
+  const insert = { account_id, ...(await encryptJournalEntryLine(fields, encrypt, meta)) };
 
   return { insert, pending, rate, rateBucketTs };
 }

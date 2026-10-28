@@ -253,6 +253,7 @@ export async function postOpeningBalanceJournal(
       date: params.date,
       debit: e.debit,
       credit: e.credit,
+      account_id: e.accountId,
       account_name: e.accountName,
       account_code: e.accountCode ?? null,
       description: e.description ?? 'Opening balance',
@@ -260,7 +261,6 @@ export async function postOpeningBalanceJournal(
     });
     lineInserts.push({
       journal_entry_id: journalEntryId,
-      account_id: e.accountId,
       ...built.insert,
     });
   }
