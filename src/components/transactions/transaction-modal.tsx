@@ -45,6 +45,7 @@ import {
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
+import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -779,6 +780,9 @@ export default function TransactionModal({
       )
     ).get(selectedWallet.id)!;
     // Decide how the row will be signed before the first write (see prepareSigner).
+    // Lines are priced into the ORG's primary currency, read now; never the
+    // picked wallet's currency (see org-primary-currency.ts).
+    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
     const signer = await prepareSigner();
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
@@ -831,7 +835,7 @@ export default function TransactionModal({
 
     const walletLineRes = await buildJournalEntryLineInsert({
       wallet_currency: walletCurrency,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: walletDebit,
       credit: walletCredit,
@@ -848,7 +852,7 @@ export default function TransactionModal({
         const lineAmt = parseAmount(line.amount)!;
         const res = await buildJournalEntryLineInsert({
           wallet_currency: walletCurrency,
-          primary_currency: primaryCurrency,
+          primary_currency: orgPrimary,
           date: dateStr,
           debit: direction === 'OUT' ? lineAmt : 0,
           credit: direction === 'IN' ? lineAmt : 0,
@@ -1018,6 +1022,9 @@ export default function TransactionModal({
     // Decide how the rows will be signed, and resolve every chart account the
     // lines post to, before anything is written, so a refusal stops the save
     // instead of leaving an entry behind.
+    // Lines are priced into the ORG's primary currency, read now; never the
+    // picked wallet's currency (see org-primary-currency.ts).
+    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
     const signer = await prepareSigner();
     const walletAccountIds = await ensureWalletChartAccountIds(
       supabase,
@@ -1095,7 +1102,7 @@ export default function TransactionModal({
 
     const destWalletDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: Math.abs(receivedValue),
       credit: 0,
@@ -1107,7 +1114,7 @@ export default function TransactionModal({
     });
     const clearingDestCreditLine = await buildJournalEntryLineInsert({
       wallet_currency: destAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: 0,
       credit: Math.abs(receivedValue),
@@ -1119,7 +1126,7 @@ export default function TransactionModal({
     });
     const clearingSrcDebitLine = await buildJournalEntryLineInsert({
       wallet_currency: sourceAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: Math.abs(sentValue),
       credit: 0,
@@ -1131,7 +1138,7 @@ export default function TransactionModal({
     });
     const srcWalletCreditLine = await buildJournalEntryLineInsert({
       wallet_currency: sourceAsset,
-      primary_currency: primaryCurrency,
+      primary_currency: orgPrimary,
       date: dateStr,
       debit: 0,
       credit: Math.abs(sentValue),
