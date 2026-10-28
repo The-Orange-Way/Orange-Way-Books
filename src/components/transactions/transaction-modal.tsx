@@ -47,6 +47,7 @@ import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
+import { linkedLegAmount } from '@/lib/transactions/linked-leg';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -291,7 +292,7 @@ export default function TransactionModal({
           if (isTransfer) {
             const { data: linkedRow, error: linkedErr } = await supabase
               .from('transactions')
-              .select('id, account_id, amount, asset')
+              .select('*')
               .eq('id', editingTx.linked_transfer_id!)
               .maybeSingle();
             if (linkedErr || !linkedRow || cancelled) {
@@ -301,6 +302,8 @@ export default function TransactionModal({
                 );
               return;
             }
+            const linkedAmount = await linkedLegAmount(linkedRow, decryptText);
+            if (cancelled) return;
             // Direction is from this side's perspective. If editingTx.amount is
             // negative the user picked the source side; positive = destination.
             const editingIsSource = Number(editingTx.amount) < 0;
@@ -311,12 +314,12 @@ export default function TransactionModal({
             setDirection(editingIsSource ? 'OUT' : 'IN');
             setSentAmount(
               formatAmountForInput(
-                Math.abs(editingIsSource ? Number(editingTx.amount) : Number(linkedRow.amount)),
+                editingIsSource ? Math.abs(Number(editingTx.amount)) : linkedAmount,
               ),
             );
             setReceivedAmount(
               formatAmountForInput(
-                Math.abs(editingIsSource ? Number(linkedRow.amount) : Number(editingTx.amount)),
+                editingIsSource ? linkedAmount : Math.abs(Number(editingTx.amount)),
               ),
             );
             return;
