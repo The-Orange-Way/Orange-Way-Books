@@ -4,7 +4,7 @@
  * Always emits a reverse-JE in the current period (never edits the original):
  *
  *   1. Load the original transaction + its journal_entries wrapper + lines.
- *   2. Create a new journal_entries row with source_type='VOID_REVERSAL' and
+ *   2. Create a new journal_entries row with source_type='void_reversal' and
  *      reversal_of_id pointing at the original JE id. Date = current date
  *      (period-lock branching lands when P1 enforcement ships).
  *   3. Insert N+1 reversed journal_entry_lines (debit ↔ credit swapped from
@@ -130,7 +130,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
       currency: origJeDec.currency,
       exchange_rate: origJeDec.exchange_rate,
       status: 'DRAFT',
-      source_type: 'VOID_REVERSAL',
+      source_type: 'void_reversal',
       period_locked: false,
     },
     p.encryptText,

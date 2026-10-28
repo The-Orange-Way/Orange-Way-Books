@@ -35,6 +35,7 @@ import {
 } from '../../journal-entry-ref-numbers';
 import {
   assertStagedImportPayload,
+  journalEntrySourceType,
   mapSourceToType,
   type StagedImportPayload,
   type V3StagedRow,
@@ -254,7 +255,7 @@ export async function commitStagedImportPayload(
         currency: group.currency,
         exchange_rate: null,
         status: group.status,
-        source_type: sourceMapped,
+        source_type: journalEntrySourceType(sourceMapped),
         period_locked: false,
       };
       const enc = await encryptJournalEntry(fields, encryptText);
