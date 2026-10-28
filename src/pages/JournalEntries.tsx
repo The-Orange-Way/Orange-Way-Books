@@ -45,6 +45,7 @@ import {
 } from '@/lib/crypto-fields';
 import { reverseJournalEntry } from '@/lib/transactions/reverse-journal-entry';
 import { writeAuditLog } from '@/lib/audit-logger';
+import { postJournalEntry } from '@/lib/journal-entry-post';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1202,16 +1203,17 @@ export default function JournalEntries() {
     if (selected.size === 0) return;
     setBulkActing(true);
     let moved = 0;
+    let failed = 0;
     try {
-      const encStatus = await encryptText('POSTED');
       for (const id of selected) {
         const e = entries.find((en) => en.id === id);
         if (!e || e.status !== 'DRAFT' || e.period_locked) continue;
-        const { error } = await supabase
-          .from('journal_entries')
-          .update({ status: encStatus, key_version: 2 } as any)
-          .eq('id', id);
-        if (error) continue;
+        const { error } = await postJournalEntry(supabase, id);
+        if (error) {
+          failed += 1;
+          console.error('[JournalEntries] bulk post failed:', id, error);
+          continue;
+        }
         writeAuditLog({
           orgId: orgId!,
           action: 'POST',
@@ -1222,7 +1224,10 @@ export default function JournalEntries() {
         });
         moved += 1;
       }
-      alert(`${moved} journal entr${moved === 1 ? 'y' : 'ies'} posted.`);
+      alert(
+        `${moved} journal entr${moved === 1 ? 'y' : 'ies'} posted.` +
+          (failed > 0 ? ` ${failed} could not be posted. Refresh the page and try again.` : ''),
+      );
       setSelected(new Set());
       await fetchData();
     } finally {
