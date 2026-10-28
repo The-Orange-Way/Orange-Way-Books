@@ -379,6 +379,11 @@ function OrganizationTab({
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addPassword, setAddPassword] = useState('');
+  // Closing the dialog, by any route, drops the typed password.
+  const closeAddOrg = (open: boolean) => {
+    setAddOpen(open);
+    if (!open) setAddPassword('');
+  };
   const [addSaving, setAddSaving] = useState(false);
   // Recovery code of the org just created, shown once.
   const [newOrgRecovery, setNewOrgRecovery] = useState<{ orgId: string; code: string } | null>(
@@ -645,6 +650,12 @@ function OrganizationTab({
         return;
       }
 
+      // The org exists now, so show its recovery code straight away: a later
+      // error or a closed tab must not lose the only copy.
+      setNewOrgRecovery({ orgId: newOrgId as string, code: vault.recoveryCode });
+      setAddOpen(false);
+      setAddPassword('');
+
       // Seed the default chart of accounts with the NEW org's key, with the
       // same ledger_status transitions onboarding uses. Awaited, not
       // fire-and-forget: switching to the new org reloads the page, which
@@ -685,10 +696,7 @@ function OrganizationTab({
         encrypt: vault.encryptForNewOrg,
       });
       toast.success('Organization created');
-      setAddOpen(false);
       setAddName('');
-      setAddPassword('');
-      setNewOrgRecovery({ orgId: newOrgId as string, code: vault.recoveryCode });
       fetchOrgs();
     } catch (err: any) {
       toast.error(`Error: ${err.message}`);
@@ -1237,7 +1245,7 @@ function OrganizationTab({
       </Dialog>
 
       {/* ── Add Organization Modal ── */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={addOpen} onOpenChange={closeAddOrg}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Organization</DialogTitle>
@@ -1272,7 +1280,7 @@ function OrganizationTab({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
+            <Button variant="outline" onClick={() => closeAddOrg(false)}>
               Cancel
             </Button>
             <Button
