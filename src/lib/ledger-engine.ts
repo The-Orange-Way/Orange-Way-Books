@@ -72,6 +72,15 @@ export interface DateRange {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * True for income accounts. The default chart seeds them as INCOME and some
+ * imports use REVENUE, so both count.
+ */
+export function isIncomeType(accountType: string): boolean {
+  const t = accountType.toLowerCase();
+  return t === 'revenue' || t === 'income';
+}
+
 function isDebitNormal(accountType: string): boolean {
   const t = accountType.toLowerCase();
   return t === 'asset' || t === 'expense';
@@ -79,6 +88,15 @@ function isDebitNormal(accountType: string): boolean {
 
 function normalBalance(debits: number, credits: number, accountType: string): number {
   return isDebitNormal(accountType) ? debits - credits : credits - debits;
+}
+
+/**
+ * The range a Balance Sheet is computed over: everything up to the end date. A Balance Sheet is a
+ * position at a date, so it must include opening balances and earlier periods, not only movements
+ * inside the selected range.
+ */
+export function balanceSheetRange(range?: DateRange): DateRange | undefined {
+  return range?.to ? { to: range.to } : undefined;
 }
 
 export function journalLineInDateRange(dateStr: string, range?: DateRange): boolean {
@@ -185,7 +203,7 @@ export function computeKPIs(balances: AccountBalance[]): KPIs {
     // Accept both 'revenue' and 'income' — QuickBooks-style charts of
     // accounts (including Orange Way Books' default seed) label top-level
     // revenue accounts as INCOME; some imports use REVENUE.
-    if (t === 'revenue' || t === 'income') {
+    if (isIncomeType(t)) {
       revenue += b.balance;
     } else if (t === 'expense') {
       totalExpenses += b.balance;
@@ -369,7 +387,7 @@ export function computePnL(balances: AccountBalance[]): PnLReport {
 
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
-    if (t === 'revenue') {
+    if (isIncomeType(t)) {
       incomeRows.push({
         accountId: b.accountId,
         name: b.accountName,
@@ -407,10 +425,15 @@ export interface BalanceSheetReport {
   totalLiabilitiesAndEquity: number;
 }
 
+/** Row id of the earnings line the Balance Sheet adds to equity: all income less expenses not yet closed to an equity account. Not a chart account. */
+export const NET_INCOME_ROW_ID = 'net-income';
+
 export function computeBalanceSheet(balances: AccountBalance[]): BalanceSheetReport {
   const assetRows: ReportDataRow[] = [];
   const liabilityRows: ReportDataRow[] = [];
   const equityRows: ReportDataRow[] = [];
+  // Income and expense not yet closed to equity belong in equity, or the sheet cannot balance.
+  let netIncome = 0;
 
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
@@ -423,6 +446,16 @@ export function computeBalanceSheet(balances: AccountBalance[]): BalanceSheetRep
     if (t === 'asset') assetRows.push(row);
     else if (t === 'liability') liabilityRows.push(row);
     else if (t === 'equity') equityRows.push(row);
+    else if (isIncomeType(t)) netIncome += b.balance;
+    else if (t === 'expense') netIncome -= b.balance;
+  }
+  if (round2(netIncome) !== 0) {
+    equityRows.push({
+      accountId: NET_INCOME_ROW_ID,
+      name: 'Earnings to Date',
+      code: null,
+      balance: round2(netIncome),
+    });
   }
 
   const totalAssets = round2(assetRows.reduce((s, r) => s + r.balance, 0));
@@ -562,7 +595,7 @@ export function classifyAccountForCashFlow(b: AccountBalance): CashFlowBucket | 
   const t = b.accountType.toLowerCase();
   const g = b.accountGroup.toLowerCase();
 
-  if (t === 'revenue' || t === 'expense') {
+  if (isIncomeType(t) || t === 'expense') {
     return 'operating';
   }
   if (t === 'asset') {
