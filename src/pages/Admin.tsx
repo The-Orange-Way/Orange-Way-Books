@@ -1200,8 +1200,8 @@ function OrganizationTab({
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm">
-              This code is the only way to recover this organization's data if the vault
-              password is lost. It is shown once and is not stored anywhere we can read.
+              This code is the only way to recover this organization's data if the vault password is
+              lost. It is shown once and is not stored anywhere we can read.
             </p>
             <pre className="p-3 rounded bg-muted text-sm whitespace-pre-wrap break-words select-all">
               {newOrgRecovery?.code}
@@ -1259,8 +1259,8 @@ function OrganizationTab({
                 }}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                The new organization gets its own encryption key, unlocked with this same
-                password. You will get a separate recovery code for it.
+                The new organization gets its own encryption key, unlocked with this same password.
+                You will get a separate recovery code for it.
               </p>
             </div>
           </div>
