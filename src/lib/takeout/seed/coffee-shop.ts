@@ -284,8 +284,14 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
     accountMap.set(a.code, row);
     return row;
   });
-  const acct = (code: string): string => accountMap.get(code)!.legacy_account_id;
-  const acctName = (code: string): string => accountMap.get(code)!.account_name;
+  const account = (code: string): TakeoutLegacyAccount => {
+    const row = accountMap.get(code);
+    if (!row)
+      throw new Error(`Coffee shop sample data uses account ${code}, which is not in its chart`);
+    return row;
+  };
+  const acct = (code: string): string => account(code).legacy_account_id;
+  const acctName = (code: string): string => account(code).account_name;
 
   // ── Accounts ──────────────────────────────────────────────────────────
   const walletOperatingId = U();
@@ -598,7 +604,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       date: iso(date),
       memo: 'COGS — beans',
       ref: null,
-      drCode: '5100', // Cost of Goods Sold
+      drCode: '5000', // Cost of Goods Sold
       crCode: '1100', // Cash & Bank
       amountUsd: usd,
     });
@@ -622,7 +628,7 @@ export function generateCoffeeShop(now: Date = new Date()): TakeoutFile {
       date: iso(date),
       memo: 'COGS — dairy',
       ref: null,
-      drCode: '5100',
+      drCode: '5000',
       crCode: '1100',
       amountUsd: usd,
     });
