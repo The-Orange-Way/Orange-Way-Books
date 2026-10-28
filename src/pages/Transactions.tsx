@@ -2000,6 +2000,10 @@ export default function Transactions() {
                   status: editingTx.status,
                   cleared_status: editingTx.cleared_status,
                   linked_transfer_id: editingTx.linked_transfer_id ?? null,
+                  // Without it the modal cannot load a split's lines and its
+                  // save paths insert a second journal entry instead of
+                  // updating this one.
+                  journal_entry_id: editingTx.journal_entry_id ?? null,
                   account_id: editingTx.account_id ?? null,
                   contact_id: editingTx.contact_id ?? null,
                 }
