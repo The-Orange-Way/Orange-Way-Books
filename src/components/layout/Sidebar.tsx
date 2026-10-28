@@ -1,7 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useVault } from '@/context/VaultContext';
 import { supabase } from '@/lib/supabase';
-import { decryptOrgNames } from '@/lib/org-names';
+import { loadOrgList } from '@/lib/org-names';
 import { useEffect, useState, useRef } from 'react';
 import {
   Home,
@@ -114,13 +114,13 @@ export default function Sidebar({ onNavigate }: SidebarProps = {}) {
         if (orgRows && isActive) {
           // A second organization has its own vault key; its name stays
           // locked here instead of emptying the whole list.
-          const decrypted = await decryptOrgNames(orgRows, decryptText);
+          const { orgs: decrypted, activeId } = await loadOrgList(
+            orgRows,
+            decryptText,
+            localStorage.getItem('orangewaybooks.active_org'),
+          );
           setOrgs(decrypted);
-
-          // Determine active org
-          const stored = localStorage.getItem('orangewaybooks.active_org');
-          const validStored = stored && decrypted.some((o) => o.id === stored);
-          setActiveOrgId(validStored ? stored : (decrypted[0]?.id ?? null));
+          setActiveOrgId(activeId);
         }
       } catch (error) {
         console.error('Failed to load organizations:', error);
