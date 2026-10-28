@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { format, startOfYear, startOfMonth, startOfWeek, subMonths, subYears } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { formatFiat } from '@/lib/formatters';
 import { useVault } from '@/context/VaultContext';
@@ -1707,10 +1709,7 @@ export default function Reports() {
       const [orgRes, sRes, jeRes, acctRes, histRes, revalRes] = await Promise.all([
         supabase.from('organizations').select('name, key_version').eq('id', orgId).single(),
         supabase.from('org_settings').select('*').eq('org_id', orgId).maybeSingle(),
-        supabase
-          .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, org_id)')
-          .eq('journal_entries.org_id', orgId),
+        fetchOrgJournalLines(supabase, orgId),
         supabase
           .from('chart_of_accounts' as any)
           .select('*')
@@ -1725,6 +1724,7 @@ export default function Reports() {
           .select('je_id, reverse_je_id')
           .eq('org_id', orgId),
       ]);
+      if (jeRes.error) toast.error(LINES_LOAD_ERROR);
       if (histRes.data) {
         setPrimaryCurrencyHistory((histRes.data as any[]) ?? []);
       }
