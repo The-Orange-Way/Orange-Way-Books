@@ -514,7 +514,10 @@ describe('validateTakeoutFile', () => {
       validateTakeoutFile(
         withData({ journal_entries: [{ ...je, status: ['POSTED'] as unknown as string }] }),
       ),
-    ).toEqual(['Journal entry je-1 has an unknown status "POSTED"']);
+    ).toEqual(['The journal_entries section has a field that is not text, a number or empty']);
+    expect(validateTakeoutFile(withData({ journal_entries: [{ ...je, status: 'SENT' }] }))).toEqual(
+      ['Journal entry je-1 has an unknown status "SENT"'],
+    );
     expect(validateTakeoutFile(withData({ org_settings: [null as never] }))).toEqual([
       'The org_settings section has an empty or invalid item',
     ]);
@@ -563,6 +566,41 @@ describe('validateTakeoutFile', () => {
         }),
       ),
     ).toEqual(['Receipt att-1 has an invalid kind, name or size']);
+    const receipt = {
+      id: 'att-2',
+      entity_type: 'transaction' as const,
+      entity_id: 'tx-1',
+      file_name: 'a.txt',
+      file_size: 1,
+      mime_type: null,
+      content_base64: 'YQ==',
+    };
+    const tx = {
+      id: 'tx-1',
+      account_id: null,
+      date: '2026-01-01',
+      type: 'INCOME',
+      asset: 'USD',
+      amount: 1,
+    } as never;
+    expect(validateTakeoutFile(withData({ transactions: [tx], attachments: [receipt] }))).toEqual(
+      [],
+    );
+    expect(validateTakeoutFile(withData({ attachments: [receipt] }))).toEqual([
+      'Receipt att-2 points at a record that is not in the file',
+    ]);
+    expect(
+      validateTakeoutFile(
+        withData({ transactions: [tx], attachments: [{ ...receipt, content_base64: '!' }] }),
+      ),
+    ).toEqual(['Receipt att-2 has unreadable contents']);
+    expect(
+      validateTakeoutFile(
+        withData({
+          contacts: [{ id: 'c-1', name: 'A', type: 'Vendor', email: { toString: null } } as never],
+        }),
+      ),
+    ).toEqual(['The contacts section has a field that is not text, a number or empty']);
     expect(
       validateTakeoutFile(
         withData({ journal_entries: [{ ...je, date: '2026-01-01T10:30:00.123+00:00' }] }),

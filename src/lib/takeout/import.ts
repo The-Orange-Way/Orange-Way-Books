@@ -240,6 +240,19 @@ function validateTakeoutData(data: TakeoutFile['data']): string[] {
   }
   if (problems.length > 0) return problems;
 
+  // Every backup row is flat: each field is text, a number, true/false or
+  // empty. Anything else would make encryption or the insert fail after the
+  // wipe, so refuse it here.
+  const isFlatValue = (v: unknown): boolean =>
+    v == null || typeof v === 'string' || typeof v === 'boolean' || isNumber(v);
+  for (const [key, rows] of Object.entries(data)) {
+    if (!Array.isArray(rows)) continue;
+    if (rows.some((row) => !Object.values(row as object).every(isFlatValue))) {
+      problems.push(`The ${key} section has a field that is not text, a number or empty`);
+    }
+  }
+  if (problems.length > 0) return problems;
+
   // Field shapes the inserts depend on.
   for (const a of data.chart_of_accounts) {
     if (!isText(a.id) || !isText(a.account_name) || !isText(a.account_type)) {
@@ -362,6 +375,18 @@ function validateTakeoutData(data: TakeoutFile['data']): string[] {
       typeof att.content_base64 !== 'string'
     ) {
       problems.push(`Receipt ${label} has an invalid kind, name or size`);
+      continue;
+    }
+    const targets = att.entity_type === 'transaction' ? data.transactions : data.payment_requests;
+    if (!targets.some((t) => t.id === att.entity_id)) {
+      problems.push(`Receipt ${label} points at a record that is not in the file`);
+    }
+    // An empty string means the export could not read the file; it is skipped.
+    if (
+      att.content_base64 !== '' &&
+      (att.content_base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(att.content_base64))
+    ) {
+      problems.push(`Receipt ${label} has unreadable contents`);
     }
   }
 
