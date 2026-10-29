@@ -139,14 +139,25 @@ function roundTo(decimals?: number): (n: number) => number {
 }
 
 /**
- * Unrounded sums behind each AccountBalance a Bitcoin report computes. Totals are taken from these
- * and rounded once, so rounding each account first cannot make a balanced ledger look unbalanced.
+ * Turns a total into the amount shown. With no `decimals` it is two-place rounding. With `decimals`
+ * the total is a whole number of minor units (satoshis for BTC), so it is only scaled back.
+ */
+function fromUnits(decimals?: number): (n: number) => number {
+  if (decimals == null) return round2;
+  const f = 10 ** decimals;
+  return (n) => n / f;
+}
+
+/**
+ * Sums behind each AccountBalance a Bitcoin report computes, in whole minor units. Totals add these
+ * integers and scale once, so neither per-account rounding nor floating point can unbalance them.
  */
 const rawSums = new WeakMap<AccountBalance, { debits: number; credits: number; balance: number }>();
 
-/** The value to add into a total: unrounded for a Bitcoin report, the row balance otherwise. */
+/** The value to add into a total: minor units for a Bitcoin report, the row balance otherwise. */
 function addable(b: AccountBalance, decimals?: number): number {
-  return decimals == null ? b.balance : (rawSums.get(b)?.balance ?? b.balance);
+  if (decimals == null) return b.balance;
+  return rawSums.get(b)?.balance ?? Math.round(b.balance * 10 ** decimals);
 }
 
 /** True for a Bitcoin unit. Reports in these units keep their full precision. */
@@ -382,7 +393,12 @@ export function computeAccountBalances(
       totalCredits: rnd(sums.credits),
       balance: rnd(balance),
     };
-    if (decimals != null) rawSums.set(row, { ...sums, balance });
+    if (decimals != null)
+      rawSums.set(row, {
+        debits: added.debits,
+        credits: added.credits,
+        balance: normalBalance(added.debits, added.credits, info.accountType),
+      });
     results.push(row);
   }
 
@@ -591,7 +607,7 @@ export interface PnLReport {
 }
 
 export function computePnL(balances: AccountBalance[], decimals?: number): PnLReport {
-  const rnd = roundTo(decimals);
+  const fin = fromUnits(decimals);
   const incomeRows: ReportDataRow[] = [];
   const expenseRows: ReportDataRow[] = [];
   let income = 0;
@@ -618,13 +634,13 @@ export function computePnL(balances: AccountBalance[], decimals?: number): PnLRe
     }
   }
 
-  const totalIncome = rnd(income);
-  const totalExpenses = rnd(expenses);
+  const totalIncome = fin(income);
+  const totalExpenses = fin(expenses);
 
   return {
     income: { header: 'Income', rows: incomeRows, total: totalIncome },
     expenses: { header: 'Expenses', rows: expenseRows, total: totalExpenses },
-    netProfit: rnd(decimals == null ? totalIncome - totalExpenses : income - expenses),
+    netProfit: fin(decimals == null ? totalIncome - totalExpenses : income - expenses),
   };
 }
 
@@ -646,7 +662,7 @@ export function computeBalanceSheet(
   balances: AccountBalance[],
   decimals?: number,
 ): BalanceSheetReport {
-  const rnd = roundTo(decimals);
+  const fin = fromUnits(decimals);
   const assetRows: ReportDataRow[] = [];
   const liabilityRows: ReportDataRow[] = [];
   const equityRows: ReportDataRow[] = [];
@@ -671,22 +687,22 @@ export function computeBalanceSheet(
     if (t === 'asset' || t === 'liability' || t === 'equity') sums[t] += v;
   }
   sums.equity += netIncome;
-  if (rnd(netIncome) !== 0) {
+  if (fin(netIncome) !== 0) {
     equityRows.push({
       accountId: NET_INCOME_ROW_ID,
       name: 'Earnings to Date',
       code: null,
-      balance: rnd(netIncome),
+      balance: fin(netIncome),
     });
   }
 
-  const totalAssets = rnd(
+  const totalAssets = fin(
     decimals == null ? assetRows.reduce((s, r) => s + r.balance, 0) : sums.asset,
   );
-  const totalLiabilities = rnd(
+  const totalLiabilities = fin(
     decimals == null ? liabilityRows.reduce((s, r) => s + r.balance, 0) : sums.liability,
   );
-  const totalEquity = rnd(
+  const totalEquity = fin(
     decimals == null ? equityRows.reduce((s, r) => s + r.balance, 0) : sums.equity,
   );
 
@@ -694,7 +710,7 @@ export function computeBalanceSheet(
     assets: { header: 'Assets', rows: assetRows, total: totalAssets },
     liabilities: { header: 'Liabilities', rows: liabilityRows, total: totalLiabilities },
     equity: { header: 'Equity', rows: equityRows, total: totalEquity },
-    totalLiabilitiesAndEquity: rnd(
+    totalLiabilitiesAndEquity: fin(
       decimals == null ? totalLiabilities + totalEquity : sums.liability + sums.equity,
     ),
   };
@@ -722,13 +738,15 @@ export function computeTrialBalance(
   balances: AccountBalance[],
   decimals?: number,
 ): TrialBalanceReport {
-  const rnd = roundTo(decimals);
+  const rnd = fromUnits(decimals);
+  const unit = 10 ** (decimals ?? 0);
   let rawDebits = 0;
   let rawCredits = 0;
   const rows: TrialBalanceRow[] = balances.map((b) => {
     const raw = decimals == null ? undefined : rawSums.get(b);
-    const d = raw ? raw.debits : b.totalDebits;
-    const c = raw ? raw.credits : b.totalCredits;
+    const asUnits = (n: number) => (decimals == null ? n : Math.round(n * unit));
+    const d = raw ? raw.debits : asUnits(b.totalDebits);
+    const c = raw ? raw.credits : asUnits(b.totalCredits);
     if (d - c >= 0) rawDebits += d - c;
     else rawCredits += c - d;
     // Show balance in debit or credit column based on normal side
@@ -761,15 +779,12 @@ export function computeTrialBalance(
       isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
     };
   }
-  // Totals from the unrounded sums, compared in whole minor units (satoshis for BTC).
-  const totalDebits = rnd(rawDebits);
-  const totalCredits = rnd(rawCredits);
-  const f = 10 ** decimals;
+  // Totals from the sums in whole minor units (satoshis for BTC), so they compare exactly.
   return {
     rows,
-    totalDebits,
-    totalCredits,
-    isBalanced: Math.round(totalDebits * f) === Math.round(totalCredits * f),
+    totalDebits: rnd(rawDebits),
+    totalCredits: rnd(rawCredits),
+    isBalanced: rawDebits === rawCredits,
   };
 }
 
@@ -817,9 +832,10 @@ export function computeGeneralLedger(
     const delta = isDebitNormal(info.accountType)
       ? (Number(line.debit) || 0) - (Number(line.credit) || 0)
       : (Number(line.credit) || 0) - (Number(line.debit) || 0);
-    // A Bitcoin report carries the running balance unrounded and rounds only what it shows.
-    const running = decimals == null ? rnd(current + delta) : current + delta;
-    const newBalance = rnd(running);
+    // A Bitcoin report carries the running balance in whole minor units, so it cannot drift.
+    const running =
+      decimals == null ? rnd(current + delta) : current + Math.round(delta * 10 ** decimals);
+    const newBalance = decimals == null ? running : running / 10 ** decimals;
     runningBalances.set(line.accountId!, running);
 
     entries.push({
@@ -883,7 +899,7 @@ export interface CashFlowReport {
 }
 
 export function computeCashFlow(balances: AccountBalance[], decimals?: number): CashFlowReport {
-  const rnd = roundTo(decimals);
+  const fin = fromUnits(decimals);
   const operating: ReportDataRow[] = [];
   const investing: ReportDataRow[] = [];
   const financing: ReportDataRow[] = [];
@@ -923,15 +939,15 @@ export function computeCashFlow(balances: AccountBalance[], decimals?: number): 
   }
 
   const legacy = (rows: ReportDataRow[]) => rows.reduce((s, r) => s + r.balance, 0);
-  const opTotal = rnd(decimals == null ? legacy(operating) : sums.operating);
-  const invTotal = rnd(decimals == null ? legacy(investing) : sums.investing);
-  const finTotal = rnd(decimals == null ? legacy(financing) : sums.financing);
+  const opTotal = fin(decimals == null ? legacy(operating) : sums.operating);
+  const invTotal = fin(decimals == null ? legacy(investing) : sums.investing);
+  const finTotal = fin(decimals == null ? legacy(financing) : sums.financing);
 
   return {
     operating: { header: 'Operating Activities', rows: operating, total: opTotal },
     investing: { header: 'Investing Activities', rows: investing, total: invTotal },
     financing: { header: 'Financing Activities', rows: financing, total: finTotal },
-    netChange: rnd(
+    netChange: fin(
       decimals == null
         ? opTotal + invTotal + finTotal
         : sums.operating + sums.investing + sums.financing,

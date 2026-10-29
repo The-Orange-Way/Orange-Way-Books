@@ -472,3 +472,50 @@ describe('round 4: an unreadable posting currency', () => {
     expect(r.excluded).toEqual([]);
   });
 });
+
+describe('round 5: totals and running balances add whole satoshis', () => {
+  // 10,000 postings of 10.1 BTC spread over N asset accounts, each against one equity account.
+  const book = (n: number) => {
+    const accts: AccountInfo[] = [accounts.find((a) => a.id === 'equity')!];
+    for (let k = 0; k < n; k++)
+      accts.push({ ...accounts[0], id: `a${k}`, name: `Asset ${k}`, code: `1${k}` });
+    const ls: JournalLine[] = [];
+    for (let i = 0; i < 10000; i++) {
+      ls.push(line(`m${i}`, `a${i % n}`, 10.1, { amountPrimary: 10.1 }));
+      ls.push(line(`m${i}`, 'equity', -10.1, { amountPrimary: -10.1 }));
+    }
+    return { accts, prepared: prepareReportLines(ls, 'BTC', null, 8).lines };
+  };
+
+  it.each([200, 10000])('%i accounts: trial balance 101,000 = 101,000, balanced', (n) => {
+    const { accts, prepared } = book(n);
+    const bal = computeAccountBalances(prepared, accts, undefined, 8);
+    const tb = computeTrialBalance(bal, 8);
+    expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([101000, 101000, true]);
+    const bs = computeBalanceSheet(bal, 8);
+    expect([bs.assets.total, bs.totalLiabilitiesAndEquity]).toEqual([101000, 101000]);
+  });
+
+  it('the General Ledger ends on the same equity balance the account shows: 101,000', () => {
+    const { accts, prepared } = book(2);
+    const gl = computeGeneralLedger(prepared, accts, undefined, 8);
+    const equityRows = gl.filter((e) => e.accountCode === '3000');
+    const lastEquity = equityRows[equityRows.length - 1];
+    expect(lastEquity?.runningBalance).toBe(101000);
+    const bal = computeAccountBalances(prepared, accts, undefined, 8);
+    expect(bal.find((b) => b.accountId === 'equity')?.balance).toBe(101000);
+  });
+
+  it('negative control: adding the 10,000 equity amounts in floating point is not 101,000', () => {
+    let x = 0;
+    for (let i = 0; i < 10000; i++) x += 10.1;
+    expect(x).not.toBe(101000);
+  });
+
+  it('fiat reports (no decimals) still round each total to cents', () => {
+    const { accts } = book(2);
+    const ls = [line('f', 'a0', 0.105, {}), line('f', 'equity', -0.105, {})];
+    const tb = computeTrialBalance(computeAccountBalances(ls, accts), undefined);
+    expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([0.11, 0.11, true]);
+  });
+});
