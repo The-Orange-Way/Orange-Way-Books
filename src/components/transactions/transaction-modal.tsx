@@ -251,6 +251,8 @@ export default function TransactionModal({
   // ── Reset form on open ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
+    // Each opening starts with the received amount following the exchange rate.
+    setRateOverride(false);
     if (editingTx) {
       // ── Synchronous seed: standard-mode defaults from the row itself ──
       // The async detector below upgrades to split/transfer if the row has
@@ -323,6 +325,8 @@ export default function TransactionModal({
                 editingIsSource ? linkedAmount : Math.abs(Number(editingTx.amount)),
               ),
             );
+            // The saved amounts are what was recorded; a rate arriving later must not replace them.
+            setRateOverride(true);
             return;
           }
 
