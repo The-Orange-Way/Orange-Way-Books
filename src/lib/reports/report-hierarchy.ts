@@ -1,4 +1,4 @@
-import { isIncomeType } from '@/lib/ledger-engine';
+import { isIncomeType, toMinorUnits } from '@/lib/ledger-engine';
 
 /**
  * Chart hierarchy for client-side reports (Vault / ledger engine).
@@ -119,7 +119,7 @@ export function buildReportHierarchyRoots(
   // With `decimals` (a Bitcoin report) subtotals are kept in whole minor units at every level and
   // scaled once for display, so they cannot drift.
   const unit = 10 ** (decimals ?? 0);
-  const toUnits = (n: number) => Math.round(n * unit);
+  const toUnits = (n: number) => toMinorUnits(n, decimals ?? 0);
   const rollupUnits = new Map<string, { now: number; prev: number | undefined }>();
 
   const ownById = mergeOwnById(leafLines);

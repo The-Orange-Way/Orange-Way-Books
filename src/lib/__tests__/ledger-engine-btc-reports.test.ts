@@ -11,6 +11,7 @@ import {
   currencyDecimals,
   prepareReportLines,
   reportDifference,
+  toMinorUnits,
 } from '../ledger-engine';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
 import { printCellText } from '../reports/print-cell-text';
@@ -624,5 +625,44 @@ describe('round 7: chart subtotals and comparison differences stay in whole sato
       20000000 - -20000000.00000002,
     );
     expect(reportDifference(10.1, 3.3, 'USD')).toBe(10.1 - 3.3);
+  });
+});
+
+describe('round 8: a large Bitcoin amount converts to the exact satoshi count', () => {
+  it('34000000.00000019 BTC is 19 satoshis over 34000000, in a variance and in a chart parent', () => {
+    expect(reportDifference(34000000.00000019, 34000000, 'BTC')).toBe(0.00000019);
+    const closure = new Map<string, CoaClosureRow>([
+      ['p', { id: 'p', parentId: null, name: 'Assets', code: '1', accountType: 'ASSET' }],
+      ['a', { id: 'a', parentId: 'p', name: 'A', code: '11', accountType: 'ASSET' }],
+      ['b', { id: 'b', parentId: 'p', name: 'B', code: '12', accountType: 'ASSET' }],
+    ]);
+    const leaf = (id: string, amt: number) => ({
+      accountId: id,
+      accountName: id,
+      accountCode: id,
+      primaryAmount: amt,
+      nativeAmount: amt,
+      nativeCurrency: 'BTC',
+    });
+    const [p] = buildReportHierarchyRoots(
+      [leaf('a', 34000000.00000019), leaf('b', -34000000)],
+      closure,
+      () => true,
+      'BTC',
+      8,
+    );
+    expect(p.rollupPrimaryAmount).toBe(0.00000019);
+  });
+
+  it('negative control: multiplying by 1e8 first rounds to 20', () => {
+    expect(Math.round(34000000.00000019 * 1e8) - 3400000000000000).toBe(20);
+  });
+
+  it('negative amounts, zero and whole sats convert exactly', () => {
+    expect(toMinorUnits(34000000.00000019, 8) - toMinorUnits(34000000, 8)).toBe(19);
+    expect(toMinorUnits(-0.00000019, 8)).toBe(-19);
+    expect(Object.is(toMinorUnits(-0, 8), 0)).toBe(true);
+    expect(toMinorUnits(21000000, 8)).toBe(2100000000000000);
+    expect(toMinorUnits(1234, 0)).toBe(1234);
   });
 });

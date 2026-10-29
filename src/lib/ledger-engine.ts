@@ -124,6 +124,17 @@ export function journalLineInDateRange(dateStr: string, range?: DateRange): bool
   return true;
 }
 
+/**
+ * `n` as a whole number of minor units (satoshis when `decimals` is 8). It rounds the exact stored
+ * value through its decimal form, because `n * 10 ** decimals` is itself rounded and, for a large
+ * amount, can land on a half and round up a unit that is not there (34000000.00000019 BTC gave 20
+ * satoshis over 34000000, not 19).
+ */
+export function toMinorUnits(n: number, decimals: number): number {
+  if (!Number.isFinite(n) || Math.abs(n) >= 1e21) return Math.round(n * 10 ** decimals);
+  return Number(n.toFixed(decimals).replace('.', '')) || 0;
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -135,7 +146,7 @@ function round2(n: number): number {
 function roundTo(decimals?: number): (n: number) => number {
   if (decimals == null) return round2;
   const f = 10 ** decimals;
-  return (n) => Math.round(n * f) / f;
+  return (n) => toMinorUnits(n, decimals) / f;
 }
 
 /**
@@ -157,7 +168,7 @@ const rawSums = new WeakMap<AccountBalance, { debits: number; credits: number; b
 /** The value to add into a total: minor units for a Bitcoin report, the row balance otherwise. */
 function addable(b: AccountBalance, decimals?: number): number {
   if (decimals == null) return b.balance;
-  return rawSums.get(b)?.balance ?? Math.round(b.balance * 10 ** decimals);
+  return rawSums.get(b)?.balance ?? toMinorUnits(b.balance, decimals);
 }
 
 /** True for a Bitcoin unit. Reports in these units keep their full precision. */
@@ -172,8 +183,8 @@ export function isBitcoinCurrency(currency: string | null | undefined): boolean 
  */
 export function reportDifference(a: number, b: number, currency: string): number {
   if (!isBitcoinCurrency(currency)) return a - b;
-  const f = 10 ** currencyDecimals(currency);
-  return (Math.round(a * f) - Math.round(b * f)) / f;
+  const d = currencyDecimals(currency);
+  return (toMinorUnits(a, d) - toMinorUnits(b, d)) / 10 ** d;
 }
 
 /** Decimal places a report in `currency` is kept to: 8 for BTC, 0 for sats, else the ISO minor unit. */
@@ -368,7 +379,8 @@ export function computeAccountBalances(
     // pre-dual rows. primaryAmount() encodes the sign — split it back
     // into debit/credit buckets so normalBalance() still works.
     // A Bitcoin report adds whole minor units, so a long book cannot drift by a satoshi.
-    const amt = decimals == null ? primaryAmount(line) : Math.round(primaryAmount(line) * unit);
+    const amt =
+      decimals == null ? primaryAmount(line) : toMinorUnits(primaryAmount(line), decimals);
     const debitPart = amt > 0 ? amt : 0;
     const creditPart = amt < 0 ? -amt : 0;
 
@@ -758,7 +770,7 @@ export function computeTrialBalance(
   let rawCredits = 0;
   const rows: TrialBalanceRow[] = balances.map((b) => {
     const raw = decimals == null ? undefined : rawSums.get(b);
-    const asUnits = (n: number) => (decimals == null ? n : Math.round(n * unit));
+    const asUnits = (n: number) => (decimals == null ? n : toMinorUnits(n, decimals));
     const d = raw ? raw.debits : asUnits(b.totalDebits);
     const c = raw ? raw.credits : asUnits(b.totalCredits);
     if (d - c >= 0) rawDebits += d - c;
@@ -848,7 +860,7 @@ export function computeGeneralLedger(
       : (Number(line.credit) || 0) - (Number(line.debit) || 0);
     // A Bitcoin report carries the running balance in whole minor units, so it cannot drift.
     const running =
-      decimals == null ? rnd(current + delta) : current + Math.round(delta * 10 ** decimals);
+      decimals == null ? rnd(current + delta) : current + toMinorUnits(delta, decimals);
     const newBalance = decimals == null ? running : running / 10 ** decimals;
     runningBalances.set(line.accountId!, running);
 
