@@ -16,8 +16,8 @@ export function transferEditTargets(
 /** One leg's row values: its wallet, encrypted fields and signature columns. */
 export interface TransferLegValues {
   account_id: string;
-  enc: Record<string, unknown>;
-  sig: Record<string, unknown>;
+  enc: object;
+  sig: object;
 }
 
 /** The three database calls an edit save needs. Each throws on a database error. */
