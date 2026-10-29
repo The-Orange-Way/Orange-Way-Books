@@ -395,7 +395,8 @@ function validateTakeoutData(data: TakeoutFile['data']): string[] {
     ) {
       problems.push(`Receipt ${label} has unreadable contents`);
     } else if (decodedBase64Size(att.content_base64) > MAX_FILE_SIZE_BYTES) {
-      // Uploads are capped at this size; a larger receipt would fail to upload after the wipe.
+      // The app never uploads a receipt above this size, so refuse it here rather than risk an
+      // upload failing after the wipe.
       problems.push(`Receipt ${label} is larger than the ${MAX_FILE_SIZE_MB} MB limit`);
     }
   }
