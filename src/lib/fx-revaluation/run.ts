@@ -50,6 +50,12 @@ export interface RevaluationRunParams {
   monetaryOverrides?: Map<string, boolean>;
 }
 
+/**
+ * Bitcoin is a capital asset, not a foreign currency, so it is never subject to FX
+ * revaluation. SATS is the satoshi unit of the same asset (1 BTC = 100,000,000 SATS).
+ */
+const BITCOIN_UNITS = new Set(['BTC', 'SATS']);
+
 function addOneDay(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + 1);
@@ -85,6 +91,9 @@ export async function previewRevaluation(
 
     const walletCurrency = walletCurrencies.get(account.id);
     if (!walletCurrency || walletCurrency.toUpperCase() === primaryCurrency.toUpperCase()) continue;
+
+    // Bitcoin is not a foreign currency: skip it before any rate lookup.
+    if (BITCOIN_UNITS.has(walletCurrency.toUpperCase())) continue;
 
     const balance = balanceByAccount.get(account.id);
     if (!balance) continue;
