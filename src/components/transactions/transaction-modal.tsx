@@ -524,6 +524,11 @@ export default function TransactionModal({
   const [rateOverride, setRateOverride] = useState(false);
   const [savedTransfer, setSavedTransfer] = useState<SavedTransfer | null>(null);
   const keepSavedAmounts = keepsSavedTransferAmounts(savedTransfer, wallets, rateBase, rateQuote);
+  // Once the currencies leave the saved pair the saved amounts no longer apply, even if the user
+  // comes back to it, because the amounts on screen may already follow another rate.
+  useEffect(() => {
+    if (savedTransfer && !keepSavedAmounts) setSavedTransfer(null);
+  }, [savedTransfer, keepSavedAmounts]);
   useEffect(() => {
     if (!needsTransferRate || rateOverride || keepSavedAmounts) return;
     if (autoRate && sentAmount) {
