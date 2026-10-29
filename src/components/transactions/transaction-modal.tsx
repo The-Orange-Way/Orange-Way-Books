@@ -46,7 +46,10 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
-import { transferEditTargets } from '@/lib/transactions/transfer-edit-targets';
+import {
+  type TransferEditDb,
+  saveTransferEditLegs,
+} from '@/lib/transactions/transfer-edit-targets';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
 import { linkedLegAmount } from '@/lib/transactions/linked-leg';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
@@ -1213,61 +1216,44 @@ export default function TransactionModal({
 
     if (editingTx) {
       // Edit-in-place. The edited row keeps its own side: it is the source when the transfer goes
-      // out of it and the destination when it comes in. The other leg is the linked row; a leg
-      // with no row (a non-transfer edited into a transfer) is inserted and linked both ways.
-      let partnerId = editingTx.linked_transfer_id ?? null;
-      if (!partnerId) {
-        const { data: linkedRow } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('linked_transfer_id', editingTx.id)
-          .maybeSingle();
-        partnerId = linkedRow?.id ?? null;
-      }
-      const targets = transferEditTargets(direction, editingTx.id, partnerId);
-      const legs = [
-        { id: targets.srcId, account_id: sourceWalletId, enc: srcEnc, sig: srcSig },
-        { id: targets.destId, account_id: destWalletId, enc: destEnc, sig: destSig },
-      ];
-      const ids: string[] = [];
-      for (const leg of legs) {
-        if (leg.id) {
-          const { error: updErr } = await supabase
+      // out of it and the destination when it comes in (see saveTransferEditLegs).
+      const db: TransferEditDb = {
+        async findLinkedTo(id) {
+          const { data, error } = await supabase
             .from('transactions')
-            .update({
-              account_id: leg.account_id,
-              date: dateStr,
-              journal_entry_id: journalEntryId,
-              ...leg.enc,
-              ...leg.sig,
-            })
-            .eq('id', leg.id);
-          if (updErr) throw updErr;
-          ids.push(leg.id);
-        } else {
-          const { data: ins, error: insErr } = await supabase
+            .select('id')
+            .eq('linked_transfer_id', id)
+            .maybeSingle();
+          if (error) throw error;
+          return data?.id ?? null;
+        },
+        async update(id, values) {
+          const { error } = await supabase
             .from('transactions')
-            .insert({
-              org_id: orgId,
-              account_id: leg.account_id,
-              date: dateStr,
-              linked_transfer_id: editingTx.id,
-              journal_entry_id: journalEntryId,
-              ...leg.enc,
-              ...leg.sig,
-            })
+            .update(values as any)
+            .eq('id', id);
+          if (error) throw error;
+        },
+        async insert(values) {
+          const { data, error } = await supabase
+            .from('transactions')
+            .insert(values as any)
             .select('id')
             .single();
-          if (insErr) throw insErr;
-          const { error: linkErr } = await supabase
-            .from('transactions')
-            .update({ linked_transfer_id: ins.id })
-            .eq('id', editingTx.id);
-          if (linkErr) throw linkErr;
-          ids.push(ins.id);
-        }
-      }
-      [srcId, destId] = ids;
+          if (error) throw error;
+          return data.id as string;
+        },
+      };
+      ({ srcId, destId } = await saveTransferEditLegs(db, {
+        direction,
+        editedId: editingTx.id,
+        linkedId: editingTx.linked_transfer_id ?? null,
+        orgId,
+        date: dateStr,
+        journalEntryId,
+        src: { account_id: sourceWalletId, enc: srcEnc, sig: srcSig },
+        dest: { account_id: destWalletId, enc: destEnc, sig: destSig },
+      }));
     } else {
       // New transfer: insert source, then dest pointing back, then update source
       // with the dest id so the linkage is mutual.
