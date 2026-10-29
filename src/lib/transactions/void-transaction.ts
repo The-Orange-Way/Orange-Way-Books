@@ -7,8 +7,10 @@
  *   2. Create a new journal_entries row with source_type='void_reversal' and
  *      reversal_of_id pointing at the original JE id. Date = current date
  *      (period-lock branching lands when P1 enforcement ships).
- *   3. Insert N+1 reversed journal_entry_lines (debit ↔ credit swapped from
+ *   3. Insert N+1 reversed journal_entry_lines (debit <-> credit swapped from
  *      the original). Encryption + dual-currency via buildJournalEntryLineInsert.
+ *      Rate is pinned from the original line so the reversing entry uses the
+ *      same exchange rate.
  *   4. Flip the original transactions row(s) to encrypted status='VOID'. For
  *      transfer pairs, both linked rows get flipped.
  *   5. (Phase 3 removed the ledger, the reversing posts are now purely client-side.)
@@ -38,7 +40,10 @@ import {
   decryptWallet,
   FIELD_KEY_VERSION,
 } from '@/lib/crypto-fields';
-import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
+import {
+  buildJournalEntryLineInsert,
+  type PinnedRateInput,
+} from '@/lib/exchange/build-je-line-insert';
 // Phase 2 removal: the ledger reversal posting deleted; Postgres reversing JE
 // is the single source of truth.
 import { writeAuditLog } from '@/lib/audit-logger';
@@ -64,7 +69,7 @@ export interface VoidTransactionParams {
   /** transactions.id of the row to void. */
   txId: string;
   orgId: string;
-  /** Org's ledger blind-journal id. Null → skip ledger reversals. */
+  /** Org's ledger blind-journal id. Null -> skip ledger reversals. */
   legacyJournalId: string | null;
   /** Date for the reversing JE. Today's date in YYYY-MM-DD. */
   date: string;
@@ -92,7 +97,7 @@ export interface VoidTransactionResult {
 }
 
 export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTransactionResult> {
-  // ── Phase 1: load original ───────────────────────────────────────────
+  // -- Phase 1: load original ------------------------------------------
   const { data: origTx, error: origTxErr } = await supabase
     .from('transactions')
     .select('*')
@@ -133,13 +138,14 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     throw new Error('Original journal entry has no lines to reverse.');
   }
 
-  // ── Phase 2: decrypt original entries ─────────────────────────────────
+  // -- Phase 2: decrypt original entries --------------------------------
   const origJeDec = await decryptJournalEntry(origJe, p.decryptText);
   const origLineDecs = await Promise.all(
     origLines.map((l: any) =>
       decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
         dec,
         accountId: l.account_id as string,
+        rawLine: l,
       })),
     ),
   );
@@ -157,7 +163,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     signMutation: p.signMutation,
   });
 
-  // ── Phase 3: create reversing JE ──────────────────────────────────────
+  // -- Phase 3: create reversing JE ------------------------------------
   const reversalMemo = `Reversal of ${origJeDec.memo || `tx ${p.txId.slice(0, 8)}`}${
     p.reason ? `: ${p.reason}` : ''
   }`;
@@ -190,12 +196,47 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   if (reversalJeErr) throw reversalJeErr;
   const reversalJeId = (reversalJeRow as any).id;
 
-  // ── Phase 4: insert reversed lines (debit ↔ credit swapped) ───────────
+  // -- Phase 4: insert reversed lines (debit <-> credit swapped) -------
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async ({ dec, accountId }) => {
+    origLineDecs.map(async ({ dec, accountId, rawLine }) => {
+      // Decrypt the encrypted primary_currency_at_posting field so the
+      // reversing line records the same primary currency as the original.
+      const primaryCurrencyAtPosting = rawLine.primary_currency_at_posting
+        ? await p.decryptText(rawLine.primary_currency_at_posting as string)
+        : orgPrimary;
+
+      // Build a PinnedRateInput to replay the original rate exactly.
+      // Fallback: if rate_pending=false but posted_rate is null (rate not
+      // readable), skip pinnedRate and let the resolver run with today's date.
+      let pinnedRate: PinnedRateInput | undefined;
+      if (rawLine.rate_pending) {
+        pinnedRate = {
+          posted_rate: null,
+          pinned_rate_id: null,
+          rate_asof: null,
+          manual_rate_reason: null,
+          manual_rate_source: null,
+          amount_primary: null,
+          rate_pending: true,
+        };
+      } else if (dec.posted_rate != null) {
+        pinnedRate = {
+          posted_rate: dec.posted_rate,
+          pinned_rate_id: (rawLine.pinned_rate_id as string | null) ?? null,
+          rate_asof: (rawLine.rate_asof as string | null) ?? null,
+          manual_rate_reason: (rawLine.manual_rate_reason as string | null) ?? null,
+          manual_rate_source: (rawLine.manual_rate_source as string | null) ?? null,
+          // Sign-flip: the reversing line runs opposite to the original.
+          amount_primary: dec.amount_primary != null ? -dec.amount_primary : null,
+          rate_pending: false,
+        };
+      }
+      // else: rate_pending=false, posted_rate===null -> no pinnedRate,
+      // resolver will run with today's date (existing fallback behavior).
+
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: orgPrimary,
+        primary_currency: primaryCurrencyAtPosting,
         date: p.date,
         debit: dec.credit,
         credit: dec.debit,
@@ -204,6 +245,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
         account_name: dec.account_name,
         account_code: dec.account_code,
         description: `Reversal of: ${dec.description ?? ''}`.trim(),
+        pinnedRate,
         encrypt: p.encryptText,
       });
       return { journal_entry_id: reversalJeId, ...buildRes.insert };
@@ -214,7 +256,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     .insert(reversedLineInserts as any);
   if (reversedLinesErr) throw reversedLinesErr;
 
-  // ── Phase 5: flip original transactions to VOID status ────────────────
+  // -- Phase 5: flip original transactions to VOID status ---------------
   // Phase 4.4: sign the status flip. We compute one signature over the
   // reversal JE id + the void status, then stamp it on each affected row.
   // The verifier reads each row and can reconstruct the same payload bytes.
@@ -240,7 +282,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // already written earlier in this function are now the single source of
   // truth. No external-ledger dual-write required.
 
-  // ── Phase 7: audit ────────────────────────────────────────────────────
+  // -- Phase 7: audit ---------------------------------------------------
   writeAuditLog({
     orgId: p.orgId,
     action: 'VOID',
