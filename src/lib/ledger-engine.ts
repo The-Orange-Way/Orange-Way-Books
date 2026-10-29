@@ -808,13 +808,25 @@ export interface GLEntry {
   credit: number;
   runningBalance: number;
   journalEntryId: string;
+  /**
+   * The row's own currency, set only in wallet mode: a code, or null when the line carries no
+   * currency at all. Left out in every other mode, where rows are in the report currency.
+   */
+  currency?: string | null;
 }
 
+/**
+ * With `walletCurrencies`, each row is in its line's wallet currency (wallet mode). An account
+ * keeps a separate running balance per currency, since a shared account (an expense paid from
+ * two wallets, a transfer clearing account) can hold several. A Bitcoin wallet's rows keep every
+ * satoshi; other currencies round as before. A line with no currency gets its own balance too.
+ */
 export function computeGeneralLedger(
   lines: JournalLine[],
   accounts: AccountInfo[],
   dateRange?: DateRange,
   decimals?: number,
+  walletCurrencies = false,
 ): GLEntry[] {
   const rnd = roundTo(decimals);
   const accountMap = new Map<string, AccountInfo>();
@@ -835,15 +847,38 @@ export function computeGeneralLedger(
     const info = accountMap.get(line.accountId!);
     if (!info) continue;
 
-    const current = runningBalances.get(line.accountId!) || 0;
+    const rowCurrency = walletCurrencies ? line.walletCurrency || line.entryCurrency || null : null;
+    const balanceKey = walletCurrencies
+      ? `${line.accountId}\u0000${rowCurrency?.toUpperCase() ?? ''}`
+      : line.accountId!;
+    const current = runningBalances.get(balanceKey) || 0;
     const delta = isDebitNormal(info.accountType)
       ? (Number(line.debit) || 0) - (Number(line.credit) || 0)
       : (Number(line.credit) || 0) - (Number(line.debit) || 0);
+    if (decimals == null && rowCurrency && isBitcoinCurrency(rowCurrency)) {
+      // Wallet mode, Bitcoin wallet: exact in whole minor units, never cents.
+      const d = currencyDecimals(rowCurrency);
+      const f = 10 ** d;
+      const running = (toMinorUnits(current, d) + toMinorUnits(delta, d)) / f;
+      runningBalances.set(balanceKey, running);
+      entries.push({
+        date: line.date,
+        accountName: info.name,
+        accountCode: info.code,
+        description: line.description,
+        debit: toMinorUnits(Number(line.debit) || 0, d) / f,
+        credit: toMinorUnits(Number(line.credit) || 0, d) / f,
+        runningBalance: running,
+        journalEntryId: line.journalEntryId,
+        currency: rowCurrency,
+      });
+      continue;
+    }
     // A Bitcoin report carries the running balance in whole minor units, so it cannot drift.
     const running =
       decimals == null ? rnd(current + delta) : current + toMinorUnits(delta, decimals);
     const newBalance = decimals == null ? running : running / 10 ** decimals;
-    runningBalances.set(line.accountId!, running);
+    runningBalances.set(balanceKey, running);
 
     entries.push({
       date: line.date,
@@ -854,6 +889,7 @@ export function computeGeneralLedger(
       credit: decimals == null ? Number(line.credit) || 0 : rnd(Number(line.credit) || 0),
       runningBalance: newBalance,
       journalEntryId: line.journalEntryId,
+      ...(walletCurrencies ? { currency: rowCurrency } : {}),
     });
   }
 

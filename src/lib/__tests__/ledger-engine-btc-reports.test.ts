@@ -768,3 +768,81 @@ describe('round 10: exact entry totals and CSV of whole satoshis', () => {
     expect(formatNumericForCsvCell(-12.5)).toBe('-12.5');
   });
 });
+
+describe('wallet-mode General Ledger keeps each wallet in its own currency', () => {
+  const walletLines = [
+    line('w1', 'btc', 0.00000019, { walletCurrency: 'BTC' }),
+    line('w2', 'btc', 0.1, { walletCurrency: 'BTC', date: '2026-03-02' }),
+    line('w3', 'btc', 0.2, { walletCurrency: 'BTC', date: '2026-03-03' }),
+    line('w4', 'cad', 10.005, { walletCurrency: 'CAD' }),
+  ];
+  const gl = (wallet: boolean) =>
+    computeGeneralLedger(walletLines, accounts, undefined, undefined, wallet);
+  const btcRows = (wallet: boolean) => gl(wallet).filter((e) => e.accountName === 'BTC Wallet');
+
+  it('a Bitcoin wallet running balance keeps every satoshi', () => {
+    expect(btcRows(true).map((e) => e.runningBalance)).toEqual([
+      0.00000019, 0.10000019, 0.30000019,
+    ]);
+    expect(btcRows(true).map((e) => e.currency)).toEqual(['BTC', 'BTC', 'BTC']);
+    expect(btcRows(true)[0].debit).toBe(0.00000019);
+  });
+
+  it('a fiat wallet rounds as before and is labelled with its own currency', () => {
+    const cad = gl(true).find((e) => e.accountName === 'CAD Wallet')!;
+    const before = gl(false).find((e) => e.accountName === 'CAD Wallet')!;
+    expect(cad.runningBalance).toBe(before.runningBalance);
+    expect(cad.debit).toBe(before.debit);
+    expect(cad.currency).toBe('CAD');
+  });
+
+  it('negative control: outside wallet mode rows carry no currency and round to cents as before', () => {
+    expect(btcRows(false).map((e) => e.runningBalance)).toEqual([0, 0.1, 0.3]);
+    expect(btcRows(false).every((e) => e.currency === undefined)).toBe(true);
+  });
+
+  it('a CSV of a Bitcoin wallet row in sats keeps the satoshis', () => {
+    const e = btcRows(true)[0];
+    expect(transactionAmountNumericForCsv(e.runningBalance, e.currency ?? 'none', 'sats')).toBe(19);
+  });
+
+  it('an account holding two currencies keeps a separate balance for each', () => {
+    const shared = [
+      line('s1', 'equity', -10, { walletCurrency: 'USD' }),
+      line('s2', 'equity', -0.00000019, { walletCurrency: 'BTC', date: '2026-03-02' }),
+      line('s3', 'equity', -5, { walletCurrency: 'USD', date: '2026-03-03' }),
+    ];
+    const rows = computeGeneralLedger(shared, accounts, undefined, undefined, true);
+    expect(rows.map((e) => [e.currency, e.runningBalance])).toEqual([
+      ['USD', 10],
+      ['BTC', 0.00000019],
+      ['USD', 15],
+    ]);
+  });
+
+  it('a line with no currency is marked unknown and kept apart from known balances', () => {
+    const mixed = [
+      line('u1', 'cad', 7, { walletCurrency: 'CAD' }),
+      line('u2', 'cad', 3, { date: '2026-03-02' }),
+      line('u3', 'cad', 1, { walletCurrency: 'CAD', date: '2026-03-03' }),
+    ];
+    const rows = computeGeneralLedger(mixed, accounts, undefined, undefined, true);
+    expect(rows.map((e) => [e.currency, e.runningBalance])).toEqual([
+      ['CAD', 7],
+      [null, 3],
+      ['CAD', 8],
+    ]);
+  });
+
+  it('a SATS wallet keeps whole satoshis', () => {
+    const sats = [
+      line('t1', 'btc', 19, { walletCurrency: 'SATS' }),
+      line('t2', 'btc', 1, { walletCurrency: 'SATS', date: '2026-03-02' }),
+    ];
+    const rows = computeGeneralLedger(sats, accounts, undefined, undefined, true);
+    expect(rows.map((e) => [e.currency, e.runningBalance])).toEqual([
+      ['SATS', 19],
+      ['SATS', 20],
+    ]);
+  });
+});
