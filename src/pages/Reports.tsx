@@ -80,6 +80,7 @@ import {
   type DateRange,
   type ReportSection as LedgerReportSection,
   type AccountBalance,
+  reportDifference,
 } from '@/lib/ledger-engine';
 import {
   buildAccountClosureFromList,
@@ -1345,13 +1346,14 @@ function ComparisonPnl({
   priorData: PnLData;
   currency: string;
 }) {
+  const diff = (a: number, b: number) => reportDifference(a, b, currency);
   const renderSection = (current: PnLData['income'], prior: PnLData['income']) => {
     // Match by account id: two accounts may share a name.
     const names = new Map([...prior.rows, ...current.rows].map((r) => [r.accountId, r.name]));
     return Array.from(names, ([id, name]) => {
       const cur = current.rows.find((r) => r.accountId === id)?.balance ?? 0;
       const pri = prior.rows.find((r) => r.accountId === id)?.balance ?? 0;
-      const variance = cur - pri;
+      const variance = diff(cur, pri);
       const pct = pri !== 0 ? ((variance / Math.abs(pri)) * 100).toFixed(1) : '—';
       return { id, name, cur, pri, variance, pct };
     });
@@ -1416,18 +1418,18 @@ function ComparisonPnl({
                 <TableCell
                   className={cn(
                     'text-right font-mono text-sm',
-                    cur.total - pri.total > 0
+                    diff(cur.total, pri.total) > 0
                       ? 'text-green-600'
-                      : cur.total - pri.total < 0
+                      : diff(cur.total, pri.total) < 0
                         ? 'text-red-600'
                         : '',
                   )}
                 >
-                  {fmtMoney(cur.total - pri.total, currency)}
+                  {fmtMoney(diff(cur.total, pri.total), currency)}
                 </TableCell>
                 <TableCell className="text-right text-xs">
                   {pri.total !== 0
-                    ? `${(((cur.total - pri.total) / Math.abs(pri.total)) * 100).toFixed(1)}%`
+                    ? `${((diff(cur.total, pri.total) / Math.abs(pri.total)) * 100).toFixed(1)}%`
                     : '—'}
                 </TableCell>
               </TableRow>
@@ -1444,14 +1446,14 @@ function ComparisonPnl({
             <TableCell
               className={cn(
                 'text-right font-mono',
-                data.netProfit - priorData.netProfit > 0 ? 'text-green-600' : 'text-red-600',
+                diff(data.netProfit, priorData.netProfit) > 0 ? 'text-green-600' : 'text-red-600',
               )}
             >
-              {fmtMoney(data.netProfit - priorData.netProfit, currency)}
+              {fmtMoney(diff(data.netProfit, priorData.netProfit), currency)}
             </TableCell>
             <TableCell className="text-right text-xs">
               {priorData.netProfit !== 0
-                ? `${(((data.netProfit - priorData.netProfit) / Math.abs(priorData.netProfit)) * 100).toFixed(1)}%`
+                ? `${((diff(data.netProfit, priorData.netProfit) / Math.abs(priorData.netProfit)) * 100).toFixed(1)}%`
                 : '—'}
             </TableCell>
           </TableRow>
@@ -1476,6 +1478,7 @@ function ComparisonBalanceSheet({
   priorData: BSData;
   currency: string;
 }) {
+  const diff = (a: number, b: number) => reportDifference(a, b, currency);
   const renderSection = (curSection: BSData['assets'], priSection: BSData['assets']) => {
     // Match by account id: two accounts may share a name.
     const names = new Map(
@@ -1484,7 +1487,7 @@ function ComparisonBalanceSheet({
     return Array.from(names, ([id, name]) => {
       const cur = curSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
       const pri = priSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
-      return { id, name, cur, pri, variance: cur - pri };
+      return { id, name, cur, pri, variance: diff(cur, pri) };
     });
   };
 
@@ -1547,14 +1550,14 @@ function ComparisonBalanceSheet({
                 <TableCell
                   className={cn(
                     'text-right font-mono text-sm',
-                    cur.total - pri.total > 0
+                    diff(cur.total, pri.total) > 0
                       ? 'text-green-600'
-                      : cur.total - pri.total < 0
+                      : diff(cur.total, pri.total) < 0
                         ? 'text-red-600'
                         : '',
                   )}
                 >
-                  {fmtMoney(cur.total - pri.total, currency)}
+                  {fmtMoney(diff(cur.total, pri.total), currency)}
                 </TableCell>
               </TableRow>
             </Fragment>

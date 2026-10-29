@@ -116,10 +116,11 @@ export function buildReportHierarchyRoots(
   if (leafLines.length === 0) {
     return [];
   }
-  // With `decimals` (a Bitcoin report) subtotals add whole minor units, so they cannot drift.
+  // With `decimals` (a Bitcoin report) subtotals are kept in whole minor units at every level and
+  // scaled once for display, so they cannot drift.
   const unit = 10 ** (decimals ?? 0);
-  const add = (a: number, b: number) =>
-    decimals == null ? a + b : (Math.round(a * unit) + Math.round(b * unit)) / unit;
+  const toUnits = (n: number) => Math.round(n * unit);
+  const rollupUnits = new Map<string, { now: number; prev: number | undefined }>();
 
   const ownById = mergeOwnById(leafLines);
   const allowedIds = collectAllowedIds(ownById, closure, includeRow);
@@ -162,17 +163,28 @@ export function buildReportHierarchyRoots(
     const ownPrevPrimary = own?.prevPrimaryAmount;
 
     let rollupPrimary = ownPrimary;
-    for (const c of children) {
-      rollupPrimary = add(rollupPrimary, c.rollupPrimaryAmount);
-    }
-
     let rollupPrevPrimary: number | undefined;
     const childPrevPieces = children.map((c) => c.rollupPrevPrimaryAmount);
-    if (ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined)) {
-      rollupPrevPrimary =
-        decimals == null
-          ? (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0)
-          : childPrevPieces.reduce<number>((sum, v) => add(sum, v ?? 0), ownPrevPrimary ?? 0);
+    const hasPrev = ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined);
+    if (decimals == null) {
+      for (const c of children) {
+        rollupPrimary += c.rollupPrimaryAmount;
+      }
+      if (hasPrev) {
+        rollupPrevPrimary =
+          (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+      }
+    } else {
+      let now = toUnits(ownPrimary);
+      let prev = toUnits(ownPrevPrimary ?? 0);
+      for (const c of children) {
+        const u = rollupUnits.get(c.accountId)!;
+        now += u.now;
+        prev += u.prev ?? 0;
+      }
+      rollupUnits.set(accountId, { now, prev: hasPrev ? prev : undefined });
+      rollupPrimary = now / unit;
+      if (hasPrev) rollupPrevPrimary = prev / unit;
     }
 
     const rollupNative = rollupPrimary;

@@ -166,6 +166,16 @@ export function isBitcoinCurrency(currency: string | null | undefined): boolean 
   return c === 'BTC' || c === 'SATS' || c === 'SAT';
 }
 
+/**
+ * a - b for a comparison column. In a Bitcoin unit the difference is taken in whole minor units so a
+ * satoshi is never lost; every other currency subtracts as before.
+ */
+export function reportDifference(a: number, b: number, currency: string): number {
+  if (!isBitcoinCurrency(currency)) return a - b;
+  const f = 10 ** currencyDecimals(currency);
+  return (Math.round(a * f) - Math.round(b * f)) / f;
+}
+
 /** Decimal places a report in `currency` is kept to: 8 for BTC, 0 for sats, else the ISO minor unit. */
 export function currencyDecimals(currency: string): number {
   const c = currency.toUpperCase();

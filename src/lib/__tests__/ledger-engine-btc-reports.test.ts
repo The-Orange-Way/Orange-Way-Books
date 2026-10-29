@@ -10,6 +10,7 @@ import {
   countExcludedInRange,
   currencyDecimals,
   prepareReportLines,
+  reportDifference,
 } from '../ledger-engine';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
 import { printCellText } from '../reports/print-cell-text';
@@ -575,5 +576,53 @@ describe('round 6: account rows and chart subtotals add whole satoshis', () => {
     // Negative control: the same subtotal without decimals is the floating-point sum.
     const plain = buildReportHierarchyRoots(leaves, closure, () => true, 'BTC');
     expect(plain[0].rollupPrimaryAmount).not.toBe(101000);
+  });
+});
+
+describe('round 7: chart subtotals and comparison differences stay in whole satoshis', () => {
+  const parentOf = (amounts: number[], prev?: number[]) => {
+    const closure = new Map<string, CoaClosureRow>([
+      ['p', { id: 'p', parentId: null, name: 'Assets', code: '1', accountType: 'ASSET' }],
+    ]);
+    const leaves = amounts.map((a, k) => {
+      closure.set(`c${k}`, {
+        id: `c${k}`,
+        parentId: 'p',
+        name: `C${k}`,
+        code: `1${k}`,
+        accountType: 'ASSET',
+      });
+      return {
+        accountId: `c${k}`,
+        accountName: `C${k}`,
+        accountCode: `1${k}`,
+        primaryAmount: a,
+        nativeAmount: a,
+        nativeCurrency: 'BTC',
+        ...(prev ? { prevPrimaryAmount: prev[k] } : {}),
+      };
+    });
+    return buildReportHierarchyRoots(leaves, closure, () => true, 'BTC', 8)[0];
+  };
+  const big = [17000000, 17000000.00000019, -17000000, -17000000];
+
+  it('four large children netting to 19 sats give a 19 sat parent, now and prior', () => {
+    const p = parentOf(big, big);
+    expect(p.rollupPrimaryAmount).toBe(0.00000019);
+    expect(p.rollupPrevPrimaryAmount).toBe(0.00000019);
+  });
+
+  it('negative control: rounding each partial sum to BTC and back gives 20 sats', () => {
+    const u = 1e8;
+    const add = (a: number, b: number) => (Math.round(a * u) + Math.round(b * u)) / u;
+    expect(big.reduce(add, 0)).toBe(0.0000002);
+  });
+
+  it('a Bitcoin variance keeps the last satoshi; a fiat variance subtracts as before', () => {
+    expect(reportDifference(20000000, -20000000.00000002, 'BTC')).toBe(40000000.00000002);
+    expect(reportDifference(20000000, -20000000.00000002, 'BTC')).not.toBe(
+      20000000 - -20000000.00000002,
+    );
+    expect(reportDifference(10.1, 3.3, 'USD')).toBe(10.1 - 3.3);
   });
 });
