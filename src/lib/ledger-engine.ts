@@ -99,15 +99,22 @@ export function balanceSheetRange(range?: DateRange): DateRange | undefined {
   return range?.to ? { to: range.to } : undefined;
 }
 
+/** Local calendar day of `d` as yyyy-MM-dd. */
+function localDay(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Whether an entry dated `dateStr` (yyyy-MM-dd) falls in `range`, both ends inclusive. Compares
+ * calendar days: parsing a date-only string gives UTC midnight, which west of UTC is the day before.
+ */
 export function journalLineInDateRange(dateStr: string, range?: DateRange): boolean {
   if (!range) return true;
-  const d = new Date(dateStr);
-  if (range.from && d < range.from) return false;
-  if (range.to) {
-    const to = new Date(range.to);
-    to.setHours(23, 59, 59, 999);
-    if (d > to) return false;
-  }
+  const day = dateStr.slice(0, 10);
+  if (range.from && day < localDay(range.from)) return false;
+  if (range.to && day > localDay(range.to)) return false;
   return true;
 }
 

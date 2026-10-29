@@ -1362,7 +1362,7 @@ function ComparisonPnl({
             { cur: data.income, pri: priorData.income },
             { cur: data.expenses, pri: priorData.expenses },
           ].map(({ cur, pri }) => (
-            <>
+            <Fragment key={cur.header}>
               <TableRow key={cur.header} style={{ background: 'var(--color-gray-50)' }}>
                 <TableCell colSpan={5} className="font-semibold text-sm">
                   {cur.header}
@@ -1415,7 +1415,7 @@ function ComparisonPnl({
                     : '—'}
                 </TableCell>
               </TableRow>
-            </>
+            </Fragment>
           ))}
           <TableRow className="font-bold border-t-2">
             <TableCell>Net Profit</TableCell>
@@ -1495,7 +1495,7 @@ function ComparisonBalanceSheet({
         </TableHeader>
         <TableBody>
           {sections.map(({ cur, pri }) => (
-            <>
+            <Fragment key={cur.header}>
               <TableRow key={cur.header} style={{ background: 'var(--color-gray-50)' }}>
                 <TableCell colSpan={4} className="font-semibold text-sm">
                   {cur.header}
@@ -1541,7 +1541,7 @@ function ComparisonBalanceSheet({
                   {fmtMoney(cur.total - pri.total, currency)}
                 </TableCell>
               </TableRow>
-            </>
+            </Fragment>
           ))}
         </TableBody>
       </Table>
