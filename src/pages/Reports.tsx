@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { effectiveReportCurrencyMode } from '@/lib/reports/effective-currency-mode';
+import { printCellText } from '@/lib/reports/print-cell-text';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { formatCrypto, formatFiat } from '@/lib/formatters';
 import { useVault } from '@/context/VaultContext';
@@ -1000,6 +1001,7 @@ async function printReport(
   cfData: CFData,
   activityEntries: ActivityEntry[],
   reportingNote?: string,
+  decimals?: number,
 ): Promise<void> {
   let headers: string[] = [];
   const rows: (string | number)[][] = [];
@@ -1091,7 +1093,7 @@ async function printReport(
       const cells = row
         .map((cell, index) => {
           const header = headers[index] ?? '';
-          return `<td class="${isNumericHeader(header) ? 'td-num' : index === 0 ? 'td-first' : ''}">${escapeHtml(String(cell ?? ''))}</td>`;
+          return `<td class="${isNumericHeader(header) ? 'td-num' : index === 0 ? 'td-first' : ''}">${escapeHtml(printCellText(cell, decimals))}</td>`;
         })
         .join('');
       return `<tr class="${rowClass}">${cells}</tr>`;
@@ -2334,6 +2336,7 @@ export default function Reports() {
                 ]
                   .filter(Boolean)
                   .join(' ') || undefined,
+                reportDecimals,
               ).catch(() => {
                 alert('Could not prepare the print preview. Try again.');
               });

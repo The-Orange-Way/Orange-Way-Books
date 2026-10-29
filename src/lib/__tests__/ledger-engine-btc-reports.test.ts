@@ -12,6 +12,7 @@ import {
   prepareReportLines,
 } from '../ledger-engine';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
+import { printCellText } from '../reports/print-cell-text';
 
 // A BTC-primary company with a BTC wallet and a CAD wallet.
 const accounts: AccountInfo[] = [
@@ -247,5 +248,15 @@ describe('the currency mode a report is really in', () => {
     expect(effectiveReportCurrencyMode('secondary', 'pnl', false)).toBe('primary');
     expect(effectiveReportCurrencyMode('secondary', 'pnl', true)).toBe('secondary');
     expect(effectiveReportCurrencyMode('primary', 'pnl', true)).toBe('primary');
+  });
+});
+
+describe('printed Bitcoin amounts', () => {
+  it('50 sats prints as a plain decimal, not 5e-7', () => {
+    expect(printCellText(0.0000005, 8)).toBe('0.00000050');
+    expect(printCellText(1201, 0)).toBe('1201');
+    expect(printCellText('Total Assets', 8)).toBe('Total Assets');
+    // Negative control: the old String() print gives exponent form.
+    expect(printCellText(0.0000005)).toBe('5e-7');
   });
 });
