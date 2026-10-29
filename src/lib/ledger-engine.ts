@@ -29,6 +29,10 @@ export interface JournalLine {
   walletCurrency?: string | null;
   primaryCurrencyAtPosting?: string | null;
   ratePending?: boolean;
+  /** The currency of the line's journal entry; the only currency an old imported line carries. */
+  entryCurrency?: string | null;
+  /** The entry this line's entry reverses or voids, if any. */
+  reversalOfId?: string | null;
 }
 
 /**
@@ -183,8 +187,9 @@ export function lineExclusionReason(
     return 'other-primary';
   }
   if (line.amountPrimary != null) return null;
-  if (!line.walletCurrency) return 'unknown-currency';
-  return line.walletCurrency.toUpperCase() === primary ? null : 'awaiting-rate';
+  const currency = line.walletCurrency || line.entryCurrency;
+  if (!currency) return 'unknown-currency';
+  return currency.toUpperCase() === primary ? null : 'awaiting-rate';
 }
 
 /** An entry left out of a report, with its date so a report can count only those in its period. */
@@ -196,15 +201,21 @@ export interface ExcludedEntry {
 
 /**
  * Lines ready for a primary or secondary currency report in a Bitcoin company. Whole entries with a
- * line that cannot be valued are left out, so totals still balance, and listed in `excluded`.
+ * line that cannot be valued are left out, so totals still balance, and listed in `excluded`. An
+ * entry that reverses a left-out entry is left out with it (and the other way round), so a reversal
+ * never shows on its own.
  * Every kept line is rewritten so its debit and credit are its primary amount, times `rate` when a
  * secondary display rate is given. The General Ledger and the drill-down rows read debit and
  * credit, so they then show the same amounts as the balances.
+ * With `decimals`, each kept amount is rounded to the smallest unit shown, and any unit lost to
+ * rounding inside an entry is given back to the line that lost the most, so every entry still
+ * balances and every row, subtotal and total adds up exactly to what is displayed.
  */
 export function prepareReportLines(
   lines: JournalLine[],
   primaryCurrency: string,
   rate: number | null,
+  decimals?: number,
 ): { lines: JournalLine[]; excluded: ExcludedEntry[] } {
   const excluded = new Map<string, ExcludedEntry>();
   for (const l of lines) {
@@ -213,26 +224,83 @@ export function prepareReportLines(
       excluded.set(l.journalEntryId, { journalEntryId: l.journalEntryId, date: l.date, reason });
     }
   }
+  // A reversal and the entry it reverses stay or go together.
+  const pairs: [string, string, string][] = [];
+  for (const l of lines) {
+    if (l.reversalOfId) pairs.push([l.journalEntryId, l.reversalOfId, l.date]);
+  }
+  const dateOf = new Map(lines.map((l) => [l.journalEntryId, l.date]));
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [rev, orig, revDate] of pairs) {
+      const gone = excluded.get(rev) ?? excluded.get(orig);
+      if (!gone) continue;
+      if (!excluded.has(rev)) {
+        excluded.set(rev, { journalEntryId: rev, date: revDate, reason: gone.reason });
+        changed = true;
+      }
+      if (!excluded.has(orig) && dateOf.has(orig)) {
+        excluded.set(orig, { journalEntryId: orig, date: dateOf.get(orig)!, reason: gone.reason });
+        changed = true;
+      }
+    }
+  }
   const k = rate ?? 1;
+  const kept = lines.filter((l) => !excluded.has(l.journalEntryId));
+  const amounts = kept.map((l) => primaryAmount(l) * k);
+  if (decimals != null) roundWithinEntries(kept, amounts, decimals);
   return {
-    lines: lines
-      .filter((l) => !excluded.has(l.journalEntryId))
-      .map((l) => {
-        const amt = primaryAmount(l) * k;
-        return {
-          ...l,
-          debit: amt > 0 ? amt : 0,
-          credit: amt < 0 ? -amt : 0,
-          amountPrimary: amt,
-        };
-      }),
+    lines: kept.map((l, i) => {
+      const amt = amounts[i];
+      return { ...l, debit: amt > 0 ? amt : 0, credit: amt < 0 ? -amt : 0, amountPrimary: amt };
+    }),
     excluded: [...excluded.values()],
   };
 }
 
+/**
+ * Rounds `amounts` in place to `decimals`, entry by entry. Within an entry the rounded amounts are
+ * made to sum to the rounded sum of the exact amounts, by moving the leftover units to the lines
+ * whose rounding moved them furthest.
+ */
+function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: number): void {
+  const f = 10 ** decimals;
+  const byEntry = new Map<string, number[]>();
+  lines.forEach((l, i) => {
+    const idx = byEntry.get(l.journalEntryId);
+    if (idx) idx.push(i);
+    else byEntry.set(l.journalEntryId, [i]);
+  });
+  for (const idx of byEntry.values()) {
+    const exact = idx.map((i) => amounts[i] * f);
+    const units = exact.map((u) => Math.round(u));
+    let leftover = Math.round(exact.reduce((s, u) => s + u, 0)) - units.reduce((s, u) => s + u, 0);
+    const order = idx
+      .map((_, j) => j)
+      .sort((a, b) =>
+        leftover > 0
+          ? exact[b] - units[b] - (exact[a] - units[a])
+          : exact[a] - units[a] - (exact[b] - units[b]),
+      );
+    for (let n = 0; leftover !== 0 && n < order.length; n++) {
+      const step = leftover > 0 ? 1 : -1;
+      units[order[n]] += step;
+      leftover -= step;
+    }
+    idx.forEach((i, j) => {
+      amounts[i] = units[j] / f;
+    });
+  }
+}
+
+/** The excluded entries that fall inside `range`. */
+export function excludedInRange(excluded: ExcludedEntry[], range?: DateRange): ExcludedEntry[] {
+  return excluded.filter((e) => journalLineInDateRange(e.date, range));
+}
+
 /** How many excluded entries fall inside `range`. */
 export function countExcludedInRange(excluded: ExcludedEntry[], range?: DateRange): number {
-  return excluded.filter((e) => journalLineInDateRange(e.date, range)).length;
+  return excludedInRange(excluded, range).length;
 }
 
 // ---------------------------------------------------------------------------

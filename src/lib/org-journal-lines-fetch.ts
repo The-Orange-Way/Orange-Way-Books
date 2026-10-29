@@ -26,7 +26,9 @@ export async function fetchOrgJournalLines<T = Record<string, unknown>>(
   for (;;) {
     const { data, error } = await client
       .from('journal_entry_lines')
-      .select('*, journal_entries!inner(date, org_id)')
+      .select(
+        '*, journal_entries!inner(date, org_id, reversal_of_id, encrypted_currency, key_version)',
+      )
       .eq('journal_entries.org_id', orgId)
       .order('id', { ascending: true })
       .range(rows.length, rows.length + pageSize - 1);

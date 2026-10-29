@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { effectiveReportCurrencyMode } from '@/lib/reports/effective-currency-mode';
+import { excludedEntriesNote } from '@/lib/reports/excluded-note';
 import { printCellText } from '@/lib/reports/print-cell-text';
 import { useUserOrg } from '@/hooks/useUserOrg';
 import { formatCrypto, formatFiat } from '@/lib/formatters';
@@ -58,7 +59,7 @@ import type { BitcoinDisplay } from '@/types';
 import {
   balanceSheetRange,
   computeAccountBalances,
-  countExcludedInRange,
+  excludedInRange,
   currencyDecimals,
   isBitcoinCurrency,
   prepareReportLines,
@@ -1731,6 +1732,18 @@ export default function Reports() {
       }
 
       const rawLines = (jeRes.data as any[]) ?? [];
+      // An old imported line carries no currency of its own; its entry's currency is the one.
+      const entryCurrencies = new Map<string, Promise<string | null>>();
+      const entryCurrency = (l: any): Promise<string | null> => {
+        const je = l.journal_entries;
+        if (!je?.encrypted_currency) return Promise.resolve(null);
+        let c = entryCurrencies.get(l.journal_entry_id);
+        if (!c) {
+          c = decryptText(je.encrypted_currency).catch(() => null);
+          entryCurrencies.set(l.journal_entry_id, c);
+        }
+        return c;
+      };
       const decryptedLines = await Promise.all(
         rawLines.map(async (l: any) => {
           const fields = await decryptJournalEntryLine(l, decryptText);
@@ -1747,8 +1760,10 @@ export default function Reports() {
             amountNative: fields.amount_native ?? null,
             amountPrimary: fields.amount_primary ?? null,
             walletCurrency: fields.wallet_currency ?? null,
-            primaryCurrencyAtPosting: l.primary_currency_at_posting ?? null,
+            primaryCurrencyAtPosting: fields.primary_currency_at_posting ?? null,
             ratePending: l.rate_pending ?? false,
+            entryCurrency: fields.wallet_currency ? null : await entryCurrency(l),
+            reversalOfId: l.journal_entries?.reversal_of_id ?? null,
           };
         }),
       );
@@ -1858,6 +1873,11 @@ export default function Reports() {
     effectiveMode !== 'wallet' &&
     (isBitcoinCurrency(primaryCurrency) ||
       (secondaryActive && isBitcoinCurrency(secondaryCurrency)));
+  const reportDecimals = bitcoinReport
+    ? currencyDecimals(
+        effectiveMode === 'secondary' && secondaryCurrency ? secondaryCurrency : primaryCurrency,
+      )
+    : undefined;
   const { lines: reportLines, excluded: excludedEntries } = useMemo(() => {
     let lines = journalLines;
     if (!showFxReval && revalJeIds.size > 0) {
@@ -1868,6 +1888,7 @@ export default function Reports() {
         lines,
         primaryCurrency,
         effectiveMode === 'secondary' ? secondaryDisplayRate : null,
+        reportDecimals,
       );
     }
     if (effectiveMode !== 'secondary' || secondaryDisplayRate == null) {
@@ -1889,12 +1910,8 @@ export default function Reports() {
     secondaryDisplayRate,
     showFxReval,
     revalJeIds,
+    reportDecimals,
   ]);
-  const reportDecimals = bitcoinReport
-    ? currencyDecimals(
-        effectiveMode === 'secondary' && secondaryCurrency ? secondaryCurrency : primaryCurrency,
-      )
-    : undefined;
 
   // Compute report data via ledger engine
   const balances = useMemo(
@@ -1925,7 +1942,8 @@ export default function Reports() {
     return {
       viewMode: reportViewMode,
       closure: accountClosure,
-      journalLines: reportLines,
+      // Fiat reports drill into the stored lines as before; a Bitcoin report into its prepared lines.
+      journalLines: bitcoinReport ? reportLines : journalLines,
       dateRange: engineDateRange,
       drillAccountId,
       onToggleDrill: (id) => setDrillAccountId((prev) => (prev === id ? null : id)),
@@ -1935,7 +1953,9 @@ export default function Reports() {
     showPriorPeriod,
     reportViewMode,
     accountClosure,
+    bitcoinReport,
     reportLines,
+    journalLines,
     engineDateRange,
     drillAccountId,
     primaryCurrency,
@@ -2034,7 +2054,7 @@ export default function Reports() {
   // Entries left out of this report, counted for its own period (a Balance Sheet: up to its date).
   const excludedNow = useMemo(
     () =>
-      countExcludedInRange(
+      excludedInRange(
         excludedEntries,
         activeReport === 'balance-sheet' ? balanceSheetRange(engineDateRange) : engineDateRange,
       ),
@@ -2043,21 +2063,20 @@ export default function Reports() {
   const excludedPrior = useMemo(
     () =>
       showPriorPeriod
-        ? countExcludedInRange(
+        ? excludedInRange(
             excludedEntries,
             activeReport === 'balance-sheet'
               ? balanceSheetRange(priorEngineDateRange)
               : priorEngineDateRange,
           )
-        : 0,
+        : null,
     [excludedEntries, activeReport, priorEngineDateRange, showPriorPeriod],
   );
+  // The Activity Log lists every entry, so it has no totals to leave anything out of.
   const excludedNote =
-    excludedNow + excludedPrior > 0
-      ? `${excludedNow} ${excludedNow === 1 ? 'entry is' : 'entries are'} not in these totals` +
-        (showPriorPeriod ? ` (${excludedPrior} in the prior period)` : '') +
-        ` because ${primaryCurrency} amounts are not known for them yet.`
-      : null;
+    activeReport === 'activity-log'
+      ? null
+      : excludedEntriesNote(excludedNow, excludedPrior, displayCurrency);
 
   // Boundary detection — does the active date range cross a primary-currency change?
   const boundaryResult = useMemo(() => {
@@ -2419,7 +2438,7 @@ export default function Reports() {
           className="mb-3 px-3 py-2 rounded-lg text-xs"
           style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
         >
-          <strong>Waiting for exchange rates:</strong> {excludedNote}
+          <strong>Not in these totals:</strong> {excludedNote}
         </div>
       )}
       {!dataLoading && currencyMode === 'secondary' && !secondaryActive && (

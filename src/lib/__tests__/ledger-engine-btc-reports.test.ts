@@ -13,6 +13,8 @@ import {
 } from '../ledger-engine';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
 import { printCellText } from '../reports/print-cell-text';
+import { excludedEntriesNote } from '../reports/excluded-note';
+import { decryptJournalEntryLine } from '../crypto-fields';
 
 // A BTC-primary company with a BTC wallet and a CAD wallet.
 const accounts: AccountInfo[] = [
@@ -258,5 +260,119 @@ describe('printed Bitcoin amounts', () => {
     expect(printCellText('Total Assets', 8)).toBe('Total Assets');
     // Negative control: the old String() print gives exponent form.
     expect(printCellText(0.0000005)).toBe('5e-7');
+  });
+});
+
+describe('old imported entries and their reversals', () => {
+  // An imported line from before dual currency: no line currency, the entry carries it.
+  const orig = [
+    line('old', 'btc', 0.5, { entryCurrency: 'BTC' }),
+    line('old', 'equity', -0.5, { entryCurrency: 'BTC' }),
+  ];
+  const rev = [
+    line('rev', 'btc', -0.5, { amountPrimary: -0.5, walletCurrency: 'BTC', reversalOfId: 'old' }),
+    line('rev', 'equity', 0.5, { amountPrimary: 0.5, walletCurrency: 'BTC', reversalOfId: 'old' }),
+  ];
+  const btcBalance = (ls: JournalLine[]) =>
+    computeAccountBalances(ls, accounts, undefined, 8).find((b) => b.accountId === 'btc')
+      ?.balance ?? 0;
+
+  it("uses the entry's currency: a BTC entry is kept and nets to zero with its reversal", () => {
+    const r = prepareReportLines([...orig, ...rev], 'BTC', null, 8);
+    expect(r.excluded).toEqual([]);
+    expect(btcBalance(r.lines)).toBe(0);
+  });
+
+  it('a reversal of a left-out entry is left out with it', () => {
+    const usdOrig = orig.map((l) => ({ ...l, entryCurrency: 'USD' }));
+    const r = prepareReportLines([...usdOrig, ...rev], 'BTC', null, 8);
+    expect(r.excluded.map((e) => e.journalEntryId).sort()).toEqual(['old', 'rev']);
+    expect(btcBalance(r.lines)).toBe(0);
+  });
+
+  it('negative control: without the entry currency or the reversal link it shows -0.5 BTC', () => {
+    const bare = orig.map((l) => ({ ...l, entryCurrency: null }));
+    const unlinked = rev.map((l) => ({ ...l, reversalOfId: null }));
+    const r = prepareReportLines([...bare, ...unlinked], 'BTC', null, 8);
+    expect(r.excluded.map((e) => e.reason)).toEqual(['unknown-currency']);
+    expect(btcBalance(r.lines)).toBe(-0.5);
+  });
+});
+
+describe('rows add up to the totals shown', () => {
+  const sats = [
+    line('a', 'btc', 600.6, { amountPrimary: 600.6 }),
+    line('a', 'equity', -600.6, { amountPrimary: -600.6 }),
+    line('b', 'btc', 600.6, { amountPrimary: 600.6 }),
+    line('b', 'equity', -600.6, { amountPrimary: -600.6 }),
+  ];
+
+  it('sats: rows 601 + 601 and the total 1202', () => {
+    const r = prepareReportLines(sats, 'SATS', null, 0);
+    const gl = computeGeneralLedger(r.lines, accounts, undefined, 0);
+    expect(gl.filter((g) => g.accountName === 'BTC Wallet').map((g) => g.debit)).toEqual([
+      601, 601,
+    ]);
+    const tb = computeTrialBalance(computeAccountBalances(r.lines, accounts, undefined, 0), 0);
+    expect([tb.totalDebits, tb.isBalanced]).toEqual([1202, true]);
+  });
+
+  it('an entry split three ways still balances to the satoshi', () => {
+    const third = 1 / 3;
+    const split = [
+      line('s', 'btc', 1, { amountPrimary: 1 }),
+      line('s', 'equity', -third, { amountPrimary: -third }),
+      line('s', 'equity', -third, { amountPrimary: -third }),
+      line('s', 'cad', -third, { amountPrimary: -third }),
+    ];
+    const r = prepareReportLines(split, 'BTC', null, 8);
+    const units = r.lines.map((l) => Math.round((l.debit - l.credit) * 1e8));
+    expect(units.reduce((a, b) => a + b, 0)).toBe(0);
+    const tb = computeTrialBalance(computeAccountBalances(r.lines, accounts, undefined, 8), 8);
+    expect(tb.isBalanced).toBe(true);
+    const shown = tb.rows.reduce((s, row) => s + Math.round(row.debit * 1e8), 0);
+    expect(shown).toBe(Math.round(tb.totalDebits * 1e8));
+  });
+
+  it('negative control: without rounding inside entries the rows do not foot', () => {
+    const r = prepareReportLines(sats, 'SATS', null);
+    const tb = computeTrialBalance(computeAccountBalances(r.lines, accounts, undefined, 0), 0);
+    expect(Math.round(tb.totalDebits)).toBe(1201); // rows show 601 + 601
+  });
+});
+
+describe('the note about left-out entries', () => {
+  const e = (id: string, reason: 'awaiting-rate' | 'other-primary' | 'unknown-currency') => ({
+    journalEntryId: id,
+    date: '2026-03-01',
+    reason,
+  });
+  it('says why, per reason', () => {
+    expect(
+      excludedEntriesNote([e('a', 'awaiting-rate'), e('b', 'unknown-currency')], null, 'BTC'),
+    ).toBe(
+      '2 entries are not in these BTC totals: 1 waiting for an exchange rate, 1 has no currency recorded.',
+    );
+    expect(excludedEntriesNote([], [e('c', 'other-primary')], 'BTC')).toBe(
+      '0 entries are not in these BTC totals (1 in the prior period): 1 posted under an earlier primary currency.',
+    );
+  });
+  it('is empty when nothing is left out', () => {
+    expect(excludedEntriesNote([], null, 'BTC')).toBeNull();
+    expect(excludedEntriesNote([], [], 'BTC')).toBeNull();
+  });
+});
+
+describe('reading the posting currency back', () => {
+  it('decrypts encrypted_primary_currency_at_posting', async () => {
+    const dec = async (v: string) => v.replace(/^enc:/, '');
+    const f = await decryptJournalEntryLine(
+      { key_version: 2, encrypted_primary_currency_at_posting: 'enc:USD' },
+      dec,
+    );
+    expect(f.primary_currency_at_posting).toBe('USD');
+    // Negative control: the plaintext column this page used to read does not exist on the row.
+    const row: Record<string, unknown> = { encrypted_primary_currency_at_posting: 'enc:USD' };
+    expect(row.primary_currency_at_posting).toBeUndefined();
   });
 });
