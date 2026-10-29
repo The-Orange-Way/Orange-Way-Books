@@ -98,6 +98,7 @@ import { fetchBrandLogoDataUri } from '@/lib/exports/fetch-brand-logo';
 import { formatNumericForCsvCell } from '@/lib/exports/format-numeric-csv';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
+import { glWalletCsvCell } from '@/lib/reports/gl-wallet-csv';
 import { reportPrintReportingNote } from '@/lib/reports/report-print-reporting-note';
 import { auditFooterCsv } from '@/lib/reports/audit-footer';
 import type { AuditFramework, FxTranslationMethod } from '@/lib/reports/audit-footer';
@@ -211,6 +212,19 @@ function fmtMoney(amount: number, currency: string = 'USD'): string {
   if (c === 'BTC') return formatCrypto(amount, 'btc');
   if (c === 'SATS' || c === 'SAT') return `${Math.round(amount).toLocaleString('en-US')} sats`;
   return formatFiat(amount, currency);
+}
+
+/** A General Ledger amount in its row's own currency (wallet mode), else the report currency. */
+function fmtGlAmount(
+  amount: number,
+  rowCurrency: string | null | undefined,
+  reportCurrency: string,
+): string {
+  if (rowCurrency === null) {
+    if (amount === 0) return '—';
+    return `${amount.toLocaleString('en-US', { maximumFractionDigits: 8 })} (currency unknown)`;
+  }
+  return fmtMoney(amount, rowCurrency || reportCurrency);
 }
 
 /** Client-side chart hierarchy + drill-down. */
@@ -644,13 +658,13 @@ function GeneralLedgerReport({
                   {e.description || '—'}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {e.debit ? fmtMoney(e.debit, e.currency || currency) : ''}
+                  {e.debit ? fmtGlAmount(e.debit, e.currency, currency) : ''}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {e.credit ? fmtMoney(e.credit, e.currency || currency) : ''}
+                  {e.credit ? fmtGlAmount(e.credit, e.currency, currency) : ''}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold">
-                  {fmtMoney(e.runningBalance, e.currency || currency)}
+                  {fmtGlAmount(e.runningBalance, e.currency, currency)}
                 </TableCell>
               </TableRow>
             ))
@@ -871,6 +885,8 @@ function exportReportCsv(
 
   /** Same ledger units as transactions/payments CSV (sats for Bitcoins/Satoshis, else raw). */
   const csvAmt = (n: number) => transactionAmountNumericForCsv(n, reportCurrency, btcDisplay);
+  /** Rows in their own currency (wallet-mode General Ledger) carry their own currency label. */
+  const rowCurrencyLabels = new Map<(string | number)[], string>();
 
   switch (reportType) {
     case 'pnl':
@@ -907,17 +923,30 @@ function exportReportCsv(
     case 'general-ledger':
       headers = ['Date', 'Account', 'Description', 'Debit', 'Credit', 'Balance'];
       for (const e of glEntries) {
-        // Wallet mode: each row in its own wallet's units.
-        const amt = (n: number) =>
-          e.currency ? transactionAmountNumericForCsv(n, e.currency, btcDisplay) : csvAmt(n);
-        rows.push([
+        const account = e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName;
+        if (e.currency === undefined) {
+          rows.push([
+            e.date,
+            account,
+            e.description || '',
+            csvAmt(e.debit),
+            csvAmt(e.credit),
+            csvAmt(e.runningBalance),
+          ]);
+          continue;
+        }
+        // Wallet mode: each row's numbers and its currency label come from its own currency.
+        const cell = (n: number) => glWalletCsvCell(n, e.currency ?? null, btcDisplay);
+        const row = [
           e.date,
-          e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
+          account,
           e.description || '',
-          amt(e.debit),
-          amt(e.credit),
-          amt(e.runningBalance),
-        ]);
+          cell(e.debit).value,
+          cell(e.credit).value,
+          cell(e.runningBalance).value,
+        ];
+        rowCurrencyLabels.set(row, cell(0).label);
+        rows.push(row);
       }
       break;
     case 'cash-flow':
@@ -944,7 +973,7 @@ function exportReportCsv(
   const currencyCellLabel = csvExportCurrencyLabel(reportCurrency, btcDisplay);
   headers.push(reportCsvCurrencyExportColumnHeader(currencyMode));
   for (const row of rows) {
-    row.push(currencyCellLabel);
+    row.push(rowCurrencyLabels.get(row) ?? currencyCellLabel);
   }
 
   // Build CSV string (numbers rounded to reduce float noise so Excel keeps amounts as numbers)
@@ -1048,9 +1077,14 @@ async function printReport(
           e.date,
           e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
           e.description || '',
-          e.debit,
-          e.credit,
-          e.runningBalance,
+          // Wallet mode: each amount printed with its own currency, as on screen.
+          ...(e.currency === undefined
+            ? [e.debit, e.credit, e.runningBalance]
+            : [
+                e.debit ? fmtGlAmount(e.debit, e.currency, '') : '',
+                e.credit ? fmtGlAmount(e.credit, e.currency, '') : '',
+                fmtGlAmount(e.runningBalance, e.currency, ''),
+              ]),
         ]);
       break;
     case 'cash-flow':
