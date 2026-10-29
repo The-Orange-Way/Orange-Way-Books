@@ -48,6 +48,7 @@ import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
 import { linkedLegAmount } from '@/lib/transactions/linked-leg';
+import { TRANSFER_BOX_LABEL, transferBoxOrder } from '@/lib/transactions/transfer-boxes';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -1846,58 +1847,39 @@ export default function TransactionModal({
             {mode === 'transfer' && (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {direction === 'OUT' ? 'Amount Sent' : 'Amount Received'}
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getSymbol(transferSentWallet?.asset || 'USD')}
-                      </span>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        value={sentAmount}
-                        onChange={(e) => {
-                          setSentAmount(e.target.value);
-                          setRateOverride(true);
-                        }}
-                        className="pl-7 pr-14 h-10 font-mono"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        {transferSentWallet?.asset || ''}
-                      </span>
-                    </div>
-                    {errors.sent && <div className="text-xs text-destructive">{errors.sent}</div>}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {direction === 'OUT' ? 'Amount Received' : 'Amount Sent'}
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        {getSymbol(transferReceivedWallet?.asset || 'USD')}
-                      </span>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        value={receivedAmount}
-                        onChange={(e) => {
-                          setReceivedAmount(e.target.value);
-                          setRateOverride(true);
-                        }}
-                        className="pl-7 pr-14 h-10 font-mono"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        {transferReceivedWallet?.asset || ''}
-                      </span>
-                    </div>
-                    {errors.received && (
-                      <div className="text-xs text-destructive">{errors.received}</div>
-                    )}
-                  </div>
+                  {transferBoxOrder(direction).map((box) => {
+                    const wallet = box === 'sent' ? transferSentWallet : transferReceivedWallet;
+                    const value = box === 'sent' ? sentAmount : receivedAmount;
+                    const setValue = box === 'sent' ? setSentAmount : setReceivedAmount;
+                    const error = box === 'sent' ? errors.sent : errors.received;
+                    return (
+                      <div key={box} className="space-y-1">
+                        <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {TRANSFER_BOX_LABEL[box]}
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                            {getSymbol(wallet?.asset || 'USD')}
+                          </span>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            value={value}
+                            onChange={(e) => {
+                              setValue(e.target.value);
+                              setRateOverride(true);
+                            }}
+                            className="pl-7 pr-14 h-10 font-mono"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                            {wallet?.asset || ''}
+                          </span>
+                        </div>
+                        {error && <div className="text-xs text-destructive">{error}</div>}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {needsTransferRate && (
