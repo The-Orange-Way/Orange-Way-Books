@@ -5,6 +5,7 @@ import { importTakeoutFile, validateTakeoutFile } from '../import';
 import { generateCoffeeShop } from '../seed/coffee-shop';
 import { generateMinerCompany } from '../seed/miner-company';
 import { encryptWallet, decryptWallet } from '@/lib/crypto-fields';
+import { MAX_FILE_SIZE_BYTES } from '@/lib/attachment-rules';
 
 // ── Supabase fake ─────────────────────────────────────────────────────────
 // Enforces the database rules a restore has broken before:
@@ -594,6 +595,27 @@ describe('validateTakeoutFile', () => {
         withData({ transactions: [tx], attachments: [{ ...receipt, content_base64: '!' }] }),
       ),
     ).toEqual(['Receipt att-2 has unreadable contents']);
+    // Exactly 20 MB decoded is accepted; one byte more is refused before the wipe.
+    const ofBytes = (n: number) => 'A'.repeat(Math.floor(n / 3) * 4) + ['', 'AA==', 'AAA='][n % 3];
+    expect(ofBytes(MAX_FILE_SIZE_BYTES).length).toBe(Math.ceil(MAX_FILE_SIZE_BYTES / 3) * 4);
+    expect(atob(ofBytes(5)).length).toBe(5);
+    expect(atob(ofBytes(4)).length).toBe(4);
+    expect(
+      validateTakeoutFile(
+        withData({
+          transactions: [tx],
+          attachments: [{ ...receipt, content_base64: ofBytes(MAX_FILE_SIZE_BYTES) }],
+        }),
+      ),
+    ).toEqual([]);
+    expect(
+      validateTakeoutFile(
+        withData({
+          transactions: [tx],
+          attachments: [{ ...receipt, content_base64: ofBytes(MAX_FILE_SIZE_BYTES + 1) }],
+        }),
+      ),
+    ).toEqual(['Receipt att-2 is larger than the 20 MB limit']);
     expect(
       validateTakeoutFile(
         withData({

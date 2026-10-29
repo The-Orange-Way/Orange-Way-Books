@@ -15,6 +15,7 @@ import {
 // or posting templates. Data restore is Postgres-only. The chart_of_accounts
 // insert path still needs follow-up rewiring for the new encrypted schema
 // (tracked as Phase 2.5 cleanup).
+import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from '@/lib/attachment-rules';
 import { TAKEOUT_VERSION, type TakeoutFile, type TakeoutLegacyAccount } from './schema';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
@@ -206,6 +207,12 @@ export function validateTakeoutFile(file: TakeoutFile): string[] {
   return validateTakeoutData(data as TakeoutFile['data']);
 }
 
+/** Bytes a base64 string decodes to, worked out from its length so nothing is decoded. */
+function decodedBase64Size(b64: string): number {
+  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+  return (b64.length / 4) * 3 - padding;
+}
+
 function validateTakeoutData(data: TakeoutFile['data']): string[] {
   const problems: string[] = [];
 
@@ -387,6 +394,9 @@ function validateTakeoutData(data: TakeoutFile['data']): string[] {
       (att.content_base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(att.content_base64))
     ) {
       problems.push(`Receipt ${label} has unreadable contents`);
+    } else if (decodedBase64Size(att.content_base64) > MAX_FILE_SIZE_BYTES) {
+      // Uploads are capped at this size; a larger receipt would fail to upload after the wipe.
+      problems.push(`Receipt ${label} is larger than the ${MAX_FILE_SIZE_MB} MB limit`);
     }
   }
 
