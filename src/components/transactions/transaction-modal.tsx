@@ -46,6 +46,10 @@ import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
+import {
+  type TransferEditDb,
+  saveTransferEditLegs,
+} from '@/lib/transactions/transfer-edit-targets';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
 import { linkedLegAmount } from '@/lib/transactions/linked-leg';
 import { TRANSFER_BOX_LABEL, transferBoxOrder } from '@/lib/transactions/transfer-boxes';
@@ -1212,59 +1216,45 @@ export default function TransactionModal({
     let destId: string;
 
     if (editingTx) {
-      // Edit-in-place: update source side using the editingTx.id; find the
-      // dest side via linked_transfer_id and update it too. Both share the
-      // same JE wrapper id and (after the ledger post below) the same legacy_transaction_id.
-      srcId = editingTx.id;
-      const { error: srcUpdErr } = await supabase
-        .from('transactions')
-        .update({
-          account_id: sourceWalletId,
-          date: dateStr,
-          journal_entry_id: journalEntryId,
-          ...srcEnc,
-          ...srcSig,
-        })
-        .eq('id', srcId);
-      if (srcUpdErr) throw srcUpdErr;
-      // Find the linked dest row.
-      const { data: linkedRows } = await supabase
-        .from('transactions')
-        .select('id')
-        .eq('linked_transfer_id', srcId)
-        .maybeSingle();
-      if (linkedRows?.id) {
-        destId = linkedRows.id;
-        const { error: destUpdErr } = await supabase
-          .from('transactions')
-          .update({
-            account_id: destWalletId,
-            date: dateStr,
-            journal_entry_id: journalEntryId,
-            ...destEnc,
-            ...destSig,
-          })
-          .eq('id', destId);
-        if (destUpdErr) throw destUpdErr;
-      } else {
-        // Shouldn't happen for a well-formed transfer, but recover gracefully
-        // by creating a fresh dest leg.
-        const { data: destIns, error: destErr } = await supabase
-          .from('transactions')
-          .insert({
-            org_id: orgId,
-            account_id: destWalletId,
-            date: dateStr,
-            linked_transfer_id: srcId,
-            journal_entry_id: journalEntryId,
-            ...destEnc,
-            ...destSig,
-          })
-          .select('id')
-          .single();
-        if (destErr) throw destErr;
-        destId = destIns.id;
-      }
+      // Edit-in-place. The edited row keeps its own side: it is the source when the transfer goes
+      // out of it and the destination when it comes in (see saveTransferEditLegs).
+      const db: TransferEditDb = {
+        async findLinkedTo(id) {
+          const { data, error } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('linked_transfer_id', id)
+            .maybeSingle();
+          if (error) throw error;
+          return data?.id ?? null;
+        },
+        async update(id, values) {
+          const { error } = await supabase
+            .from('transactions')
+            .update(values as any)
+            .eq('id', id);
+          if (error) throw error;
+        },
+        async insert(values) {
+          const { data, error } = await supabase
+            .from('transactions')
+            .insert(values as any)
+            .select('id')
+            .single();
+          if (error) throw error;
+          return data.id as string;
+        },
+      };
+      ({ srcId, destId } = await saveTransferEditLegs(db, {
+        direction,
+        editedId: editingTx.id,
+        linkedId: editingTx.linked_transfer_id ?? null,
+        orgId,
+        date: dateStr,
+        journalEntryId,
+        src: { account_id: sourceWalletId, enc: srcEnc, sig: srcSig },
+        dest: { account_id: destWalletId, enc: destEnc, sig: destSig },
+      }));
     } else {
       // New transfer: insert source, then dest pointing back, then update source
       // with the dest id so the linkage is mutual.
@@ -1310,7 +1300,7 @@ export default function TransactionModal({
       orgId,
       action: editingTx ? 'UPDATE' : 'CREATE',
       entityType: 'transaction',
-      entityId: srcId,
+      entityId: editingTx?.id ?? srcId,
       summary: `${editingTx ? 'Updated' : 'Created'} transfer: ${sentValue} ${sourceAsset} → ${receivedValue} ${destAsset}${fee > 0 ? ` (fee ${fee})` : ''}`,
       after: {
         sent: sentValue,
@@ -1323,7 +1313,8 @@ export default function TransactionModal({
       encrypt: encryptText,
     });
 
-    await uploadReceipts(srcId);
+    // Receipts stay on the row being edited, as before.
+    await uploadReceipts(editingTx?.id ?? srcId);
 
     // ── Phase 4: 1 the ledger 2-entry transaction (source credit ↔ dest debit) ──
     // Reuses the ZKA_TRANSFER template seeded at onboarding. the ledger stores one
