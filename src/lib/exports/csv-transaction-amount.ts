@@ -1,4 +1,5 @@
 import type { BitcoinDisplay } from '@/types';
+import { toMinorUnits } from '@/lib/minor-units';
 
 const SATS_PER_BTC = 100_000_000;
 
@@ -27,7 +28,7 @@ export function transactionAmountNumericForCsv(
   switch (bitcoinDisplay) {
     case 'sats':
     case 'bitcoins':
-      return Math.round(btc * SATS_PER_BTC);
+      return toMinorUnits(btc, 8);
     case 'btc':
     case 'btc-easy':
     default:

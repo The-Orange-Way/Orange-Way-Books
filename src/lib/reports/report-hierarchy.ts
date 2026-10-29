@@ -1,3 +1,5 @@
+import { isIncomeType, toMinorUnits } from '@/lib/ledger-engine';
+
 /**
  * Chart hierarchy for client-side reports (Vault / ledger engine).
  * Mirrors Orange Way Books report-hierarchy behavior: summary rollups vs indented details.
@@ -109,10 +111,16 @@ export function buildReportHierarchyRoots(
   closure: ReadonlyMap<string, CoaClosureRow>,
   includeRow: HierarchySectionPredicate,
   rollupCurrency: string,
+  decimals?: number,
 ): ReportHierarchyNode[] {
   if (leafLines.length === 0) {
     return [];
   }
+  // With `decimals` (a Bitcoin report) subtotals are kept in whole minor units at every level and
+  // scaled once for display, so they cannot drift.
+  const unit = 10 ** (decimals ?? 0);
+  const toUnits = (n: number) => toMinorUnits(n, decimals ?? 0);
+  const rollupUnits = new Map<string, { now: number; prev: number | undefined }>();
 
   const ownById = mergeOwnById(leafLines);
   const allowedIds = collectAllowedIds(ownById, closure, includeRow);
@@ -155,15 +163,28 @@ export function buildReportHierarchyRoots(
     const ownPrevPrimary = own?.prevPrimaryAmount;
 
     let rollupPrimary = ownPrimary;
-    for (const c of children) {
-      rollupPrimary += c.rollupPrimaryAmount;
-    }
-
     let rollupPrevPrimary: number | undefined;
     const childPrevPieces = children.map((c) => c.rollupPrevPrimaryAmount);
-    if (ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined)) {
-      rollupPrevPrimary =
-        (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+    const hasPrev = ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined);
+    if (decimals == null) {
+      for (const c of children) {
+        rollupPrimary += c.rollupPrimaryAmount;
+      }
+      if (hasPrev) {
+        rollupPrevPrimary =
+          (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+      }
+    } else {
+      let now = toUnits(ownPrimary);
+      let prev = toUnits(ownPrevPrimary ?? 0);
+      for (const c of children) {
+        const u = rollupUnits.get(c.accountId)!;
+        now += u.now;
+        prev += u.prev ?? 0;
+      }
+      rollupUnits.set(accountId, { now, prev: hasPrev ? prev : undefined });
+      rollupPrimary = now / unit;
+      if (hasPrev) rollupPrevPrimary = prev / unit;
     }
 
     const rollupNative = rollupPrimary;
@@ -216,8 +237,8 @@ export function buildReportHierarchyRoots(
 }
 
 export function plSectionPredicate(side: 'revenue' | 'expense'): HierarchySectionPredicate {
-  const want = side;
-  return (row) => row.accountType.toLowerCase() === want;
+  if (side === 'revenue') return (row) => isIncomeType(row.accountType);
+  return (row) => row.accountType.toLowerCase() === 'expense';
 }
 
 export function bsSectionPredicate(
