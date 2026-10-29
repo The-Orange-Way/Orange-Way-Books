@@ -209,6 +209,7 @@ serve(async (req) => {
       const { error: memberErr } = await adminClient.from('org_members').insert({
         org_id: orgId,
         user_id: targetUserId,
+        role: roleDef.name.toUpperCase(),
       });
       if (memberErr) {
         console.error('complete-invite-wrap insert org_members failed:', memberErr);

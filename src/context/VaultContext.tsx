@@ -46,6 +46,7 @@ import {
   signMutation as signingKeySignMutation,
   type SigningKeyHandle,
 } from '@/lib/signing-key';
+import type { OrgDekWrapPayload } from '@/lib/invite-wrap';
 import { derivePqcSecretWrapKey } from '@/lib/key-derivation';
 import { isCredentialError } from './vault-unlock-errors';
 import { captureException } from '@/lib/observability/sentry';
@@ -124,6 +125,14 @@ interface VaultContextType {
     payloadBytes: Uint8Array,
     orgId: string,
   ) => { signature_b64: string; key_version: number } | null;
+
+  /**
+   * Phase 4.5: wrap the in-memory org MEK for an invitee using their
+   * hybrid public key. Returns null when the vault is locked. Pass the
+   * result directly to complete-invite-wrap so invitees receive a wrap
+   * of the real shared DEK instead of a placeholder slot.
+   */
+  wrapOrgMekForInvitee(recipientPublicKeyB64: string): Promise<OrgDekWrapPayload | null>;
 
   /**
    * Change the vault password. Re-wraps the MEK under the new password and
@@ -999,6 +1008,15 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const wrapOrgMekForInvitee = useCallback(
+    async (recipientPublicKeyB64: string): Promise<OrgDekWrapPayload | null> => {
+      if (!mekRawRef.current) return null;
+      const { wrapOrgDekForRecipient } = await import('@/lib/invite-wrap');
+      return wrapOrgDekForRecipient(mekRawRef.current, recipientPublicKeyB64);
+    },
+    [],
+  );
+
   return (
     <VaultCtx.Provider
       value={{
@@ -1024,6 +1042,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         recoverOrgWithMasterCode,
         loadOrgSigningKey,
         signMutation,
+        wrapOrgMekForInvitee,
       }}
     >
       {children}

@@ -120,11 +120,7 @@ import { AccountingFramework } from '@/pages/settings/AccountingFramework';
 import { ChangePrimaryCurrency } from '@/pages/settings/ChangePrimaryCurrency';
 import { FxExposureDashboard } from '@/components/fx-exposure/FxExposureDashboard';
 import Roles from '@/pages/settings/Roles';
-import {
-  generatePlaceholderOrgDek,
-  wrapOrgDekForRecipient,
-  lookupRecipientPublicKey,
-} from '@/lib/invite-wrap';
+import { lookupRecipientPublicKey } from '@/lib/invite-wrap';
 import RekeyWizard from '@/components/rekey/RekeyWizard';
 
 /* ───── types ───── */
@@ -379,10 +375,14 @@ function OrganizationTab({
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addPassword, setAddPassword] = useState('');
-  // Closing the dialog, by any route, drops the typed password.
+  const [addCurrency, setAddCurrency] = useState('USD');
+  // Closing the dialog, by any route, drops the typed password and resets currency.
   const closeAddOrg = (open: boolean) => {
     setAddOpen(open);
-    if (!open) setAddPassword('');
+    if (!open) {
+      setAddPassword('');
+      setAddCurrency('USD');
+    }
   };
   const [addSaving, setAddSaving] = useState(false);
   // Recovery code of the org just created, shown once.
@@ -599,7 +599,7 @@ function OrganizationTab({
       const encName = await vault.encryptForNewOrg(addName.trim());
       const encSettings = await encryptOrgSettings(
         {
-          primary_currency: 'USD',
+          primary_currency: addCurrency,
           secondary_currency: null,
           bitcoin_display: 'sats',
           fiscal_year_type: 'calendar',
@@ -1261,6 +1261,19 @@ function OrganizationTab({
               />
             </div>
             <div>
+              <Label>Primary currency *</Label>
+              <Select value={addCurrency} onValueChange={setAddCurrency} disabled={addSaving}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Vault password *</Label>
               <Input
                 type="password"
@@ -1496,6 +1509,7 @@ function UsersTab({
   /** Navigate to the Roles admin tab (Phase 4.2 role-grant editor). */
   onManageRoles?: () => void;
 }) {
+  const { wrapOrgMekForInvitee } = useVault();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [rolePresets, setRolePresets] = useState<RolePreset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2221,12 +2235,13 @@ function UsersTab({
               failed += 1;
               continue;
             }
-            // Placeholder org DEK, Phase 4.5 will replace this with the
-            // real shared DEK payload. Each invite gets its own random
-            // slot so the 4.5 migration can pivot per-wrap without
-            // rewriting history.
-            const orgDek = generatePlaceholderOrgDek();
-            const payload = await wrapOrgDekForRecipient(orgDek, publicKeyB64);
+            // Wrap the real org MEK so the invitee can decrypt org data.
+            const payload = await wrapOrgMekForInvitee(publicKeyB64);
+            if (!payload) {
+              // Vault is locked; cannot complete wrap without the in-memory MEK.
+              failed += 1;
+              continue;
+            }
             const { error: completeErr } = await supabase.functions.invoke('complete-invite-wrap', {
               body: { pending_invite_id: row.id, wrapped_dek: payload },
             });
@@ -2249,7 +2264,7 @@ function UsersTab({
         setWrapCompleting(false);
       }
     },
-    [orgId, fetchMembers],
+    [orgId, fetchMembers, wrapOrgMekForInvitee],
   );
 
   // Load the pending-wrap count on mount + subscribe to realtime INSERTs
