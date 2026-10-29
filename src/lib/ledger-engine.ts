@@ -381,7 +381,11 @@ export function computeAccountBalances(
     const sums =
       decimals == null ? added : { debits: added.debits / unit, credits: added.credits / unit };
 
-    const balance = normalBalance(sums.debits, sums.credits, info.accountType);
+    // A Bitcoin report takes the balance from the whole-unit sums too, so the row matches the totals.
+    const balance =
+      decimals == null
+        ? normalBalance(sums.debits, sums.credits, info.accountType)
+        : normalBalance(added.debits, added.credits, info.accountType) / unit;
     const row: AccountBalance = {
       accountId,
       accountName: info.name,

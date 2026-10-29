@@ -221,6 +221,8 @@ interface ReportHierarchyBundle {
   drillAccountId: string | null;
   onToggleDrill: (accountId: string) => void;
   rollupCurrency: string;
+  /** Set for a Bitcoin report: subtotals add whole minor units. */
+  decimals?: number;
 }
 
 function HierarchySectionBlock({
@@ -244,6 +246,7 @@ function HierarchySectionBlock({
     drillAccountId,
     onToggleDrill,
     rollupCurrency,
+    decimals,
   } = hierarchy;
   const leaves: HierarchyLeafLine[] = section.rows.map((r) => ({
     accountId: r.accountId,
@@ -253,7 +256,7 @@ function HierarchySectionBlock({
     nativeAmount: r.balance,
     nativeCurrency: rollupCurrency,
   }));
-  const roots = buildReportHierarchyRoots(leaves, closure, includeRow, rollupCurrency);
+  const roots = buildReportHierarchyRoots(leaves, closure, includeRow, rollupCurrency, decimals);
 
   const renderNodes = (nodes: ReportHierarchyNode[], depth: number): ReactNode =>
     nodes.map((node) => {
@@ -1949,6 +1952,7 @@ export default function Reports() {
       drillAccountId,
       onToggleDrill: (id) => setDrillAccountId((prev) => (prev === id ? null : id)),
       rollupCurrency: primaryCurrency,
+      decimals: reportDecimals,
     };
   }, [
     showPriorPeriod,
@@ -1960,6 +1964,7 @@ export default function Reports() {
     engineDateRange,
     drillAccountId,
     primaryCurrency,
+    reportDecimals,
   ]);
 
   const pnlData = useMemo(() => computePnL(balances, reportDecimals), [balances, reportDecimals]);

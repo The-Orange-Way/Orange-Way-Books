@@ -15,6 +15,7 @@ import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode'
 import { printCellText } from '../reports/print-cell-text';
 import { excludedEntriesNote } from '../reports/excluded-note';
 import { decryptJournalEntryLine } from '../crypto-fields';
+import { type CoaClosureRow, buildReportHierarchyRoots } from '../reports/report-hierarchy';
 
 // A BTC-primary company with a BTC wallet and a CAD wallet.
 const accounts: AccountInfo[] = [
@@ -517,5 +518,62 @@ describe('round 5: totals and running balances add whole satoshis', () => {
     const ls = [line('f', 'a0', 0.105, {}), line('f', 'equity', -0.105, {})];
     const tb = computeTrialBalance(computeAccountBalances(ls, accts), undefined);
     expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([0.11, 0.11, true]);
+  });
+});
+
+describe('round 6: account rows and chart subtotals add whole satoshis', () => {
+  it('a large posted and reversed book leaves an 18 sat row that matches every total', () => {
+    const ls: JournalLine[] = [];
+    for (let i = 0; i < 34; i++) {
+      ls.push(line(`p${i}`, 'btc', 1000000, { amountPrimary: 1000000 }));
+      ls.push(line(`p${i}`, 'equity', -1000000, { amountPrimary: -1000000 }));
+      ls.push(line(`r${i}`, 'btc', -1000000, { amountPrimary: -1000000 }));
+      ls.push(line(`r${i}`, 'equity', 1000000, { amountPrimary: 1000000 }));
+    }
+    ls.push(line('d', 'btc', 0.00000019, { amountPrimary: 0.00000019 }));
+    ls.push(line('d', 'equity', -0.00000019, { amountPrimary: -0.00000019 }));
+    ls.push(line('c', 'btc', -0.00000001, { amountPrimary: -0.00000001 }));
+    ls.push(line('c', 'equity', 0.00000001, { amountPrimary: 0.00000001 }));
+    const prepared = prepareReportLines(ls, 'BTC', null, 8).lines;
+    const bal = computeAccountBalances(prepared, accounts, undefined, 8);
+    const row = bal.find((b) => b.accountId === 'btc')!;
+    const bs = computeBalanceSheet(bal, 8);
+    const tb = computeTrialBalance(bal, 8);
+    const gl = computeGeneralLedger(prepared, accounts, undefined, 8).filter(
+      (e) => e.accountName === 'BTC Wallet',
+    );
+    expect(row.balance).toBe(0.00000018);
+    expect(bs.assets.total).toBe(row.balance);
+    expect(tb.totalDebits).toBe(row.balance);
+    expect(gl[gl.length - 1].runningBalance).toBe(row.balance);
+  });
+
+  it('a chart parent over 10,000 children of 10.1 BTC shows 101,000', () => {
+    const closure = new Map<string, CoaClosureRow>([
+      ['parent', { id: 'parent', parentId: null, name: 'Assets', code: '1', accountType: 'ASSET' }],
+    ]);
+    const leaves = [];
+    for (let k = 0; k < 10000; k++) {
+      closure.set(`a${k}`, {
+        id: `a${k}`,
+        parentId: 'parent',
+        name: `A${k}`,
+        code: `1${k}`,
+        accountType: 'ASSET',
+      });
+      leaves.push({
+        accountId: `a${k}`,
+        accountName: `A${k}`,
+        accountCode: `1${k}`,
+        primaryAmount: 10.1,
+        nativeAmount: 10.1,
+        nativeCurrency: 'BTC',
+      });
+    }
+    const roots = buildReportHierarchyRoots(leaves, closure, () => true, 'BTC', 8);
+    expect(roots[0].rollupPrimaryAmount).toBe(101000);
+    // Negative control: the same subtotal without decimals is the floating-point sum.
+    const plain = buildReportHierarchyRoots(leaves, closure, () => true, 'BTC');
+    expect(plain[0].rollupPrimaryAmount).not.toBe(101000);
   });
 });

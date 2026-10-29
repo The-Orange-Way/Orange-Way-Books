@@ -111,10 +111,15 @@ export function buildReportHierarchyRoots(
   closure: ReadonlyMap<string, CoaClosureRow>,
   includeRow: HierarchySectionPredicate,
   rollupCurrency: string,
+  decimals?: number,
 ): ReportHierarchyNode[] {
   if (leafLines.length === 0) {
     return [];
   }
+  // With `decimals` (a Bitcoin report) subtotals add whole minor units, so they cannot drift.
+  const unit = 10 ** (decimals ?? 0);
+  const add = (a: number, b: number) =>
+    decimals == null ? a + b : (Math.round(a * unit) + Math.round(b * unit)) / unit;
 
   const ownById = mergeOwnById(leafLines);
   const allowedIds = collectAllowedIds(ownById, closure, includeRow);
@@ -158,14 +163,16 @@ export function buildReportHierarchyRoots(
 
     let rollupPrimary = ownPrimary;
     for (const c of children) {
-      rollupPrimary += c.rollupPrimaryAmount;
+      rollupPrimary = add(rollupPrimary, c.rollupPrimaryAmount);
     }
 
     let rollupPrevPrimary: number | undefined;
     const childPrevPieces = children.map((c) => c.rollupPrevPrimaryAmount);
     if (ownPrevPrimary !== undefined || childPrevPieces.some((v) => v !== undefined)) {
       rollupPrevPrimary =
-        (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+        decimals == null
+          ? (ownPrevPrimary ?? 0) + childPrevPieces.reduce<number>((sum, v) => sum + (v ?? 0), 0)
+          : childPrevPieces.reduce<number>((sum, v) => add(sum, v ?? 0), ownPrevPrimary ?? 0);
     }
 
     const rollupNative = rollupPrimary;
