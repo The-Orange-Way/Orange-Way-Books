@@ -67,7 +67,9 @@ export function roundGroupToMinorUnits(
   decimals: number,
   tieOrder: (a: number, b: number) => number,
 ): number[] {
-  const scale = Math.max(decimals, ...amounts.map(fractionLength));
+  // A loop, not a spread: an entry may hold more lines than a call may take arguments.
+  let scale = decimals;
+  for (const a of amounts) scale = Math.max(scale, fractionLength(a));
   const drop = scale - decimals;
   const unit = 10n ** BigInt(drop);
   const exact = amounts.map((a) => toScaled(a, scale));

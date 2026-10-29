@@ -733,10 +733,29 @@ describe('round 10: exact entry totals and CSV of whole satoshis', () => {
     expect(units.reduce((s, u) => s + u, 0) + leftover).not.toBe(0);
   });
 
+  it('a single half line is prepared as one unit, not taken back to zero', () => {
+    const one = (a: number) =>
+      prepareReportLines(
+        [line('h', 'cash', a, { amountPrimary: a, walletCurrency: 'BTC' })],
+        'BTC',
+        null,
+        0,
+      ).lines[0].amountPrimary;
+    expect(one(0.5)).toBe(1);
+    expect(one(-0.5)).toBe(-1);
+  });
+
   it('a single half rounds once and is not taken back', () => {
     expect(roundGroupToMinorUnits([0.5], 0, () => 0)).toEqual([1]);
     expect(roundGroupToMinorUnits([-0.5], 0, () => 0)).toEqual([-1]);
     expect(roundGroupToMinorUnits([0.4, 0.4, 0.4], 0, () => 0).reduce((s, u) => s + u, 0)).toBe(1);
+  });
+
+  it('an entry with more lines than a call takes arguments still rounds', () => {
+    const many = Array.from({ length: 200000 }, (_, k) => (k % 2 ? -0.123456789 : 0.123456789));
+    const units = roundGroupToMinorUnits(many, 8, () => 0);
+    expect(units.length).toBe(200000);
+    expect(units.reduce((s, u) => s + u, 0)).toBe(0);
   });
 
   it('a CSV of a whole satoshi count is written exactly', () => {
