@@ -20,8 +20,11 @@ import { type DatePreset, getDateRange } from '@/lib/reports/date-presets';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
+import { effectiveReportCurrencyMode } from '@/lib/reports/effective-currency-mode';
+import { excludedEntriesNote } from '@/lib/reports/excluded-note';
+import { printCellText } from '@/lib/reports/print-cell-text';
 import { useUserOrg } from '@/hooks/useUserOrg';
-import { formatFiat } from '@/lib/formatters';
+import { formatCrypto, formatFiat } from '@/lib/formatters';
 import { useVault } from '@/context/VaultContext';
 import {
   decryptOrganization,
@@ -56,6 +59,10 @@ import type { BitcoinDisplay } from '@/types';
 import {
   balanceSheetRange,
   computeAccountBalances,
+  excludedInRange,
+  currencyDecimals,
+  isBitcoinCurrency,
+  prepareReportLines,
   computePnL,
   computeBalanceSheet,
   computeTrialBalance,
@@ -73,6 +80,7 @@ import {
   type DateRange,
   type ReportSection as LedgerReportSection,
   type AccountBalance,
+  reportDifference,
 } from '@/lib/ledger-engine';
 import {
   buildAccountClosureFromList,
@@ -199,6 +207,9 @@ const CURRENCY_MODES: { value: ReportCurrencyMode; label: string; glOnly: boolea
 
 function fmtMoney(amount: number, currency: string = 'USD'): string {
   if (amount === 0) return '—';
+  const c = currency.toUpperCase();
+  if (c === 'BTC') return formatCrypto(amount, 'btc');
+  if (c === 'SATS' || c === 'SAT') return `${Math.round(amount).toLocaleString('en-US')} sats`;
   return formatFiat(amount, currency);
 }
 
@@ -211,6 +222,8 @@ interface ReportHierarchyBundle {
   drillAccountId: string | null;
   onToggleDrill: (accountId: string) => void;
   rollupCurrency: string;
+  /** Set for a Bitcoin report: subtotals add whole minor units. */
+  decimals?: number;
 }
 
 function HierarchySectionBlock({
@@ -234,6 +247,7 @@ function HierarchySectionBlock({
     drillAccountId,
     onToggleDrill,
     rollupCurrency,
+    decimals,
   } = hierarchy;
   const leaves: HierarchyLeafLine[] = section.rows.map((r) => ({
     accountId: r.accountId,
@@ -243,7 +257,7 @@ function HierarchySectionBlock({
     nativeAmount: r.balance,
     nativeCurrency: rollupCurrency,
   }));
-  const roots = buildReportHierarchyRoots(leaves, closure, includeRow, rollupCurrency);
+  const roots = buildReportHierarchyRoots(leaves, closure, includeRow, rollupCurrency, decimals);
 
   const renderNodes = (nodes: ReportHierarchyNode[], depth: number): ReactNode =>
     nodes.map((node) => {
@@ -850,6 +864,7 @@ function exportReportCsv(
       effective_to: string | null;
     }>;
   },
+  excludedNote?: string | null,
 ): void {
   let headers: string[] = [];
   const rows: (string | number)[][] = [];
@@ -945,6 +960,7 @@ function exportReportCsv(
     headers.map(escape).join(','),
     ...rows.map((row) => row.map(escape).join(',')),
   ].join('\n');
+  if (excludedNote) csvContent += '\n' + ['Note', escape(excludedNote)].join(',');
 
   if (auditParams) {
     csvContent +=
@@ -990,6 +1006,7 @@ async function printReport(
   cfData: CFData,
   activityEntries: ActivityEntry[],
   reportingNote?: string,
+  decimals?: number,
 ): Promise<void> {
   let headers: string[] = [];
   const rows: (string | number)[][] = [];
@@ -1081,7 +1098,7 @@ async function printReport(
       const cells = row
         .map((cell, index) => {
           const header = headers[index] ?? '';
-          return `<td class="${isNumericHeader(header) ? 'td-num' : index === 0 ? 'td-first' : ''}">${escapeHtml(String(cell ?? ''))}</td>`;
+          return `<td class="${isNumericHeader(header) ? 'td-num' : index === 0 ? 'td-first' : ''}">${escapeHtml(printCellText(cell, decimals))}</td>`;
         })
         .join('');
       return `<tr class="${rowClass}">${cells}</tr>`;
@@ -1329,13 +1346,14 @@ function ComparisonPnl({
   priorData: PnLData;
   currency: string;
 }) {
+  const diff = (a: number, b: number) => reportDifference(a, b, currency);
   const renderSection = (current: PnLData['income'], prior: PnLData['income']) => {
     // Match by account id: two accounts may share a name.
     const names = new Map([...prior.rows, ...current.rows].map((r) => [r.accountId, r.name]));
     return Array.from(names, ([id, name]) => {
       const cur = current.rows.find((r) => r.accountId === id)?.balance ?? 0;
       const pri = prior.rows.find((r) => r.accountId === id)?.balance ?? 0;
-      const variance = cur - pri;
+      const variance = diff(cur, pri);
       const pct = pri !== 0 ? ((variance / Math.abs(pri)) * 100).toFixed(1) : '—';
       return { id, name, cur, pri, variance, pct };
     });
@@ -1400,18 +1418,18 @@ function ComparisonPnl({
                 <TableCell
                   className={cn(
                     'text-right font-mono text-sm',
-                    cur.total - pri.total > 0
+                    diff(cur.total, pri.total) > 0
                       ? 'text-green-600'
-                      : cur.total - pri.total < 0
+                      : diff(cur.total, pri.total) < 0
                         ? 'text-red-600'
                         : '',
                   )}
                 >
-                  {fmtMoney(cur.total - pri.total, currency)}
+                  {fmtMoney(diff(cur.total, pri.total), currency)}
                 </TableCell>
                 <TableCell className="text-right text-xs">
                   {pri.total !== 0
-                    ? `${(((cur.total - pri.total) / Math.abs(pri.total)) * 100).toFixed(1)}%`
+                    ? `${((diff(cur.total, pri.total) / Math.abs(pri.total)) * 100).toFixed(1)}%`
                     : '—'}
                 </TableCell>
               </TableRow>
@@ -1428,14 +1446,14 @@ function ComparisonPnl({
             <TableCell
               className={cn(
                 'text-right font-mono',
-                data.netProfit - priorData.netProfit > 0 ? 'text-green-600' : 'text-red-600',
+                diff(data.netProfit, priorData.netProfit) > 0 ? 'text-green-600' : 'text-red-600',
               )}
             >
-              {fmtMoney(data.netProfit - priorData.netProfit, currency)}
+              {fmtMoney(diff(data.netProfit, priorData.netProfit), currency)}
             </TableCell>
             <TableCell className="text-right text-xs">
               {priorData.netProfit !== 0
-                ? `${(((data.netProfit - priorData.netProfit) / Math.abs(priorData.netProfit)) * 100).toFixed(1)}%`
+                ? `${((diff(data.netProfit, priorData.netProfit) / Math.abs(priorData.netProfit)) * 100).toFixed(1)}%`
                 : '—'}
             </TableCell>
           </TableRow>
@@ -1460,6 +1478,7 @@ function ComparisonBalanceSheet({
   priorData: BSData;
   currency: string;
 }) {
+  const diff = (a: number, b: number) => reportDifference(a, b, currency);
   const renderSection = (curSection: BSData['assets'], priSection: BSData['assets']) => {
     // Match by account id: two accounts may share a name.
     const names = new Map(
@@ -1468,7 +1487,7 @@ function ComparisonBalanceSheet({
     return Array.from(names, ([id, name]) => {
       const cur = curSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
       const pri = priSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
-      return { id, name, cur, pri, variance: cur - pri };
+      return { id, name, cur, pri, variance: diff(cur, pri) };
     });
   };
 
@@ -1531,14 +1550,14 @@ function ComparisonBalanceSheet({
                 <TableCell
                   className={cn(
                     'text-right font-mono text-sm',
-                    cur.total - pri.total > 0
+                    diff(cur.total, pri.total) > 0
                       ? 'text-green-600'
-                      : cur.total - pri.total < 0
+                      : diff(cur.total, pri.total) < 0
                         ? 'text-red-600'
                         : '',
                   )}
                 >
-                  {fmtMoney(cur.total - pri.total, currency)}
+                  {fmtMoney(diff(cur.total, pri.total), currency)}
                 </TableCell>
               </TableRow>
             </Fragment>
@@ -1719,6 +1738,21 @@ export default function Reports() {
       }
 
       const rawLines = (jeRes.data as any[]) ?? [];
+      // An old imported line carries no currency of its own; its entry's currency is the one.
+      const entryCurrencies = new Map<string, Promise<string | null>>();
+      const entryCurrency = (l: {
+        journal_entry_id: string;
+        journal_entries?: { encrypted_currency?: string | null } | null;
+      }): Promise<string | null> => {
+        const je = l.journal_entries;
+        if (!je?.encrypted_currency) return Promise.resolve(null);
+        let c = entryCurrencies.get(l.journal_entry_id);
+        if (!c) {
+          c = decryptText(je.encrypted_currency).catch(() => null);
+          entryCurrencies.set(l.journal_entry_id, c);
+        }
+        return c;
+      };
       const decryptedLines = await Promise.all(
         rawLines.map(async (l: any) => {
           const fields = await decryptJournalEntryLine(l, decryptText);
@@ -1735,8 +1769,11 @@ export default function Reports() {
             amountNative: fields.amount_native ?? null,
             amountPrimary: fields.amount_primary ?? null,
             walletCurrency: fields.wallet_currency ?? null,
-            primaryCurrencyAtPosting: l.primary_currency_at_posting ?? null,
+            primaryCurrencyAtPosting: fields.primary_currency_at_posting ?? null,
+            postingCurrencyUnreadable: fields.primary_currency_at_posting_unreadable ?? false,
             ratePending: l.rate_pending ?? false,
+            entryCurrency: fields.wallet_currency ? null : await entryCurrency(l),
+            reversalOfId: l.journal_entries?.reversal_of_id ?? null,
           };
         }),
       );
@@ -1832,25 +1869,64 @@ export default function Reports() {
     currencyMode === 'secondary' ? secondaryCurrency : null,
   );
 
-  // Scale journal lines by closing rate when in secondary mode.
-  // This is the "closing-rate" translation method. Historical-per-transaction is Part 10.
-  const reportLines = useMemo<JournalLine[]>(() => {
+  // Secondary mode converts every amount by the closing rate ("closing-rate" translation;
+  // historical-per-transaction is Part 10). Without a rate, reports stay in the primary currency.
+  const secondaryActive =
+    currencyMode === 'secondary' && !!secondaryCurrency && secondaryDisplayRate != null;
+  const effectiveMode = effectiveReportCurrencyMode(currencyMode, activeReport, secondaryActive);
+  // The toolbar button to highlight: a wallet choice on a report without wallet amounts shows as primary.
+  const shownMode: ReportCurrencyMode =
+    currencyMode === 'wallet' && effectiveMode !== 'wallet' ? 'primary' : currencyMode;
+  // A Bitcoin report (BTC or sats primary, or shown in BTC or sats) keeps full precision and leaves
+  // out entries it cannot value. Every other report is computed exactly as before.
+  const bitcoinReport =
+    effectiveMode !== 'wallet' &&
+    (isBitcoinCurrency(primaryCurrency) ||
+      (secondaryActive && isBitcoinCurrency(secondaryCurrency)));
+  const reportDecimals = bitcoinReport
+    ? currencyDecimals(
+        effectiveMode === 'secondary' && secondaryCurrency ? secondaryCurrency : primaryCurrency,
+      )
+    : undefined;
+  const { lines: reportLines, excluded: excludedEntries } = useMemo(() => {
     let lines = journalLines;
     if (!showFxReval && revalJeIds.size > 0) {
       lines = lines.filter((l) => !revalJeIds.has(l.journalEntryId));
     }
-    if (currencyMode !== 'secondary' || secondaryDisplayRate == null) return lines;
-    return lines.map((l) => ({
-      ...l,
-      debit: l.debit * secondaryDisplayRate,
-      credit: l.credit * secondaryDisplayRate,
-    }));
-  }, [journalLines, currencyMode, secondaryDisplayRate, showFxReval, revalJeIds]);
+    if (bitcoinReport) {
+      return prepareReportLines(
+        lines,
+        primaryCurrency,
+        effectiveMode === 'secondary' ? secondaryDisplayRate : null,
+        reportDecimals,
+      );
+    }
+    if (effectiveMode !== 'secondary' || secondaryDisplayRate == null) {
+      return { lines, excluded: [] };
+    }
+    return {
+      lines: lines.map((l) => ({
+        ...l,
+        debit: l.debit * secondaryDisplayRate,
+        credit: l.credit * secondaryDisplayRate,
+      })),
+      excluded: [],
+    };
+  }, [
+    journalLines,
+    bitcoinReport,
+    effectiveMode,
+    primaryCurrency,
+    secondaryDisplayRate,
+    showFxReval,
+    revalJeIds,
+    reportDecimals,
+  ]);
 
   // Compute report data via ledger engine
   const balances = useMemo(
-    () => computeAccountBalances(reportLines, accounts, engineDateRange),
-    [reportLines, accounts, engineDateRange],
+    () => computeAccountBalances(reportLines, accounts, engineDateRange, reportDecimals),
+    [reportLines, accounts, engineDateRange, reportDecimals],
   );
 
   const balanceById = useMemo(
@@ -1876,33 +1952,54 @@ export default function Reports() {
     return {
       viewMode: reportViewMode,
       closure: accountClosure,
-      journalLines,
+      // Fiat reports drill into the stored lines as before; a Bitcoin report into its prepared lines.
+      journalLines: bitcoinReport ? reportLines : journalLines,
       dateRange: engineDateRange,
       drillAccountId,
       onToggleDrill: (id) => setDrillAccountId((prev) => (prev === id ? null : id)),
       rollupCurrency: primaryCurrency,
+      decimals: reportDecimals,
     };
   }, [
     showPriorPeriod,
     reportViewMode,
     accountClosure,
+    bitcoinReport,
+    reportLines,
     journalLines,
     engineDateRange,
     drillAccountId,
     primaryCurrency,
+    reportDecimals,
+    setDrillAccountId,
   ]);
 
-  const pnlData = useMemo(() => computePnL(balances), [balances]);
+  const pnlData = useMemo(() => computePnL(balances, reportDecimals), [balances, reportDecimals]);
   const bsBalances = useMemo(
-    () => computeAccountBalances(reportLines, accounts, balanceSheetRange(engineDateRange)),
-    [reportLines, accounts, engineDateRange],
+    () =>
+      computeAccountBalances(
+        reportLines,
+        accounts,
+        balanceSheetRange(engineDateRange),
+        reportDecimals,
+      ),
+    [reportLines, accounts, engineDateRange, reportDecimals],
   );
-  const bsData = useMemo(() => computeBalanceSheet(bsBalances), [bsBalances]);
-  const tbData = useMemo(() => computeTrialBalance(balances), [balances]);
-  const cfData = useMemo(() => computeCashFlow(balances), [balances]);
+  const bsData = useMemo(
+    () => computeBalanceSheet(bsBalances, reportDecimals),
+    [bsBalances, reportDecimals],
+  );
+  const tbData = useMemo(
+    () => computeTrialBalance(balances, reportDecimals),
+    [balances, reportDecimals],
+  );
+  const cfData = useMemo(
+    () => computeCashFlow(balances, reportDecimals),
+    [balances, reportDecimals],
+  );
   const glEntries = useMemo(
-    () => computeGeneralLedger(reportLines, accounts, engineDateRange),
-    [reportLines, accounts, engineDateRange],
+    () => computeGeneralLedger(reportLines, accounts, engineDateRange, reportDecimals),
+    [reportLines, accounts, engineDateRange, reportDecimals],
   );
   const activityEntries = useMemo(
     () => buildActivityLog(journalLines, engineDateRange),
@@ -1923,26 +2020,34 @@ export default function Reports() {
 
   const priorBalances = useMemo(
     () =>
-      showPriorPeriod ? computeAccountBalances(reportLines, accounts, priorEngineDateRange) : [],
-    [reportLines, accounts, priorEngineDateRange, showPriorPeriod],
+      showPriorPeriod
+        ? computeAccountBalances(reportLines, accounts, priorEngineDateRange, reportDecimals)
+        : [],
+    [reportLines, accounts, priorEngineDateRange, showPriorPeriod, reportDecimals],
   );
 
   const priorPnlData = useMemo(
-    () => (showPriorPeriod ? computePnL(priorBalances) : null),
-    [priorBalances, showPriorPeriod],
+    () => (showPriorPeriod ? computePnL(priorBalances, reportDecimals) : null),
+    [priorBalances, showPriorPeriod, reportDecimals],
   );
   const priorBsData = useMemo(
     () =>
       showPriorPeriod
         ? computeBalanceSheet(
-            computeAccountBalances(reportLines, accounts, balanceSheetRange(priorEngineDateRange)),
+            computeAccountBalances(
+              reportLines,
+              accounts,
+              balanceSheetRange(priorEngineDateRange),
+              reportDecimals,
+            ),
+            reportDecimals,
           )
         : null,
-    [reportLines, accounts, priorEngineDateRange, showPriorPeriod],
+    [reportLines, accounts, priorEngineDateRange, showPriorPeriod, reportDecimals],
   );
   const priorTbData = useMemo(
-    () => (showPriorPeriod ? computeTrialBalance(priorBalances) : null),
-    [priorBalances, showPriorPeriod],
+    () => (showPriorPeriod ? computeTrialBalance(priorBalances, reportDecimals) : null),
+    [priorBalances, showPriorPeriod, reportDecimals],
   );
 
   const priorDateLabel = useMemo(() => {
@@ -1955,9 +2060,36 @@ export default function Reports() {
 
   // Determine display currency based on currency mode toggle
   const displayCurrency = useMemo(() => {
-    if (currencyMode === 'secondary' && secondaryCurrency) return secondaryCurrency;
+    if (effectiveMode === 'secondary' && secondaryCurrency) return secondaryCurrency;
     return primaryCurrency;
-  }, [currencyMode, primaryCurrency, secondaryCurrency]);
+  }, [effectiveMode, primaryCurrency, secondaryCurrency]);
+
+  // Entries left out of this report, counted for its own period (a Balance Sheet: up to its date).
+  const excludedNow = useMemo(
+    () =>
+      excludedInRange(
+        excludedEntries,
+        activeReport === 'balance-sheet' ? balanceSheetRange(engineDateRange) : engineDateRange,
+      ),
+    [excludedEntries, activeReport, engineDateRange],
+  );
+  const excludedPrior = useMemo(
+    () =>
+      showPriorPeriod
+        ? excludedInRange(
+            excludedEntries,
+            activeReport === 'balance-sheet'
+              ? balanceSheetRange(priorEngineDateRange)
+              : priorEngineDateRange,
+          )
+        : null,
+    [excludedEntries, activeReport, priorEngineDateRange, showPriorPeriod],
+  );
+  // The Activity Log lists every entry, so it has no totals to leave anything out of.
+  const excludedNote =
+    activeReport === 'activity-log'
+      ? null
+      : excludedEntriesNote(excludedNow, excludedPrior, displayCurrency);
 
   // Boundary detection — does the active date range cross a primary-currency change?
   const boundaryResult = useMemo(() => {
@@ -2159,8 +2291,8 @@ export default function Reports() {
                   disabled={m.value === 'secondary' && !secondaryCurrency}
                   className={cn('px-3 text-xs font-medium transition-colors disabled:opacity-40')}
                   style={{
-                    background: currencyMode === m.value ? 'var(--color-brand-orange)' : 'white',
-                    color: currencyMode === m.value ? 'white' : 'var(--color-gray-600)',
+                    background: shownMode === m.value ? 'var(--color-brand-orange)' : 'white',
+                    color: shownMode === m.value ? 'white' : 'var(--color-gray-600)',
                   }}
                   onClick={() => setCurrencyMode(m.value)}
                 >
@@ -2191,7 +2323,7 @@ export default function Reports() {
                 activityEntries,
                 displayCurrency,
                 btcDisplay,
-                currencyMode,
+                effectiveMode,
                 {
                   dateLabel,
                   primaryCurrency,
@@ -2201,6 +2333,7 @@ export default function Reports() {
                   hasBoundary: !!boundaryResult,
                   primaryCurrencyHistory,
                 },
+                excludedNote,
               )
             }
           >
@@ -2224,12 +2357,18 @@ export default function Reports() {
                 glEntries,
                 cfData,
                 activityEntries,
-                reportPrintReportingNote(
-                  activeReport,
-                  currencyMode,
-                  primaryCurrency,
-                  secondaryCurrency,
-                ),
+                [
+                  reportPrintReportingNote(
+                    activeReport,
+                    effectiveMode,
+                    primaryCurrency,
+                    secondaryCurrency,
+                  ),
+                  excludedNote,
+                ]
+                  .filter(Boolean)
+                  .join(' ') || undefined,
+                reportDecimals,
               ).catch(() => {
                 alert('Could not prepare the print preview. Try again.');
               });
@@ -2307,8 +2446,26 @@ export default function Reports() {
         </div>
       )}
 
+      {!dataLoading && excludedNote && (
+        <div
+          className="mb-3 px-3 py-2 rounded-lg text-xs"
+          style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
+        >
+          <strong>Not in these totals:</strong> {excludedNote}
+        </div>
+      )}
+      {!dataLoading && currencyMode === 'secondary' && !secondaryActive && (
+        <div
+          className="mb-3 px-3 py-2 rounded-lg text-xs"
+          style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}
+        >
+          No {secondaryCurrency ?? 'secondary'} rate is available, so amounts are shown in{' '}
+          {primaryCurrency}.
+        </div>
+      )}
+
       {/* Wallet mode — mixed-units notice */}
-      {!dataLoading && currencyMode === 'wallet' && (
+      {!dataLoading && effectiveMode === 'wallet' && (
         <div
           className="mb-3 px-3 py-2 rounded-lg text-xs"
           style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#92400E' }}

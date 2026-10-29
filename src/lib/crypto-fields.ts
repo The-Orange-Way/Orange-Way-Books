@@ -479,6 +479,10 @@ export interface JournalEntryLineFields {
   amount_primary?: number | null;
   posted_rate?: number | null;
   wallet_currency?: string | null;
+  /** Read back from encrypted_primary_currency_at_posting; written through `meta` on encrypt. */
+  primary_currency_at_posting?: string | null;
+  /** True when encrypted_primary_currency_at_posting is present but could not be decrypted. */
+  primary_currency_at_posting_unreadable?: boolean;
 }
 
 /**
@@ -576,6 +580,8 @@ export async function encryptJournalEntryLine(
   };
 }
 
+const UNREADABLE = '\u0000unreadable';
+
 export async function decryptJournalEntryLine(
   row: any,
   decrypt: DecryptFn,
@@ -603,6 +609,7 @@ export async function decryptJournalEntryLine(
     amount_primary,
     posted_rate,
     wallet_currency,
+    primary_currency_at_posting,
   ] = await Promise.all([
     decryptNullable(row.account_name, decrypt, kv),
     decryptNullable(row.account_code, decrypt, kv),
@@ -614,6 +621,9 @@ export async function decryptJournalEntryLine(
     decryptNumber(row.encrypted_amount_primary, decrypt, kv, null),
     decryptNumber(row.encrypted_posted_rate, decrypt, kv, null),
     decryptNullable(row.encrypted_wallet_currency, decrypt, kv),
+    // A posting currency that cannot be read must not stop the line loading; it is flagged so a
+    // report that relies on it can leave the line out and say so.
+    decryptNullable(row.encrypted_primary_currency_at_posting, decrypt, kv).catch(() => UNREADABLE),
   ]);
   return {
     account_name,
@@ -626,6 +636,9 @@ export async function decryptJournalEntryLine(
     amount_primary: amount_primary ?? null,
     posted_rate: posted_rate ?? null,
     wallet_currency: wallet_currency ?? null,
+    primary_currency_at_posting:
+      primary_currency_at_posting === UNREADABLE ? null : (primary_currency_at_posting ?? null),
+    primary_currency_at_posting_unreadable: primary_currency_at_posting === UNREADABLE,
   };
 }
 
