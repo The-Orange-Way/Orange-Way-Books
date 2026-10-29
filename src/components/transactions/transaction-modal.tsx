@@ -225,6 +225,10 @@ export default function TransactionModal({
   const [mode, setMode] = useState<TxMode>('standard');
   const [walletId, setWalletId] = useState('');
   const [direction, setDirection] = useState<Direction>('OUT');
+  // Whether the received amount was typed (it then stops following the exchange rate), and the
+  // wallets an opened transfer's amounts were saved with.
+  const [rateOverride, setRateOverride] = useState(false);
+  const [savedTransfer, setSavedTransfer] = useState<SavedTransfer | null>(null);
   const [accountId, setAccountId] = useState(''); // Standard mode: destination account
   const [contactId, setContactId] = useState(''); // Standard mode: customer / vendor on the right-side picker
   const [counterpartyWalletId, setCounterpartyWalletId] = useState(''); // Transfer mode
@@ -521,14 +525,11 @@ export default function TransactionModal({
   const rateQuote = needsTransferRate ? transferReceivedWallet!.asset : null;
   const rateDate = date ? format(date, 'yyyy-MM-dd') : undefined;
   const { rate: autoRate, loading: rateLoading } = useExchangeRate(rateBase, rateQuote, rateDate);
-  const [rateOverride, setRateOverride] = useState(false);
-  const [savedTransfer, setSavedTransfer] = useState<SavedTransfer | null>(null);
   const keepSavedAmounts = keepsSavedTransferAmounts(savedTransfer, wallets, rateBase, rateQuote);
   // Once the currencies leave the saved pair the saved amounts no longer apply, even if the user
-  // comes back to it, because the amounts on screen may already follow another rate.
-  useEffect(() => {
-    if (savedTransfer && !keepSavedAmounts) setSavedTransfer(null);
-  }, [savedTransfer, keepSavedAmounts]);
+  // comes back to it, because the amounts on screen may already follow another rate. Set during
+  // render (React's pattern for adjusting state to a change), so no frame keeps the old lock.
+  if (savedTransfer && !keepSavedAmounts) setSavedTransfer(null);
   useEffect(() => {
     if (!needsTransferRate || rateOverride || keepSavedAmounts) return;
     if (autoRate && sentAmount) {
