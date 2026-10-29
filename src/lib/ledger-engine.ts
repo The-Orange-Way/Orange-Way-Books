@@ -122,6 +122,119 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Rounding for a report. With no `decimals` (every caller except a Bitcoin report) it is the
+ * original two-place rounding. With `decimals`, amounts keep that many places.
+ */
+function roundTo(decimals?: number): (n: number) => number {
+  if (decimals == null) return round2;
+  const f = 10 ** decimals;
+  return (n) => Math.round(n * f) / f;
+}
+
+/**
+ * Unrounded sums behind each AccountBalance a Bitcoin report computes. Totals are taken from these
+ * and rounded once, so rounding each account first cannot make a balanced ledger look unbalanced.
+ */
+const rawSums = new WeakMap<AccountBalance, { debits: number; credits: number; balance: number }>();
+
+/** The value to add into a total: unrounded for a Bitcoin report, the row balance otherwise. */
+function addable(b: AccountBalance, decimals?: number): number {
+  return decimals == null ? b.balance : (rawSums.get(b)?.balance ?? b.balance);
+}
+
+/** True for a Bitcoin unit. Reports in these units keep their full precision. */
+export function isBitcoinCurrency(currency: string | null | undefined): boolean {
+  const c = (currency ?? '').toUpperCase();
+  return c === 'BTC' || c === 'SATS' || c === 'SAT';
+}
+
+/** Decimal places a report in `currency` is kept to: 8 for BTC, 0 for sats, else the ISO minor unit. */
+export function currencyDecimals(currency: string): number {
+  const c = currency.toUpperCase();
+  if (c === 'BTC') return 8;
+  if (c === 'SATS' || c === 'SAT') return 0;
+  try {
+    return (
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).resolvedOptions()
+        .maximumFractionDigits ?? 2
+    );
+  } catch {
+    return 2;
+  }
+}
+
+/**
+ * Why a line cannot be added to primary-currency totals, or null when it can.
+ * - 'awaiting-rate': its amount is in another currency and has no primary amount yet.
+ * - 'other-primary': it was posted when the company had a different primary currency.
+ * - 'unknown-currency': it carries neither a primary amount nor its own currency, so the unit of
+ *   its debit and credit cannot be known.
+ */
+export type LineExclusionReason = 'awaiting-rate' | 'other-primary' | 'unknown-currency';
+
+export function lineExclusionReason(
+  line: JournalLine,
+  primaryCurrency: string,
+): LineExclusionReason | null {
+  const primary = primaryCurrency.toUpperCase();
+  if (line.ratePending) return 'awaiting-rate';
+  if (line.primaryCurrencyAtPosting && line.primaryCurrencyAtPosting.toUpperCase() !== primary) {
+    return 'other-primary';
+  }
+  if (line.amountPrimary != null) return null;
+  if (!line.walletCurrency) return 'unknown-currency';
+  return line.walletCurrency.toUpperCase() === primary ? null : 'awaiting-rate';
+}
+
+/** An entry left out of a report, with its date so a report can count only those in its period. */
+export interface ExcludedEntry {
+  journalEntryId: string;
+  date: string;
+  reason: LineExclusionReason;
+}
+
+/**
+ * Lines ready for a primary or secondary currency report in a Bitcoin company. Whole entries with a
+ * line that cannot be valued are left out, so totals still balance, and listed in `excluded`.
+ * Every kept line is rewritten so its debit and credit are its primary amount, times `rate` when a
+ * secondary display rate is given. The General Ledger and the drill-down rows read debit and
+ * credit, so they then show the same amounts as the balances.
+ */
+export function prepareReportLines(
+  lines: JournalLine[],
+  primaryCurrency: string,
+  rate: number | null,
+): { lines: JournalLine[]; excluded: ExcludedEntry[] } {
+  const excluded = new Map<string, ExcludedEntry>();
+  for (const l of lines) {
+    const reason = lineExclusionReason(l, primaryCurrency);
+    if (reason && !excluded.has(l.journalEntryId)) {
+      excluded.set(l.journalEntryId, { journalEntryId: l.journalEntryId, date: l.date, reason });
+    }
+  }
+  const k = rate ?? 1;
+  return {
+    lines: lines
+      .filter((l) => !excluded.has(l.journalEntryId))
+      .map((l) => {
+        const amt = primaryAmount(l) * k;
+        return {
+          ...l,
+          debit: amt > 0 ? amt : 0,
+          credit: amt < 0 ? -amt : 0,
+          amountPrimary: amt,
+        };
+      }),
+    excluded: [...excluded.values()],
+  };
+}
+
+/** How many excluded entries fall inside `range`. */
+export function countExcludedInRange(excluded: ExcludedEntry[], range?: DateRange): number {
+  return excluded.filter((e) => journalLineInDateRange(e.date, range)).length;
+}
+
 // ---------------------------------------------------------------------------
 // Core: Account Balances
 // ---------------------------------------------------------------------------
@@ -134,7 +247,9 @@ export function computeAccountBalances(
   lines: JournalLine[],
   accounts: AccountInfo[],
   dateRange?: DateRange,
+  decimals?: number,
 ): AccountBalance[] {
+  const rnd = roundTo(decimals);
   const accountMap = new Map<string, AccountInfo>();
   for (const a of accounts) {
     accountMap.set(a.id, a);
@@ -171,17 +286,20 @@ export function computeAccountBalances(
     const info = accountMap.get(accountId);
     if (!info) continue;
 
-    results.push({
+    const balance = normalBalance(sums.debits, sums.credits, info.accountType);
+    const row: AccountBalance = {
       accountId,
       accountName: info.name,
       accountCode: info.code,
       accountType: info.accountType,
       accountGroup: info.accountGroup,
       accountCategory: info.accountCategory,
-      totalDebits: round2(sums.debits),
-      totalCredits: round2(sums.credits),
-      balance: round2(normalBalance(sums.debits, sums.credits, info.accountType)),
-    });
+      totalDebits: rnd(sums.debits),
+      totalCredits: rnd(sums.credits),
+      balance: rnd(balance),
+    };
+    if (decimals != null) rawSums.set(row, { ...sums, balance });
+    results.push(row);
   }
 
   return results.sort((a, b) => (a.accountCode || '').localeCompare(b.accountCode || ''));
@@ -388,12 +506,17 @@ export interface PnLReport {
   netProfit: number;
 }
 
-export function computePnL(balances: AccountBalance[]): PnLReport {
+export function computePnL(balances: AccountBalance[], decimals?: number): PnLReport {
+  const rnd = roundTo(decimals);
   const incomeRows: ReportDataRow[] = [];
   const expenseRows: ReportDataRow[] = [];
+  let income = 0;
+  let expenses = 0;
 
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
+    if (isIncomeType(t)) income += addable(b, decimals);
+    else if (t === 'expense') expenses += addable(b, decimals);
     if (isIncomeType(t)) {
       incomeRows.push({
         accountId: b.accountId,
@@ -411,13 +534,13 @@ export function computePnL(balances: AccountBalance[]): PnLReport {
     }
   }
 
-  const totalIncome = round2(incomeRows.reduce((s, r) => s + r.balance, 0));
-  const totalExpenses = round2(expenseRows.reduce((s, r) => s + r.balance, 0));
+  const totalIncome = rnd(income);
+  const totalExpenses = rnd(expenses);
 
   return {
     income: { header: 'Income', rows: incomeRows, total: totalIncome },
     expenses: { header: 'Expenses', rows: expenseRows, total: totalExpenses },
-    netProfit: round2(totalIncome - totalExpenses),
+    netProfit: rnd(decimals == null ? totalIncome - totalExpenses : income - expenses),
   };
 }
 
@@ -435,12 +558,17 @@ export interface BalanceSheetReport {
 /** Row id of the earnings line the Balance Sheet adds to equity: all income less expenses not yet closed to an equity account. Not a chart account. */
 export const NET_INCOME_ROW_ID = 'net-income';
 
-export function computeBalanceSheet(balances: AccountBalance[]): BalanceSheetReport {
+export function computeBalanceSheet(
+  balances: AccountBalance[],
+  decimals?: number,
+): BalanceSheetReport {
+  const rnd = roundTo(decimals);
   const assetRows: ReportDataRow[] = [];
   const liabilityRows: ReportDataRow[] = [];
   const equityRows: ReportDataRow[] = [];
   // Income and expense not yet closed to equity belong in equity, or the sheet cannot balance.
   let netIncome = 0;
+  const sums = { asset: 0, liability: 0, equity: 0 };
 
   for (const b of balances) {
     const t = b.accountType.toLowerCase();
@@ -450,30 +578,41 @@ export function computeBalanceSheet(balances: AccountBalance[]): BalanceSheetRep
       code: b.accountCode,
       balance: b.balance,
     };
+    const v = addable(b, decimals);
     if (t === 'asset') assetRows.push(row);
     else if (t === 'liability') liabilityRows.push(row);
     else if (t === 'equity') equityRows.push(row);
-    else if (isIncomeType(t)) netIncome += b.balance;
-    else if (t === 'expense') netIncome -= b.balance;
+    else if (isIncomeType(t)) netIncome += v;
+    else if (t === 'expense') netIncome -= v;
+    if (t === 'asset' || t === 'liability' || t === 'equity') sums[t] += v;
   }
-  if (round2(netIncome) !== 0) {
+  sums.equity += netIncome;
+  if (rnd(netIncome) !== 0) {
     equityRows.push({
       accountId: NET_INCOME_ROW_ID,
       name: 'Earnings to Date',
       code: null,
-      balance: round2(netIncome),
+      balance: rnd(netIncome),
     });
   }
 
-  const totalAssets = round2(assetRows.reduce((s, r) => s + r.balance, 0));
-  const totalLiabilities = round2(liabilityRows.reduce((s, r) => s + r.balance, 0));
-  const totalEquity = round2(equityRows.reduce((s, r) => s + r.balance, 0));
+  const totalAssets = rnd(
+    decimals == null ? assetRows.reduce((s, r) => s + r.balance, 0) : sums.asset,
+  );
+  const totalLiabilities = rnd(
+    decimals == null ? liabilityRows.reduce((s, r) => s + r.balance, 0) : sums.liability,
+  );
+  const totalEquity = rnd(
+    decimals == null ? equityRows.reduce((s, r) => s + r.balance, 0) : sums.equity,
+  );
 
   return {
     assets: { header: 'Assets', rows: assetRows, total: totalAssets },
     liabilities: { header: 'Liabilities', rows: liabilityRows, total: totalLiabilities },
     equity: { header: 'Equity', rows: equityRows, total: totalEquity },
-    totalLiabilitiesAndEquity: round2(totalLiabilities + totalEquity),
+    totalLiabilitiesAndEquity: rnd(
+      decimals == null ? totalLiabilities + totalEquity : sums.liability + sums.equity,
+    ),
   };
 }
 
@@ -495,36 +634,58 @@ export interface TrialBalanceReport {
   isBalanced: boolean;
 }
 
-export function computeTrialBalance(balances: AccountBalance[]): TrialBalanceReport {
+export function computeTrialBalance(
+  balances: AccountBalance[],
+  decimals?: number,
+): TrialBalanceReport {
+  const rnd = roundTo(decimals);
+  let rawDebits = 0;
+  let rawCredits = 0;
   const rows: TrialBalanceRow[] = balances.map((b) => {
+    const raw = decimals == null ? undefined : rawSums.get(b);
+    const d = raw ? raw.debits : b.totalDebits;
+    const c = raw ? raw.credits : b.totalCredits;
+    if (d - c >= 0) rawDebits += d - c;
+    else rawCredits += c - d;
     // Show balance in debit or credit column based on normal side
     if (isDebitNormal(b.accountType)) {
-      const net = b.totalDebits - b.totalCredits;
+      const net = d - c;
       return {
         accountName: b.accountName,
         accountCode: b.accountCode,
-        debit: net >= 0 ? round2(net) : 0,
-        credit: net < 0 ? round2(Math.abs(net)) : 0,
+        debit: net >= 0 ? rnd(net) : 0,
+        credit: net < 0 ? rnd(Math.abs(net)) : 0,
       };
     } else {
-      const net = b.totalCredits - b.totalDebits;
+      const net = c - d;
       return {
         accountName: b.accountName,
         accountCode: b.accountCode,
-        debit: net < 0 ? round2(Math.abs(net)) : 0,
-        credit: net >= 0 ? round2(net) : 0,
+        debit: net < 0 ? rnd(Math.abs(net)) : 0,
+        credit: net >= 0 ? rnd(net) : 0,
       };
     }
   });
 
-  const totalDebits = round2(rows.reduce((s, r) => s + r.debit, 0));
-  const totalCredits = round2(rows.reduce((s, r) => s + r.credit, 0));
-
+  if (decimals == null) {
+    const totalDebits = round2(rows.reduce((s, r) => s + r.debit, 0));
+    const totalCredits = round2(rows.reduce((s, r) => s + r.credit, 0));
+    return {
+      rows,
+      totalDebits,
+      totalCredits,
+      isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
+    };
+  }
+  // Totals from the unrounded sums, compared in whole minor units (satoshis for BTC).
+  const totalDebits = rnd(rawDebits);
+  const totalCredits = rnd(rawCredits);
+  const f = 10 ** decimals;
   return {
     rows,
     totalDebits,
     totalCredits,
-    isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
+    isBalanced: Math.round(totalDebits * f) === Math.round(totalCredits * f),
   };
 }
 
@@ -547,7 +708,9 @@ export function computeGeneralLedger(
   lines: JournalLine[],
   accounts: AccountInfo[],
   dateRange?: DateRange,
+  decimals?: number,
 ): GLEntry[] {
+  const rnd = roundTo(decimals);
   const accountMap = new Map<string, AccountInfo>();
   for (const a of accounts) accountMap.set(a.id, a);
 
@@ -570,16 +733,18 @@ export function computeGeneralLedger(
     const delta = isDebitNormal(info.accountType)
       ? (Number(line.debit) || 0) - (Number(line.credit) || 0)
       : (Number(line.credit) || 0) - (Number(line.debit) || 0);
-    const newBalance = round2(current + delta);
-    runningBalances.set(line.accountId!, newBalance);
+    // A Bitcoin report carries the running balance unrounded and rounds only what it shows.
+    const running = decimals == null ? rnd(current + delta) : current + delta;
+    const newBalance = rnd(running);
+    runningBalances.set(line.accountId!, running);
 
     entries.push({
       date: line.date,
       accountName: info.name,
       accountCode: info.code,
       description: line.description,
-      debit: Number(line.debit) || 0,
-      credit: Number(line.credit) || 0,
+      debit: decimals == null ? Number(line.debit) || 0 : rnd(Number(line.debit) || 0),
+      credit: decimals == null ? Number(line.credit) || 0 : rnd(Number(line.credit) || 0),
       runningBalance: newBalance,
       journalEntryId: line.journalEntryId,
     });
@@ -633,10 +798,12 @@ export interface CashFlowReport {
   netChange: number;
 }
 
-export function computeCashFlow(balances: AccountBalance[]): CashFlowReport {
+export function computeCashFlow(balances: AccountBalance[], decimals?: number): CashFlowReport {
+  const rnd = roundTo(decimals);
   const operating: ReportDataRow[] = [];
   const investing: ReportDataRow[] = [];
   const financing: ReportDataRow[] = [];
+  const sums = { operating: 0, investing: 0, financing: 0 };
 
   for (const b of balances) {
     const bucket = classifyAccountForCashFlow(b);
@@ -653,27 +820,37 @@ export function computeCashFlow(balances: AccountBalance[]): CashFlowReport {
       balance: b.balance,
     };
 
+    const v = addable(b, decimals);
     if (bucket === 'operating') {
       if (t === 'asset' && !g.includes('cash') && !g.includes('bank')) {
         operating.push({ ...base, balance: -base.balance });
+        sums.operating -= v;
       } else {
         operating.push(base);
+        sums.operating += v;
       }
     } else if (bucket === 'investing') {
       investing.push({ ...base, balance: -base.balance });
+      sums.investing -= v;
     } else {
       financing.push(base);
+      sums.financing += v;
     }
   }
 
-  const opTotal = round2(operating.reduce((s, r) => s + r.balance, 0));
-  const invTotal = round2(investing.reduce((s, r) => s + r.balance, 0));
-  const finTotal = round2(financing.reduce((s, r) => s + r.balance, 0));
+  const legacy = (rows: ReportDataRow[]) => rows.reduce((s, r) => s + r.balance, 0);
+  const opTotal = rnd(decimals == null ? legacy(operating) : sums.operating);
+  const invTotal = rnd(decimals == null ? legacy(investing) : sums.investing);
+  const finTotal = rnd(decimals == null ? legacy(financing) : sums.financing);
 
   return {
     operating: { header: 'Operating Activities', rows: operating, total: opTotal },
     investing: { header: 'Investing Activities', rows: investing, total: invTotal },
     financing: { header: 'Financing Activities', rows: financing, total: finTotal },
-    netChange: round2(opTotal + invTotal + finTotal),
+    netChange: rnd(
+      decimals == null
+        ? opTotal + invTotal + finTotal
+        : sums.operating + sums.investing + sums.financing,
+    ),
   };
 }
