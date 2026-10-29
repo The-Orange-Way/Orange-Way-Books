@@ -1740,7 +1740,10 @@ export default function Reports() {
       const rawLines = (jeRes.data as any[]) ?? [];
       // An old imported line carries no currency of its own; its entry's currency is the one.
       const entryCurrencies = new Map<string, Promise<string | null>>();
-      const entryCurrency = (l: any): Promise<string | null> => {
+      const entryCurrency = (l: {
+        journal_entry_id: string;
+        journal_entries?: { encrypted_currency?: string | null } | null;
+      }): Promise<string | null> => {
         const je = l.journal_entries;
         if (!je?.encrypted_currency) return Promise.resolve(null);
         let c = entryCurrencies.get(l.journal_entry_id);
@@ -1968,6 +1971,7 @@ export default function Reports() {
     drillAccountId,
     primaryCurrency,
     reportDecimals,
+    setDrillAccountId,
   ]);
 
   const pnlData = useMemo(() => computePnL(balances, reportDecimals), [balances, reportDecimals]);
