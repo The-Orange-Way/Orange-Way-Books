@@ -644,13 +644,13 @@ function GeneralLedgerReport({
                   {e.description || '—'}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {e.debit ? fmtMoney(e.debit, currency) : ''}
+                  {e.debit ? fmtMoney(e.debit, e.currency || currency) : ''}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {e.credit ? fmtMoney(e.credit, currency) : ''}
+                  {e.credit ? fmtMoney(e.credit, e.currency || currency) : ''}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold">
-                  {fmtMoney(e.runningBalance, currency)}
+                  {fmtMoney(e.runningBalance, e.currency || currency)}
                 </TableCell>
               </TableRow>
             ))
@@ -907,13 +907,16 @@ function exportReportCsv(
     case 'general-ledger':
       headers = ['Date', 'Account', 'Description', 'Debit', 'Credit', 'Balance'];
       for (const e of glEntries) {
+        // Wallet mode: each row in its own wallet's units.
+        const amt = (n: number) =>
+          e.currency ? transactionAmountNumericForCsv(n, e.currency, btcDisplay) : csvAmt(n);
         rows.push([
           e.date,
           e.accountCode ? `${e.accountCode} — ${e.accountName}` : e.accountName,
           e.description || '',
-          csvAmt(e.debit),
-          csvAmt(e.credit),
-          csvAmt(e.runningBalance),
+          amt(e.debit),
+          amt(e.credit),
+          amt(e.runningBalance),
         ]);
       }
       break;
@@ -1998,8 +2001,15 @@ export default function Reports() {
     [balances, reportDecimals],
   );
   const glEntries = useMemo(
-    () => computeGeneralLedger(reportLines, accounts, engineDateRange, reportDecimals),
-    [reportLines, accounts, engineDateRange, reportDecimals],
+    () =>
+      computeGeneralLedger(
+        reportLines,
+        accounts,
+        engineDateRange,
+        reportDecimals,
+        effectiveMode === 'wallet',
+      ),
+    [reportLines, accounts, engineDateRange, reportDecimals, effectiveMode],
   );
   const activityEntries = useMemo(
     () => buildActivityLog(journalLines, engineDateRange),
