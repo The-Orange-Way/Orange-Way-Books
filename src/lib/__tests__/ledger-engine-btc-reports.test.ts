@@ -189,11 +189,13 @@ describe('rounding cannot unbalance a balanced ledger', () => {
   ];
 
   it('5 + 5 sats against 10 sats at US$100,000 is balanced at $0.01', () => {
-    const usd = prepareReportLines(tiny(1), 'BTC', 100000).lines;
+    const usd = prepareReportLines(tiny(1), 'BTC', 100000, 2).lines;
     const tb = computeTrialBalance(computeAccountBalances(usd, three, undefined, 2), 2);
     expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([0.01, 0.01, true]);
     // Negative control: rounding each account first gives 0.02 against 0.01.
-    const old = computeTrialBalance(computeAccountBalances(usd, three));
+    const old = computeTrialBalance(
+      computeAccountBalances(prepareReportLines(tiny(1), 'BTC', 100000).lines, three),
+    );
     expect([old.totalDebits, old.totalCredits]).toEqual([0.02, 0.01]);
   });
 
@@ -203,7 +205,7 @@ describe('rounding cannot unbalance a balanced ledger', () => {
       line('s', 'cad2', 600.6, { walletCurrency: 'SATS' }),
       line('s', 'equity', -1201.2, { walletCurrency: 'SATS' }),
     ];
-    const ready = prepareReportLines(sats, 'SATS', null).lines;
+    const ready = prepareReportLines(sats, 'SATS', null, 0).lines;
     const tb = computeTrialBalance(computeAccountBalances(ready, three, undefined, 0), 0);
     expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([1201, 1201, true]);
     const bs = computeBalanceSheet(computeAccountBalances(ready, three, undefined, 0), 0);
@@ -334,10 +336,9 @@ describe('rows add up to the totals shown', () => {
     expect(shown).toBe(Math.round(tb.totalDebits * 1e8));
   });
 
-  it('negative control: without rounding inside entries the rows do not foot', () => {
-    const r = prepareReportLines(sats, 'SATS', null);
-    const tb = computeTrialBalance(computeAccountBalances(r.lines, accounts, undefined, 0), 0);
-    expect(Math.round(tb.totalDebits)).toBe(1201); // rows show 601 + 601
+  it('negative control: rounding the rows and the unrounded total separately does not foot', () => {
+    expect(Math.round(600.6) + Math.round(600.6)).toBe(1202);
+    expect(Math.round(600.6 + 600.6)).toBe(1201);
   });
 });
 
@@ -351,7 +352,7 @@ describe('the note about left-out entries', () => {
     expect(
       excludedEntriesNote([e('a', 'awaiting-rate'), e('b', 'unknown-currency')], null, 'BTC'),
     ).toBe(
-      '2 entries are not in these BTC totals: 1 waiting for an exchange rate, 1 has no currency recorded.',
+      '2 entries are not in these BTC totals: 1 waiting for an exchange rate, 1 has no readable currency.',
     );
     expect(excludedEntriesNote([], [e('c', 'other-primary')], 'BTC')).toBe(
       '0 entries are not in these BTC totals (1 in the prior period): 1 posted under an earlier primary currency.',
@@ -374,5 +375,100 @@ describe('reading the posting currency back', () => {
     // Negative control: the plaintext column this page used to read does not exist on the row.
     const row: Record<string, unknown> = { encrypted_primary_currency_at_posting: 'enc:USD' };
     expect(row.primary_currency_at_posting).toBeUndefined();
+  });
+});
+
+describe('round 4: rounding keeps reversals and long books exact', () => {
+  const pair = (je: string, sign: number, extra: Partial<JournalLine> = {}) => [
+    line(je, 'btc', sign * 0.000002, { amountPrimary: sign * 0.000002, ...extra }),
+    line(je, 'equity', -sign * 0.000002, { amountPrimary: -sign * 0.000002, ...extra }),
+  ];
+  const usd = (ls: JournalLine[]) =>
+    computeAccountBalances(prepareReportLines(ls, 'BTC', 62500, 2).lines, accounts, undefined, 2);
+
+  it('an exact reversal cancels to zero at a half-cent tie, in either line order', () => {
+    const orig = pair('o', 1);
+    const rev = pair('r', -1, { reversalOfId: 'o' });
+    expect(usd([...orig, ...rev]).find((b) => b.accountId === 'btc')?.balance).toBe(0);
+    expect(usd([...orig, ...[...rev].reverse()]).find((b) => b.accountId === 'btc')?.balance).toBe(
+      0,
+    );
+  });
+
+  it('negative control: the amount is a tie and plain Math.round is not symmetric', () => {
+    expect(0.000002 * 62500 * 100).toBeCloseTo(12.5, 9);
+    expect([Math.round(12.5), Math.round(-12.5)]).toEqual([13, -12]);
+  });
+
+  it('10,000 entries of 10.1 BTC: rows 50,500 + 50,500, total 101,000, balanced', () => {
+    const many: JournalLine[] = [];
+    for (let i = 0; i < 10000; i++) {
+      many.push(line(`m${i}`, i % 2 ? 'cad' : 'btc', 10.1, { amountPrimary: 10.1 }));
+      many.push(line(`m${i}`, 'equity', -10.1, { amountPrimary: -10.1 }));
+    }
+    const bal = computeAccountBalances(
+      prepareReportLines(many, 'BTC', null, 8).lines,
+      accounts,
+      undefined,
+      8,
+    );
+    expect(bal.find((b) => b.accountId === 'btc')?.balance).toBe(50500);
+    const tb = computeTrialBalance(bal, 8);
+    expect([tb.totalDebits, tb.totalCredits, tb.isBalanced]).toEqual([101000, 101000, true]);
+  });
+
+  it('negative control: adding 10.1 five thousand times in floating point is not 50,500', () => {
+    let x = 0;
+    for (let i = 0; i < 5000; i++) x += 10.1;
+    expect(x).not.toBe(50500);
+  });
+});
+
+describe('round 4: an unreadable posting currency', () => {
+  const dec = async (v: string) => {
+    if (v === 'bad') throw new Error('auth tag');
+    return v.replace(/^enc:/, '');
+  };
+  it('still loads the line, flags it, and the report leaves it out', async () => {
+    const f = await decryptJournalEntryLine(
+      { key_version: 2, encrypted_debit: 'enc:5', encrypted_primary_currency_at_posting: 'bad' },
+      dec,
+    );
+    expect([
+      f.debit,
+      f.primary_currency_at_posting,
+      f.primary_currency_at_posting_unreadable,
+    ]).toEqual([5, null, true]);
+    const r = prepareReportLines(
+      [
+        line('u', 'btc', 5, { walletCurrency: 'BTC', postingCurrencyUnreadable: true }),
+        line('u', 'equity', -5, { walletCurrency: 'BTC' }),
+      ],
+      'BTC',
+      null,
+      8,
+    );
+    expect(r.excluded.map((e) => e.reason)).toEqual(['unknown-currency']);
+  });
+  it('negative control: a readable one is not flagged and the line is kept', async () => {
+    const f = await decryptJournalEntryLine(
+      {
+        key_version: 2,
+        encrypted_debit: 'enc:5',
+        encrypted_primary_currency_at_posting: 'enc:BTC',
+      },
+      dec,
+    );
+    expect(f.primary_currency_at_posting_unreadable).toBe(false);
+    const r = prepareReportLines(
+      [
+        line('k', 'btc', 5, { walletCurrency: 'BTC' }),
+        line('k', 'equity', -5, { walletCurrency: 'BTC' }),
+      ],
+      'BTC',
+      null,
+      8,
+    );
+    expect(r.excluded).toEqual([]);
   });
 });

@@ -6,7 +6,7 @@ const REASON_TEXT: Record<LineExclusionReason, [string, string]> = {
     'posted under an earlier primary currency',
     'posted under an earlier primary currency',
   ],
-  'unknown-currency': ['has no currency recorded', 'have no currency recorded'],
+  'unknown-currency': ['has no readable currency', 'have no readable currency'],
 };
 const ORDER: LineExclusionReason[] = ['awaiting-rate', 'other-primary', 'unknown-currency'];
 

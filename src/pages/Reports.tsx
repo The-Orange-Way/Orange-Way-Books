@@ -1761,6 +1761,7 @@ export default function Reports() {
             amountPrimary: fields.amount_primary ?? null,
             walletCurrency: fields.wallet_currency ?? null,
             primaryCurrencyAtPosting: fields.primary_currency_at_posting ?? null,
+            postingCurrencyUnreadable: fields.primary_currency_at_posting_unreadable ?? false,
             ratePending: l.rate_pending ?? false,
             entryCurrency: fields.wallet_currency ? null : await entryCurrency(l),
             reversalOfId: l.journal_entries?.reversal_of_id ?? null,

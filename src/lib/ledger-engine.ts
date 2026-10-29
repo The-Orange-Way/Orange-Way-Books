@@ -33,6 +33,8 @@ export interface JournalLine {
   entryCurrency?: string | null;
   /** The entry this line's entry reverses or voids, if any. */
   reversalOfId?: string | null;
+  /** The posting currency is stored but could not be read, so the line cannot be valued safely. */
+  postingCurrencyUnreadable?: boolean;
 }
 
 /**
@@ -183,6 +185,7 @@ export function lineExclusionReason(
 ): LineExclusionReason | null {
   const primary = primaryCurrency.toUpperCase();
   if (line.ratePending) return 'awaiting-rate';
+  if (line.postingCurrencyUnreadable) return 'unknown-currency';
   if (line.primaryCurrencyAtPosting && line.primaryCurrencyAtPosting.toUpperCase() !== primary) {
     return 'other-primary';
   }
@@ -265,6 +268,8 @@ export function prepareReportLines(
  */
 function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: number): void {
   const f = 10 ** decimals;
+  // Half away from zero, so an amount and its negative round to opposite values.
+  const half = (u: number) => Math.sign(u) * Math.round(Math.abs(u));
   const byEntry = new Map<string, number[]>();
   lines.forEach((l, i) => {
     const idx = byEntry.get(l.journalEntryId);
@@ -273,14 +278,19 @@ function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: n
   });
   for (const idx of byEntry.values()) {
     const exact = idx.map((i) => amounts[i] * f);
-    const units = exact.map((u) => Math.round(u));
-    let leftover = Math.round(exact.reduce((s, u) => s + u, 0)) - units.reduce((s, u) => s + u, 0);
+    const units = exact.map(half);
+    let leftover = half(exact.reduce((s, u) => s + u, 0)) - units.reduce((s, u) => s + u, 0);
+    // Leftover units go to the lines rounded furthest the other way. Ties go by account, then by
+    // size, never by input order, so a reversal written in another order rounds as a mirror image.
+    const dir = Math.sign(leftover);
+    const key = (j: number) => lines[idx[j]].accountId ?? '';
     const order = idx
       .map((_, j) => j)
-      .sort((a, b) =>
-        leftover > 0
-          ? exact[b] - units[b] - (exact[a] - units[a])
-          : exact[a] - units[a] - (exact[b] - units[b]),
+      .sort(
+        (a, b) =>
+          dir * (exact[b] - units[b] - (exact[a] - units[a])) ||
+          key(a).localeCompare(key(b)) ||
+          Math.abs(exact[b]) - Math.abs(exact[a]),
       );
     for (let n = 0; leftover !== 0 && n < order.length; n++) {
       const step = leftover > 0 ? 1 : -1;
@@ -310,6 +320,8 @@ export function countExcludedInRange(excluded: ExcludedEntry[], range?: DateRang
 /**
  * Groups journal lines by account, sums debits/credits, computes normal balance.
  * Optionally filters by date range.
+ * With `decimals` (a Bitcoin report), each line is added in whole minor units, so pass lines
+ * already rounded entry by entry by prepareReportLines with the same `decimals`.
  */
 export function computeAccountBalances(
   lines: JournalLine[],
@@ -318,6 +330,7 @@ export function computeAccountBalances(
   decimals?: number,
 ): AccountBalance[] {
   const rnd = roundTo(decimals);
+  const unit = 10 ** (decimals ?? 0);
   const accountMap = new Map<string, AccountInfo>();
   for (const a of accounts) {
     accountMap.set(a.id, a);
@@ -333,7 +346,8 @@ export function computeAccountBalances(
     // present (amount_primary); fall back to signed debit-credit for
     // pre-dual rows. primaryAmount() encodes the sign — split it back
     // into debit/credit buckets so normalBalance() still works.
-    const amt = primaryAmount(line);
+    // A Bitcoin report adds whole minor units, so a long book cannot drift by a satoshi.
+    const amt = decimals == null ? primaryAmount(line) : Math.round(primaryAmount(line) * unit);
     const debitPart = amt > 0 ? amt : 0;
     const creditPart = amt < 0 ? -amt : 0;
 
@@ -350,9 +364,11 @@ export function computeAccountBalances(
   }
 
   const results: AccountBalance[] = [];
-  for (const [accountId, sums] of totals) {
+  for (const [accountId, added] of totals) {
     const info = accountMap.get(accountId);
     if (!info) continue;
+    const sums =
+      decimals == null ? added : { debits: added.debits / unit, credits: added.credits / unit };
 
     const balance = normalBalance(sums.debits, sums.credits, info.accountType);
     const row: AccountBalance = {
