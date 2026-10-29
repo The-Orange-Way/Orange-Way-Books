@@ -52,6 +52,10 @@ const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
 const ALLOWED_WRAP_ALGOS = new Set<string>(['hybrid-x25519-mlkem768']);
 
+// org_members.role is limited by org_members_role_check to the five system role
+// names. Access itself is granted by the org_member_roles row written below.
+const LEGACY_ROLES = new Set<string>(['OWNER', 'ADMIN', 'ACCOUNTANT', 'MEMBER', 'VIEWER']);
+
 interface WrappedDekPayload {
   wrapped_dek: string;
   iv: string;
@@ -206,9 +210,18 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!existingMember) {
+      const legacyRole = roleDef.name.toUpperCase();
+      if (!roleDef.is_system || !LEGACY_ROLES.has(legacyRole)) {
+        return jsonResponse(
+          { error: 'This role cannot be assigned through an invite yet' },
+          400,
+          cors,
+        );
+      }
       const { error: memberErr } = await adminClient.from('org_members').insert({
         org_id: orgId,
         user_id: targetUserId,
+        role: legacyRole,
       });
       if (memberErr) {
         console.error('complete-invite-wrap insert org_members failed:', memberErr);
