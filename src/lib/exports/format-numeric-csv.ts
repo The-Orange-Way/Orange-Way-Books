@@ -1,3 +1,5 @@
+import { toMinorUnits } from '@/lib/minor-units';
+
 /** Decimal places kept when writing numeric amounts to CSV (enough for BTC-scale amounts). */
 const CSV_NUMERIC_DECIMAL_PLACES = 8;
 
@@ -13,7 +15,7 @@ export function formatNumericForCsvCell(n: number): string {
     return '0';
   }
   const factor = 10 ** CSV_NUMERIC_DECIMAL_PLACES;
-  const rounded = Math.round(n * factor) / factor;
+  const rounded = toMinorUnits(n, CSV_NUMERIC_DECIMAL_PLACES) / factor;
   let s = String(rounded);
   if (s.includes('e') || s.includes('E')) {
     s = rounded.toFixed(CSV_NUMERIC_DECIMAL_PLACES).replace(/\.?0+$/, '');

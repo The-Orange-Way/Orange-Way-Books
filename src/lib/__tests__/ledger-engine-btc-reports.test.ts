@@ -13,6 +13,8 @@ import {
   reportDifference,
   toMinorUnits,
 } from '../ledger-engine';
+import { formatNumericForCsvCell } from '@/lib/exports/format-numeric-csv';
+import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
 import { printCellText } from '../reports/print-cell-text';
 import { excludedEntriesNote } from '../reports/excluded-note';
@@ -664,5 +666,42 @@ describe('round 8: a large Bitcoin amount converts to the exact satoshi count', 
     expect(Object.is(toMinorUnits(-0, 8), 0)).toBe(true);
     expect(toMinorUnits(21000000, 8)).toBe(2100000000000000);
     expect(toMinorUnits(1234, 0)).toBe(1234);
+  });
+});
+
+describe('round 9: report preparation and CSV keep the exact satoshi', () => {
+  it('a balanced pair of 34000000.00000019 BTC is prepared unchanged', () => {
+    const big = [
+      line('big', 'btc', 34000000.00000019, {
+        amountPrimary: 34000000.00000019,
+        walletCurrency: 'BTC',
+      }),
+      line('big', 'equity', -34000000.00000019, {
+        amountPrimary: -34000000.00000019,
+        walletCurrency: 'BTC',
+      }),
+    ];
+    const ready = prepareReportLines(big, 'BTC', null, 8).lines;
+    expect(ready.map((l) => l.amountPrimary)).toEqual([34000000.00000019, -34000000.00000019]);
+  });
+
+  it('negative control: scaling by 1e8 before rounding gives 20 satoshis', () => {
+    expect(Math.round(34000000.00000019 * 1e8) % 100).toBe(20);
+  });
+
+  it('rounds the written decimal half away from zero, small and exponent forms included', () => {
+    expect(toMinorUnits(12.345, 2)).toBe(1235);
+    expect(toMinorUnits(-12.345, 2)).toBe(-1235);
+    expect(toMinorUnits(5e-7, 8)).toBe(50);
+    expect(toMinorUnits(1.5e-8, 8)).toBe(2);
+    expect(toMinorUnits(-1.5e-8, 8)).toBe(-2);
+    expect(toMinorUnits(1e-9, 8)).toBe(0);
+    expect(Object.is(toMinorUnits(-1e-9, 8), 0)).toBe(true);
+    expect(toMinorUnits(0.1 + 0.2, 8)).toBe(30000000);
+  });
+
+  it('CSV cells keep the last satoshi in both BTC and sats display', () => {
+    expect(formatNumericForCsvCell(34000000.00000019)).toBe('34000000.00000019');
+    expect(transactionAmountNumericForCsv(34000000.00000019, 'BTC', 'sats') % 100).toBe(19);
   });
 });

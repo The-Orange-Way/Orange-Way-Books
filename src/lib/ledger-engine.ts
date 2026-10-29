@@ -9,6 +9,8 @@
  *   Liabilities, Equity, Revenue → credit-normal (balance = credits - debits)
  */
 
+import { toMinorUnits } from './minor-units';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -124,16 +126,7 @@ export function journalLineInDateRange(dateStr: string, range?: DateRange): bool
   return true;
 }
 
-/**
- * `n` as a whole number of minor units (satoshis when `decimals` is 8). It rounds the exact stored
- * value through its decimal form, because `n * 10 ** decimals` is itself rounded and, for a large
- * amount, can land on a half and round up a unit that is not there (34000000.00000019 BTC gave 20
- * satoshis over 34000000, not 19).
- */
-export function toMinorUnits(n: number, decimals: number): number {
-  if (!Number.isFinite(n) || Math.abs(n) >= 1e21) return Math.round(n * 10 ** decimals);
-  return Number(n.toFixed(decimals).replace('.', '')) || 0;
-}
+export { toMinorUnits };
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -309,9 +302,11 @@ function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: n
     else byEntry.set(l.journalEntryId, [i]);
   });
   for (const idx of byEntry.values()) {
-    const exact = idx.map((i) => amounts[i] * f);
-    const units = exact.map(half);
-    let leftover = half(exact.reduce((s, u) => s + u, 0)) - units.reduce((s, u) => s + u, 0);
+    // Each line is rounded from its decimal form; only the small remainder of each is taken in
+    // floating point, so a large amount is not pushed onto a half by the scaling.
+    const units = idx.map((i) => toMinorUnits(amounts[i], decimals));
+    const rest = idx.map((i, j) => (amounts[i] - units[j] / f) * f);
+    let leftover = half(rest.reduce((s, r) => s + r, 0));
     // Leftover units go to the lines rounded furthest the other way. Ties go by account, then by
     // size, never by input order, so a reversal written in another order rounds as a mirror image.
     const dir = Math.sign(leftover);
@@ -320,9 +315,9 @@ function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: n
       .map((_, j) => j)
       .sort(
         (a, b) =>
-          dir * (exact[b] - units[b] - (exact[a] - units[a])) ||
+          dir * (rest[b] - rest[a]) ||
           key(a).localeCompare(key(b)) ||
-          Math.abs(exact[b]) - Math.abs(exact[a]),
+          Math.abs(amounts[idx[b]]) - Math.abs(amounts[idx[a]]),
       );
     for (let n = 0; leftover !== 0 && n < order.length; n++) {
       const step = leftover > 0 ? 1 : -1;
