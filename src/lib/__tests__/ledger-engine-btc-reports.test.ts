@@ -14,6 +14,7 @@ import {
   toMinorUnits,
 } from '../ledger-engine';
 import { formatNumericForCsvCell } from '@/lib/exports/format-numeric-csv';
+import { roundGroupToMinorUnits } from '@/lib/minor-units';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { effectiveReportCurrencyMode } from '../reports/effective-currency-mode';
 import { printCellText } from '../reports/print-cell-text';
@@ -703,5 +704,48 @@ describe('round 9: report preparation and CSV keep the exact satoshi', () => {
   it('CSV cells keep the last satoshi in both BTC and sats display', () => {
     expect(formatNumericForCsvCell(34000000.00000019)).toBe('34000000.00000019');
     expect(transactionAmountNumericForCsv(34000000.00000019, 'BTC', 'sats') % 100).toBe(19);
+  });
+});
+
+describe('round 10: exact entry totals and CSV of whole satoshis', () => {
+  it('an exactly balanced entry stays balanced when its rounded lines are off by two', () => {
+    const amts = [
+      17000000.000000015, 17000000.000000015, 17000000.000000015, 17000000.000000015,
+      -34000000.00000003, -34000000.00000003,
+    ];
+    const ls = amts.map((a, k) =>
+      line('e', k < 4 ? 'btc' : 'equity', a, { amountPrimary: a, walletCurrency: 'BTC' }),
+    );
+    const units = prepareReportLines(ls, 'BTC', null, 8).lines.map((l) =>
+      toMinorUnits(l.amountPrimary!, 8),
+    );
+    expect(units.reduce((s, u) => s + u, 0)).toBe(0);
+  });
+
+  it('negative control: floating remainders leave one satoshi outstanding', () => {
+    const amts = [
+      17000000.000000015, 17000000.000000015, 17000000.000000015, 17000000.000000015,
+      -34000000.00000003, -34000000.00000003,
+    ];
+    const units = amts.map((a) => toMinorUnits(a, 8));
+    const rest = amts.map((a, j) => (a - units[j] / 1e8) * 1e8);
+    const leftover = Math.round(rest.reduce((s, r) => s + r, 0));
+    expect(units.reduce((s, u) => s + u, 0) + leftover).not.toBe(0);
+  });
+
+  it('a single half rounds once and is not taken back', () => {
+    expect(roundGroupToMinorUnits([0.5], 0, () => 0)).toEqual([1]);
+    expect(roundGroupToMinorUnits([-0.5], 0, () => 0)).toEqual([-1]);
+    expect(roundGroupToMinorUnits([0.4, 0.4, 0.4], 0, () => 0).reduce((s, u) => s + u, 0)).toBe(1);
+  });
+
+  it('a CSV of a whole satoshi count is written exactly', () => {
+    const sats = transactionAmountNumericForCsv(34000000.00000019, 'BTC', 'sats');
+    expect(formatNumericForCsvCell(sats)).toBe('3400000000000019');
+    expect(formatNumericForCsvCell(0.1 + 0.2)).toBe('0.3');
+    expect(formatNumericForCsvCell(-0)).toBe('0');
+    expect(formatNumericForCsvCell(-0.000000001)).toBe('0');
+    expect(formatNumericForCsvCell(1e-7)).toBe('0.0000001');
+    expect(formatNumericForCsvCell(-12.5)).toBe('-12.5');
   });
 });

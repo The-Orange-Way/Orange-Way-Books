@@ -9,7 +9,7 @@
  *   Liabilities, Equity, Revenue → credit-normal (balance = credits - debits)
  */
 
-import { toMinorUnits } from './minor-units';
+import { roundGroupToMinorUnits, toMinorUnits } from './minor-units';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -293,8 +293,6 @@ export function prepareReportLines(
  */
 function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: number): void {
   const f = 10 ** decimals;
-  // Half away from zero, so an amount and its negative round to opposite values.
-  const half = (u: number) => Math.sign(u) * Math.round(Math.abs(u));
   const byEntry = new Map<string, number[]>();
   lines.forEach((l, i) => {
     const idx = byEntry.get(l.journalEntryId);
@@ -302,28 +300,16 @@ function roundWithinEntries(lines: JournalLine[], amounts: number[], decimals: n
     else byEntry.set(l.journalEntryId, [i]);
   });
   for (const idx of byEntry.values()) {
-    // Each line is rounded from its decimal form; only the small remainder of each is taken in
-    // floating point, so a large amount is not pushed onto a half by the scaling.
-    const units = idx.map((i) => toMinorUnits(amounts[i], decimals));
-    const rest = idx.map((i, j) => (amounts[i] - units[j] / f) * f);
-    let leftover = half(rest.reduce((s, r) => s + r, 0));
-    // Leftover units go to the lines rounded furthest the other way. Ties go by account, then by
-    // size, never by input order, so a reversal written in another order rounds as a mirror image.
-    const dir = Math.sign(leftover);
+    // Exact decimal arithmetic, so a balanced entry stays balanced however large its amounts.
+    // Ties go by account, then by size, never by input order, so a reversal written in another
+    // order rounds as a mirror image.
     const key = (j: number) => lines[idx[j]].accountId ?? '';
-    const order = idx
-      .map((_, j) => j)
-      .sort(
-        (a, b) =>
-          dir * (rest[b] - rest[a]) ||
-          key(a).localeCompare(key(b)) ||
-          Math.abs(amounts[idx[b]]) - Math.abs(amounts[idx[a]]),
-      );
-    for (let n = 0; leftover !== 0 && n < order.length; n++) {
-      const step = leftover > 0 ? 1 : -1;
-      units[order[n]] += step;
-      leftover -= step;
-    }
+    const units = roundGroupToMinorUnits(
+      idx.map((i) => amounts[i]),
+      decimals,
+      (a, b) =>
+        key(a).localeCompare(key(b)) || Math.abs(amounts[idx[b]]) - Math.abs(amounts[idx[a]]),
+    );
     idx.forEach((i, j) => {
       amounts[i] = units[j] / f;
     });
