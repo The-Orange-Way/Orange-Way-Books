@@ -1,3 +1,5 @@
+import { isIncomeType } from '@/lib/ledger-engine';
+
 /**
  * Chart hierarchy for client-side reports (Vault / ledger engine).
  * Mirrors Orange Way Books report-hierarchy behavior: summary rollups vs indented details.
@@ -216,8 +218,8 @@ export function buildReportHierarchyRoots(
 }
 
 export function plSectionPredicate(side: 'revenue' | 'expense'): HierarchySectionPredicate {
-  const want = side;
-  return (row) => row.accountType.toLowerCase() === want;
+  if (side === 'revenue') return (row) => isIncomeType(row.accountType);
+  return (row) => row.accountType.toLowerCase() === 'expense';
 }
 
 export function bsSectionPredicate(

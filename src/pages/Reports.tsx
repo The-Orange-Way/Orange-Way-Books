@@ -15,7 +15,8 @@ import {
   Clock,
   Printer,
 } from 'lucide-react';
-import { format, startOfYear, startOfMonth, startOfWeek, subMonths, subYears } from 'date-fns';
+import { format } from 'date-fns';
+import { type DatePreset, getDateRange } from '@/lib/reports/date-presets';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
@@ -53,6 +54,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import type { BitcoinDisplay } from '@/types';
 import {
+  balanceSheetRange,
   computeAccountBalances,
   computePnL,
   computeBalanceSheet,
@@ -99,16 +101,6 @@ type ReportType =
   | 'general-ledger'
   | 'trial-balance'
   | 'activity-log';
-type DatePreset =
-  | 'today'
-  | 'this_week'
-  | 'this_month'
-  | 'ytd'
-  | 'this_year'
-  | 'last_month'
-  | 'last_year'
-  | 'all_time'
-  | 'custom';
 
 /** Matches toolbar: Account / Primary / Secondary — used for the CSV column title next to amounts. */
 type ReportCurrencyMode = 'wallet' | 'primary' | 'secondary';
@@ -202,30 +194,6 @@ const CURRENCY_MODES: { value: ReportCurrencyMode; label: string; glOnly: boolea
   { value: 'primary', label: 'Primary Currency', glOnly: false },
   { value: 'secondary', label: 'Secondary Currency', glOnly: false },
 ];
-
-function getDateRange(preset: DatePreset): { from: Date | undefined; to: Date | undefined } {
-  const now = new Date();
-  switch (preset) {
-    case 'today':
-      return { from: now, to: now };
-    case 'this_week':
-      return { from: startOfWeek(now), to: now };
-    case 'this_month':
-      return { from: startOfMonth(now), to: now };
-    case 'ytd':
-      return { from: startOfYear(now), to: now };
-    case 'this_year':
-      return { from: startOfYear(now), to: now };
-    case 'last_month':
-      return { from: startOfMonth(subMonths(now, 1)), to: subMonths(startOfMonth(now), 0) };
-    case 'last_year':
-      return { from: startOfYear(subYears(now, 1)), to: startOfYear(now) };
-    case 'all_time':
-      return { from: undefined, to: undefined };
-    default:
-      return { from: undefined, to: undefined };
-  }
-}
 
 /* Data-driven report components */
 
@@ -1362,16 +1330,14 @@ function ComparisonPnl({
   currency: string;
 }) {
   const renderSection = (current: PnLData['income'], prior: PnLData['income']) => {
-    const allNames = new Set([
-      ...current.rows.map((r) => r.name),
-      ...prior.rows.map((r) => r.name),
-    ]);
-    return Array.from(allNames).map((name) => {
-      const cur = current.rows.find((r) => r.name === name)?.balance ?? 0;
-      const pri = prior.rows.find((r) => r.name === name)?.balance ?? 0;
+    // Match by account id: two accounts may share a name.
+    const names = new Map([...prior.rows, ...current.rows].map((r) => [r.accountId, r.name]));
+    return Array.from(names, ([id, name]) => {
+      const cur = current.rows.find((r) => r.accountId === id)?.balance ?? 0;
+      const pri = prior.rows.find((r) => r.accountId === id)?.balance ?? 0;
       const variance = cur - pri;
       const pct = pri !== 0 ? ((variance / Math.abs(pri)) * 100).toFixed(1) : '—';
-      return { name, cur, pri, variance, pct };
+      return { id, name, cur, pri, variance, pct };
     });
   };
 
@@ -1396,7 +1362,7 @@ function ComparisonPnl({
             { cur: data.income, pri: priorData.income },
             { cur: data.expenses, pri: priorData.expenses },
           ].map(({ cur, pri }) => (
-            <>
+            <Fragment key={cur.header}>
               <TableRow key={cur.header} style={{ background: 'var(--color-gray-50)' }}>
                 <TableCell colSpan={5} className="font-semibold text-sm">
                   {cur.header}
@@ -1406,7 +1372,7 @@ function ComparisonPnl({
                 const vColor =
                   r.variance > 0 ? 'text-green-600' : r.variance < 0 ? 'text-red-600' : '';
                 return (
-                  <TableRow key={`${cur.header}-${r.name}`} className="hover:bg-[#fafafa]">
+                  <TableRow key={`${cur.header}-${r.id}`} className="hover:bg-[#fafafa]">
                     <TableCell className="text-sm pl-6">{r.name}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {fmtMoney(r.cur, currency)}
@@ -1449,7 +1415,7 @@ function ComparisonPnl({
                     : '—'}
                 </TableCell>
               </TableRow>
-            </>
+            </Fragment>
           ))}
           <TableRow className="font-bold border-t-2">
             <TableCell>Net Profit</TableCell>
@@ -1495,14 +1461,14 @@ function ComparisonBalanceSheet({
   currency: string;
 }) {
   const renderSection = (curSection: BSData['assets'], priSection: BSData['assets']) => {
-    const allNames = new Set([
-      ...curSection.rows.map((r) => r.name),
-      ...priSection.rows.map((r) => r.name),
-    ]);
-    return Array.from(allNames).map((name) => {
-      const cur = curSection.rows.find((r) => r.name === name)?.balance ?? 0;
-      const pri = priSection.rows.find((r) => r.name === name)?.balance ?? 0;
-      return { name, cur, pri, variance: cur - pri };
+    // Match by account id: two accounts may share a name.
+    const names = new Map(
+      [...priSection.rows, ...curSection.rows].map((r) => [r.accountId, r.name]),
+    );
+    return Array.from(names, ([id, name]) => {
+      const cur = curSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
+      const pri = priSection.rows.find((r) => r.accountId === id)?.balance ?? 0;
+      return { id, name, cur, pri, variance: cur - pri };
     });
   };
 
@@ -1529,14 +1495,14 @@ function ComparisonBalanceSheet({
         </TableHeader>
         <TableBody>
           {sections.map(({ cur, pri }) => (
-            <>
+            <Fragment key={cur.header}>
               <TableRow key={cur.header} style={{ background: 'var(--color-gray-50)' }}>
                 <TableCell colSpan={4} className="font-semibold text-sm">
                   {cur.header}
                 </TableCell>
               </TableRow>
               {renderSection(cur, pri).map((r) => (
-                <TableRow key={`${cur.header}-${r.name}`} className="hover:bg-[#fafafa]">
+                <TableRow key={`${cur.header}-${r.id}`} className="hover:bg-[#fafafa]">
                   <TableCell className="text-sm pl-6">{r.name}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {fmtMoney(r.cur, currency)}
@@ -1575,7 +1541,7 @@ function ComparisonBalanceSheet({
                   {fmtMoney(cur.total - pri.total, currency)}
                 </TableCell>
               </TableRow>
-            </>
+            </Fragment>
           ))}
         </TableBody>
       </Table>
@@ -1927,7 +1893,11 @@ export default function Reports() {
   ]);
 
   const pnlData = useMemo(() => computePnL(balances), [balances]);
-  const bsData = useMemo(() => computeBalanceSheet(balances), [balances]);
+  const bsBalances = useMemo(
+    () => computeAccountBalances(reportLines, accounts, balanceSheetRange(engineDateRange)),
+    [reportLines, accounts, engineDateRange],
+  );
+  const bsData = useMemo(() => computeBalanceSheet(bsBalances), [bsBalances]);
   const tbData = useMemo(() => computeTrialBalance(balances), [balances]);
   const cfData = useMemo(() => computeCashFlow(balances), [balances]);
   const glEntries = useMemo(
@@ -1962,8 +1932,13 @@ export default function Reports() {
     [priorBalances, showPriorPeriod],
   );
   const priorBsData = useMemo(
-    () => (showPriorPeriod ? computeBalanceSheet(priorBalances) : null),
-    [priorBalances, showPriorPeriod],
+    () =>
+      showPriorPeriod
+        ? computeBalanceSheet(
+            computeAccountBalances(reportLines, accounts, balanceSheetRange(priorEngineDateRange)),
+          )
+        : null,
+    [reportLines, accounts, priorEngineDateRange, showPriorPeriod],
   );
   const priorTbData = useMemo(
     () => (showPriorPeriod ? computeTrialBalance(priorBalances) : null),
@@ -2402,7 +2377,12 @@ export default function Reports() {
                 dateLabel={dateLabel}
                 data={bsData}
                 currency={displayCurrency}
-                hierarchy={hierarchyBundle}
+                hierarchy={
+                  hierarchyBundle && {
+                    ...hierarchyBundle,
+                    dateRange: balanceSheetRange(hierarchyBundle.dateRange),
+                  }
+                }
               />
             ))}
           {activeReport === 'cash-flow' && (
