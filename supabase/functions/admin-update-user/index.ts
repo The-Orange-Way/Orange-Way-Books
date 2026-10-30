@@ -599,6 +599,18 @@ Deno.serve(async (req) => {
       }
       const supportEmail = payloadSupportEmail.toLowerCase();
 
+      // org_members.role only holds ADMIN, ACCOUNTANT or VIEWER here: org_members_role_check
+      // does not list OWBSupport and the sync_org_member_role trigger must resolve the stored
+      // name to a system role. A support user therefore cannot be added to org_members yet.
+      // Refuse before any write (no auth invite, no support_sessions row). Which privilege
+      // OWBSupport maps to is a product decision; the schema change is the DBA's.
+      const SUPPORT_ROLE_NAME = 'OWBSupport';
+      const STORABLE_ROLES = new Set<string>(['ADMIN', 'ACCOUNTANT', 'VIEWER']);
+      const supportLegacyRole = SUPPORT_ROLE_NAME.toUpperCase();
+      if (!STORABLE_ROLES.has(supportLegacyRole)) {
+        return jsonResponse({ error: 'Support access cannot be granted yet' }, 400, cors);
+      }
+
       // Look up or invite the support user. Paginate listUsers so large
       // projects still resolve — same pattern as invite-org-member.
       let supportUserId: string | null = null;
@@ -633,7 +645,7 @@ Deno.serve(async (req) => {
       const { data: roleDef, error: roleErr } = await adminClient
         .from('role_definitions')
         .select('id')
-        .eq('name', 'OWBSupport')
+        .eq('name', SUPPORT_ROLE_NAME)
         .eq('is_system', true)
         .is('org_id', null)
         .maybeSingle();
@@ -677,6 +689,7 @@ Deno.serve(async (req) => {
         const { error: memberInsertErr } = await adminClient.from('org_members').insert({
           org_id: orgId,
           user_id: supportUserId,
+          role: supportLegacyRole,
         });
         if (memberInsertErr) {
           console.error(
