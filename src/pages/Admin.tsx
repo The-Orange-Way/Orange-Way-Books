@@ -379,10 +379,14 @@ function OrganizationTab({
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addPassword, setAddPassword] = useState('');
-  // Closing the dialog, by any route, drops the typed password.
+  const [addCurrency, setAddCurrency] = useState('USD');
+  // Closing the dialog, by any route, drops the typed password and resets the currency.
   const closeAddOrg = (open: boolean) => {
     setAddOpen(open);
-    if (!open) setAddPassword('');
+    if (!open) {
+      setAddPassword('');
+      setAddCurrency('USD');
+    }
   };
   const [addSaving, setAddSaving] = useState(false);
   // Recovery code of the org just created, shown once.
@@ -599,7 +603,7 @@ function OrganizationTab({
       const encName = await vault.encryptForNewOrg(addName.trim());
       const encSettings = await encryptOrgSettings(
         {
-          primary_currency: 'USD',
+          primary_currency: addCurrency,
           secondary_currency: null,
           bitcoin_display: 'sats',
           fiscal_year_type: 'calendar',
@@ -653,8 +657,7 @@ function OrganizationTab({
       // The org exists now, so show its recovery code straight away: a later
       // error or a closed tab must not lose the only copy.
       setNewOrgRecovery({ orgId: newOrgId as string, code: vault.recoveryCode });
-      setAddOpen(false);
-      setAddPassword('');
+      closeAddOrg(false);
 
       // Seed the default chart of accounts with the NEW org's key, with the
       // same ledger_status transitions onboarding uses. Awaited, not
@@ -1259,6 +1262,21 @@ function OrganizationTab({
                 onChange={(e) => setAddName(e.target.value)}
                 placeholder="e.g. My Company LLC"
               />
+            </div>
+            <div>
+              <Label>Primary currency *</Label>
+              <Select value={addCurrency} onValueChange={setAddCurrency} disabled={addSaving}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Vault password *</Label>
