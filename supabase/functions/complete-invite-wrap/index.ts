@@ -52,6 +52,13 @@ const BASE64_RE = /^[A-Za-z0-9+/=]+$/;
 
 const ALLOWED_WRAP_ALGOS = new Set<string>(['hybrid-x25519-mlkem768']);
 
+// org_members.role is limited by org_members_role_check, and the sync_org_member_role
+// trigger must resolve the stored name to a system role. Only these three can be stored
+// today. MEMBER passes the check but no system role is named Member, so the trigger
+// rejects it. OWNER is deliberately absent: an invite cannot grant it. Access itself is
+// granted by the org_member_roles row written below.
+const LEGACY_ROLES = new Set<string>(['ADMIN', 'ACCOUNTANT', 'VIEWER']);
+
 interface WrappedDekPayload {
   wrapped_dek: string;
   iv: string;
@@ -197,6 +204,18 @@ serve(async (req) => {
     const targetUserId = pending.recipient_user_id;
     const orgId = pending.org_id;
 
+    // The role must be storable in org_members.role on every path, not only for a new
+    // member: the org_member_roles grant below also runs for an existing member. Refuse
+    // before any write.
+    const legacyRole = roleDef.name.toUpperCase();
+    if (!roleDef.is_system || !LEGACY_ROLES.has(legacyRole)) {
+      return jsonResponse(
+        { error: 'This role cannot be assigned through an invite yet' },
+        400,
+        cors,
+      );
+    }
+
     // 1) org_members (idempotent check first).
     const { data: existingMember } = await adminClient
       .from('org_members')
@@ -209,6 +228,7 @@ serve(async (req) => {
       const { error: memberErr } = await adminClient.from('org_members').insert({
         org_id: orgId,
         user_id: targetUserId,
+        role: legacyRole,
       });
       if (memberErr) {
         console.error('complete-invite-wrap insert org_members failed:', memberErr);
@@ -238,13 +258,10 @@ serve(async (req) => {
         return jsonResponse({ error: 'Failed to record wrapped key' }, 500, cors);
       }
     } else {
-      // Phase 4.5: if a real active DEK exists for the org, the
-      // invitee is joining an org that's already past first-time-setup.
-      // In that case the CLIENT is wrapping the real shared DEK and we
-      // must NOT mark the row as a placeholder. If no active_key_versions
-      // row exists yet, or the active version is still baseline 1 with
-      // placeholder wraps elsewhere, the invitee wraps the placeholder
-      // — mark it so Phase 4.5 first-time-setup can migrate.
+      // The server cannot see what the client wrapped. The pending-invite client
+      // (Admin.tsx) wraps a random placeholder, so rows written here are placeholders.
+      // A client that wraps the real org key must say so explicitly; do not infer it
+      // from other rows. Marking the row lets Phase 4.5 first-time-setup migrate it.
       const { data: active } = await adminClient
         .from('active_key_versions')
         .select('active_dek_key_version')
@@ -253,18 +270,6 @@ serve(async (req) => {
       const activeDekVersion =
         (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
 
-      // Probe for a non-placeholder wrap at the active version. If any
-      // exists, this org has a real shared DEK.
-      const { data: realWrapProbe } = await adminClient
-        .from('org_keys')
-        .select('id')
-        .eq('org_id', orgId)
-        .eq('key_version', activeDekVersion)
-        .eq('is_placeholder', false)
-        .limit(1)
-        .maybeSingle();
-      const isPlaceholder = realWrapProbe ? false : true;
-
       const { error: insErr } = await adminClient.from('org_keys').insert({
         org_id: orgId,
         user_id: targetUserId,
@@ -272,7 +277,7 @@ serve(async (req) => {
         iv: wrapPayload.iv,
         wrap_algo: wrapPayload.wrap_algo,
         key_version: activeDekVersion,
-        is_placeholder: isPlaceholder,
+        is_placeholder: true,
       });
       if (insErr) {
         console.error('complete-invite-wrap insert org_keys failed:', insErr);

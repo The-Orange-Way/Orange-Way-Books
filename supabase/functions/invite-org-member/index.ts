@@ -53,6 +53,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildCorsHeaders, jsonResponse, readBoundedText } from '../_shared/http.ts';
 import { rateLimit } from '../_shared/rate-limit.ts';
 
+// org_members.role is limited by org_members_role_check, and the sync_org_member_role
+// trigger must resolve the stored name to a system role. Only these three can be stored
+// today (same set as complete-invite-wrap). OWNER is deliberately absent: an invite
+// cannot grant it. Access itself is granted by the org_member_roles row.
+const LEGACY_ROLES = new Set<string>(['ADMIN', 'ACCOUNTANT', 'VIEWER']);
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -230,6 +236,19 @@ serve(async (req) => {
       return jsonResponse({ error: 'Role is not available in this organization' }, 400, cors);
     }
 
+    // Only roles that org_members.role can hold may be invited. Refuse before any write (no
+    // org_members row, no pending_invites row, no invite email) so an invite that can never
+    // complete is not recorded. Allowing other roles needs a schema change and a product
+    // decision on the mapping.
+    const legacyRole = roleDef.name.toUpperCase();
+    if (!roleDef.is_system || !LEGACY_ROLES.has(legacyRole)) {
+      return jsonResponse(
+        { error: 'This role cannot be assigned through an invite yet' },
+        400,
+        cors,
+      );
+    }
+
     // Auditor role requires an expiry date within 1 year.
     // Normalize source to 'auditor_invite' when Auditor + expiry are
     // both present. Non-Auditor roles ignore any client-supplied
@@ -336,6 +355,7 @@ serve(async (req) => {
       const { error: memberInsertErr } = await adminClient.from('org_members').insert({
         org_id: orgId,
         user_id: userId,
+        role: legacyRole,
       });
       if (memberInsertErr) {
         console.error('invite-org-member insert org_members failed:', memberInsertErr);
@@ -386,14 +406,26 @@ serve(async (req) => {
       // Insert the capability grant. Phase 4.4: carry expires_at +
       // source so the sweep job knows which rows are time-boxed and
       // why.
-      const { error: grantErr } = await adminClient.from('org_member_roles').insert({
-        org_id: orgId,
-        user_id: userId,
-        role_definition_id: roleDef.id,
-        granted_by: caller.id,
-        expires_at: expiresAtIso,
-        source,
-      });
+      //
+      // The org_members insert above fires sync_org_member_role, which has already written a
+      // grant for this role attributed to the invitee. Update that row with the inviter,
+      // expires_at and source instead of inserting a duplicate.
+      const { data: existingGrant } = await adminClient
+        .from('org_member_roles')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('user_id', userId)
+        .eq('role_definition_id', roleDef.id)
+        .maybeSingle();
+      const grantFields = { granted_by: caller.id, expires_at: expiresAtIso, source };
+      const { error: grantErr } = existingGrant
+        ? await adminClient.from('org_member_roles').update(grantFields).eq('id', existingGrant.id)
+        : await adminClient.from('org_member_roles').insert({
+            org_id: orgId,
+            user_id: userId,
+            role_definition_id: roleDef.id,
+            ...grantFields,
+          });
       if (grantErr) {
         console.error('invite-org-member insert org_member_roles failed:', grantErr);
         await adminClient.from('org_keys').delete().eq('org_id', orgId).eq('user_id', userId);
