@@ -282,6 +282,19 @@ serve(async (req) => {
       if (insErr) {
         console.error('complete-invite-wrap insert org_keys failed:', insErr);
         if (!existingMember) {
+          // The org_members insert above fired sync_org_member_role, which wrote a
+          // capability grant. Deleting the membership does not remove it (no foreign key
+          // links them) and user_has_capability reads only the grant, so revoke the grant
+          // first; the last-role trigger then clears any key rows left for the user.
+          const { error: revokeErr } = await adminClient
+            .from('org_member_roles')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('user_id', targetUserId)
+            .eq('role_definition_id', roleDef.id);
+          if (revokeErr) {
+            console.error('complete-invite-wrap rollback grant delete failed:', revokeErr);
+          }
           await adminClient
             .from('org_members')
             .delete()

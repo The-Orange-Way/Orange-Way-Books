@@ -362,15 +362,30 @@ serve(async (req) => {
         return jsonResponse({ error: 'Failed to add member' }, 500, cors);
       }
 
+      // The org_members insert above fired sync_org_member_role, which wrote a capability
+      // grant. Deleting the membership does not remove that grant (no foreign key links
+      // them) and user_has_capability reads only the grant, so every rollback below revokes
+      // it first; the last-role trigger then clears any key rows left for the user.
+      const revokeTriggerGrant = async () => {
+        const { error: revokeErr } = await adminClient
+          .from('org_member_roles')
+          .delete()
+          .eq('org_id', orgId)
+          .eq('user_id', userId)
+          .eq('role_definition_id', roleDef.id);
+        if (revokeErr) {
+          console.error('invite-org-member rollback grant delete failed:', revokeErr);
+        }
+      };
+
       // Upsert org_keys row with the wrap payload. Use insert rather
       // than upsert: by RLS + the uniqueness check above, we've already
       // confirmed this (org_id, user_id) pair is new.
       //
-      // Phase 4.5: detect the active DEK version and whether a real
-      // (non-placeholder) wrap exists for it. If yes, the invitee is
-      // wrapping the REAL shared DEK -> is_placeholder = FALSE. If no,
-      // they're wrapping the Phase 4.3 placeholder -> is_placeholder =
-      // TRUE, and Phase 4.5 first-time-setup will migrate later.
+      // The server cannot see what the client wrapped, so it must not infer it from other
+      // rows: a real wrap elsewhere in the org says nothing about this one. Rows written
+      // here are marked as placeholders, the safe direction, and Phase 4.5 first-time-setup
+      // migrates them. A client that wraps the real org key must say so explicitly.
       const { data: active } = await adminClient
         .from('active_key_versions')
         .select('active_dek_key_version')
@@ -378,15 +393,7 @@ serve(async (req) => {
         .maybeSingle();
       const activeDekVersion =
         (active as { active_dek_key_version?: number } | null)?.active_dek_key_version ?? 1;
-      const { data: realWrapProbe } = await adminClient
-        .from('org_keys')
-        .select('id')
-        .eq('org_id', orgId)
-        .eq('key_version', activeDekVersion)
-        .eq('is_placeholder', false)
-        .limit(1)
-        .maybeSingle();
-      const isPlaceholder = realWrapProbe ? false : true;
+      const isPlaceholder = true;
 
       const { error: keyInsertErr } = await adminClient.from('org_keys').insert({
         org_id: orgId,
@@ -399,6 +406,7 @@ serve(async (req) => {
       });
       if (keyInsertErr) {
         console.error('invite-org-member insert org_keys failed:', keyInsertErr);
+        await revokeTriggerGrant();
         await adminClient.from('org_members').delete().eq('org_id', orgId).eq('user_id', userId);
         return jsonResponse({ error: 'Failed to record wrapped key' }, 500, cors);
       }
@@ -428,6 +436,7 @@ serve(async (req) => {
           });
       if (grantErr) {
         console.error('invite-org-member insert org_member_roles failed:', grantErr);
+        await revokeTriggerGrant();
         await adminClient.from('org_keys').delete().eq('org_id', orgId).eq('user_id', userId);
         await adminClient.from('org_members').delete().eq('org_id', orgId).eq('user_id', userId);
         return jsonResponse({ error: 'Failed to grant role to new member' }, 500, cors);
