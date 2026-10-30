@@ -111,3 +111,9 @@ verify_jwt = false
 # the org's invoice ownership. Platform JWT gate stays on as defence in
 # depth.
 verify_jwt = true
+
+[functions.orbi-rate]
+# Public exchange-rate proxy. Holds ORBI_DB_URL and ORBI_DB_ANON_KEY as
+# server-side secrets so the Orange Rails anon key never reaches the
+# browser bundle. No user session is involved; rate data is public.
+verify_jwt = false
