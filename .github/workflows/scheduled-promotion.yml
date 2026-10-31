@@ -75,7 +75,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh api "repos/${GH_REPO}/compare/prod...dev" > compare.json
+          # The exact dev commit this promotion carries. Resolved FIRST, and
+          # everything below is pinned to it, so the reviewed set cannot move
+          # when an unrelated pull request merges into dev (ported from the
+          # Orange-Way-Me twin, OWM-T0541).
+          DEV_SHA=$(gh api "repos/${GH_REPO}/git/ref/heads/dev" --jq '.object.sha')
+
+          # Compare against that resolved sha, not against the live dev ref.
+          # Comparing prod...dev and resolving dev in a second call meant a
+          # merge landing between the two made every count describe a commit
+          # set this promotion does not carry.
+          gh api "repos/${GH_REPO}/compare/prod...${DEV_SHA}" > compare.json
 
           AHEAD=$(jq -r '.ahead_by' compare.json)
           BEHIND=$(jq -r '.behind_by' compare.json)
@@ -83,11 +93,6 @@ jobs:
           # the oldest unpromoted commit even when the list is truncated.
           OLDEST_DATE=$(jq -r '.commits[0].commit.committer.date // ""' compare.json)
           OLDEST_SHA=$(jq -r '.commits[0].sha // ""' compare.json)
-
-          # The exact dev commit this promotion carries. Everything below is
-          # pinned to it, so the reviewed set cannot move when an unrelated
-          # pull request merges into dev.
-          DEV_SHA=$(gh api "repos/${GH_REPO}/git/ref/heads/dev" --jq '.object.sha')
 
           if [ -n "${OLDEST_DATE}" ]; then
             OLDEST_EPOCH=$(date -u -d "${OLDEST_DATE}" +%s)
@@ -255,8 +260,8 @@ jobs:
           #
           # The API's default ordering for this endpoint is unstated, so when
           # both a pinned release/prod- head and a legacy dev head are open at
-          # once, `.[0]` picked whichever GitHub happened to list first.
-          # Sort explicitly instead: a pinned release/prod- head
+          # once, `.[0]` picked whichever GitHub happened to list first
+          # (OWM-T0556). Sort explicitly instead: a pinned release/prod- head
           # always wins over a legacy dev head (dev moves, so feeding a dev-
           # headed pull request silently voids the pin), and ties within the
           # same kind break on the lowest pull request number, i.e. the oldest
@@ -278,6 +283,47 @@ jobs:
             # body and title are fixed at open time; only the label is kept
             # in sync on reuse.
             gh pr edit "${EXISTING}" --add-label 'owner:release'
+
+            # OWM-T0556. The body above is frozen at open time on purpose (see
+            # the comment block just above), so a human reading only the body
+            # sees the state from the day the pull request opened, even after
+            # dev has since blown through the threshold. Publish the LIVE
+            # numbers as a separate, clearly labelled sticky comment instead of
+            # touching the pinned body: a comment cannot misdescribe what the
+            # pull request contains, because it never claims to be that.
+            STATUS_MARKER='<!-- scheduled-promotion-status:auto -->'
+            STATUS_BODY=$(cat <<EOF
+          ${STATUS_MARKER}
+          **Live status as of this scheduled run** (refreshed every run; this is NOT what this pull request contains, that stays pinned in the body above at open time).
+
+          | | |
+          |---|---|
+          | Commits on dev not on prod, right now | **${AHEAD}** |
+          | Oldest unpromoted commit, right now | **${AGE_DAYS} day(s)** old (${OLDEST_DATE}, \`${OLDEST_SHA}\`) |
+          | Commits on prod not on dev, right now | **${BEHIND}** |
+          | Threshold breached (50 commits or 3 days), right now | **${BREACH}** (${BREACH_WHY}) |
+
+          Checked: $(date -u +"%Y-%m-%d %H:%M UTC"). Full comparison: ${COMPARE_URL}
+          EOF
+          )
+
+            EXISTING_COMMENT_ID=$(gh api "repos/${GH_REPO}/issues/${EXISTING}/comments?per_page=100" \
+                                     --jq '[.[] | select(.body | startswith("<!-- scheduled-promotion-status:auto -->"))] | .[0].id // ""')
+
+            if [ -n "${EXISTING_COMMENT_ID}" ]; then
+              gh api -X PATCH "repos/${GH_REPO}/issues/comments/${EXISTING_COMMENT_ID}" -f body="${STATUS_BODY}" >/dev/null
+              echo "Updated live-status comment ${EXISTING_COMMENT_ID} on pull request ${EXISTING}."
+            else
+              gh api -X POST "repos/${GH_REPO}/issues/${EXISTING}/comments" -f body="${STATUS_BODY}" >/dev/null
+              echo "Posted live-status comment on pull request ${EXISTING}."
+            fi
+
+            # A reused promotion that has breached the threshold must not exit
+            # 0 in silence. The run itself succeeded; what is late is the
+            # promotion, so this is a warning on the run, not a failure.
+            if [ "${BREACH}" = "YES" ]; then
+              echo "::warning title=Promotion threshold breached::Promotion pull request ${EXISTING} is still open and dev has diverged past the limit: ${BREACH_WHY}. Release owns either merging it or stating in writing why it is held."
+            fi
 
             echo "Left title and body unchanged (pinned at open time): ${GITHUB_SERVER_URL}/${GH_REPO}/pull/${EXISTING}"
             exit 0
