@@ -81,9 +81,9 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await client
         .from('exchange_rates')
         .select('rate, bucket_ts, composite_via')
-        .eq('base_currency', dbBase)
-        .eq('quote_currency', quote)
-        .eq('status', 'confirmed')
+        .eq('source_currency', dbBase)
+        .eq('target_currency', quote)
+        .eq('status', 'CONFIRMED')
         .order('bucket_ts', { ascending: false })
         .limit(1)
         .single();
@@ -115,12 +115,10 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await client
       .from('exchange_rates')
       .select('rate, bucket_ts, composite_via')
-      .eq('base_currency', dbBase)
-      .eq('quote_currency', quote)
-      .eq('status', 'confirmed')
-      .lte('bucket_ts', bucket.toISOString())
-      .order('bucket_ts', { ascending: false })
-      .limit(1)
+      .eq('source_currency', dbBase)
+      .eq('target_currency', quote)
+      .eq('status', 'CONFIRMED')
+      .eq('bucket_ts', bucket.toISOString())
       .single();
     if (error || !data) {
       return new Response(JSON.stringify({ error: 'Not found' }), {
