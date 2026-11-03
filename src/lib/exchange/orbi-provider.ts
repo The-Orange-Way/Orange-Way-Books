@@ -10,8 +10,11 @@ const ORBI_SOURCE_KIND: SourceKind = 'CRYPTO_FIAT';
 const ORBI_BUCKET_GRAN: BucketGranularity = 'FIVE_MINUTES';
 
 const SUPPORTED: Record<string, true> = {
-  'BTC/USD': true, 'SATS/USD': true,
-  'USDT/USD': true, 'USDC/USD': true, 'DAI/USD': true,
+  'BTC/USD': true,
+  'SATS/USD': true,
+  'USDT/USD': true,
+  'USDC/USD': true,
+  'DAI/USD': true,
 };
 
 function orbiUrl(): string {
@@ -53,7 +56,11 @@ export async function fetchFromORBI(
   try {
     const res = await fetch(`${orbiUrl()}?${params}`);
     if (!res.ok) return null;
-    const data = await res.json() as { rate: number; bucketTs: string; composite_via: string | null };
+    const data = (await res.json()) as {
+      rate: number;
+      bucketTs: string;
+      composite_via: string | null;
+    };
     return mapResult(data, false);
   } catch {
     return null;
@@ -69,7 +76,11 @@ export async function fetchLatestFromORBI(
   try {
     const res = await fetch(`${orbiUrl()}?${params}`);
     if (!res.ok) return null;
-    const data = await res.json() as { rate: number; bucketTs: string; composite_via: string | null };
+    const data = (await res.json()) as {
+      rate: number;
+      bucketTs: string;
+      composite_via: string | null;
+    };
     return mapResult(data, true);
   } catch {
     return null;
