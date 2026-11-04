@@ -121,10 +121,17 @@ export async function backfillDualAmounts(
         const jeDate: string = (row.journal_entries as any)?.date ?? '';
         const fields = await decryptJournalEntryLine(row, decrypt);
 
+        // A posting currency that is stored but cannot be read is left alone: guessing it would
+        // value the line in the wrong currency.
+        if (fields.primary_currency_at_posting_unreadable) {
+          progress.failed++;
+          progress.processed++;
+          continue;
+        }
         // Wallet currency: prefer decrypted field; fall back to primary (identity rate)
         const walletCurrency = fields.wallet_currency ?? primaryCurrency;
-        const targetCurrency =
-          (row as any).encrypted_primary_currency_at_posting ?? primaryCurrency;
+        // The decrypted posting currency, never the ciphertext column (OWB-T0237).
+        const targetCurrency = fields.primary_currency_at_posting ?? primaryCurrency;
 
         // Signed native amount from debit/credit
         const amount_native = fields.debit > 0 ? fields.debit : -fields.credit;
@@ -186,19 +193,8 @@ export async function backfillDualAmounts(
         if (pending) progress.pending++;
         else progress.resolved++;
       } catch {
-        // Mark as backfilled to avoid infinite retry; rate_pending stays false
-        updates.push({
-          id: row.id,
-          encrypted_amount_native: null,
-          encrypted_amount_primary: null,
-          encrypted_posted_rate: null,
-          encrypted_wallet_currency: null,
-          encrypted_primary_currency_at_posting: null,
-          rate_pending: false,
-          rate_asof: null,
-          pinned_rate_id: null,
-          dual_amounts_backfilled: true,
-        });
+        // Leave the row exactly as it is. Writing nulls here erased its stored amounts and
+        // currencies (OWB-T0237). The cursor still moves past it, so a run cannot loop.
         progress.failed++;
       }
 
