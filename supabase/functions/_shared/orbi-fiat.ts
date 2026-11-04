@@ -29,6 +29,8 @@ function isoDay(ms: number): string {
 
 /**
  * The ORBI fix for `date` (YYYY-MM-DD), or the last one before it within `maxStaleDays`.
+ * ORBI stores each pair one way round (USD/CAD, never CAD/USD), so when the pair as asked has no
+ * fix the reverse pair is tried and its rate inverted.
  * Returns null when ORBI has no usable fix, so the caller can fall back to another provider.
  */
 export async function fetchOrbiFiatRate(
@@ -42,6 +44,20 @@ export async function fetchOrbiFiatRate(
   if (!Number.isFinite(dayMs)) return null;
   const from = isoDay(dayMs - cfg.maxStaleDays * DAY_MS);
 
+  const direct = await latestFix(fetchFn, cfg, base, quote, from, date);
+  if (direct) return direct;
+  const reverse = await latestFix(fetchFn, cfg, quote, base, from, date);
+  return reverse ? { ...reverse, rate: 1 / reverse.rate } : null;
+}
+
+async function latestFix(
+  fetchFn: FetchFn,
+  cfg: OrbiFiatConfig,
+  base: string,
+  quote: string,
+  from: string,
+  date: string,
+): Promise<OrbiFiatRate | null> {
   const params = new URLSearchParams({
     base,
     quote,

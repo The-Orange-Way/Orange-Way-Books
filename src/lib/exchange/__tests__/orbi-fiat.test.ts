@@ -4,11 +4,13 @@ import { fetchOrbiFiatRate, isSettledFix } from '../../../../supabase/functions/
 
 // ORBI as the fiat-to-fiat rate source (OWB-T0237). The fake answers like v1-rates-series.
 const cfg = { baseUrl: 'https://orbi.example/', apiKey: 'k', maxStaleDays: 4 };
-const fake = (points: unknown[], status = 200) => {
+const fake = (points: unknown[], status = 200, pair = 'USD/CAD') => {
   const calls: Array<{ url: string; headers: Record<string, string> }> = [];
   const fn = async (url: string, init: { headers: Record<string, string> }) => {
     calls.push({ url, headers: init.headers });
-    return new Response(JSON.stringify({ points }), { status });
+    const q = new URL(url).searchParams;
+    const mine = `${q.get('base')}/${q.get('quote')}` === pair;
+    return new Response(JSON.stringify({ points: mine ? points : [] }), { status });
   };
   return { fn, calls };
 };
@@ -79,5 +81,19 @@ describe('fetchOrbiFiatRate', () => {
     expect(isSettledFix('2026-10-25', fri, at('2026-10-30T00:00:00Z'))).toBe(true);
     // The day's own fix is final at once.
     expect(isSettledFix('2026-10-23', fri, at('2026-10-23T12:00:00Z'))).toBe(true);
+  });
+
+  it('asks for the reverse pair and inverts it when the pair as asked has no fix', async () => {
+    const { fn, calls } = fake([pt('2026-10-23', 1.25)]);
+    const r = await fetchOrbiFiatRate(fn, cfg, 'CAD', 'USD', '2026-10-23');
+    expect(r?.rate).toBeCloseTo(0.8, 12);
+    expect(r?.bucketTs).toBe('2026-10-23T00:00:00Z');
+    expect(calls.map((c) => new URL(c.url).searchParams.get('base'))).toEqual(['CAD', 'USD']);
+  });
+
+  it('uses the pair as asked when it has a fix, without asking for the reverse', async () => {
+    const { fn, calls } = fake([pt('2026-10-23', 1.25)]);
+    expect((await fetchOrbiFiatRate(fn, cfg, 'USD', 'CAD', '2026-10-23'))?.rate).toBe(1.25);
+    expect(calls).toHaveLength(1);
   });
 });
