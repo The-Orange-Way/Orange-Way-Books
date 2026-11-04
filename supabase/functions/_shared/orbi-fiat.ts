@@ -73,3 +73,14 @@ export async function fetchOrbiFiatRate(
     typeof best.provenance === 'string' && best.provenance ? best.provenance : 'authority';
   return { rate: best.rate, bucketTs: best.bucketTs, provider: `orbi:${via}` };
 }
+
+/**
+ * Whether `fix` can be stored as the rate for `date` for good. A fix from the day itself always
+ * can. One carried forward from an earlier day can only once `date` is settled (ORBI settles
+ * daily fixes 2 days after the day); before that, the day's own fix may still arrive, and storing
+ * the older one would keep serving it from the cache.
+ */
+export function isSettledFix(date: string, fix: OrbiFiatRate, nowMs: number): boolean {
+  if (fix.bucketTs.slice(0, 10) === date) return true;
+  return Date.parse(`${date}T00:00:00Z`) + DAY_MS <= nowMs - 2 * DAY_MS;
+}

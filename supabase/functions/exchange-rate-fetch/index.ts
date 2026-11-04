@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildCorsHeaders, jsonResponse, readBoundedText } from '../_shared/http.ts';
 import { rateLimit } from '../_shared/rate-limit.ts';
-import { fetchOrbiFiatRate, type OrbiFiatRate } from '../_shared/orbi-fiat.ts';
+import { fetchOrbiFiatRate, isSettledFix, type OrbiFiatRate } from '../_shared/orbi-fiat.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -293,6 +293,8 @@ serve(async (req) => {
     // ── Fetch from provider ────────────────────────────────────────────────
     let rate: number;
     let provider: string;
+    // An ORBI fix carried forward to a day whose own fix may still arrive: served, not stored.
+    let provisional: OrbiFiatRate | null = null;
     const rateDate = bucketTs.slice(0, 10);
 
     try {
@@ -392,6 +394,7 @@ serve(async (req) => {
         if (orbi) {
           rate = orbi.rate;
           provider = orbi.provider;
+          if (!isSettledFix(rateDate, orbi, Date.now())) provisional = orbi;
         } else if (OXR_APP_ID) {
           const res = await fetch(
             `https://openexchangerates.org/api/historical/${encodeURIComponent(rateDate)}.json?app_id=${encodeURIComponent(OXR_APP_ID)}`,
@@ -472,6 +475,24 @@ serve(async (req) => {
           status: 'PENDING',
           stale: false,
           pending: true,
+        },
+        200,
+        cors,
+      );
+    }
+
+    if (provisional) {
+      return jsonResponse(
+        {
+          id: null,
+          rate: provisional.rate,
+          bucket_ts: bucketTs,
+          bucket_granularity: bucketGranularity,
+          provider: provisional.provider,
+          source_kind: sourceKind,
+          status: 'CONFIRMED',
+          stale: true,
+          pending: false,
         },
         200,
         cors,
