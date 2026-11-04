@@ -238,16 +238,21 @@ export interface ExcludedEntry {
  * With `decimals`, each kept amount is rounded to the smallest unit shown, and any unit lost to
  * rounding inside an entry is given back to the line that lost the most, so every entry still
  * balances and every row, subtotal and total adds up exactly to what is displayed.
+ * With `keepUnknownCurrency` (fiat reports), a line whose currency cannot be known is kept and
+ * valued as before (its primary amount, or its debit minus credit), because older single-currency
+ * entries carry no currency at all and leaving them out would change those companies' totals.
  */
 export function prepareReportLines(
   lines: JournalLine[],
   primaryCurrency: string,
   rate: number | null,
   decimals?: number,
+  opts?: { keepUnknownCurrency?: boolean },
 ): { lines: JournalLine[]; excluded: ExcludedEntry[] } {
   const excluded = new Map<string, ExcludedEntry>();
   for (const l of lines) {
-    const reason = lineExclusionReason(l, primaryCurrency);
+    let reason = lineExclusionReason(l, primaryCurrency);
+    if (reason === 'unknown-currency' && opts?.keepUnknownCurrency) reason = null;
     if (reason && !excluded.has(l.journalEntryId)) {
       excluded.set(l.journalEntryId, { journalEntryId: l.journalEntryId, date: l.date, reason });
     }
