@@ -29,8 +29,8 @@ function isoDay(ms: number): string {
 
 /**
  * The ORBI fix for `date` (YYYY-MM-DD), or the last one before it within `maxStaleDays`.
- * ORBI stores each pair one way round (USD/CAD, never CAD/USD), so when the pair as asked has no
- * fix the reverse pair is tried and its rate inverted.
+ * ORBI stores each pair one way round (USD/CAD, never CAD/USD), so both orientations are tried,
+ * USD-first before the other, and a reverse-pair rate is inverted.
  * Returns null when ORBI has no usable fix, so the caller can fall back to another provider.
  */
 export async function fetchOrbiFiatRate(
@@ -44,10 +44,22 @@ export async function fetchOrbiFiatRate(
   if (!Number.isFinite(dayMs)) return null;
   const from = isoDay(dayMs - cfg.maxStaleDays * DAY_MS);
 
-  const direct = await latestFix(fetchFn, cfg, base, quote, from, date);
-  if (direct) return direct;
-  const reverse = await latestFix(fetchFn, cfg, quote, base, from, date);
-  return reverse ? { ...reverse, rate: 1 / reverse.rate } : null;
+  // Ask in USD-first order first, since that is how ORBI stores pairs; one request when it hits.
+  const reverseFirst = quote === 'USD' && base !== 'USD';
+  const tries: Array<[string, string, boolean]> = reverseFirst
+    ? [
+        [quote, base, true],
+        [base, quote, false],
+      ]
+    : [
+        [base, quote, false],
+        [quote, base, true],
+      ];
+  for (const [b, q, inverted] of tries) {
+    const fix = await latestFix(fetchFn, cfg, b, q, from, date);
+    if (fix) return inverted ? { ...fix, rate: 1 / fix.rate } : fix;
+  }
+  return null;
 }
 
 async function latestFix(

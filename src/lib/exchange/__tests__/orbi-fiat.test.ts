@@ -83,12 +83,21 @@ describe('fetchOrbiFiatRate', () => {
     expect(isSettledFix('2026-10-23', fri, at('2026-10-23T12:00:00Z'))).toBe(true);
   });
 
-  it('asks for the reverse pair and inverts it when the pair as asked has no fix', async () => {
-    const { fn, calls } = fake([pt('2026-10-23', 1.25)]);
+  it('for X to USD asks USD/X first, in one request, and inverts it', async () => {
+    const { fn, calls } = fake([pt('2026-10-22', 1.25, { provenance: 'boc' })]);
     const r = await fetchOrbiFiatRate(fn, cfg, 'CAD', 'USD', '2026-10-23');
     expect(r?.rate).toBeCloseTo(0.8, 12);
-    expect(r?.bucketTs).toBe('2026-10-23T00:00:00Z');
-    expect(calls.map((c) => new URL(c.url).searchParams.get('base'))).toEqual(['CAD', 'USD']);
+    expect(r?.bucketTs).toBe('2026-10-22T00:00:00Z');
+    expect(r?.provider).toBe('orbi:boc');
+    expect(calls.map((c) => new URL(c.url).searchParams.get('base'))).toEqual(['USD']);
+  });
+
+  it('falls back to the other orientation when the first has no fix', async () => {
+    const { fn, calls } = fake([pt('2026-10-23', 0.5)], 200, 'CAD/USD');
+    expect((await fetchOrbiFiatRate(fn, cfg, 'CAD', 'USD', '2026-10-23'))?.rate).toBe(0.5);
+    expect(calls).toHaveLength(2);
+    const eur = fake([pt('2026-10-23', 0.8)], 200, 'GBP/EUR');
+    expect((await fetchOrbiFiatRate(eur.fn, cfg, 'EUR', 'GBP', '2026-10-23'))?.rate).toBe(1.25);
   });
 
   it('uses the pair as asked when it has a fix, without asking for the reverse', async () => {
