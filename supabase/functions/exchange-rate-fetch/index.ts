@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildCorsHeaders, jsonResponse, readBoundedText } from '../_shared/http.ts';
 import { rateLimit } from '../_shared/rate-limit.ts';
+import { fetchOrbiFiatRate, type OrbiFiatRate } from '../_shared/orbi-fiat.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -13,6 +14,10 @@ const OXR_APP_ID = Deno.env.get('OXR_APP_ID') || '';
 // Anon key is public by design (RLS gates writes); safe to hold here.
 const ORBI_SUPABASE_URL = Deno.env.get('ORBI_SUPABASE_URL') || '';
 const ORBI_SUPABASE_ANON_KEY = Deno.env.get('ORBI_SUPABASE_ANON_KEY') || '';
+// ORBI rates API for fiat-to-fiat pairs (OWB-T0237). Unset means the OXR path runs as before.
+const ORBI_RATES_API_URL = Deno.env.get('ORBI_RATES_API_URL') || '';
+const ORBI_RATES_API_KEY = Deno.env.get('ORBI_RATES_API_KEY') || '';
+const ORBI_FIAT_MAX_STALE_DAYS = 4;
 const ORBI_SUPPORTED_TARGETS = new Set([
   'USD',
   'EUR',
@@ -364,21 +369,45 @@ serve(async (req) => {
           }
           provider = 'coingecko';
         }
-      } else if (OXR_APP_ID) {
-        const res = await fetch(
-          `https://openexchangerates.org/api/historical/${encodeURIComponent(rateDate)}.json?app_id=${encodeURIComponent(OXR_APP_ID)}`,
-        );
-        if (!res.ok) throw new Error(`OXR ${res.status}`);
-        const data = await res.json();
-        const rates = data.rates;
-        if (!rates) throw new Error('OXR: no rates in response');
-        const baseRate = base === 'USD' ? 1 : rates[base];
-        const quoteRate = quote === 'USD' ? 1 : rates[quote];
-        if (!baseRate || !quoteRate) throw new Error(`OXR: missing ${base} or ${quote}`);
-        rate = quoteRate / baseRate;
-        provider = 'openexchangerates';
       } else {
-        throw new Error('No provider configured');
+        // ORBI first for fiat-to-fiat (founder ruling, OWB-T0237); OXR when ORBI has no fix.
+        let orbi: OrbiFiatRate | null = null;
+        if (ORBI_RATES_API_URL && ORBI_RATES_API_KEY) {
+          try {
+            orbi = await fetchOrbiFiatRate(
+              fetch,
+              {
+                baseUrl: ORBI_RATES_API_URL,
+                apiKey: ORBI_RATES_API_KEY,
+                maxStaleDays: ORBI_FIAT_MAX_STALE_DAYS,
+              },
+              base,
+              quote,
+              rateDate,
+            );
+          } catch (orbiErr) {
+            console.warn('ORBI fiat fetch failed, falling back to OXR:', orbiErr);
+          }
+        }
+        if (orbi) {
+          rate = orbi.rate;
+          provider = orbi.provider;
+        } else if (OXR_APP_ID) {
+          const res = await fetch(
+            `https://openexchangerates.org/api/historical/${encodeURIComponent(rateDate)}.json?app_id=${encodeURIComponent(OXR_APP_ID)}`,
+          );
+          if (!res.ok) throw new Error(`OXR ${res.status}`);
+          const data = await res.json();
+          const rates = data.rates;
+          if (!rates) throw new Error('OXR: no rates in response');
+          const baseRate = base === 'USD' ? 1 : rates[base];
+          const quoteRate = quote === 'USD' ? 1 : rates[quote];
+          if (!baseRate || !quoteRate) throw new Error(`OXR: missing ${base} or ${quote}`);
+          rate = quoteRate / baseRate;
+          provider = 'openexchangerates';
+        } else {
+          throw new Error('No provider configured');
+        }
       }
     } catch (providerErr) {
       // Provider failed — upsert a PENDING row so the browser knows to show the banner
