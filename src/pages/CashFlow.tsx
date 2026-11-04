@@ -85,7 +85,8 @@ export default function CashFlowPage() {
             amountNative: fields.amount_native ?? null,
             amountPrimary: fields.amount_primary ?? null,
             walletCurrency: fields.wallet_currency ?? null,
-            primaryCurrencyAtPosting: l.primary_currency_at_posting ?? null,
+            primaryCurrencyAtPosting: fields.primary_currency_at_posting ?? null,
+            postingCurrencyUnreadable: fields.primary_currency_at_posting_unreadable ?? false,
             ratePending: l.rate_pending ?? false,
           };
         }),

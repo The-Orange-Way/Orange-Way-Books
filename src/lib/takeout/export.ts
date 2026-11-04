@@ -172,7 +172,7 @@ export async function buildTakeoutFile(
       amount_primary: f.amount_primary ?? null,
       posted_rate: f.posted_rate ?? null,
       wallet_currency: f.wallet_currency ?? null,
-      primary_currency_at_posting: (l.primary_currency_at_posting ?? null) as string | null,
+      primary_currency_at_posting: f.primary_currency_at_posting ?? null,
     };
   });
 
