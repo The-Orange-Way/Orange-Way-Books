@@ -62,6 +62,7 @@ const fiat = (mode: 'wallet' | 'primary' | 'secondary', rate: number | null = nu
   effectiveMode: mode,
   bitcoinReport: false,
   secondaryRate: rate,
+  fiatDecimals: 2,
 });
 const bal = (ls: JournalLine[], id: string) =>
   computeAccountBalances(ls, accounts).find((b) => b.accountId === id)?.balance ?? 0;
@@ -130,6 +131,34 @@ describe('reportLinesFor, fiat company (OWB-T0232)', () => {
     const out = reportLinesFor(all, fiat('wallet'));
     expect(out.lines).toBe(all);
     expect(out.excluded).toEqual([]);
+  });
+
+  it('rounds within each entry, so the ledger adds to the same cents as the balances', () => {
+    const receipt = (je: string): JournalLine[] => [
+      line(je, 'cad', 1, { amountPrimary: 0.734, walletCurrency: 'CAD' }),
+      line(je, 'equity', -1, { amountPrimary: -0.734, walletCurrency: 'CAD' }),
+    ];
+    const { lines } = reportLinesFor([...receipt('r1'), ...receipt('r2')], fiat('primary'));
+    expect(gl(lines, 'CAD Wallet')).toBe(bal(lines, 'cad'));
+    const rev: JournalLine[] = [
+      line('o1', 'cad', 1, { amountPrimary: 0.735, walletCurrency: 'CAD' }),
+      line('o1', 'equity', -1, { amountPrimary: -0.735, walletCurrency: 'CAD' }),
+      line('v1', 'cad', -1, { amountPrimary: -0.735, walletCurrency: 'CAD', reversalOfId: 'o1' }),
+      line('v1', 'equity', 1, { amountPrimary: 0.735, walletCurrency: 'CAD', reversalOfId: 'o1' }),
+    ];
+    const r = reportLinesFor(rev, fiat('primary'));
+    expect(gl(r.lines, 'CAD Wallet')).toBe(0);
+    expect(bal(r.lines, 'cad')).toBe(0);
+  });
+
+  it('leaves out a foreign line whose stored currency cannot be read', () => {
+    const unreadable: JournalLine[] = [
+      line('u1', 'cad', 100, { walletCurrency: 'CAD', postingCurrencyUnreadable: true }),
+      line('u1', 'equity', -100, { walletCurrency: 'CAD', postingCurrencyUnreadable: true }),
+    ];
+    const { lines, excluded } = reportLinesFor(unreadable, fiat('primary'));
+    expect(lines).toEqual([]);
+    expect(excluded.map((e) => e.reason)).toEqual(['unknown-currency']);
   });
 });
 

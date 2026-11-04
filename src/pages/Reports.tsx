@@ -1936,6 +1936,9 @@ export default function Reports() {
       bitcoinReport,
       secondaryRate: secondaryDisplayRate,
       decimals: reportDecimals,
+      fiatDecimals: currencyDecimals(
+        effectiveMode === 'secondary' && secondaryCurrency ? secondaryCurrency : primaryCurrency,
+      ),
     });
   }, [
     journalLines,
@@ -1943,6 +1946,7 @@ export default function Reports() {
     effectiveMode,
     primaryCurrency,
     secondaryDisplayRate,
+    secondaryCurrency,
     showFxReval,
     revalJeIds,
     reportDecimals,
