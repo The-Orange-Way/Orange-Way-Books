@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fetchOrgJournalLines, LINES_LOAD_ERROR } from '@/lib/org-journal-lines-fetch';
 import { effectiveReportCurrencyMode } from '@/lib/reports/effective-currency-mode';
+import { reportLinesFor } from '@/lib/reports/report-lines';
 import { excludedEntriesNote } from '@/lib/reports/excluded-note';
 import { printCellText } from '@/lib/reports/print-cell-text';
 import { useUserOrg } from '@/hooks/useUserOrg';
@@ -62,7 +63,6 @@ import {
   excludedInRange,
   currencyDecimals,
   isBitcoinCurrency,
-  prepareReportLines,
   computePnL,
   computeBalanceSheet,
   computeTrialBalance,
@@ -1930,25 +1930,13 @@ export default function Reports() {
     if (!showFxReval && revalJeIds.size > 0) {
       lines = lines.filter((l) => !revalJeIds.has(l.journalEntryId));
     }
-    if (bitcoinReport) {
-      return prepareReportLines(
-        lines,
-        primaryCurrency,
-        effectiveMode === 'secondary' ? secondaryDisplayRate : null,
-        reportDecimals,
-      );
-    }
-    if (effectiveMode !== 'secondary' || secondaryDisplayRate == null) {
-      return { lines, excluded: [] };
-    }
-    return {
-      lines: lines.map((l) => ({
-        ...l,
-        debit: l.debit * secondaryDisplayRate,
-        credit: l.credit * secondaryDisplayRate,
-      })),
-      excluded: [],
-    };
+    return reportLinesFor(lines, {
+      primaryCurrency,
+      effectiveMode,
+      bitcoinReport,
+      secondaryRate: secondaryDisplayRate,
+      decimals: reportDecimals,
+    });
   }, [
     journalLines,
     bitcoinReport,
@@ -1989,8 +1977,8 @@ export default function Reports() {
     return {
       viewMode: reportViewMode,
       closure: accountClosure,
-      // Fiat reports drill into the stored lines as before; a Bitcoin report into its prepared lines.
-      journalLines: bitcoinReport ? reportLines : journalLines,
+      // Drill-down rows show the same valued amounts as the balances; the wallet view, stored ones.
+      journalLines: effectiveMode === 'wallet' ? journalLines : reportLines,
       dateRange: engineDateRange,
       drillAccountId,
       onToggleDrill: (id) => setDrillAccountId((prev) => (prev === id ? null : id)),
@@ -2001,7 +1989,7 @@ export default function Reports() {
     showPriorPeriod,
     reportViewMode,
     accountClosure,
-    bitcoinReport,
+    effectiveMode,
     reportLines,
     journalLines,
     engineDateRange,
