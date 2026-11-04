@@ -3,7 +3,7 @@ import { encryptJournalEntryLine, type JournalEntryLineEncrypted } from '@/lib/c
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 
-// ── Input types ───────────────────────────────────────────────────────────────
+// -- Input types ---------------------------------------------------------------
 
 export interface ManualRate {
   rate: number;
@@ -13,12 +13,37 @@ export interface ManualRate {
   source: string;
 }
 
+/**
+ * A pinned rate captured verbatim from an existing journal entry line.
+ * Used by void/reverse to replay the original rate without calling the resolver.
+ * amount_primary is already sign-flipped by the caller to match the new direction.
+ */
+export interface PinnedRateInput {
+  /** The rate originally posted (primary per wallet unit). Null when rate_pending. */
+  posted_rate: number | null;
+  /** UUID of the pinned rate row. Null for manual or pending rates. */
+  pinned_rate_id: string | null;
+  /** Bucket timestamp of the pinned rate. */
+  rate_asof: string | null;
+  /** Free-text explanation for a manually supplied rate. */
+  manual_rate_reason: string | null;
+  /** Structured source label for a manually supplied rate. */
+  manual_rate_source: string | null;
+  /**
+   * Pre-computed primary-currency amount, already sign-flipped by the caller
+   * to match the reversing direction. Null when rate_pending is true.
+   */
+  amount_primary: number | null;
+  /** True when the original rate could not be resolved. */
+  rate_pending: boolean;
+}
+
 export interface BuildJeLineInsertParams {
   /** Wallet currency of this line (e.g. "MXN"). */
   wallet_currency: string;
   /** Org's current primary (functional) currency (e.g. "BTC"). */
   primary_currency: string;
-  /** Journal entry date — used to pin the rate bucket (YYYY-MM-DD or ISO). */
+  /** Journal entry date -- used to pin the rate bucket (YYYY-MM-DD or ISO). */
   date: string;
   /** Positive debit amount in wallet currency (0 if this is a credit line). */
   debit: number;
@@ -34,16 +59,22 @@ export interface BuildJeLineInsertParams {
   book_value?: number | null;
   /** If provided, skip the resolver and use this rate instead. */
   manualRate?: ManualRate;
+  /**
+   * If provided, replay the original rate from a prior JE line verbatim.
+   * Takes precedence over manualRate and skips the resolver entirely (0 calls).
+   * The caller supplies amount_primary already sign-flipped for the new direction.
+   */
+  pinnedRate?: PinnedRateInput;
   /** Vault encryption function from VaultContext. */
   encrypt: EncryptFn;
 }
 
-// ── Result ────────────────────────────────────────────────────────────────────
+// -- Result -------------------------------------------------------------------
 
 export interface BuildJeLineInsertResult {
   /** Ready-to-insert row for the journal_entry_lines table. */
   insert: JournalEntryLineEncrypted & { account_id: string };
-  /** True when the exchange rate could not be resolved — line is stored but
+  /** True when the exchange rate could not be resolved -- line is stored but
    *  excluded from formal reports until the rate is resolved manually. */
   pending: boolean;
   /** The resolved rate (primary per wallet unit), or 0 when pending. */
@@ -52,19 +83,19 @@ export interface BuildJeLineInsertResult {
   rateBucketTs: string | null;
 }
 
-// ── Builder ───────────────────────────────────────────────────────────────────
+// -- Builder ------------------------------------------------------------------
 
 /**
  * Build an encrypted JE line insert row with full dual-currency amounts.
  *
  * Responsibilities:
- *  1. Resolve the exchange rate (manual > resolver > pending fallback).
+ *  1. Resolve the exchange rate (pinnedRate > manualRate > resolver > pending fallback).
  *  2. Compute amount_native (signed wallet amount) and amount_primary.
  *  3. Encrypt all fields via encryptJournalEntryLine.
  *  4. Attach plaintext metadata (pinned_rate_id, rate_pending, etc.).
  *
  * The caller inserts the returned `insert` object directly into
- * `journal_entry_lines` — no further transformation needed.
+ * `journal_entry_lines` -- no further transformation needed.
  */
 export async function buildJournalEntryLineInsert(
   params: BuildJeLineInsertParams,
@@ -81,6 +112,7 @@ export async function buildJournalEntryLineInsert(
     description,
     book_value,
     manualRate,
+    pinnedRate,
     encrypt,
   } = params;
 
@@ -106,9 +138,26 @@ export async function buildJournalEntryLineInsert(
   let pending = false;
   let manualRateReason: string | null = null;
   let manualRateSource: string | null = null;
+  // When pinnedRate is supplied the caller pre-computes amount_primary (already
+  // sign-flipped); use it verbatim instead of recomputing from amount_native * rate.
+  // undefined = pinnedRate not supplied; null = supplied but amount is null (pending).
+  let overrideAmountPrimary: number | null | undefined = undefined;
 
-  if (manualRate) {
-    // Manual rate path — skip the resolver entirely
+  if (pinnedRate) {
+    // Pinned-rate path -- replay original rate fields verbatim, zero resolver calls.
+    if (pinnedRate.rate_pending) {
+      pending = true;
+      overrideAmountPrimary = null;
+    } else {
+      rate = pinnedRate.posted_rate ?? 0;
+      rateId = pinnedRate.pinned_rate_id;
+      rateBucketTs = pinnedRate.rate_asof;
+      manualRateReason = pinnedRate.manual_rate_reason;
+      manualRateSource = pinnedRate.manual_rate_source;
+      overrideAmountPrimary = pinnedRate.amount_primary;
+    }
+  } else if (manualRate) {
+    // Manual rate path -- skip the resolver entirely
     rate = manualRate.rate;
     manualRateReason = manualRate.reason;
     manualRateSource = manualRate.source;
@@ -122,7 +171,7 @@ export async function buildJournalEntryLineInsert(
       ),
     ).toISOString();
   } else {
-    // Automatic path — call the resolver
+    // Automatic path -- call the resolver
     const resolved = await resolvePinnedRate({
       source: wallet_currency,
       target: primary_currency,
@@ -134,8 +183,15 @@ export async function buildJournalEntryLineInsert(
     pending = resolved.pending;
   }
 
-  // amount_primary = amount_native × rate (null when pending — rate unknown)
-  const amount_primary = pending ? null : amount_native * rate;
+  // amount_primary: use the caller-supplied value when pinnedRate was given
+  // (it is already sign-correct for the new direction); otherwise compute from
+  // amount_native * rate as usual.
+  const amount_primary =
+    overrideAmountPrimary !== undefined
+      ? overrideAmountPrimary
+      : pending
+        ? null
+        : amount_native * rate;
 
   // Build the fields object for the base encrypt function
   const fields = {
