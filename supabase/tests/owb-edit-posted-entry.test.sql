@@ -99,9 +99,13 @@ INSERT INTO public.organizations (id, name) SELECT org_b, 'owb-edit-test-b' FROM
 
 INSERT INTO public.org_members (org_id, user_id, role)
 SELECT org_a, u_owner, 'OWNER' FROM ids UNION ALL
-SELECT org_a, u_book, 'MEMBER' FROM ids UNION ALL
+SELECT org_a, u_book, 'ACCOUNTANT' FROM ids UNION ALL
 SELECT org_a, u_view, 'VIEWER' FROM ids UNION ALL
 SELECT org_b, u_owner, 'OWNER' FROM ids;
+
+-- sync_org_member_role already gave each member the role named above. Clear those so each user
+-- holds exactly the one role set below.
+DELETE FROM public.org_member_roles WHERE org_id IN (SELECT org_a FROM ids UNION ALL SELECT org_b FROM ids);
 
 INSERT INTO public.org_member_roles (org_id, user_id, role_definition_id)
 SELECT x.org, x.u, rd.id
