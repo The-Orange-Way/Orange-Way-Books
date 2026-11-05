@@ -32,4 +32,12 @@ describe('deploy.yml Orange Rails flags', () => {
     expect(valueFor('VITE_OR_PLATFORM_SLUG', 'prod')).toBe('orangewaybooks');
     expect(valueFor('VITE_OR_PLATFORM_SLUG', 'hotfix/prod-x')).toBe('orangewaybooks');
   });
+
+  it('opens the connect host of the same environment as the slug', () => {
+    expect(valueFor('VITE_OR_CONNECT_URL', 'dev')).toBe('https://dev.orangerails.com/connect');
+    expect(valueFor('VITE_OR_CONNECT_URL', 'prod')).toBe('https://connect.orangerails.com/connect');
+    expect(valueFor('VITE_OR_CONNECT_URL', 'hotfix/prod-x')).toBe(
+      'https://connect.orangerails.com/connect',
+    );
+  });
 });
