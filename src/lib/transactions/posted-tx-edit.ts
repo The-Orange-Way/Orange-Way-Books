@@ -16,6 +16,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { decryptTransaction } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import {
   editPostedEntry,
@@ -29,6 +30,8 @@ import {
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
+
+const blank = (v: string | null | undefined) => (v ?? '').trim();
 
 /** The posted entry as read when the edit was opened. */
 export interface PostedEntry {
@@ -76,6 +79,48 @@ export async function loadPostedEntry(
   };
 }
 
+/** The transaction as the form shows it, from the list it was opened from. */
+export interface ShownTx {
+  id: string;
+  amount: number;
+  /** yyyy-MM-dd */
+  date: string;
+  memo: string | null;
+}
+
+/**
+ * Reads the posted entry, then the transaction the form was opened from. The
+ * version is read first, so the transaction and anything the form reads after
+ * this is at least as new as it, and a later change is refused by the
+ * database. If the transaction differs from what the list showed, the list was
+ * out of date and stale is true: saving it would put back the old values.
+ */
+export async function loadPostedEditSnapshot(
+  client: SupabaseClient,
+  entryId: string,
+  shown: ShownTx,
+  decrypt: DecryptFn,
+): Promise<{ entry: PostedEntry | null; stale: boolean }> {
+  const entry = await loadPostedEntry(client, entryId);
+  if (!entry) return { entry: null, stale: false };
+  const { data, error } = await client
+    .from('transactions')
+    .select('*')
+    .eq('id', shown.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return { entry, stale: true };
+  const tx = await decryptTransaction(data, decrypt);
+  const stale =
+    (data as { date: string }).date !== shown.date ||
+    Number(tx.amount) !== Number(shown.amount) ||
+    blank(tx.memo) !== blank(shown.memo);
+  return { entry, stale };
+}
+
+export const RECONCILED_REFUSAL =
+  'Part of this entry is reconciled, so it cannot be changed. Unreconcile it on the wallet statement first.';
+
 /** What the transaction looked like when opened, and what the form holds now. */
 export interface PostedTxShape {
   mode: 'standard' | 'split' | 'transfer';
@@ -84,8 +129,6 @@ export interface PostedTxShape {
   direction: 'IN' | 'OUT';
   memo: string | null;
 }
-
-const blank = (v: string | null | undefined) => (v ?? '').trim();
 
 /** The mode a posted entry was saved in, from its source type. */
 export function postedEntryMode(entry: PostedEntry): 'split' | 'transfer' | null {
@@ -143,6 +186,19 @@ export async function savePostedTxEdit(
 ): Promise<number> {
   if (!input.reason.trim()) throw new Error('Say why this posted entry is being changed.');
   const { entry, encrypt, decrypt } = input;
+
+  // A reconciled entry is locked, and the database cannot see that: the
+  // reconciled status is encrypted. Read every transaction on the entry now,
+  // so a reconciled other side of a transfer is caught too.
+  const { data: txRows, error: txErr } = await client
+    .from('transactions')
+    .select('*')
+    .eq('journal_entry_id', entry.id);
+  if (txErr) throw new Error(txErr.message);
+  for (const row of txRows ?? []) {
+    const tx = await decryptTransaction(row, decrypt);
+    if (tx.cleared_status === 'RECONCILED') throw new Error(RECONCILED_REFUSAL);
+  }
   const build =
     input.build ??
     ((params: BuildLineParams) =>

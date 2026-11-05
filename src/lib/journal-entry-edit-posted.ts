@@ -258,7 +258,6 @@ export async function planPostedEditLines(opts: {
       });
       continue;
     }
-    const before = stored[i];
     const built = await build({
       wallet_currency: currency,
       primary_currency: primary,
@@ -271,7 +270,10 @@ export async function planPostedEditLines(opts: {
       description: e.description,
       book_value: null,
     });
-    if (built.pending && !(before?.ratePending ?? false)) {
+    // Compare against every stored line this edit does not carry over, not the
+    // one at the same position: removing a line shifts the positions.
+    const dropsAValue = stored.some((s, k) => !used.has(k) && !s.ratePending);
+    if (built.pending && dropsAValue) {
       throw new Error(
         `No exchange rate was found for ${currency} on ${date}, so this change would remove a value the books already have. Nothing was saved. Try again later.`,
       );

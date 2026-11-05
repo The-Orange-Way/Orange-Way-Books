@@ -446,6 +446,20 @@ describe('planPostedEditLines', () => {
     const out = await planPostedEditLines({ ...base(), stored: s, edited: e, build });
     expect(out).toHaveLength(2);
   });
+
+  it('refuses dropping a stored value when a removed line shifts the positions', async () => {
+    // Wallet credit 100; A 20 had no rate; B 30 has a value; C 50 had no rate.
+    // The user removes A and raises B to 50, and no rate is found for B.
+    const { build } = builder(true);
+    const w = stored('w', { debit: 0, credit: 100 });
+    const a = stored('a', { debit: 20, credit: 0, ratePending: true });
+    const bLine = stored('b', { debit: 30, credit: 0 });
+    const c = stored('c', { debit: 50, credit: 0, ratePending: true });
+    const e = [edited(w), { ...edited(bLine), debit: 50 }, edited(c)];
+    await expect(
+      planPostedEditLines({ ...base(), stored: [w, a, bLine, c], edited: e, build }),
+    ).rejects.toThrow('Nothing was saved');
+  });
 });
 
 describe('Journal page posted edit', () => {

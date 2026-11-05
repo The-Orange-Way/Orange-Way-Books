@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import {
+  RECONCILED_REFUSAL,
+  loadPostedEditSnapshot,
   postedEditRefusal,
   savePostedTxEdit,
   type PostedEditedLine,
@@ -84,18 +86,30 @@ const line = (
 });
 
 /** Records every call. Only reads and the one edit function are allowed. */
-function fakeClient(rows: Array<Record<string, unknown>>, rpcError: string | null = null) {
+function fakeClient(
+  rows: Array<Record<string, unknown>>,
+  rpcError: string | null = null,
+  txRows: Array<Record<string, unknown>> = [{ id: 'tx-src', cleared_status: 'CLEARED' }],
+  entryRow: Record<string, unknown> | null = null,
+) {
   const calls: string[] = [];
   const rpcArgs: Array<Record<string, unknown>> = [];
   const c = {
     from: (table: string) => {
+      const result = () =>
+        table === 'transactions' ? { data: txRows, error: null } : { data: rows, error: null };
       const q = {
         select: () => {
           calls.push(`select ${table}`);
           return q;
         },
         eq: () => q,
-        order: async () => ({ data: rows, error: null }),
+        order: async () => result(),
+        maybeSingle: async () => ({
+          data: table === 'journal_entries' ? entryRow : (txRows[0] ?? null),
+          error: null,
+        }),
+        then: (resolve: (v: unknown) => unknown) => resolve(result()),
         insert: () => {
           calls.push(`insert ${table}`);
           return q;
@@ -183,7 +197,11 @@ describe('savePostedTxEdit', () => {
       txs,
     });
     expect(version).toBe(3);
-    expect(calls).toEqual(['select journal_entry_lines', 'rpc owb_edit_posted_entry']);
+    expect(calls).toEqual([
+      'select transactions',
+      'select journal_entry_lines',
+      'rpc owb_edit_posted_entry',
+    ]);
     const a = rpcArgs[0];
     expect(a.p_je_id).toBe('je-1');
     expect(a.p_expected_updated_at).toBe('t1');
@@ -286,6 +304,89 @@ describe('savePostedTxEdit', () => {
   });
 });
 
+describe('reconciled entries', () => {
+  const input = (build: ReturnType<typeof fakeBuild>['build']) => ({
+    entry,
+    date: '2026-10-15',
+    primaryCurrency: 'BTC',
+    reason: 'typo',
+    encrypt,
+    decrypt,
+    build,
+    lines: [
+      line('wallet-mxn', 'MXN', 1700, 0),
+      line('clearing', 'MXN', 0, 1700),
+      line('clearing', 'USD', 100, 0),
+      line('wallet-usd', 'USD', 0, 100),
+    ],
+    txs,
+  });
+
+  it('refuses when the other side of a transfer is reconciled, and sends nothing', async () => {
+    const { c, calls } = fakeClient(transferRows(), null, [
+      { id: 'tx-src', cleared_status: 'CLEARED' },
+      { id: 'tx-dest', cleared_status: 'RECONCILED' },
+    ]);
+    await expect(savePostedTxEdit(c, input(fakeBuild().build))).rejects.toThrow(RECONCILED_REFUSAL);
+    expect(calls).not.toContain('rpc owb_edit_posted_entry');
+  });
+
+  it('saves when no transaction on the entry is reconciled', async () => {
+    const { c, calls } = fakeClient(transferRows(), null, [
+      { id: 'tx-src', cleared_status: 'CLEARED' },
+      { id: 'tx-dest', cleared_status: null },
+    ]);
+    await savePostedTxEdit(c, input(fakeBuild().build));
+    expect(calls).toContain('rpc owb_edit_posted_entry');
+  });
+});
+
+describe('loadPostedEditSnapshot', () => {
+  const entryRow = {
+    id: 'je-1',
+    status: 'POSTED',
+    date: '2026-10-15',
+    updated_at: 't2',
+    key_version: 2,
+    encrypted_memo: 'C_rent',
+    encrypted_currency: 'C_MXN',
+    source_type: 'TRANSACTION_SPLIT',
+  };
+  const shown = { id: 'tx-1', amount: -100, date: '2026-10-15', memo: 'rent' };
+  const txRow = (over: Record<string, unknown> = {}) => ({
+    id: 'tx-1',
+    date: '2026-10-15',
+    amount: -100,
+    memo: 'rent',
+    ...over,
+  });
+
+  it('reads the version first and finds the list row current', async () => {
+    const { c, calls } = fakeClient([], null, [txRow()], entryRow);
+    const snap = await loadPostedEditSnapshot(c, 'je-1', shown, decrypt);
+    expect(calls).toEqual(['select journal_entries', 'select transactions']);
+    expect(snap.entry?.updatedAt).toBe('t2');
+    expect(snap.stale).toBe(false);
+  });
+
+  it.each([
+    ['amount', { amount: -120 }],
+    ['date', { date: '2026-10-16' }],
+    ['memo', { memo: 'office rent' }],
+  ])('marks the list row stale when the %s changed since it was loaded', async (_n, over) => {
+    const { c } = fakeClient([], null, [txRow(over)], entryRow);
+    expect((await loadPostedEditSnapshot(c, 'je-1', shown, decrypt)).stale).toBe(true);
+  });
+
+  it('returns no entry for a draft', async () => {
+    const { c } = fakeClient([], null, [txRow()], { ...entryRow, status: 'DRAFT' });
+    expect(await loadPostedEditSnapshot(c, 'je-1', shown, decrypt)).toEqual({
+      entry: null,
+      stale: false,
+    });
+  });
+});
+
 describe('postedEditRefusal', () => {
   const was: PostedTxShape = {
     mode: 'transfer',
@@ -356,6 +457,19 @@ describe('transaction screen, posted entries', () => {
     const branch = body.slice(posted, firstLineWrite);
     const broken = modalSource.replace(branch, branch.replace(/\n(\s+)return;\n/, '\n'));
     expect(postedGoesFirst(broken, 'handleSaveSplit')).toBe(false);
+  });
+
+  it('refuses a save from a stale list row', () => {
+    expect(modalSource).toMatch(/if \(postedStale\) \{\s*throw new Error/);
+  });
+
+  it('reads the posted version before the transfer and split reads', () => {
+    const snap = modalSource.indexOf('loadPostedEditSnapshot(\n');
+    const linked = modalSource.indexOf(".eq('id', editingTx.linked_transfer_id!)");
+    const lines = modalSource.indexOf(".eq('journal_entry_id', editingTx.journal_entry_id!)");
+    expect(snap).toBeGreaterThan(0);
+    expect(snap).toBeLessThan(linked);
+    expect(snap).toBeLessThan(lines);
   });
 
   it('asks for a reason only on a posted entry', () => {

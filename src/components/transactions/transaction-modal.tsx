@@ -53,6 +53,7 @@ import {
 } from '@/lib/transactions/transfer-edit-targets';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
 import {
+  loadPostedEditSnapshot,
   loadPostedEntry,
   postedEditRefusal,
   postedEntryMode,
@@ -269,6 +270,8 @@ export default function TransactionModal({
   // needs a reason and the entry as it was read when the form opened.
   const [postedEntry, setPostedEntry] = useState<PostedEntry | null>(null);
   const [editReason, setEditReason] = useState('');
+  // True when the list row the form opened from is older than the database.
+  const [postedStale, setPostedStale] = useState(false);
   const [draggingReceipt, setDraggingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -278,6 +281,9 @@ export default function TransactionModal({
     // Each opening starts with the received amount following the exchange rate.
     setRateOverride(false);
     setSavedTransfer(null);
+    setPostedEntry(null);
+    setPostedStale(false);
+    setEditReason('');
     if (editingTx) {
       // ── Synchronous seed: standard-mode defaults from the row itself ──
       // The async detector below upgrades to split/transfer if the row has
@@ -317,6 +323,24 @@ export default function TransactionModal({
         const isTransfer = !!editingTx.linked_transfer_id;
         if (!editingTx.journal_entry_id && !isTransfer) return;
         try {
+          // A posted entry: read its version first, so every read below (the
+          // other side of a transfer, the split lines) is at least as new.
+          if (editingTx.journal_entry_id) {
+            const snap = await loadPostedEditSnapshot(
+              supabase,
+              editingTx.journal_entry_id,
+              {
+                id: editingTx.id,
+                amount: Number(editingTx.amount),
+                date: editingTx.date,
+                memo: editingTx.memo,
+              },
+              decryptText,
+            );
+            if (cancelled) return;
+            setPostedEntry(snap.entry);
+            setPostedStale(snap.stale);
+          }
           if (isTransfer) {
             const { data: linkedRow, error: linkedErr } = await supabase
               .from('transactions')
@@ -451,22 +475,6 @@ export default function TransactionModal({
     // on those identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editingTx, wallets]);
-
-  useEffect(() => {
-    setPostedEntry(null);
-    setEditReason('');
-    const jeId = open ? editingTx?.journal_entry_id : null;
-    if (!jeId) return;
-    let cancelled = false;
-    loadPostedEntry(supabase, jeId)
-      .then((entry) => {
-        if (!cancelled) setPostedEntry(entry);
-      })
-      .catch((err) => console.warn('[tx-modal] posted entry check failed:', err));
-    return () => {
-      cancelled = true;
-    };
-  }, [open, editingTx]);
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const selectedWallet = useMemo(
@@ -652,6 +660,11 @@ export default function TransactionModal({
       if (postedNow && !postedEntry) {
         throw new Error(
           'This entry was posted after it was opened. Close it and open it again to edit it.',
+        );
+      }
+      if (postedStale) {
+        throw new Error(
+          'This transaction changed since the list was loaded. Close it and open it again.',
         );
       }
       if (editingTx && postedEntry) {
