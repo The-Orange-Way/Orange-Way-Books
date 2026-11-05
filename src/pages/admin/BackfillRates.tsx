@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import { Play, Square, RefreshCw, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVault } from '@/context/VaultContext';
-import { useOrgSettings } from '@/hooks/useOrgSettings';
 import {
   backfillDualAmounts,
   loadBackfillProgress,
@@ -26,10 +25,8 @@ type RunState = 'idle' | 'running' | 'done' | 'aborted';
  */
 export function BackfillRates({ orgId }: BackfillRatesProps) {
   const { encryptText, decryptText } = useVault();
-  const { settings } = useOrgSettings();
-  const primaryCurrency = settings.primaryCurrency;
   const [runState, setRunState] = useState<RunState>('idle');
-  const [progress, setProgress] = useState<BackfillProgress>(loadBackfillProgress);
+  const [progress, setProgress] = useState<BackfillProgress>(() => loadBackfillProgress(orgId));
   const abortRef = useRef<AbortController | null>(null);
 
   const handleStart = useCallback(async () => {
@@ -38,7 +35,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
     setRunState('running');
 
     try {
-      await backfillDualAmounts(orgId, primaryCurrency, encryptText, decryptText, {
+      await backfillDualAmounts(orgId, encryptText, decryptText, {
         onProgress: (p) => setProgress({ ...p }),
         onDone: (p) => {
           setProgress({ ...p });
@@ -49,7 +46,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
     } catch {
       setRunState('aborted');
     }
-  }, [orgId, primaryCurrency, encryptText, decryptText]);
+  }, [orgId, encryptText, decryptText]);
 
   const handleStop = () => {
     abortRef.current?.abort();
@@ -57,7 +54,7 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
   };
 
   const handleReset = () => {
-    clearBackfillProgress();
+    clearBackfillProgress(orgId);
     setProgress({ processed: 0, resolved: 0, pending: 0, failed: 0, lastCursor: null });
     setRunState('idle');
   };
@@ -70,10 +67,11 @@ export function BackfillRates({ orgId }: BackfillRatesProps) {
       <div>
         <h3 className="text-base font-semibold">Backfill Dual-Currency Amounts</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-          Populates <code className="bg-gray-100 px-1 rounded">amount_native</code> and{' '}
-          <code className="bg-gray-100 px-1 rounded">amount_primary</code> on journal entry lines
-          that predate the dual-currency upgrade. Decryption and encryption happen entirely in this
-          browser — nothing is sent to the server in plaintext.
+          Fills in the value in your primary currency on journal entry lines that were saved before
+          their exchange rate was known. A posted entry is updated through its edit history, with
+          the reason &ldquo;Exchange rate filled in&rdquo;. Lines on drafts are filled after the
+          entry is posted, and voided entries are left as they are. Decryption and encryption happen
+          entirely in this browser.
         </p>
       </div>
 

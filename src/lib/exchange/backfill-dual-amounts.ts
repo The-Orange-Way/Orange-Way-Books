@@ -1,19 +1,25 @@
 /**
- * Backfill dual-currency amounts for pre-dual journal_entry_lines.
+ * Fill late exchange rates on journal entry lines (OWB-T0237, OWB-T0238).
  *
- * Iterates rows where dual_amounts_backfilled=false, decrypts each row,
- * resolves the exchange rate for its date, encrypts the new dual fields,
- * and writes them back. Always marks dual_amounts_backfilled=true so the
- * row is never revisited, even if the rate is still pending.
+ * A line saved while its rate was not yet known has dual_amounts_backfilled =
+ * false and no amount in the primary currency. The lines of a posted entry
+ * cannot be updated directly, so each posted entry is filled through
+ * owb_edit_posted_entry (fillPendingRatesOnPostedEntry). That keeps the
+ * entry's id and number and saves the earlier version in its history.
+ *
+ * Lines on a draft are left for later: they are not in any report, and they
+ * are filled by a run after the entry is posted. Voided entries are left as
+ * they are. An entry the database refuses (for example a closed month) is
+ * counted as failed and left unchanged.
  *
  * ZKA note: encryption/decryption happen entirely in the browser. The
  * server only ever sees ciphertext. Rate fetching sends {pair, date}
- * metadata — same L2 privacy baseline as existing plaintext dates.
+ * metadata, the same baseline as the stored dates.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { decryptJournalEntryLine, encryptJournalEntryLine } from '@/lib/crypto-fields';
-import { resolvePinnedRate } from './rate-resolver';
+import { fillPendingRatesOnPostedEntry } from './fill-posted-pending-rates';
 
 type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
@@ -26,200 +32,135 @@ export interface BackfillProgress {
   resolved: number;
   pending: number;
   failed: number;
-  lastCursor: string | null; // last processed row id for resumability
+  lastCursor: string | null; // last processed journal entry id, for resuming
 }
 
-export function loadBackfillProgress(): BackfillProgress {
+const empty = (): BackfillProgress => ({
+  processed: 0,
+  resolved: 0,
+  pending: 0,
+  failed: 0,
+  lastCursor: null,
+});
+
+// Progress is kept per organization, so a run in one set of books never
+// resumes from another's place.
+const storageKey = (orgId: string | null) => `${STORAGE_KEY}:${orgId ?? ''}`;
+
+export function loadBackfillProgress(orgId: string | null): BackfillProgress {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey(orgId));
     if (stored) return JSON.parse(stored);
   } catch {
     /* ignore */
   }
-  return { processed: 0, resolved: 0, pending: 0, failed: 0, lastCursor: null };
+  return empty();
 }
 
-function saveBackfillProgress(p: BackfillProgress): void {
+function saveBackfillProgress(orgId: string, p: BackfillProgress): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    localStorage.setItem(storageKey(orgId), JSON.stringify(p));
   } catch {
     /* ignore */
   }
 }
 
-export function clearBackfillProgress(): void {
-  localStorage.removeItem(STORAGE_KEY);
+export function clearBackfillProgress(orgId: string | null): void {
+  try {
+    localStorage.removeItem(storageKey(orgId));
+  } catch {
+    /* ignore */
+  }
 }
 
 export interface BackfillCallbacks {
   onProgress: (p: BackfillProgress) => void;
+  /** Called only when the run reached the end, never after Stop. */
   onDone: (p: BackfillProgress) => void;
   signal?: AbortSignal;
 }
 
+export interface BackfillDeps {
+  client?: SupabaseClient;
+  fillPosted?: typeof fillPendingRatesOnPostedEntry;
+}
+
 /**
- * Run one full backfill pass for an org.
- *
- * @param orgId         - Org scope
- * @param primaryCurrency - Current primary currency (used when wallet_currency is unknown)
- * @param encrypt       - VaultContext encryptText
- * @param decrypt       - VaultContext decryptText
- * @param callbacks     - Progress reporting
+ * Run one backfill pass for an org. Returns the progress; after Stop the
+ * progress is saved so the next run resumes where this one stopped.
  */
 export async function backfillDualAmounts(
   orgId: string,
-  primaryCurrency: string,
   encrypt: EncryptFn,
   decrypt: DecryptFn,
   callbacks: BackfillCallbacks,
+  deps: BackfillDeps = {},
 ): Promise<BackfillProgress> {
-  const progress = loadBackfillProgress();
+  const client = deps.client ?? (supabase as unknown as SupabaseClient);
+  const fillPosted = deps.fillPosted ?? fillPendingRatesOnPostedEntry;
+  const progress = loadBackfillProgress(orgId);
   let cursor = progress.lastCursor;
 
-  while (true) {
-    if (callbacks.signal?.aborted) break;
-
-    // Fetch next page of unbackfilled rows with JE date for rate resolution
-    // Cast to any: post-Phase 1 schema has encrypted_primary_currency_at_posting
-    // which the auto-generated types.ts won't know about until regenerated
-    // after DB reset.
-    let query = (supabase as any)
+  while (!callbacks.signal?.aborted) {
+    let query = client
       .from('journal_entry_lines')
-      .select(
-        'id, key_version, account_id, journal_entry_id, encrypted_debit, encrypted_credit, encrypted_book_value, account_name, account_code, description, encrypted_amount_native, encrypted_wallet_currency, encrypted_primary_currency_at_posting, rate_pending, journal_entries!inner(date, org_id)',
-      )
+      .select('journal_entry_id, journal_entries!inner(status, org_id)')
       .eq('dual_amounts_backfilled', false)
       .eq('journal_entries.org_id', orgId)
-      .order('id', { ascending: true })
+      .order('journal_entry_id', { ascending: true })
       .limit(PAGE_SIZE);
+    if (cursor) query = query.gt('journal_entry_id', cursor);
 
-    if (cursor) {
-      query = query.gt('id', cursor);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    type Parent = { status: string } | null;
+    const rows = (data ?? []) as unknown as Array<{
+      journal_entry_id: string;
+      journal_entries: Parent | Parent[];
+    }>;
+    if (rows.length === 0) break;
+
+    // Lines waiting, per entry, in id order.
+    const entries = new Map<string, { status: string; lines: number }>();
+    for (const r of rows) {
+      const je = r.journal_entries;
+      const parent: Parent = Array.isArray(je) ? (je[0] ?? null) : je;
+      const e = entries.get(r.journal_entry_id);
+      if (e) e.lines++;
+      else entries.set(r.journal_entry_id, { status: parent?.status ?? '', lines: 1 });
     }
 
-    const { data: rows, error } = await query;
-    if (error || !rows || rows.length === 0) break;
-
-    // Process each row
-    const updates: Array<{
-      id: string;
-      encrypted_amount_native: string | null;
-      encrypted_amount_primary: string | null;
-      encrypted_posted_rate: string | null;
-      encrypted_wallet_currency: string | null;
-      encrypted_primary_currency_at_posting: string | null;
-      rate_pending: boolean;
-      rate_asof: string | null;
-      pinned_rate_id: string | null;
-      dual_amounts_backfilled: boolean;
-    }> = [];
-
-    for (const row of rows) {
+    for (const [entryId, e] of entries) {
       if (callbacks.signal?.aborted) break;
-
-      try {
-        const jeDate: string = (row.journal_entries as any)?.date ?? '';
-        const fields = await decryptJournalEntryLine(row, decrypt);
-
-        // Wallet currency: prefer decrypted field; fall back to primary (identity rate)
-        const walletCurrency = fields.wallet_currency ?? primaryCurrency;
-        const targetCurrency =
-          (row as any).encrypted_primary_currency_at_posting ?? primaryCurrency;
-
-        // Signed native amount from debit/credit
-        const amount_native = fields.debit > 0 ? fields.debit : -fields.credit;
-
-        let rate = 0;
-        let rateId: string | null = null;
-        let rateBucketTs: string | null = null;
-        let pending = false;
-
+      if (e.status === 'POSTED') {
         try {
-          const resolved = await resolvePinnedRate({
-            source: walletCurrency,
-            target: targetCurrency,
-            at: jeDate,
-          });
-          rate = resolved.rate;
-          rateId = resolved.rateId;
-          rateBucketTs = resolved.bucketTs;
-          pending = resolved.pending;
+          const r = await fillPosted(client, entryId, { encrypt, decrypt });
+          progress.resolved += r.filled;
+          progress.pending += r.stillPending;
+          // A waiting line that is neither filled nor pending has no rate to
+          // fill and no amounts: it needs a person to look at it.
+          progress.failed += Math.max(0, e.lines - r.filled - r.stillPending);
         } catch {
-          pending = true;
+          progress.failed += e.lines;
         }
-
-        const amount_primary = pending ? null : amount_native * rate;
-
-        // Re-encrypt with dual amounts
-        const encrypted = await encryptJournalEntryLine(
-          {
-            ...fields,
-            amount_native,
-            amount_primary,
-            posted_rate: pending ? null : rate,
-            wallet_currency: walletCurrency,
-          },
-          encrypt,
-          {
-            // meta-input key stays plaintext-named (encryptJournalEntryLine
-            // internally encrypts it into encrypted_primary_currency_at_posting)
-            primary_currency_at_posting: targetCurrency,
-            rate_pending: pending,
-            rate_asof: rateBucketTs,
-            pinned_rate_id: rateId,
-          },
-        );
-
-        updates.push({
-          id: row.id,
-          encrypted_amount_native: encrypted.encrypted_amount_native,
-          encrypted_amount_primary: encrypted.encrypted_amount_primary,
-          encrypted_posted_rate: encrypted.encrypted_posted_rate,
-          encrypted_wallet_currency: encrypted.encrypted_wallet_currency,
-          encrypted_primary_currency_at_posting: encrypted.encrypted_primary_currency_at_posting,
-          rate_pending: encrypted.rate_pending,
-          rate_asof: encrypted.rate_asof,
-          pinned_rate_id: encrypted.pinned_rate_id,
-          dual_amounts_backfilled: true,
-        });
-
-        if (pending) progress.pending++;
-        else progress.resolved++;
-      } catch {
-        // Mark as backfilled to avoid infinite retry; rate_pending stays false
-        updates.push({
-          id: row.id,
-          encrypted_amount_native: null,
-          encrypted_amount_primary: null,
-          encrypted_posted_rate: null,
-          encrypted_wallet_currency: null,
-          encrypted_primary_currency_at_posting: null,
-          rate_pending: false,
-          rate_asof: null,
-          pinned_rate_id: null,
-          dual_amounts_backfilled: true,
-        });
-        progress.failed++;
+      } else {
+        progress.pending += e.lines;
       }
-
-      progress.processed++;
+      progress.processed += e.lines;
+      cursor = entryId;
+      progress.lastCursor = cursor;
     }
 
-    // Batch upsert updates
-    if (updates.length > 0) {
-      await supabase.from('journal_entry_lines').upsert(updates as any, { onConflict: 'id' });
-    }
-
-    cursor = rows[rows.length - 1].id;
-    progress.lastCursor = cursor;
-    saveBackfillProgress(progress);
+    saveBackfillProgress(orgId, progress);
     callbacks.onProgress({ ...progress });
-
-    // Stop if we got fewer rows than the page size (last page)
     if (rows.length < PAGE_SIZE) break;
   }
 
-  clearBackfillProgress();
+  if (callbacks.signal?.aborted) {
+    saveBackfillProgress(orgId, progress);
+    return progress;
+  }
+  clearBackfillProgress(orgId);
   callbacks.onDone({ ...progress });
   return progress;
 }
