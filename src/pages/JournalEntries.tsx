@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ChevronDown,
   Pencil,
+  History,
   Trash2,
   Undo2,
   CalendarIcon,
@@ -25,6 +26,7 @@ import {
   startOfWeek,
   subMonths,
   subYears,
+  parseISO,
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { captureException } from '@/lib/observability/sentry';
@@ -46,6 +48,14 @@ import {
 import { reverseJournalEntry } from '@/lib/transactions/reverse-journal-entry';
 import { writeAuditLog } from '@/lib/audit-logger';
 import { postJournalEntry } from '@/lib/journal-entry-post';
+import {
+  editPostedEntry,
+  fetchEntryHistory,
+  loadStoredEditLines,
+  planPostedEditLines,
+  type EditLine,
+  type EntryVersion,
+} from '@/lib/journal-entry-edit-posted';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -212,6 +222,7 @@ interface JournalEntry {
   exchange_rate: number | null;
   period_locked: boolean;
   created_at: string | null;
+  key_version?: number | null;
 }
 
 interface JournalLine {
@@ -386,6 +397,15 @@ function findPairingWarnings(
 /** True when the entry's date falls within a period the org has marked
  *  closed (the lock-date floor). Empty `lockDate` means no period close
  *  is configured; nothing is locked. */
+/** A posted manual entry, not a reversal, in an open period. */
+function isEditablePosted(entry: {
+  status: string;
+  period_locked: boolean;
+  source_type: string | null;
+}): boolean {
+  return entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
+}
+
 function entryFallsInLockedPeriod(entryDate: string, lockDate: string | null): boolean {
   if (!lockDate) return false;
   return entryDate <= lockDate;
@@ -563,6 +583,11 @@ export default function JournalEntries() {
   const [fCurrency, setFCurrency] = useState('USD');
   const [fRefNum, setFRefNum] = useState('');
   const [fMemo, setFMemo] = useState('');
+  // Why a posted entry is being changed. Required, and kept in its history.
+  const [fReason, setFReason] = useState('');
+  const [historyEntry, setHistoryEntry] = useState<JournalEntry | null>(null);
+  const [history, setHistory] = useState<EntryVersion[] | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [fLines, setFLines] = useState<FormLine[]>([
     { account_code: '', account_name: '', debit: '', credit: '', description: '' },
     { account_code: '', account_name: '', debit: '', credit: '', description: '' },
@@ -913,16 +938,34 @@ export default function JournalEntries() {
     setModalOpen(true);
   };
 
-  const openEdit = (entry: JournalEntry) => {
-    if (entry.status !== 'DRAFT' || entry.period_locked) return;
+  const openEdit = async (entry: JournalEntry) => {
+    if (entry.period_locked) return;
+    if (entry.status !== 'DRAFT' && !isEditablePosted(entry)) return;
     // An entry whose lines did not load would open blank, and saving it
     // would replace the stored lines.
     if (linesLoadFailed) {
       toast.error('Lines for this entry did not load. Refresh the page before editing.');
       return;
     }
+    if (entry.status === 'POSTED') {
+      // An entry made by a transaction (and so possibly reconciled) is changed
+      // from the transaction, not here.
+      const { count, error } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('journal_entry_id', entry.id);
+      if (error || (count ?? 0) > 0) {
+        toast.error(
+          error
+            ? 'Could not check whether this entry belongs to a transaction. Try again.'
+            : 'This entry belongs to a transaction. Change it from the Transactions page.',
+        );
+        return;
+      }
+    }
+    setFReason('');
     setEditingEntry(entry);
-    setFDate(new Date(entry.date));
+    setFDate(parseISO(entry.date));
     setFCurrency(entry.currency);
     setFRefNum(entry.ref_number || '');
     setFMemo(entry.memo || '');
@@ -947,6 +990,7 @@ export default function JournalEntries() {
   const totalDebits = fLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
   const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.001 && totalDebits > 0;
+  const editingPosted = editingEntry?.status === 'POSTED';
 
   // Lock date check whenever date changes
   const isLocked = useMemo(() => {
@@ -1041,7 +1085,61 @@ export default function JournalEntries() {
         }
         return acct.id;
       };
-      if (editingEntry) {
+      if (editingEntry && editingEntry.status === 'POSTED') {
+        const date = format(fDate, 'yyyy-MM-dd');
+        const encEntry = await encryptJournalEntry(
+          {
+            memo: fMemo || null,
+            ref_number: null,
+            currency: fCurrency,
+            exchange_rate: null,
+            status: editingEntry.status,
+            source_type: null,
+            period_locked: false,
+          },
+          encryptText,
+        );
+        // Unchanged lines go back exactly as stored, so their rates and values
+        // are kept. Read the stored rows fresh: the page holds them decrypted.
+        const storedRows = await fetchJournalEntryLines<EditLine & { id: string }>(supabase, [
+          editingEntry.id,
+        ]);
+        const editLines = await planPostedEditLines({
+          stored: await loadStoredEditLines(storedRows, decryptText),
+          edited: savedLines.map((l) => ({
+            accountId: lineAccountId(l.account_name),
+            accountName: l.account_name || null,
+            accountCode: l.account_code || null,
+            description: l.description || null,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0,
+          })),
+          storedDate: editingEntry.date,
+          storedCurrency: editingEntry.currency,
+          date,
+          currency: fCurrency,
+          primaryCurrency,
+          encrypt: encryptText,
+          build: (params) => buildJournalEntryLineInsert({ ...params, encrypt: encryptText }),
+        });
+        await editPostedEntry(supabase, {
+          entryId: editingEntry.id,
+          entryKeyVersion: editingEntry.key_version ?? 0,
+          date,
+          header: {
+            encrypted_memo: encEntry.encrypted_memo,
+            encrypted_currency: encEntry.encrypted_currency,
+          },
+          lines: editLines,
+          amounts: savedLines.map((l) => ({
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0,
+          })),
+          encryptedReason: await encryptText(fReason.trim()),
+          reasonText: fReason,
+        });
+        toast.success('Entry updated. The earlier version is in its history.');
+      } else if (editingEntry) {
         const encEntry = await encryptJournalEntry(
           {
             memo: fMemo || null,
@@ -1156,6 +1254,18 @@ export default function JournalEntries() {
       alert('Save failed: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openHistory = async (entry: JournalEntry) => {
+    setHistoryEntry(entry);
+    setHistory(null);
+    setHistoryError(null);
+    try {
+      setHistory(await fetchEntryHistory(supabase, entry.id, decryptText));
+    } catch (err) {
+      captureException(err, { tags: { source: 'je-history' } });
+      setHistoryError(err instanceof Error ? err.message : 'History could not be loaded.');
     }
   };
 
@@ -1711,15 +1821,28 @@ export default function JournalEntries() {
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1">
-                            {canEdit && canWriteJE && (
+                            {(canEdit || isEditablePosted(entry)) && canWriteJE && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => openEdit(entry)}
                                 data-testid="je-edit-button"
+                                title="Edit"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            {entry.status === 'POSTED' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openHistory(entry)}
+                                data-testid="je-history-button"
+                                title="History"
+                              >
+                                <History className="w-3.5 h-3.5" />
                               </Button>
                             )}
                             {canEdit && canDeleteJE && (
@@ -1937,15 +2060,28 @@ export default function JournalEntries() {
                     className="mt-2 flex justify-end gap-0.5"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {canEdit && canWriteJE && (
+                    {(canEdit || isEditablePosted(entry)) && canWriteJE && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => openEdit(entry)}
                         data-testid="je-edit-button"
+                        title="Edit"
                       >
                         <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {entry.status === 'POSTED' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => openHistory(entry)}
+                        data-testid="je-history-button"
+                        title="History"
+                      >
+                        <History className="w-3.5 h-3.5" />
                       </Button>
                     )}
                     {canEdit && canDeleteJE && (
@@ -2045,6 +2181,7 @@ export default function JournalEntries() {
                   value={fRefNum}
                   onChange={(e) => setFRefNum(e.target.value)}
                   placeholder="JE26-000001"
+                  disabled={editingEntry?.status === 'POSTED'}
                 />
               </div>
               <div>
@@ -2228,6 +2365,23 @@ export default function JournalEntries() {
             </div>
           </div>
 
+          {editingPosted && (
+            <div className="border-t pt-4 mt-2 space-y-2">
+              <Label htmlFor="je-edit-reason">Reason for change *</Label>
+              <Input
+                id="je-edit-reason"
+                data-testid="je-edit-reason"
+                value={fReason}
+                onChange={(e) => setFReason(e.target.value)}
+                placeholder="For example: wrong amount entered"
+              />
+              <p className="text-xs text-muted-foreground">
+                This entry is posted. It keeps its number, and the current version is saved in its
+                history with this reason.
+              </p>
+            </div>
+          )}
+
           {editingEntry && orgId && (
             <div className="border-t pt-4 mt-2">
               <AttachmentList
@@ -2245,7 +2399,7 @@ export default function JournalEntries() {
             </Button>
             <Button
               onClick={() => handleSave('save_close')}
-              disabled={saving || !isBalanced || isLocked}
+              disabled={saving || !isBalanced || isLocked || (editingPosted && !fReason.trim())}
             >
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}Save & Close
             </Button>
@@ -2259,6 +2413,77 @@ export default function JournalEntries() {
               </Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!historyEntry}
+        onOpenChange={(o) => {
+          if (!o) setHistoryEntry(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              History{historyEntry?.ref_number ? ` of ${historyEntry.ref_number}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div data-testid="je-history" className="space-y-4">
+            {historyError ? (
+              <p className="text-sm text-destructive">{historyError}</p>
+            ) : history === null ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : history.length === 0 ? (
+              <p className="text-sm text-muted-foreground">This entry has not been edited.</p>
+            ) : (
+              history.map((v) => (
+                <div key={v.versionNo} className="border rounded-md p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <Badge variant="outline">Version {v.versionNo}</Badge>
+                    <span>Replaced {format(new Date(v.editedAt), 'MM/dd/yyyy HH:mm')}</span>
+                    {v.periodOverride && (
+                      <Badge
+                        className="text-[10px]"
+                        style={{ background: '#FEF3C7', color: '#D97706', border: 'none' }}
+                      >
+                        Closed-month override
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Reason: </span>
+                    {v.reason || '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Date {v.date} · {v.currency}
+                    {v.memo ? ` · ${v.memo}` : ''}
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Account</TableHead>
+                        <TableHead className="text-xs text-right">Debit</TableHead>
+                        <TableHead className="text-xs text-right">Credit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {v.lines.map((l, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-xs">{l.accountName || '—'}</TableCell>
+                          <TableCell className="text-xs text-right font-mono">
+                            {l.debit ? fmtAmount(l.debit, v.currency) : ''}
+                          </TableCell>
+                          <TableCell className="text-xs text-right font-mono">
+                            {l.credit ? fmtAmount(l.credit, v.currency) : ''}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
