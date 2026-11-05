@@ -62,7 +62,7 @@ function sqlLineKeys(): string[] {
   const sql = readFileSync(
     join(
       __dirname,
-      '../../../supabase/migrations/20261105190000_owb_edit_posted_entry_keep_signature.sql',
+      '../../../supabase/migrations/20261105210000_owb_edit_posted_entry_expected_version.sql',
     ),
     'utf8',
   );
@@ -79,6 +79,28 @@ describe('buildEditPostedEntryArgs', () => {
     expect(a.p_encrypted_reason).toBe('C_REASON');
     expect(a.p_key_version).toBe(2);
     expect(a.p_lines.map((l) => l.account_id)).toEqual(['acct-1', 'acct-2']);
+    expect(a.p_expected_updated_at).toBeNull();
+  });
+
+  it('sends the updated_at the caller read, so a newer edit is never overwritten', () => {
+    const a = buildEditPostedEntryArgs(
+      input({ expectedUpdatedAt: '2026-11-05T21:00:00.123456+00:00' }),
+    );
+    expect(a.p_expected_updated_at).toBe('2026-11-05T21:00:00.123456+00:00');
+  });
+
+  it('the latest migration refuses an edit when updated_at moved, under the row lock', () => {
+    const sql = readFileSync(
+      join(
+        __dirname,
+        '../../../supabase/migrations/20261105210000_owb_edit_posted_entry_expected_version.sql',
+      ),
+      'utf8',
+    );
+    const lock = sql.indexOf('FOR UPDATE;');
+    const check = sql.indexOf('v_je.updated_at IS DISTINCT FROM p_expected_updated_at');
+    expect(lock).toBeGreaterThan(0);
+    expect(check).toBeGreaterThan(lock);
   });
 
   it('sends every stored column of each line unchanged', () => {
@@ -433,5 +455,13 @@ describe('Journal page posted edit', () => {
     const body = open.slice(0, open.indexOf('setModalOpen(true)'));
     expect(body).toContain('setFDate(parseISO(entry.date))');
     expect(body).not.toContain('new Date(entry.date)');
+  });
+
+  it('sends the updated_at of the entry being edited', () => {
+    const src = readFileSync(join(__dirname, '../../pages/JournalEntries.tsx'), 'utf8');
+    const call = src.slice(src.indexOf('await editPostedEntry(supabase, {'));
+    expect(call.slice(0, call.indexOf('});'))).toContain(
+      'expectedUpdatedAt: editingEntry.updated_at ?? null',
+    );
   });
 });
