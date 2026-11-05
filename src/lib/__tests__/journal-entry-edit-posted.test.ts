@@ -461,6 +461,20 @@ describe('planPostedEditLines', () => {
     ).rejects.toThrow('Nothing was saved');
   });
 
+  it('refuses dropping a stored value when the removed line is on the same account', async () => {
+    // As above, but A and B share an account, so which stored line B replaces
+    // is not known. B had a value, so a missing rate is refused.
+    const { build } = builder(true);
+    const w = stored('w', { debit: 0, credit: 100 });
+    const a = stored('a', { debit: 20, credit: 0, ratePending: true });
+    const bLine = stored('b', { debit: 30, credit: 0, accountId: 'acct-a' });
+    const c = stored('c', { debit: 50, credit: 0, ratePending: true });
+    const e = [edited(w), { ...edited(bLine), debit: 50 }, edited(c)];
+    await expect(
+      planPostedEditLines({ ...base(), stored: [w, a, bLine, c], edited: e, build }),
+    ).rejects.toThrow('Nothing was saved');
+  });
+
   it('accepts deleting a valued pair while a pending pair changes', async () => {
     // Pending debit/credit 100 and valued debit/credit 50. The user deletes the
     // valued pair and changes the pending pair to 120, and no rate is found.
