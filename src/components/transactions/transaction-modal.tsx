@@ -56,6 +56,7 @@ import {
   loadPostedEditSnapshot,
   loadPostedEntry,
   postedEditRefusal,
+  postedLineAccounts,
   postedEntryMode,
   savePostedTxEdit,
   type PostedEntry,
@@ -874,16 +875,6 @@ export default function TransactionModal({
     // Filter to lines that are actually populated (account + amount).
     const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
 
-    // Resolve the chart account behind the wallet before anything is written,
-    // so a missing account stops the save instead of leaving an entry with no lines.
-    const walletAccountId = (
-      await ensureWalletChartAccountIds(
-        supabase,
-        orgId,
-        [{ id: selectedWallet.id, name: selectedWallet.encrypted_name }],
-        encryptText,
-      )
-    ).get(selectedWallet.id)!;
     // Decide how the row will be signed before the first write (see prepareSigner).
     // Lines are priced into the ORG's primary currency, read now; never the
     // picked wallet's currency (see org-primary-currency.ts).
@@ -894,6 +885,9 @@ export default function TransactionModal({
     // history, and updates the transaction with it (see posted-tx-edit.ts).
     if (editingTx && postedEntry && editingTx.journal_entry_id === postedEntry.id) {
       const jeId = postedEntry.id;
+      // The accounts the posted lines already use, read without writing, so a
+      // refused edit creates nothing.
+      const posted = await postedLineAccounts(supabase, jeId, [selectedWallet.id], decryptText);
       await savePostedTxEdit(supabase, {
         entry: postedEntry,
         date: dateStr,
@@ -903,7 +897,7 @@ export default function TransactionModal({
         decrypt: decryptText,
         lines: [
           {
-            accountId: walletAccountId,
+            accountId: posted.wallet.get(selectedWallet.id)!,
             accountName: selectedWallet.encrypted_name,
             accountCode: null,
             description: memo || `Split across ${validLines.length} accounts`,
@@ -953,6 +947,17 @@ export default function TransactionModal({
       await uploadReceipts(editingTx.id);
       return;
     }
+
+    // Resolve the chart account behind the wallet before anything is written,
+    // so a missing account stops the save instead of leaving an entry with no lines.
+    const walletAccountId = (
+      await ensureWalletChartAccountIds(
+        supabase,
+        orgId,
+        [{ id: selectedWallet.id, name: selectedWallet.encrypted_name }],
+        encryptText,
+      )
+    ).get(selectedWallet.id)!;
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(
@@ -1195,18 +1200,6 @@ export default function TransactionModal({
     // picked wallet's currency (see org-primary-currency.ts).
     const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
     const signer = await prepareSigner();
-    const walletAccountIds = await ensureWalletChartAccountIds(
-      supabase,
-      orgId,
-      [
-        { id: sourceWallet.id, name: sourceWallet.encrypted_name },
-        { id: destWallet.id, name: destWallet.encrypted_name },
-      ],
-      encryptText,
-    );
-    const sourceAccountId = walletAccountIds.get(sourceWallet.id)!;
-    const destAccountId = walletAccountIds.get(destWallet.id)!;
-    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     // A posted transfer is changed in one call that keeps its id, number and
     // history, and updates both transactions with it (see posted-tx-edit.ts).
@@ -1218,6 +1211,23 @@ export default function TransactionModal({
         );
       }
       const jeId = postedEntry.id;
+      // The accounts the posted lines already use, read without writing, so a
+      // refused edit creates nothing (not even a missing Transfer Clearing).
+      const posted = await postedLineAccounts(
+        supabase,
+        jeId,
+        [sourceWallet.id, destWallet.id],
+        decryptText,
+      );
+      if (posted.other.length !== 1) {
+        throw new Error(
+          'This posted transfer does not have exactly one clearing account, so it cannot be edited here. Reverse the entry and enter it again instead.',
+        );
+      }
+      const clearing = posted.other[0];
+      const clearingName = clearing.name ?? TRANSFER_CLEARING_NAME;
+      const sourceAccountId = posted.wallet.get(sourceWallet.id)!;
+      const destAccountId = posted.wallet.get(destWallet.id)!;
       const srcId = direction === 'OUT' ? editingTx.id : partnerId;
       const destId = direction === 'OUT' ? partnerId : editingTx.id;
       const line = (
@@ -1246,16 +1256,16 @@ export default function TransactionModal({
             destAsset,
           ),
           line(
-            transferClearing.id,
-            transferClearing.account_name,
+            clearing.id,
+            clearingName,
             memo || `Transfer clearing (in ${destAsset})`,
             0,
             Math.abs(receivedValue),
             destAsset,
           ),
           line(
-            transferClearing.id,
-            transferClearing.account_name,
+            clearing.id,
+            clearingName,
             memo || `Transfer clearing (out ${sourceAsset})`,
             Math.abs(sentValue),
             0,
@@ -1304,6 +1314,19 @@ export default function TransactionModal({
       await uploadReceipts(editingTx.id);
       return;
     }
+
+    const walletAccountIds = await ensureWalletChartAccountIds(
+      supabase,
+      orgId,
+      [
+        { id: sourceWallet.id, name: sourceWallet.encrypted_name },
+        { id: destWallet.id, name: destWallet.encrypted_name },
+      ],
+      encryptText,
+    );
+    const sourceAccountId = walletAccountIds.get(sourceWallet.id)!;
+    const destAccountId = walletAccountIds.get(destWallet.id)!;
+    const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
     const encEntry = await encryptJournalEntry(

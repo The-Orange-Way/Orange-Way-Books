@@ -460,6 +460,34 @@ describe('planPostedEditLines', () => {
       planPostedEditLines({ ...base(), stored: [w, a, bLine, c], edited: e, build }),
     ).rejects.toThrow('Nothing was saved');
   });
+
+  it('accepts deleting a valued pair while a pending pair changes', async () => {
+    // Pending debit/credit 100 and valued debit/credit 50. The user deletes the
+    // valued pair and changes the pending pair to 120, and no rate is found.
+    const { build } = builder(true);
+    const pd = stored('pd', { debit: 100, credit: 0, ratePending: true });
+    const pc = stored('pc', { debit: 0, credit: 100, ratePending: true });
+    const vd = stored('vd', { debit: 50, credit: 0 });
+    const vc = stored('vc', { debit: 0, credit: 50 });
+    const e = [
+      { ...edited(pd), debit: 120 },
+      { ...edited(pc), credit: 120 },
+    ];
+    const out = await planPostedEditLines({
+      ...base(),
+      stored: [pd, pc, vd, vc],
+      edited: e,
+      build,
+    });
+    expect(out).toHaveLength(2);
+  });
+
+  it('refuses a new line without a rate on an entry that has values', async () => {
+    const { build } = builder(true);
+    const b = base();
+    b.edited[0] = { ...b.edited[0], accountId: 'acct-new' };
+    await expect(planPostedEditLines({ ...b, build })).rejects.toThrow('Nothing was saved');
+  });
 });
 
 describe('Journal page posted edit', () => {

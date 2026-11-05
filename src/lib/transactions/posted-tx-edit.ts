@@ -16,7 +16,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { decryptTransaction } from '@/lib/crypto-fields';
+import { decryptJournalEntryLine, decryptTransaction } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import {
   editPostedEntry,
@@ -116,6 +116,56 @@ export async function loadPostedEditSnapshot(
     Number(tx.amount) !== Number(shown.amount) ||
     blank(tx.memo) !== blank(shown.memo);
   return { entry, stale };
+}
+
+/** The accounts a posted entry's lines already use. */
+export interface PostedLineAccounts {
+  /** wallet id -> its chart account, as the stored lines use it. */
+  wallet: Map<string, string>;
+  /** Every other account on the stored lines, with its name as stored. */
+  other: Array<{ id: string; name: string | null }>;
+}
+
+/**
+ * Reads, without writing, the accounts a posted entry's lines already use.
+ * A posted edit cannot change wallets, so these are the accounts to send
+ * back. Nothing is created here, so a refused edit leaves nothing behind. A
+ * wallet whose account is not on the stored lines is refused rather than
+ * linked to a new one.
+ */
+export async function postedLineAccounts(
+  client: SupabaseClient,
+  entryId: string,
+  walletIds: string[],
+  decrypt: DecryptFn,
+): Promise<PostedLineAccounts> {
+  const [wRes, lRes] = await Promise.all([
+    client.from('wallets').select('id, external_account_id').in('id', walletIds),
+    client.from('journal_entry_lines').select('*').eq('journal_entry_id', entryId),
+  ]);
+  if (wRes.error) throw new Error(wRes.error.message);
+  if (lRes.error) throw new Error(lRes.error.message);
+  const lines = (lRes.data ?? []) as Array<{ account_id: string }>;
+  const onLines = new Set(lines.map((l) => l.account_id));
+  const wallet = new Map<string, string>();
+  for (const w of (wRes.data ?? []) as Array<{ id: string; external_account_id: string | null }>) {
+    if (w.external_account_id && onLines.has(w.external_account_id)) {
+      wallet.set(w.id, w.external_account_id);
+    }
+  }
+  if (walletIds.some((id) => !wallet.has(id))) {
+    throw new Error(
+      "A wallet's account is not the one this posted entry uses, so it cannot be edited here. Reverse the entry and enter it again instead.",
+    );
+  }
+  const walletAccounts = new Set(wallet.values());
+  const other: PostedLineAccounts['other'] = [];
+  for (const l of lines) {
+    if (walletAccounts.has(l.account_id) || other.some((o) => o.id === l.account_id)) continue;
+    const { account_name } = await decryptJournalEntryLine(l, decrypt);
+    other.push({ id: l.account_id, name: account_name });
+  }
+  return { wallet, other };
 }
 
 export const RECONCILED_REFUSAL =

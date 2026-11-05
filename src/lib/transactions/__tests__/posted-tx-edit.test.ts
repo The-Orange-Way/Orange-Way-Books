@@ -6,6 +6,7 @@ import {
   RECONCILED_REFUSAL,
   loadPostedEditSnapshot,
   postedEditRefusal,
+  postedLineAccounts,
   savePostedTxEdit,
   type PostedEditedLine,
   type PostedEntry,
@@ -91,19 +92,25 @@ function fakeClient(
   rpcError: string | null = null,
   txRows: Array<Record<string, unknown>> = [{ id: 'tx-src', cleared_status: 'CLEARED' }],
   entryRow: Record<string, unknown> | null = null,
+  walletRows: Array<Record<string, unknown>> = [],
 ) {
   const calls: string[] = [];
   const rpcArgs: Array<Record<string, unknown>> = [];
   const c = {
     from: (table: string) => {
       const result = () =>
-        table === 'transactions' ? { data: txRows, error: null } : { data: rows, error: null };
+        table === 'transactions'
+          ? { data: txRows, error: null }
+          : table === 'wallets'
+            ? { data: walletRows, error: null }
+            : { data: rows, error: null };
       const q = {
         select: () => {
           calls.push(`select ${table}`);
           return q;
         },
         eq: () => q,
+        in: () => q,
         order: async () => result(),
         maybeSingle: async () => ({
           data: table === 'journal_entries' ? entryRow : (txRows[0] ?? null),
@@ -387,6 +394,33 @@ describe('loadPostedEditSnapshot', () => {
   });
 });
 
+describe('postedLineAccounts', () => {
+  const wallets = [
+    { id: 'w-usd', external_account_id: 'wallet-usd' },
+    { id: 'w-mxn', external_account_id: 'wallet-mxn' },
+  ];
+
+  it('returns the accounts the stored lines use, and writes nothing', async () => {
+    const { c, calls } = fakeClient(transferRows(), null, [], null, wallets);
+    const a = await postedLineAccounts(c, 'je-1', ['w-usd', 'w-mxn'], decrypt);
+    expect(a.wallet.get('w-usd')).toBe('wallet-usd');
+    expect(a.wallet.get('w-mxn')).toBe('wallet-mxn');
+    expect(a.other).toEqual([{ id: 'clearing', name: 'clearing' }]);
+    expect(calls.every((x) => x.startsWith('select '))).toBe(true);
+  });
+
+  it('refuses a wallet whose account is not on the stored lines, creating nothing', async () => {
+    const { c, calls } = fakeClient(transferRows(), null, [], null, [
+      { id: 'w-usd', external_account_id: 'wallet-other' },
+      { id: 'w-mxn', external_account_id: 'wallet-mxn' },
+    ]);
+    await expect(postedLineAccounts(c, 'je-1', ['w-usd', 'w-mxn'], decrypt)).rejects.toThrow(
+      'Reverse the entry',
+    );
+    expect(calls.every((x) => x.startsWith('select '))).toBe(true);
+  });
+});
+
 describe('postedEditRefusal', () => {
   const was: PostedTxShape = {
     mode: 'transfer',
@@ -457,6 +491,39 @@ describe('transaction screen, posted entries', () => {
     const branch = body.slice(posted, firstLineWrite);
     const broken = modalSource.replace(branch, branch.replace(/\n(\s+)return;\n/, '\n'));
     expect(postedGoesFirst(broken, 'handleSaveSplit')).toBe(false);
+  });
+
+  /** True when the account setup helpers, which can write, run only after the posted branch. */
+  function setupAfterPosted(source: string, name: string, helpers: string[]): boolean {
+    const body = handler(source, name);
+    const posted = body.indexOf('savePostedTxEdit(');
+    return posted > 0 && helpers.every((h) => body.indexOf(h) > posted);
+  }
+
+  it('creates no account before a posted edit is sent', () => {
+    expect(setupAfterPosted(modalSource, 'handleSaveSplit', ['ensureWalletChartAccountIds('])).toBe(
+      true,
+    );
+    expect(
+      setupAfterPosted(modalSource, 'handleSaveTransfer', [
+        'ensureWalletChartAccountIds(',
+        'ensureTransferClearingAccount(',
+      ]),
+    ).toBe(true);
+  });
+
+  it('catches account setup moved back before the posted branch (broken copy)', () => {
+    const body = handler(modalSource, 'handleSaveTransfer');
+    const broken = modalSource.replace(
+      body,
+      body.replace(
+        '    // A posted transfer is changed in one call',
+        '    await ensureTransferClearingAccount(orgId, encryptText, decryptText);\n    // A posted transfer is changed in one call',
+      ),
+    );
+    expect(setupAfterPosted(broken, 'handleSaveTransfer', ['ensureTransferClearingAccount('])).toBe(
+      false,
+    );
   });
 
   it('refuses a save from a stale list row', () => {
