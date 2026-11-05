@@ -656,10 +656,19 @@ export default function Transactions() {
     const newStatus = tx.status === 'POSTED' ? 'DRAFT' : 'POSTED';
     setTxs((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
     const encStatus = await encryptText(newStatus);
-    await supabase
+    const { error: txErr } = await supabase
       .from('transactions')
       .update({ status: encStatus, key_version: 2 } as any)
       .eq('id', id);
+    // Like Bulk Post: a split or transfer is only in the books once its journal entry is posted.
+    const { error: jeErr } =
+      !txErr && newStatus === 'POSTED' && tx.journal_entry_id
+        ? await postJournalEntry(supabase, tx.journal_entry_id)
+        : { error: null };
+    if (txErr || jeErr) {
+      toast.error('The transaction could not be fully posted. Refresh the page and try again.');
+      await fetchData();
+    }
   };
 
   const cycleCleared = async (id: string) => {

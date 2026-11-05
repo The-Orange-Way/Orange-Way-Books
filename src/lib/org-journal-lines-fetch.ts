@@ -8,9 +8,12 @@
  * without any warning. This reads page after page until a page comes back
  * empty, so it does not depend on knowing the server's limit, and it returns
  * the error instead of a partial ledger if any page fails.
+ *
+ * Only lines whose entry is in the books are returned (see entriesInBooks): drafts are left out.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { linesInBooks } from './ledger/entries-in-books';
 
 export const ORG_LINES_PAGE = 1000;
 
@@ -27,17 +30,17 @@ export async function fetchOrgJournalLines<T = Record<string, unknown>>(
     const { data, error } = await client
       .from('journal_entry_lines')
       .select(
-        '*, journal_entries!inner(date, org_id, reversal_of_id, encrypted_currency, key_version)',
+        '*, journal_entries!inner(date, org_id, reversal_of_id, encrypted_currency, key_version, status, source_type)',
       )
       .eq('journal_entries.org_id', orgId)
-      // Drafts are not in the books yet. Voided entries stay in, because each one is cancelled by its
-      // posted reversal, and dropping one side would leave the other uncancelled.
-      .neq('journal_entries.status', 'DRAFT')
       .order('id', { ascending: true })
       .range(rows.length, rows.length + pageSize - 1);
     if (error) return { data: null, error };
     const page = (data ?? []) as T[];
-    if (page.length === 0) return { data: rows, error: null };
+    if (page.length === 0) {
+      // Filtered after loading, because whether a draft reversal counts depends on its original.
+      return { data: linesInBooks(rows as any[]) as T[], error: null };
+    }
     rows.push(...page);
   }
 }

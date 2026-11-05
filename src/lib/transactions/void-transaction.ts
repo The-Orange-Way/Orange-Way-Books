@@ -83,6 +83,10 @@ export interface VoidTransactionParams {
  */
 export const ALREADY_VOID_MESSAGE = 'This transaction is already void.';
 
+/** Shown when a status write changed no row, for example because the month is closed. */
+export const ENTRY_NOT_UPDATED_MESSAGE =
+  'The void could not be finished. The month may be closed. Nothing is lost: unlock the month or ask an owner, then void again to finish.';
+
 /** Shown when someone tries to edit a voided transaction. */
 export const VOID_NOT_EDITABLE_MESSAGE = 'This transaction is void, so it cannot be edited.';
 
@@ -108,13 +112,27 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     );
   }
 
+  // A reversal that already exists is either a finished void or one that stopped partway. A
+  // finished void is refused; an unfinished one is picked up where it stopped.
   const { data: existingReversal, error: existingErr } = await supabase
     .from('journal_entries')
-    .select('id')
+    .select('id, status')
     .eq('reversal_of_id', origTx.journal_entry_id)
     .maybeSingle();
   if (existingErr) throw existingErr;
-  if (existingReversal) throw new Error(ALREADY_VOID_MESSAGE);
+  let existingReversalHasLines = false;
+  if (existingReversal) {
+    if ((await p.decryptText(origTx.status)) === 'VOID') throw new Error(ALREADY_VOID_MESSAGE);
+    const { data: done, error: doneErr } = await supabase
+      .from('journal_entry_lines')
+      .select('id')
+      .eq('journal_entry_id', (existingReversal as any).id);
+    if (doneErr) throw doneErr;
+    existingReversalHasLines = (done ?? []).length > 0;
+    if (!existingReversalHasLines && (existingReversal as any).status !== 'DRAFT') {
+      throw new Error('This void stopped in a state it cannot finish on its own. Contact support.');
+    }
+  }
 
   const { data: origJe, error: jeErr } = await supabase
     .from('journal_entries')
@@ -174,59 +192,62 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     p.encryptText,
   );
 
-  const { data: reversalJeRow, error: reversalJeErr } = await supabase
-    .from('journal_entries')
-    .insert({
-      org_id: p.orgId,
-      date: p.date,
-      reversal_of_id: origTx.journal_entry_id,
-      ...encReversingEntry,
-    } as any)
-    .select('id')
-    .single();
-  // 23505 = unique_violation on uq_journal_entries_reversal_of_id: another
-  // void got there first.
-  if (reversalJeErr?.code === '23505') throw new Error(ALREADY_VOID_MESSAGE);
-  if (reversalJeErr) throw reversalJeErr;
-  const reversalJeId = (reversalJeRow as any).id;
+  let reversalJeId: string;
+  if (existingReversal) {
+    reversalJeId = (existingReversal as any).id;
+  } else {
+    const { data: reversalJeRow, error: reversalJeErr } = await supabase
+      .from('journal_entries')
+      .insert({
+        org_id: p.orgId,
+        date: p.date,
+        reversal_of_id: origTx.journal_entry_id,
+        ...encReversingEntry,
+      } as any)
+      .select('id')
+      .single();
+    // 23505 = unique_violation on uq_journal_entries_reversal_of_id: another
+    // void got there first.
+    if (reversalJeErr?.code === '23505') throw new Error(ALREADY_VOID_MESSAGE);
+    if (reversalJeErr) throw reversalJeErr;
+    reversalJeId = (reversalJeRow as any).id;
+  }
 
   // ── Phase 4: insert reversed lines (debit ↔ credit swapped) ───────────
-  const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async ({ dec, accountId }) => {
-      const buildRes = await buildJournalEntryLineInsert({
-        wallet_currency: dec.wallet_currency ?? origJeDec.currency,
-        primary_currency: orgPrimary,
-        date: p.date,
-        debit: dec.credit,
-        credit: dec.debit,
-        // The reversing line posts to the same account as the line it reverses.
-        account_id: accountId,
-        account_name: dec.account_name,
-        account_code: dec.account_code,
-        description: `Reversal of: ${dec.description ?? ''}`.trim(),
-        encrypt: p.encryptText,
-      });
-      return { journal_entry_id: reversalJeId, ...buildRes.insert };
-    }),
-  );
-  const { error: reversedLinesErr } = await supabase
-    .from('journal_entry_lines')
-    .insert(reversedLineInserts as any);
-  if (reversedLinesErr) throw reversedLinesErr;
+  if (!existingReversalHasLines) await insertReversedLines();
+  async function insertReversedLines() {
+    const reversedLineInserts = await Promise.all(
+      origLineDecs.map(async ({ dec, accountId }) => {
+        const buildRes = await buildJournalEntryLineInsert({
+          wallet_currency: dec.wallet_currency ?? origJeDec.currency,
+          primary_currency: orgPrimary,
+          date: p.date,
+          debit: dec.credit,
+          credit: dec.debit,
+          // The reversing line posts to the same account as the line it reverses.
+          account_id: accountId,
+          account_name: dec.account_name,
+          account_code: dec.account_code,
+          description: `Reversal of: ${dec.description ?? ''}`.trim(),
+          encrypt: p.encryptText,
+        });
+        return { journal_entry_id: reversalJeId, ...buildRes.insert };
+      }),
+    );
+    const { error: reversedLinesErr } = await supabase
+      .from('journal_entry_lines')
+      .insert(reversedLineInserts as any);
+    if (reversedLinesErr) throw reversedLinesErr;
+  }
 
-  // ── Phase 4b: post the reversal and void the original entry ───────────
-  // The reversal is written as a draft so its lines can be added, then posted. Left as a draft it
-  // would stay editable and the reports, which count posted entries only, would not cancel the original.
-  const { error: postErr } = await supabase
-    .from('journal_entries')
-    .update({ status: 'POSTED' } as any)
-    .eq('id', reversalJeId);
-  if (postErr) throw postErr;
-  const { error: origVoidErr } = await supabase
-    .from('journal_entries')
-    .update({ status: 'VOID' } as any)
-    .eq('id', origTx.journal_entry_id);
-  if (origVoidErr) throw origVoidErr;
+  // ── Phase 4b: void the original entry, then post the reversal ─────────
+  // The reversal is written as a draft so its lines can be added; left as a draft it would stay
+  // editable. The original goes first: if the run stops between the two, a draft void reversal of a
+  // void entry still counts in the books (see entriesInBooks), so the two still cancel.
+  if (origJe.status === 'POSTED') await setEntryStatus(origTx.journal_entry_id, 'VOID');
+  if (!existingReversal || (existingReversal as any).status === 'DRAFT') {
+    await setEntryStatus(reversalJeId, 'POSTED');
+  }
 
   // ── Phase 5: flip original transactions to VOID status ────────────────
   // Phase 4.4: sign the status flip. We compute one signature over the
@@ -239,15 +260,17 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   if (origTx.linked_transfer_id) {
     voidedIds.push(origTx.linked_transfer_id);
   }
-  const { error: voidErr } = await supabase
+  const { data: voidedRows, error: voidErr } = await supabase
     .from('transactions')
     .update({
       status: encVoidStatus,
       key_version: FIELD_KEY_VERSION,
       ...voidSig,
     } as any)
-    .in('id', voidedIds);
+    .in('id', voidedIds)
+    .select('id');
   if (voidErr) throw voidErr;
+  if ((voidedRows ?? []).length !== voidedIds.length) throw new Error(ENTRY_NOT_UPDATED_MESSAGE);
 
   // Phase 2 (external-ledger removal): the ledger reversing-posting block (~100 lines)
   // lived here. Postgres-side reversing journal_entries + reversed lines
@@ -270,4 +293,16 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   });
 
   return { reversalJournalEntryId: reversalJeId, voidedTransactionIds: voidedIds };
+}
+
+/** Sets one journal entry's status and fails unless exactly that row changed. Row-level rules
+ *  such as the closed-month lock skip a row without an error, so the count is the real check. */
+async function setEntryStatus(id: string, status: 'POSTED' | 'VOID'): Promise<void> {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .update({ status } as any)
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  if ((data ?? []).length !== 1) throw new Error(ENTRY_NOT_UPDATED_MESSAGE);
 }

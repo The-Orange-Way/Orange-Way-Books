@@ -32,6 +32,9 @@ let store: FakeStore;
 let uniqueViolationOn: keyof FakeStore | null = null;
 /** When set, an update on this table fails as the database would refuse it. */
 let updateFailsOn: keyof FakeStore | null = null;
+/** When set, an update on this table matches no row and reports no error, like a row the
+ *  closed-month rule hides. Optionally only for one status value. */
+let updateSkips: { table: keyof FakeStore; status?: string } | null = null;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -80,8 +83,13 @@ function makeSupabase() {
             data: unknown;
             error: null;
           };
+        if (
+          updateSkips?.table === table &&
+          (updateSkips.status === undefined || updateSkips.status === updatePayload.status)
+        )
+          return { data: [], error: null };
         for (const r of rows) Object.assign(r, updatePayload);
-        return { data: null, error: null };
+        return { data: rows.map((r) => ({ id: r.id })), error: null };
       }
       if (modeSingle) return { data: rows[0] ?? null, error: null };
       if (modeMaybeSingle) return { data: rows[0] ?? null, error: null };
@@ -128,11 +136,13 @@ function makeSupabase() {
           eq(col: string, value: unknown) {
             filterCol = col;
             filterValue = value;
-            return run();
+            const p = run();
+            return Object.assign(p, { select: () => p });
           },
           in(col: string, values: string[]) {
             filterIn = { col, values };
-            return run();
+            const p = run();
+            return Object.assign(p, { select: () => p });
           },
         };
       },
@@ -179,7 +189,11 @@ const decryptText = async (cipher: string) => {
 };
 
 // Lazy import so mocks are installed first.
-import { voidTransaction, ALREADY_VOID_MESSAGE } from '../void-transaction';
+import {
+  voidTransaction,
+  ALREADY_VOID_MESSAGE,
+  ENTRY_NOT_UPDATED_MESSAGE,
+} from '../void-transaction';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
@@ -332,6 +346,7 @@ beforeEach(() => {
   };
   uniqueViolationOn = null;
   updateFailsOn = null;
+  updateSkips = null;
   resolvePinnedRate.mockClear();
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
@@ -667,6 +682,82 @@ describe('voidTransaction', () => {
       // A duplicate on the lines table is not a second void: the raw error
       // must reach the caller unchanged.
       await expect(voidTransaction(params())).rejects.toMatchObject({ code: '23505' });
+    });
+  });
+
+  describe('a void that stopped partway', () => {
+    const params = () => ({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+    const tx = () => store.transactions.find((t) => t.id === 'tx-1')!;
+    const je1 = () => store.journal_entries.find((j) => j.id === 'je-1')!;
+    const reversals = () => store.journal_entries.filter((j) => j.reversal_of_id === 'je-1');
+
+    it('stops with a plain message when the original is in a closed month, and nothing is posted', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      updateSkips = { table: 'journal_entries', status: 'VOID' };
+      await expect(voidTransaction(params())).rejects.toThrow(ENTRY_NOT_UPDATED_MESSAGE);
+      expect(je1().status).toBe('POSTED');
+      expect(reversals()[0].status).toBe('DRAFT');
+      expect(tx().status).toBe('enc(POSTED)');
+    });
+
+    it('finishes on the next try once the month is open, without a second reversal or duplicate lines', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      updateSkips = { table: 'journal_entries', status: 'VOID' };
+      await expect(voidTransaction(params())).rejects.toThrow(ENTRY_NOT_UPDATED_MESSAGE);
+      updateSkips = null;
+      const result = await voidTransaction(params());
+      expect(reversals()).toHaveLength(1);
+      expect(result.reversalJournalEntryId).toBe(reversals()[0].id);
+      expect(reversals()[0].status).toBe('POSTED');
+      expect(je1().status).toBe('VOID');
+      expect(tx().status).toBe('enc(VOID)');
+      const revLines = store.journal_entry_lines.filter(
+        (l) => l.journal_entry_id === reversals()[0].id,
+      );
+      expect(revLines).toHaveLength(2);
+    });
+
+    it('stops when the reversal cannot be posted, leaving the original void and the reversal a draft', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      updateSkips = { table: 'journal_entries', status: 'POSTED' };
+      await expect(voidTransaction(params())).rejects.toThrow(ENTRY_NOT_UPDATED_MESSAGE);
+      expect(je1().status).toBe('VOID');
+      expect(reversals()[0].status).toBe('DRAFT');
+      updateSkips = null;
+      await voidTransaction(params());
+      expect(reversals()[0].status).toBe('POSTED');
+      expect(tx().status).toBe('enc(VOID)');
+    });
+
+    it('stops when the transaction status write changes no row', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      updateSkips = { table: 'transactions' };
+      await expect(voidTransaction(params())).rejects.toThrow(ENTRY_NOT_UPDATED_MESSAGE);
+      expect(tx().status).toBe('enc(POSTED)');
+    });
+
+    it('adds the lines on the next try when they were never written', async () => {
+      seedSplitTransaction({ withExternalLedger: false });
+      uniqueViolationOn = 'journal_entry_lines';
+      await expect(voidTransaction(params())).rejects.toMatchObject({ code: '23505' });
+      expect(
+        store.journal_entry_lines.filter((l) => l.journal_entry_id === reversals()[0].id),
+      ).toHaveLength(0);
+      uniqueViolationOn = null;
+      await voidTransaction(params());
+      expect(
+        store.journal_entry_lines.filter((l) => l.journal_entry_id === reversals()[0].id),
+      ).toHaveLength(2);
+      expect(tx().status).toBe('enc(VOID)');
     });
   });
 });
