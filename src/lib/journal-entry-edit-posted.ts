@@ -162,6 +162,20 @@ export interface BuildLineParams {
 
 const blank = (v: string | null | undefined) => (v ?? '').trim();
 
+/** The later of two yyyy-MM-dd dates, either of which may be missing. */
+export function laterDate(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
+/** The day after the lock date, yyyy-MM-dd: the first day an entry can be posted. */
+export function firstOpenDay(lockDate: string): string {
+  const d = new Date(`${lockDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Chooses the lines to send for a posted edit.
  *

@@ -51,6 +51,8 @@ import { postJournalEntry } from '@/lib/journal-entry-post';
 import {
   editPostedEntry,
   fetchEntryHistory,
+  firstOpenDay,
+  laterDate,
   loadStoredEditLines,
   planPostedEditLines,
   type EditLine,
@@ -224,6 +226,7 @@ interface JournalEntry {
   created_at: string | null;
   updated_at?: string | null;
   key_version?: number | null;
+  reversal_of_id?: string | null;
 }
 
 interface JournalLine {
@@ -599,6 +602,9 @@ export default function JournalEntries() {
 
   // Lock date from org_settings
   const [lockDate, setLockDate] = useState<string | null>(null);
+  // The latest period close. The database enforces this one; lockDate is the
+  // older settings field, still honoured by this screen.
+  const [periodCloseDate, setPeriodCloseDate] = useState<string | null>(null);
 
   // Manual rate dialog — shown when a JE line posts with rate_pending=true
   const [manualRateOpen, setManualRateOpen] = useState(false);
@@ -654,6 +660,16 @@ export default function JournalEntries() {
       supabase.from('chart_of_accounts').select('*').eq('org_id', orgId),
       supabase.from('organizations').select('name, key_version').eq('id', orgId).maybeSingle(),
     ]);
+    const { data: closeRow } = await supabase
+      .from('org_period_closes' as never)
+      .select('locked_through_date')
+      .eq('org_id', orgId)
+      .order('closed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setPeriodCloseDate(
+      (closeRow as { locked_through_date?: string | null } | null)?.locked_through_date ?? null,
+    );
     if (orgRes.data) {
       const decOrg = await decryptOrganization(orgRes.data as any, decryptText);
       setOrgName((decOrg.name ?? '').trim());
@@ -992,6 +1008,17 @@ export default function JournalEntries() {
   const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.001 && totalDebits > 0;
   const editingPosted = editingEntry?.status === 'POSTED';
+  const closedThrough = laterDate(lockDate, periodCloseDate);
+  const reversedIds = useMemo(
+    () => new Set(entries.map((e) => e.reversal_of_id).filter((id): id is string => !!id)),
+    [entries],
+  );
+  const editingPostedClosed =
+    editingPosted &&
+    !!editingEntry &&
+    !editingEntry.source_type &&
+    !reversedIds.has(editingEntry.id) &&
+    entryFallsInLockedPeriod(editingEntry.date, closedThrough);
 
   // Lock date check whenever date changes
   const isLocked = useMemo(() => {
@@ -1277,25 +1304,42 @@ export default function JournalEntries() {
     await fetchData();
   };
 
-  const handleReverse = async (id: string) => {
-    if (
-      !confirm(
-        'Reverse this journal entry? A new reversing entry will be posted in the current period.',
-      )
-    )
-      return;
+  const reverseOn = async (id: string, date: string, question: string): Promise<boolean> => {
+    if (!confirm(question)) return false;
     try {
       await reverseJournalEntry({
         journalEntryId: id,
         orgId: orgId!,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date,
         encryptText,
         decryptText,
       });
       await fetchData();
+      return true;
     } catch (err: any) {
       alert(`Reverse failed: ${err?.message ?? err}`);
+      return false;
     }
+  };
+
+  const handleReverse = (id: string) =>
+    reverseOn(
+      id,
+      format(new Date(), 'yyyy-MM-dd'),
+      'Reverse this journal entry? A new reversing entry will be posted in the current period.',
+    );
+
+  // A posted entry in a closed month cannot be edited. It is reversed on the
+  // first open day instead, at the original entry's rate.
+  const handleReverseClosed = async () => {
+    if (!editingEntry || !closedThrough) return;
+    const day = firstOpenDay(closedThrough);
+    const done = await reverseOn(
+      editingEntry.id,
+      day,
+      `This month is closed, so the entry cannot be edited. Reverse it instead? The reversing entry is dated ${day}, the first open day, at the original entry's rates.`,
+    );
+    if (done) setModalOpen(false);
   };
 
   /* ───── Bulk actions (Track 7) ─────
@@ -1362,7 +1406,13 @@ export default function JournalEntries() {
     try {
       for (const id of selected) {
         const e = entries.find((en) => en.id === id);
-        if (!e || e.status !== 'POSTED' || e.period_locked || e.source_type === 'void_reversal')
+        if (
+          !e ||
+          e.status !== 'POSTED' ||
+          e.period_locked ||
+          e.source_type === 'void_reversal' ||
+          reversedIds.has(id)
+        )
           continue;
         try {
           await reverseJournalEntry({
@@ -1724,7 +1774,10 @@ export default function JournalEntries() {
                   const isDraft = entry.status === 'DRAFT';
                   const canEdit = isDraft && !entry.period_locked;
                   const canReverse =
-                    entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
+                    entry.status === 'POSTED' &&
+                    !entry.period_locked &&
+                    !entry.source_type &&
+                    !reversedIds.has(entry.id);
 
                   return (
                     <>
@@ -1935,7 +1988,10 @@ export default function JournalEntries() {
               const isDraft = entry.status === 'DRAFT';
               const canEdit = isDraft && !entry.period_locked;
               const canReverse =
-                entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
+                entry.status === 'POSTED' &&
+                !entry.period_locked &&
+                !entry.source_type &&
+                !reversedIds.has(entry.id);
               const isBtcCurrency = entry.currency === 'BTC' || entry.currency === 'SATS';
               return (
                 <div
@@ -2399,6 +2455,11 @@ export default function JournalEntries() {
             <Button variant="outline" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
+            {editingPostedClosed && (
+              <Button variant="outline" onClick={handleReverseClosed} disabled={saving}>
+                Reverse instead
+              </Button>
+            )}
             <Button
               onClick={() => handleSave('save_close')}
               disabled={saving || !isBalanced || isLocked || (editingPosted && !fReason.trim())}
