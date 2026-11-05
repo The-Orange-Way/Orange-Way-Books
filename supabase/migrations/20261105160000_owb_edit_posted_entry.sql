@@ -4,9 +4,7 @@
 --   * In an open month a POSTED entry may be edited. It keeps its id and ref number. Before the
 --     change, the old header and every old line are copied into journal_entry_versions and
 --     journal_entry_line_versions, with who, when and an encrypted reason.
---   * Reconciled entries: cleared_status is encrypted in the browser, so the server cannot see it.
---     The Edit screen refuses a reconciled entry, as every other reconciled-row guard does today.
---     A server-readable reconciliation record is a separate decision (launch backlog F2).
+--   * Reconciled entries are refused by the Edit screen, which can read the reconciled flag.
 --   * In a closed month it cannot be edited unless the caller holds an active unlock session
 --     (period_unlock_sessions, opened by a holder of periods.unlock). That edit is recorded with
 --     period_override = TRUE.
@@ -22,9 +20,6 @@
 -- A PostgREST client can only call exposed functions, and no exposed function sets a setting
 -- named by the caller. Any future function that calls set_config with a caller-chosen name
 -- would reopen this, so do not write one.
---
--- Not covered here, on purpose: the INSERT gap on lines of a posted entry (OWB-T0242). Until it
--- closes, this function is not the only way to change a posted entry's lines.
 --
 -- Encryption: the history rows hold ciphertext. key_version is the field format, copied from the
 -- entry; dek_key_version is the org data key version at the time of the edit. Key rotation
@@ -504,7 +499,7 @@ GRANT EXECUTE ON FUNCTION public.owb_edit_posted_entry(UUID, DATE, JSONB, JSONB,
 REVOKE ALL ON FUNCTION public.owb_protect_entry_history() FROM PUBLIC;
 
 COMMENT ON FUNCTION public.owb_edit_posted_entry(UUID, DATE, JSONB, JSONB, JSONB, TEXT, INT) IS
-  'OWB-T0238: edit a POSTED entry in place in an open month (or under an unlock session, recorded as period_override). Copies the old header and lines into journal_entry_versions / journal_entry_line_versions first. Refuses reversals and reversed entries; reconciled entries are refused by the client because cleared_status is encrypted.';
+  'OWB-T0238: edit a POSTED entry in place in an open month (or under an unlock session, recorded as period_override). Copies the old header and lines into journal_entry_versions / journal_entry_line_versions first. Refuses reversals and reversed entries; reconciled entries are refused by the Edit screen.';
 COMMENT ON TABLE public.journal_entry_versions IS
   'OWB-T0238: one row per edit of a posted entry, holding the entry as it was before that edit (ciphertext under key_version). Written only by owb_edit_posted_entry; only re-encryption may change it.';
 COMMENT ON TABLE public.journal_entry_line_versions IS
