@@ -4,15 +4,18 @@
 --   * In an open month a POSTED entry may be edited. It keeps its id and ref number. Before the
 --     change, the old header and every old line are copied into journal_entry_versions and
 --     journal_entry_line_versions, with who, when and an encrypted reason.
---   * An entry linked to a RECONCILED transaction cannot be edited.
+--   * Reconciled entries: cleared_status is encrypted in the browser, so the server cannot see it.
+--     The Edit screen refuses a reconciled entry, as every other reconciled-row guard does today.
+--     A server-readable reconciliation record is a separate decision (launch backlog F2).
 --   * In a closed month it cannot be edited unless the caller holds an active unlock session
 --     (period_unlock_sessions, opened by a holder of periods.unlock). That edit is recorded with
 --     period_override = TRUE.
 --   * VOID, VOID_REVERSAL and DRAFT entries, reversals, and entries that have been reversed are
 --     refused. A draft is edited normally; the others are corrected by reversing.
 --
--- Who may edit: journal_entries.write (the same people who can post). Linked transactions also
--- need transactions.write, or transactions.write_own on a transaction the caller created.
+-- Who may edit: journal_entries.write (the same people who can post). Every transaction linked to
+-- the entry, whether or not the call changes it, also needs transactions.write, or
+-- transactions.write_own on a transaction the caller created.
 --
 -- How the lock triggers let this through: the function sets the transaction-local setting
 -- owb.edit_je to the entry id, and both lock triggers widen what may change only for that entry.
@@ -23,9 +26,9 @@
 -- Not covered here, on purpose: the INSERT gap on lines of a posted entry (OWB-T0242). Until it
 -- closes, this function is not the only way to change a posted entry's lines.
 --
--- Encryption: the history rows hold ciphertext under the entry's key version. Both tables are in
--- the client key-rotation list (src/lib/rekey.ts) and the guard below lets rotation rewrite only
--- the encrypted columns and key_version.
+-- Encryption: the history rows hold ciphertext. key_version is the field format, copied from the
+-- entry; dek_key_version is the org data key version at the time of the edit. Key rotation
+-- rewrites them through the rekey-batch function (service role); no user may update history.
 
 BEGIN;
 
@@ -50,6 +53,7 @@ CREATE TABLE public.journal_entry_versions (
   encrypted_period_locked  TEXT NULL,
   entry_updated_at         TIMESTAMPTZ NOT NULL,
   key_version              INT  NOT NULL,
+  dek_key_version          INT  NOT NULL,
   UNIQUE (journal_entry_id, version_no)
 );
 
@@ -79,7 +83,8 @@ CREATE TABLE public.journal_entry_line_versions (
   rate_asof                             TIMESTAMPTZ NULL,
   rate_pending                          BOOLEAN NOT NULL,
   dual_amounts_backfilled               BOOLEAN NOT NULL,
-  key_version                           INT NOT NULL
+  key_version                           INT NOT NULL,
+  dek_key_version                       INT NOT NULL
 );
 
 CREATE INDEX idx_jev_entry ON public.journal_entry_versions (journal_entry_id);
@@ -90,24 +95,16 @@ CREATE INDEX idx_jelv_org ON public.journal_entry_line_versions (org_id);
 ALTER TABLE public.journal_entry_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.journal_entry_line_versions ENABLE ROW LEVEL SECURITY;
 
--- Members read their org's history. Rows are written only by owb_edit_posted_entry (no INSERT
--- or DELETE policy). The UPDATE policy exists only for key rotation, which runs as the user;
--- the guard trigger below limits it to the encrypted columns and key_version.
+-- Members read their org's history. There is no INSERT, UPDATE or DELETE policy or grant: rows
+-- are written only by owb_edit_posted_entry and re-encrypted only by rekey-batch (service role).
 CREATE POLICY jev_select ON public.journal_entry_versions FOR SELECT TO authenticated
   USING (org_id IN (SELECT org_id FROM public.org_members WHERE user_id = auth.uid()));
 CREATE POLICY jelv_select ON public.journal_entry_line_versions FOR SELECT TO authenticated
   USING (org_id IN (SELECT org_id FROM public.org_members WHERE user_id = auth.uid()));
-CREATE POLICY jev_rekey_update ON public.journal_entry_versions FOR UPDATE TO authenticated
-  USING (public.user_has_capability(auth.uid(), 'transactions.write', org_id))
-  WITH CHECK (public.user_has_capability(auth.uid(), 'transactions.write', org_id));
-CREATE POLICY jelv_rekey_update ON public.journal_entry_line_versions FOR UPDATE TO authenticated
-  USING (public.user_has_capability(auth.uid(), 'transactions.write', org_id))
-  WITH CHECK (public.user_has_capability(auth.uid(), 'transactions.write', org_id));
-
-GRANT SELECT, UPDATE ON public.journal_entry_versions TO authenticated;
-GRANT SELECT, UPDATE ON public.journal_entry_line_versions TO authenticated;
-REVOKE ALL ON public.journal_entry_versions FROM anon;
-REVOKE ALL ON public.journal_entry_line_versions FROM anon;
+REVOKE ALL ON public.journal_entry_versions FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.journal_entry_line_versions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.journal_entry_versions TO authenticated;
+GRANT SELECT ON public.journal_entry_line_versions TO authenticated;
 
 -- History cannot be deleted or changed, except re-encryption under a new key.
 CREATE OR REPLACE FUNCTION public.owb_protect_entry_history()
@@ -123,11 +120,11 @@ BEGIN
       USING ERRCODE = 'integrity_constraint_violation';
   END IF;
   IF TG_TABLE_NAME = 'journal_entry_versions' THEN
-    v_keep := ARRAY['key_version', 'encrypted_reason', 'encrypted_currency',
+    v_keep := ARRAY['key_version', 'dek_key_version', 'encrypted_reason', 'encrypted_currency',
       'encrypted_exchange_rate', 'encrypted_memo', 'encrypted_ref_number',
       'encrypted_metadata', 'encrypted_period_locked'];
   ELSE
-    v_keep := ARRAY['key_version', 'account_code', 'account_name', 'description',
+    v_keep := ARRAY['key_version', 'dek_key_version', 'account_code', 'account_name', 'description',
       'encrypted_debit', 'encrypted_credit', 'encrypted_amount_native',
       'encrypted_amount_primary', 'encrypted_book_value', 'encrypted_manual_rate_reason',
       'encrypted_manual_rate_source', 'encrypted_metadata', 'encrypted_posted_rate',
@@ -219,9 +216,10 @@ DECLARE
 BEGIN
   v_je_id := OLD.journal_entry_id;
   IF public.owb_je_is_locked(v_je_id) THEN
-    -- An edit through owb_edit_posted_entry may replace this entry's lines. A line may not
+    -- An edit through owb_edit_posted_entry may replace a POSTED entry's lines. A line may not
     -- move to another entry.
     IF coalesce(current_setting('owb.edit_je', true), '') = v_je_id::text
+      AND (SELECT status FROM public.journal_entries WHERE id = v_je_id) = 'POSTED'
       AND (TG_OP = 'DELETE' OR NEW.journal_entry_id = OLD.journal_entry_id)
     THEN
       IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -251,14 +249,14 @@ $$;
 -- ── The edit ──────────────────────────────────────────────────────────────────
 -- p_header: {encrypted_memo, encrypted_currency, encrypted_exchange_rate}; keys left out keep
 --   their value.
--- p_lines: the full new set of lines, each with account_id, encrypted_debit, encrypted_credit and
---   optionally the other encrypted line columns, pinned_rate_id, rate_asof, rate_pending.
+-- p_lines: the full new set of lines (at least two), each with account_id, encrypted_debit,
+--   encrypted_credit and optionally the other encrypted line columns, pinned_rate_id, rate_asof,
+--   rate_pending.
 -- p_txs: one object per linked transaction to change, {id, date?, encrypted_amount?,
---   encrypted_exchange_rate?, encrypted_usd_value?, encrypted_metadata?, account_id?,
---   contact_id?, signature_b64, signature_key_version}. An org with a signing key needs the
+--   encrypted_exchange_rate?, encrypted_usd_value?, encrypted_metadata?, signature_b64,
+--   signature_key_version}. A transaction's account and contact are not changed here. An org with a signing key needs the
 --   signature on each (trg_verify_mutation_signature_transactions).
--- p_key_version: the key version the caller encrypted with. It must match the entry's, so one
---   history row never mixes two keys.
+-- p_key_version: the field key version the caller encrypted with. It must match the entry's.
 -- Line amounts are encrypted, so the server cannot check debits equal credits; the client does.
 CREATE OR REPLACE FUNCTION public.owb_edit_posted_entry(
   p_je_id            UUID,
@@ -278,7 +276,8 @@ DECLARE
   v_user       UUID := auth.uid();
   v_je         public.journal_entries%ROWTYPE;
   v_lock_date  DATE;
-  v_override   BOOLEAN;
+  v_min_date   DATE;
+  v_dek        INT;
   v_version_no INT;
   v_version_id UUID;
   v_old_lines  INT;
@@ -298,7 +297,7 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM public.org_members WHERE org_id = v_je.org_id AND user_id = v_user)
-     OR NOT public.user_has_capability(v_user, 'journal_entries.write', v_je.org_id) THEN
+     OR public.user_has_capability(v_user, 'journal_entries.write', v_je.org_id) IS NOT TRUE THEN
     RAISE EXCEPTION 'You do not have permission to edit journal entries in this organization.'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -317,61 +316,83 @@ BEGIN
       v_je.key_version, p_key_version
       USING ERRCODE = 'check_violation';
   END IF;
-  IF p_date IS NULL OR jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) < 2 THEN
-    RAISE EXCEPTION 'An edited entry needs a date and at least two lines.'
-      USING ERRCODE = 'check_violation';
+  IF p_date IS NULL OR p_lines IS NULL OR jsonb_typeof(p_lines) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'An edited entry needs a date and a list of lines.' USING ERRCODE = 'check_violation';
+  END IF;
+  IF jsonb_array_length(p_lines) < 2 THEN
+    RAISE EXCEPTION 'An edited entry needs at least two lines.' USING ERRCODE = 'check_violation';
+  END IF;
+  IF p_header IS NOT NULL AND jsonb_typeof(p_header) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'p_header must be an object.' USING ERRCODE = 'check_violation';
   END IF;
   SELECT k INTO v_bad_key FROM jsonb_object_keys(coalesce(p_header, '{}'::jsonb)) k
    WHERE k NOT IN ('encrypted_memo', 'encrypted_currency', 'encrypted_exchange_rate') LIMIT 1;
   IF v_bad_key IS NOT NULL THEN
     RAISE EXCEPTION 'The header field % cannot be edited.', v_bad_key USING ERRCODE = 'check_violation';
   END IF;
-
-  IF EXISTS (SELECT 1 FROM public.transactions
-              WHERE journal_entry_id = p_je_id AND cleared_status = 'RECONCILED') THEN
-    RAISE EXCEPTION 'This entry is reconciled and cannot be edited. Unreconcile it first.'
-      USING ERRCODE = 'check_violation';
+  IF p_txs IS NOT NULL AND jsonb_typeof(p_txs) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'p_txs must be a list.' USING ERRCODE = 'check_violation';
   END IF;
 
-  -- Closed month: refused unless the caller's unlock session covers both dates.
-  IF public.is_date_in_closed_period(v_je.org_id, v_user, v_je.date)
-     OR public.is_date_in_closed_period(v_je.org_id, v_user, p_date) THEN
+  -- Closed month: refused unless the caller's unlock session covers the date.
+  IF public.is_date_in_closed_period(v_je.org_id, v_user, v_je.date) IS NOT FALSE
+     OR public.is_date_in_closed_period(v_je.org_id, v_user, p_date) IS NOT FALSE THEN
     RAISE EXCEPTION 'This month is closed. Reverse the entry instead, or ask an owner to unlock the month.'
       USING ERRCODE = 'check_violation';
   END IF;
-  SELECT locked_through_date INTO v_lock_date FROM public.org_period_closes
-   WHERE org_id = v_je.org_id ORDER BY closed_at DESC LIMIT 1;
-  v_override := v_lock_date IS NOT NULL AND least(v_je.date, p_date) <= v_lock_date;
+  v_min_date := least(v_je.date, p_date);
 
-  -- Linked transactions: checked in full before anything is written.
-  IF p_txs IS NOT NULL AND jsonb_typeof(p_txs) <> 'array' THEN
-    RAISE EXCEPTION 'p_txs must be a list.' USING ERRCODE = 'check_violation';
-  END IF;
-  FOR v_tx IN SELECT * FROM jsonb_array_elements(coalesce(p_txs, '[]'::jsonb)) LOOP
-    SELECT k INTO v_bad_key FROM jsonb_object_keys(v_tx) k
-     WHERE k NOT IN ('id', 'date', 'encrypted_amount', 'encrypted_exchange_rate',
-       'encrypted_usd_value', 'encrypted_metadata', 'account_id', 'contact_id',
-       'signature_b64', 'signature_key_version') LIMIT 1;
-    IF v_bad_key IS NOT NULL THEN
-      RAISE EXCEPTION 'The transaction field % cannot be edited.', v_bad_key USING ERRCODE = 'check_violation';
+  -- Every linked transaction, changed or not: same org, the caller may write it, and its month
+  -- is open (or unlocked for the caller).
+  FOR v_tx_row IN SELECT * FROM public.transactions WHERE journal_entry_id = p_je_id FOR UPDATE LOOP
+    IF v_tx_row.org_id IS DISTINCT FROM v_je.org_id THEN
+      RAISE EXCEPTION 'A transaction linked to this entry belongs to another organization.'
+        USING ERRCODE = 'check_violation';
     END IF;
-    SELECT * INTO v_tx_row FROM public.transactions
-     WHERE id = (v_tx->>'id')::uuid AND journal_entry_id = p_je_id FOR UPDATE;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Transaction % is not linked to this entry.', v_tx->>'id' USING ERRCODE = 'check_violation';
-    END IF;
-    IF NOT (public.user_has_capability(v_user, 'transactions.write', v_je.org_id)
-            OR (public.user_has_capability(v_user, 'transactions.write_own', v_je.org_id)
-                AND v_tx_row.created_by = v_user)) THEN
-      RAISE EXCEPTION 'You do not have permission to edit this transaction.'
+    IF (public.user_has_capability(v_user, 'transactions.write', v_je.org_id)
+        OR (public.user_has_capability(v_user, 'transactions.write_own', v_je.org_id)
+            AND v_tx_row.created_by = v_user)) IS NOT TRUE THEN
+      RAISE EXCEPTION 'You do not have permission to edit a transaction linked to this entry.'
         USING ERRCODE = 'insufficient_privilege';
     END IF;
-    IF public.is_date_in_closed_period(v_je.org_id, v_user, v_tx_row.date)
-       OR (v_tx ? 'date' AND public.is_date_in_closed_period(v_je.org_id, v_user, (v_tx->>'date')::date)) THEN
+    IF public.is_date_in_closed_period(v_je.org_id, v_user, v_tx_row.date) IS NOT FALSE THEN
       RAISE EXCEPTION 'This month is closed. Reverse the entry instead, or ask an owner to unlock the month.'
         USING ERRCODE = 'check_violation';
     END IF;
+    v_min_date := least(v_min_date, v_tx_row.date);
   END LOOP;
+
+  -- The requested transaction changes.
+  FOR v_tx IN SELECT * FROM jsonb_array_elements(coalesce(p_txs, '[]'::jsonb)) LOOP
+    IF jsonb_typeof(v_tx) IS DISTINCT FROM 'object' THEN
+      RAISE EXCEPTION 'Each p_txs item must be an object.' USING ERRCODE = 'check_violation';
+    END IF;
+    SELECT k INTO v_bad_key FROM jsonb_object_keys(v_tx) k
+     WHERE k NOT IN ('id', 'date', 'encrypted_amount', 'encrypted_exchange_rate',
+       'encrypted_usd_value', 'encrypted_metadata', 'signature_b64', 'signature_key_version') LIMIT 1;
+    IF v_bad_key IS NOT NULL THEN
+      RAISE EXCEPTION 'The transaction field % cannot be edited.', v_bad_key USING ERRCODE = 'check_violation';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.transactions
+                    WHERE id = (v_tx->>'id')::uuid AND journal_entry_id = p_je_id
+                      AND org_id = v_je.org_id) THEN
+      RAISE EXCEPTION 'Transaction % is not linked to this entry.', v_tx->>'id' USING ERRCODE = 'check_violation';
+    END IF;
+    IF v_tx ? 'date' THEN
+      IF (v_tx->>'date') IS NULL
+         OR public.is_date_in_closed_period(v_je.org_id, v_user, (v_tx->>'date')::date) IS NOT FALSE THEN
+        RAISE EXCEPTION 'This month is closed. Reverse the entry instead, or ask an owner to unlock the month.'
+          USING ERRCODE = 'check_violation';
+      END IF;
+      v_min_date := least(v_min_date, (v_tx->>'date')::date);
+    END IF;
+  END LOOP;
+
+  -- Recorded as an override when any date touched is on or before the close.
+  SELECT locked_through_date INTO v_lock_date FROM public.org_period_closes
+   WHERE org_id = v_je.org_id ORDER BY closed_at DESC LIMIT 1;
+  SELECT coalesce(dek_key_version, 1) INTO v_dek FROM public.org_settings WHERE org_id = v_je.org_id;
+  v_dek := coalesce(v_dek, 1);
 
   -- History first.
   SELECT coalesce(max(version_no), 0) + 1 INTO v_version_no
@@ -379,12 +400,13 @@ BEGIN
   INSERT INTO public.journal_entry_versions (
     journal_entry_id, org_id, version_no, edited_by, period_override, encrypted_reason,
     date, encrypted_currency, encrypted_exchange_rate, encrypted_memo, encrypted_ref_number,
-    encrypted_metadata, encrypted_period_locked, entry_updated_at, key_version)
+    encrypted_metadata, encrypted_period_locked, entry_updated_at, key_version, dek_key_version)
   VALUES (
-    p_je_id, v_je.org_id, v_version_no, v_user, v_override, p_encrypted_reason,
+    p_je_id, v_je.org_id, v_version_no, v_user,
+    v_lock_date IS NOT NULL AND v_min_date <= v_lock_date, p_encrypted_reason,
     v_je.date, v_je.encrypted_currency, v_je.encrypted_exchange_rate, v_je.encrypted_memo,
     v_je.encrypted_ref_number, v_je.encrypted_metadata, v_je.encrypted_period_locked,
-    v_je.updated_at, v_je.key_version)
+    v_je.updated_at, v_je.key_version, v_dek)
   RETURNING id INTO v_version_id;
 
   INSERT INTO public.journal_entry_line_versions (
@@ -393,13 +415,13 @@ BEGIN
     encrypted_amount_primary, encrypted_book_value, encrypted_manual_rate_reason,
     encrypted_manual_rate_source, encrypted_metadata, encrypted_posted_rate,
     encrypted_primary_currency_at_posting, encrypted_wallet_currency, pinned_rate_id, rate_asof,
-    rate_pending, dual_amounts_backfilled, key_version)
+    rate_pending, dual_amounts_backfilled, key_version, dek_key_version)
   SELECT v_version_id, l.journal_entry_id, v_je.org_id, l.id, l.created_at, l.account_id,
     l.account_code, l.account_name, l.description, l.encrypted_debit, l.encrypted_credit,
     l.encrypted_amount_native, l.encrypted_amount_primary, l.encrypted_book_value,
     l.encrypted_manual_rate_reason, l.encrypted_manual_rate_source, l.encrypted_metadata,
     l.encrypted_posted_rate, l.encrypted_primary_currency_at_posting, l.encrypted_wallet_currency,
-    l.pinned_rate_id, l.rate_asof, l.rate_pending, l.dual_amounts_backfilled, l.key_version
+    l.pinned_rate_id, l.rate_asof, l.rate_pending, l.dual_amounts_backfilled, l.key_version, v_dek
     FROM public.journal_entry_lines l WHERE l.journal_entry_id = p_je_id;
   GET DIAGNOSTICS v_old_lines = ROW_COUNT;
 
@@ -412,8 +434,9 @@ BEGIN
   END IF;
 
   FOR v_line IN SELECT * FROM jsonb_array_elements(p_lines) LOOP
-    IF NOT EXISTS (SELECT 1 FROM public.chart_of_accounts
-                    WHERE id = (v_line->>'account_id')::uuid AND org_id = v_je.org_id) THEN
+    IF jsonb_typeof(v_line) IS DISTINCT FROM 'object' OR NOT EXISTS (
+         SELECT 1 FROM public.chart_of_accounts
+          WHERE id = (v_line->>'account_id')::uuid AND org_id = v_je.org_id) THEN
       RAISE EXCEPTION 'A line uses an account from another organization.' USING ERRCODE = 'check_violation';
     END IF;
     IF v_line->>'encrypted_debit' IS NULL OR v_line->>'encrypted_credit' IS NULL THEN
@@ -436,6 +459,10 @@ BEGIN
       (v_line->>'rate_asof')::timestamptz, coalesce((v_line->>'rate_pending')::boolean, FALSE),
       p_key_version);
   END LOOP;
+  SELECT count(*) INTO v_n FROM public.journal_entry_lines WHERE journal_entry_id = p_je_id;
+  IF v_n <> jsonb_array_length(p_lines) THEN
+    RAISE EXCEPTION 'Edit stopped: the entry has % lines, expected %.', v_n, jsonb_array_length(p_lines);
+  END IF;
 
   UPDATE public.journal_entries SET
     date = p_date,
@@ -454,11 +481,9 @@ BEGIN
       encrypted_exchange_rate = CASE WHEN v_tx ? 'encrypted_exchange_rate' THEN v_tx->>'encrypted_exchange_rate' ELSE encrypted_exchange_rate END,
       encrypted_usd_value = CASE WHEN v_tx ? 'encrypted_usd_value' THEN v_tx->>'encrypted_usd_value' ELSE encrypted_usd_value END,
       encrypted_metadata = CASE WHEN v_tx ? 'encrypted_metadata' THEN v_tx->'encrypted_metadata' ELSE encrypted_metadata END,
-      account_id = CASE WHEN v_tx ? 'account_id' THEN (v_tx->>'account_id')::uuid ELSE account_id END,
-      contact_id = CASE WHEN v_tx ? 'contact_id' THEN (v_tx->>'contact_id')::uuid ELSE contact_id END,
       signature_b64 = v_tx->>'signature_b64',
       signature_key_version = (v_tx->>'signature_key_version')::int
-    WHERE id = (v_tx->>'id')::uuid AND journal_entry_id = p_je_id;
+    WHERE id = (v_tx->>'id')::uuid AND journal_entry_id = p_je_id AND org_id = v_je.org_id;
     GET DIAGNOSTICS v_n = ROW_COUNT;
     IF v_n <> 1 THEN RAISE EXCEPTION 'Edit stopped: transaction % was not updated.', v_tx->>'id'; END IF;
   END LOOP;
@@ -474,7 +499,7 @@ GRANT EXECUTE ON FUNCTION public.owb_edit_posted_entry(UUID, DATE, JSONB, JSONB,
 REVOKE ALL ON FUNCTION public.owb_protect_entry_history() FROM PUBLIC;
 
 COMMENT ON FUNCTION public.owb_edit_posted_entry(UUID, DATE, JSONB, JSONB, JSONB, TEXT, INT) IS
-  'OWB-T0238: edit a POSTED entry in place in an open month (or under an unlock session, recorded as period_override). Copies the old header and lines into journal_entry_versions / journal_entry_line_versions first. Refuses reconciled entries, reversals and reversed entries.';
+  'OWB-T0238: edit a POSTED entry in place in an open month (or under an unlock session, recorded as period_override). Copies the old header and lines into journal_entry_versions / journal_entry_line_versions first. Refuses reversals and reversed entries; reconciled entries are refused by the client because cleared_status is encrypted.';
 COMMENT ON TABLE public.journal_entry_versions IS
   'OWB-T0238: one row per edit of a posted entry, holding the entry as it was before that edit (ciphertext under key_version). Written only by owb_edit_posted_entry; only re-encryption may change it.';
 COMMENT ON TABLE public.journal_entry_line_versions IS

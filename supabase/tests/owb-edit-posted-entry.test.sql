@@ -6,8 +6,9 @@
 --
 -- Each check runs as a real caller: role authenticated with request.jwt.claims set, so auth.uid()
 -- and the capability checks behave as they do for the app. The "broken copy" checks rebuild one
--- guard without its key line, inside a subtransaction that is then rolled back, and pass only if
--- the matching check would have failed against that copy.
+-- guard without its key line, inside a subtransaction that is then rolled back. A broken copy is
+-- caught only when the probe succeeds against it AND leaves the state the healthy guard prevents,
+-- so an unrelated error cannot pass for a catch.
 --
 -- The signed-org check replaces public.pqc_verify_ml_dsa_65 inside this transaction, because a
 -- valid ML-DSA signature cannot be produced in SQL. It tests that the edit passes the signature
@@ -47,13 +48,15 @@ BEGIN
     json_build_object('sub', p_user, 'role', 'authenticated')::text, true);
 END $$;
 
--- Builds a broken copy of p_fn by replacing p_find with p_repl, runs p_probe as p_actor against
--- it, then undoes the copy. Passes when the probe no longer gives the healthy answer.
+-- Builds a broken copy of p_fn by replacing p_find with p_repl, runs p_probe against it as p_actor
+-- (NULL runs it as the owner), then reads p_state as the owner, then undoes the copy. Passes only
+-- when the probe succeeded and p_state is true: the copy let through what the real guard refuses.
 CREATE FUNCTION pg_temp.broken(p_name TEXT, p_fn REGPROCEDURE, p_find TEXT, p_repl TEXT,
-  p_actor UUID, p_probe TEXT, p_healthy TEXT) RETURNS VOID LANGUAGE plpgsql AS $$
+  p_actor UUID, p_probe TEXT, p_state TEXT) RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE
   v_def TEXT := pg_get_functiondef(p_fn);
   r TEXT;
+  v_state BOOLEAN;
 BEGIN
   IF position(p_find IN v_def) = 0 THEN
     PERFORM pg_temp.fact(p_name, FALSE, 'broken copy not built: text not found');
@@ -61,15 +64,15 @@ BEGIN
   END IF;
   BEGIN
     EXECUTE replace(v_def, p_find, p_repl);
-    PERFORM pg_temp.act(p_actor);
+    IF p_actor IS NOT NULL THEN PERFORM pg_temp.act(p_actor); END IF;
     r := pg_temp.try(p_probe);
-    RAISE EXCEPTION USING ERRCODE = 'ZZ999', MESSAGE = r;
+    EXECUTE 'RESET ROLE';
+    EXECUTE 'SELECT (' || p_state || ')' INTO v_state;
+    RAISE EXCEPTION USING ERRCODE = 'ZZ999', MESSAGE = r || '|' || coalesce(v_state::text, 'null');
   EXCEPTION WHEN SQLSTATE 'ZZ999' THEN
     r := SQLERRM;
   END;
-  PERFORM pg_temp.fact(p_name,
-    CASE WHEN p_healthy = 'OK' THEN r <> 'OK' ELSE r = 'OK' OR position(p_healthy IN r) = 0 END,
-    'broken copy answered: ' || r);
+  PERFORM pg_temp.fact(p_name, r = 'OK|true', 'broken copy answered: ' || r);
 END $$;
 
 -- ── Fixtures, as the owner ────────────────────────────────────────────────────
@@ -94,9 +97,11 @@ SELECT u, 'owb-edit-test-' || right(u::text, 1) || '@example.invalid', 'authenti
 INSERT INTO public.organizations (id, name) SELECT org_a, 'owb-edit-test-a' FROM ids;
 INSERT INTO public.organizations (id, name) SELECT org_b, 'owb-edit-test-b' FROM ids;
 
-INSERT INTO public.org_members (org_id, user_id)
-SELECT org_a, u FROM ids, unnest(ARRAY[u_owner, u_book, u_view]) u
-UNION ALL SELECT org_b, u_owner FROM ids;
+INSERT INTO public.org_members (org_id, user_id, role)
+SELECT org_a, u_owner, 'OWNER' FROM ids UNION ALL
+SELECT org_a, u_book, 'MEMBER' FROM ids UNION ALL
+SELECT org_a, u_view, 'VIEWER' FROM ids UNION ALL
+SELECT org_b, u_owner, 'OWNER' FROM ids;
 
 INSERT INTO public.org_member_roles (org_id, user_id, role_definition_id)
 SELECT x.org, x.u, rd.id
@@ -111,20 +116,25 @@ SELECT acct_a2, org_a, 'C_SALES', 'C_INCOME', 'C_F', 'C_F' FROM ids UNION ALL
 SELECT acct_b1, org_b, 'C_CASH', 'C_ASSET', 'C_F', 'C_F' FROM ids UNION ALL
 SELECT acct_b2, org_b, 'C_SALES', 'C_INCOME', 'C_F', 'C_F' FROM ids;
 
--- A posted entry with two lines and one linked transaction made by the bookkeeper.
+-- A posted entry with two lines and one linked transaction, made by the bookkeeper unless
+-- p_tx_by names someone else. p_tx_date moves the transaction to another day; p_with_tx = FALSE
+-- leaves the entry with no transaction.
 CREATE FUNCTION pg_temp.entry(p_org UUID, p_date DATE, p_a1 UUID, p_a2 UUID, p_status TEXT DEFAULT 'POSTED',
-  p_cleared TEXT DEFAULT NULL) RETURNS UUID LANGUAGE plpgsql AS $$
+  p_tx_by UUID DEFAULT NULL, p_tx_date DATE DEFAULT NULL, p_with_tx BOOLEAN DEFAULT TRUE)
+RETURNS UUID LANGUAGE plpgsql AS $$
 DECLARE v_je UUID; v_book UUID;
 BEGIN
-  SELECT u_book INTO v_book FROM ids;
+  SELECT coalesce(p_tx_by, u_book) INTO v_book FROM ids;
   INSERT INTO public.journal_entries (org_id, date, status, encrypted_currency, encrypted_memo,
     encrypted_ref_number, key_version)
   VALUES (p_org, p_date, 'DRAFT', 'C_USD', 'C_MEMO_OLD', 'C_REF_7', 2) RETURNING id INTO v_je;
   INSERT INTO public.journal_entry_lines (journal_entry_id, account_id, encrypted_debit, encrypted_credit, key_version)
   VALUES (v_je, p_a1, 'C_100', 'C_0', 2), (v_je, p_a2, 'C_0', 'C_100', 2);
-  INSERT INTO public.transactions (org_id, date, type, asset, amount, journal_entry_id, created_by,
-    cleared_status, encrypted_amount, key_version)
-  VALUES (p_org, p_date, 'C_TYPE', 'C_ASSET', 0, v_je, v_book, p_cleared, 'C_AMT_OLD', 2);
+  IF p_with_tx THEN
+    INSERT INTO public.transactions (org_id, date, type, asset, amount, journal_entry_id, created_by,
+      encrypted_amount, key_version)
+    VALUES (p_org, coalesce(p_tx_date, p_date), 'C_TYPE', 'C_ASSET', 0, v_je, v_book, 'C_AMT_OLD', 2);
+  END IF;
   IF p_status <> 'DRAFT' THEN
     UPDATE public.journal_entries SET status = p_status WHERE id = v_je;
   END IF;
@@ -133,13 +143,15 @@ END $$;
 
 CREATE TEMP TABLE e AS SELECT
   pg_temp.entry(org_a, DATE '2026-10-10', acct_a1, acct_a2) AS e1,
-  pg_temp.entry(org_a, DATE '2026-10-11', acct_a1, acct_a2, 'POSTED', 'RECONCILED') AS e_rec,
   pg_temp.entry(org_a, DATE '2026-03-05', acct_a1, acct_a2) AS e_closed,
   pg_temp.entry(org_a, DATE '2026-03-06', acct_a1, acct_a2) AS e_closed2,
   pg_temp.entry(org_a, DATE '2026-10-12', acct_a1, acct_a2) AS e_open,
   pg_temp.entry(org_a, DATE '2026-10-13', acct_a1, acct_a2, 'DRAFT') AS e_draft,
   pg_temp.entry(org_a, DATE '2026-10-14', acct_a1, acct_a2, 'VOID') AS e_void,
-  pg_temp.entry(org_b, DATE '2026-10-15', acct_b1, acct_b2) AS e_signed
+  pg_temp.entry(org_b, DATE '2026-10-15', acct_b1, acct_b2) AS e_signed,
+  pg_temp.entry(org_a, DATE '2026-10-16', acct_a1, acct_a2, p_tx_by => u_owner) AS e_owner_tx,
+  pg_temp.entry(org_a, DATE '2026-10-17', acct_a1, acct_a2, p_tx_date => DATE '2026-03-10') AS e_tx_closed,
+  pg_temp.entry(org_a, DATE '2026-03-07', acct_a1, acct_a2, p_with_tx => FALSE) AS e_closed_notx
 FROM ids;
 GRANT SELECT ON e TO authenticated;
 
@@ -193,6 +205,10 @@ FROM ids, e JOIN public.journal_entry_versions v ON v.journal_entry_id = e.e1;
 SELECT pg_temp.fact('history keeps the old lines',
   count(*) = 2 AND bool_and(lv.encrypted_debit IN ('C_100', 'C_0')), count(*)::text)
 FROM e JOIN public.journal_entry_line_versions lv ON lv.journal_entry_id = e.e1;
+SELECT pg_temp.fact('history records the org data key version',
+  bool_and(v.dek_key_version = coalesce((SELECT dek_key_version FROM public.org_settings WHERE org_id = ids.org_a), 1)),
+  string_agg(v.dek_key_version::text, ','))
+FROM ids, e JOIN public.journal_entry_versions v ON v.journal_entry_id = e.e1;
 SELECT pg_temp.fact('the edit setting is cleared when the function returns',
   coalesce(current_setting('owb.edit_je', true), '') = '', current_setting('owb.edit_je', true));
 
@@ -212,13 +228,26 @@ RESET ROLE;
 
 -- 4. Which entries may be edited.
 SELECT pg_temp.act(u_book) FROM ids;
-SELECT pg_temp.chk('a reconciled entry is refused', pg_temp.edit_sql(e_rec, DATE '2026-10-11', acct_a1, acct_a2), 'reconciled') FROM ids, e;
 SELECT pg_temp.chk('a draft is refused', pg_temp.edit_sql(e_draft, DATE '2026-10-13', acct_a1, acct_a2), 'Only a posted entry') FROM ids, e;
 SELECT pg_temp.chk('a void entry is refused', pg_temp.edit_sql(e_void, DATE '2026-10-14', acct_a1, acct_a2), 'Only a posted entry') FROM ids, e;
 SELECT pg_temp.chk('a reversal is refused',
   pg_temp.edit_sql(j.id, DATE '2026-10-14', acct_a1, acct_a2), 'reversal') FROM ids, e
   JOIN public.journal_entries j ON j.reversal_of_id = e.e_void;
 SELECT pg_temp.chk('an entry in a closed month is refused', pg_temp.edit_sql(e_closed, DATE '2026-03-05', acct_a1, acct_a2), 'closed') FROM ids, e;
+SELECT pg_temp.chk('an entry in a closed month with no transaction is refused', pg_temp.edit_sql(e_closed_notx, DATE '2026-03-07', acct_a1, acct_a2), 'closed') FROM ids, e;
+SELECT pg_temp.chk('an open entry whose transaction is in a closed month is refused', pg_temp.edit_sql(e_tx_closed, DATE '2026-10-17', acct_a1, acct_a2), 'closed') FROM ids, e;
+SELECT pg_temp.chk('a transaction date moved into a closed month is refused',
+  pg_temp.edit_sql(e_open, DATE '2026-10-12', acct_a1, acct_a2, p_txs => jsonb_build_array(jsonb_build_object('id', t.id, 'date', '2026-03-15'))), 'closed')
+FROM ids, e JOIN public.transactions t ON t.journal_entry_id = e.e_open;
+SELECT pg_temp.chk('the bookkeeper is refused on an entry whose transaction someone else made', pg_temp.edit_sql(e_owner_tx, DATE '2026-10-16', acct_a1, acct_a2), 'permission') FROM ids, e;
+SELECT pg_temp.chk('no list of lines is refused',
+  format('SELECT public.owb_edit_posted_entry(%L, %L, NULL, NULL, NULL, %L, 2)', e_open, DATE '2026-10-12', 'C_REASON'), 'list of lines') FROM e;
+SELECT pg_temp.chk('one line is refused',
+  format('SELECT public.owb_edit_posted_entry(%L, %L, NULL, %L, NULL, %L, 2)', e_open, DATE '2026-10-12',
+    jsonb_build_array(jsonb_build_object('account_id', acct_a1, 'encrypted_debit', 'C_0', 'encrypted_credit', 'C_0')), 'C_REASON'), 'at least two') FROM ids, e;
+SELECT pg_temp.chk('a transaction account or contact cannot be changed here',
+  pg_temp.edit_sql(e_open, DATE '2026-10-12', acct_a1, acct_a2, p_txs => jsonb_build_array(jsonb_build_object('id', t.id, 'account_id', ids.acct_b1))), 'cannot be edited')
+FROM ids, e JOIN public.transactions t ON t.journal_entry_id = e.e_open;
 SELECT pg_temp.chk('moving an open entry into a closed month is refused', pg_temp.edit_sql(e_open, DATE '2026-03-20', acct_a1, acct_a2), 'closed') FROM ids, e;
 SELECT pg_temp.chk('a header field outside the list is refused',
   pg_temp.edit_sql(e_open, DATE '2026-10-12', acct_a1, acct_a2, '{"encrypted_ref_number":"C_X"}'), 'cannot be edited') FROM ids, e;
@@ -229,7 +258,8 @@ SELECT pg_temp.chk('a transaction not linked to the entry is refused',
 FROM ids, e JOIN public.transactions t ON t.journal_entry_id = e.e1;
 RESET ROLE;
 SELECT pg_temp.fact('refused edits wrote no history and left the lines alone',
-  NOT EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id IN (e_open, e_rec, e_closed, e_draft, e_void))
+  NOT EXISTS (SELECT 1 FROM public.journal_entry_versions
+              WHERE journal_entry_id IN (e_open, e_closed, e_draft, e_void, e_owner_tx, e_tx_closed, e_closed_notx))
   AND (SELECT count(*) FROM public.journal_entry_lines WHERE journal_entry_id = e_open) = 2)
 FROM e;
 
@@ -240,8 +270,16 @@ SELECT pg_temp.act(u_owner) FROM ids;
 SELECT pg_temp.chk('the owner with an unlock session edits a closed-month entry',
   pg_temp.edit_sql(e_closed, DATE '2026-03-05', acct_a1, acct_a2), 'OK') FROM ids, e;
 RESET ROLE;
+SELECT pg_temp.chk('the owner with an unlock session edits an open entry whose transaction is in a closed month',
+  pg_temp.edit_sql(e_tx_closed, DATE '2026-10-17', acct_a1, acct_a2), 'OK') FROM ids, e;
+RESET ROLE;
 SELECT pg_temp.fact('that edit is recorded as an override', v.period_override, v.period_override::text)
 FROM e JOIN public.journal_entry_versions v ON v.journal_entry_id = e.e_closed;
+SELECT pg_temp.fact('an edit touching a closed transaction date is recorded as an override', v.period_override, v.period_override::text)
+FROM e JOIN public.journal_entry_versions v ON v.journal_entry_id = e.e_tx_closed;
+SELECT pg_temp.act(u_owner) FROM ids;
+SELECT pg_temp.chk('the owner may edit an entry whose transaction someone else made', pg_temp.edit_sql(e_owner_tx, DATE '2026-10-16', acct_a1, acct_a2), 'OK') FROM ids, e;
+RESET ROLE;
 
 -- 6. An org with a signing key: the transaction needs a signature.
 SELECT pg_temp.act(u_owner) FROM ids;
@@ -276,7 +314,14 @@ SELECT pg_temp.chk('even with the setting, a line cannot move to another entry',
   format('UPDATE public.journal_entry_lines SET journal_entry_id = %L WHERE journal_entry_id = %L', e_open, e1), 'Cannot update line') FROM e;
 SELECT pg_temp.chk('even with the setting, a posted entry cannot be deleted',
   format('DELETE FROM public.journal_entries WHERE id = %L', e1), 'Cannot delete finalized') FROM e;
+SELECT set_config('owb.edit_je', e_void::text, true) FROM e;
+SELECT pg_temp.chk('the setting for a void entry does not free its lines',
+  format('DELETE FROM public.journal_entry_lines WHERE journal_entry_id = %L', e_void), 'Cannot delete line') FROM e;
 SELECT set_config('owb.edit_je', '', true);
+SELECT pg_temp.chk('history: a signed-in user cannot change it directly',
+  format('UPDATE public.journal_entry_versions SET encrypted_memo = %L WHERE journal_entry_id = %L', 'C_X', e1), 'permission denied') FROM e;
+SELECT pg_temp.chk('history: a signed-in user cannot delete it directly',
+  format('DELETE FROM public.journal_entry_line_versions WHERE journal_entry_id = %L', e1), 'permission denied') FROM e;
 RESET ROLE;
 
 -- 8. History cannot be changed or deleted, except re-encrypted.
@@ -302,24 +347,28 @@ SELECT pg_temp.fact('authenticated can run the edit',
 
 -- ── Broken copies: each must be caught by the check named in it ───────────────
 
-SELECT pg_temp.broken('broken copy without the reconciled check is caught',
+SELECT pg_temp.broken('broken copy without the closed-month check on the entry date is caught',
   'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)',
-  'cleared_status = ''RECONCILED''', 'FALSE', u_book,
-  pg_temp.edit_sql(e_rec, DATE '2026-10-11', acct_a1, acct_a2), 'reconciled') FROM ids, e;
-SELECT pg_temp.broken('broken copy without the closed-month check is caught',
+  E'IF public.is_date_in_closed_period(v_je.org_id, v_user, v_je.date) IS NOT FALSE\n     OR public.is_date_in_closed_period(v_je.org_id, v_user, p_date) IS NOT FALSE THEN',
+  'IF FALSE THEN', u_book,
+  pg_temp.edit_sql(e_closed_notx, DATE '2026-03-07', acct_a1, acct_a2),
+  format('EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id = %L)', e_closed_notx)) FROM ids, e;
+SELECT pg_temp.broken('broken copy without the linked-transaction permission check is caught',
   'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)',
-  E'v_je.date)\n     OR public.is_date_in_closed_period(v_je.org_id, v_user, p_date) THEN', 'v_je.date) AND FALSE THEN', u_book,
-  pg_temp.edit_sql(e_closed2, DATE '2026-03-06', acct_a1, acct_a2), 'closed') FROM ids, e;
+  E'IF (public.user_has_capability(v_user, ''transactions.write'', v_je.org_id)\n        OR (public.user_has_capability(v_user, ''transactions.write_own'', v_je.org_id)\n            AND v_tx_row.created_by = v_user)) IS NOT TRUE THEN',
+  'IF FALSE THEN', u_book,
+  pg_temp.edit_sql(e_owner_tx, DATE '2026-10-16', acct_a1, acct_a2),
+  format('EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id = %L AND edited_by = %L)', e_owner_tx, u_book)) FROM ids, e;
 SELECT pg_temp.broken('broken copy of the header lock that ignores which entry is caught',
   'public.owb_protect_finalized_journal_entry()',
   '= OLD.id::text', '<> ''''', u_owner,
   format('SELECT set_config(''owb.edit_je'', %L, true); UPDATE public.journal_entries SET encrypted_memo = ''C_HACK'' WHERE id = %L', e_open, e1),
-  'Cannot modify finalized') FROM ids, e;
+  format('(SELECT encrypted_memo FROM public.journal_entries WHERE id = %L) = ''C_HACK''', e1)) FROM ids, e;
 SELECT pg_temp.broken('broken copy of the history guard that allows any change is caught',
   'public.owb_protect_entry_history()',
-  'RAISE EXCEPTION ''Entry history cannot be changed', 'RETURN NEW; RAISE EXCEPTION ''Entry history cannot be changed', u_owner,
+  'RAISE EXCEPTION ''Entry history cannot be changed', 'RETURN NEW; RAISE EXCEPTION ''Entry history cannot be changed', NULL,
   format('UPDATE public.journal_entry_versions SET date = %L WHERE journal_entry_id = %L', '2020-01-01', e1),
-  'only re-encrypted') FROM ids, e;
+  format('EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id = %L AND date = %L)', e1, '2020-01-01')) FROM ids, e;
 
 -- ── Result ────────────────────────────────────────────────────────────────────
 
