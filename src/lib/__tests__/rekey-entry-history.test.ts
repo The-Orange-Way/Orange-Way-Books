@@ -22,7 +22,8 @@ const rekeyBatch = readFileSync(
 
 // The server-side rotation writer only accepts listed tables and columns.
 function serverColumns(table: string): string[] | null {
-  if (!new RegExp(`ALLOWED_REKEY_TABLES = new Set\\(\\[[^\\]]*'${table}'`).test(rekeyBatch)) return null;
+  if (!new RegExp(`ALLOWED_REKEY_TABLES = new Set\\(\\[[^\\]]*'${table}'`).test(rekeyBatch))
+    return null;
   const m = rekeyBatch.match(new RegExp(`\\n  ${table}: new Set\\(\\[([^\\]]+)\\]`));
   return m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]).sort() : null;
 }
@@ -51,7 +52,9 @@ describe('key rotation covers the entry history', () => {
       expect(desc, `${table} is missing from the rotation list`).toBeDefined();
       expect(desc!.orgColumn).toBe('org_id');
       expect([...desc!.encryptedColumns].sort()).toEqual(guardColumns(table));
-      expect(serverColumns(table), `rekey-batch does not accept ${table}`).toEqual(guardColumns(table));
+      expect(serverColumns(table), `rekey-batch does not accept ${table}`).toEqual(
+        guardColumns(table),
+      );
     });
   }
 });
