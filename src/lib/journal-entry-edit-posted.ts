@@ -114,6 +114,138 @@ export function buildEditPostedEntryArgs(input: EditPostedEntryInput): EditPoste
   };
 }
 
+/** A line as stored, with the values the edit compares against. */
+export interface StoredEditLine {
+  row: EditLine;
+  accountId: string;
+  accountName: string | null;
+  accountCode: string | null;
+  description: string | null;
+  debit: number;
+  credit: number;
+  walletCurrency: string | null;
+  primaryAtPosting: string | null;
+  bookValue: number | null;
+  ratePending: boolean;
+}
+
+/** A line as the user left it in the edit form. */
+export interface EditedLine {
+  accountId: string;
+  accountName: string | null;
+  accountCode: string | null;
+  description: string | null;
+  debit: number;
+  credit: number;
+}
+
+export interface BuildLineParams {
+  wallet_currency: string;
+  primary_currency: string;
+  date: string;
+  debit: number;
+  credit: number;
+  account_id: string;
+  account_name: string | null;
+  account_code: string | null;
+  description: string | null;
+  book_value: number | null;
+}
+
+const blank = (v: string | null | undefined) => (v ?? '').trim();
+
+/**
+ * Chooses the lines to send for a posted edit.
+ *
+ * A line the user did not change is sent back exactly as stored, so its rate,
+ * value in the primary currency, book value and any rate entered by hand stay
+ * as they were. Only a changed or added line is rebuilt, under the primary
+ * currency the entry was posted in. If a rebuilt line has no rate and the
+ * stored line had one, the edit is refused, because saving it would remove a
+ * value the books already have.
+ */
+export async function planPostedEditLines(opts: {
+  stored: StoredEditLine[];
+  edited: EditedLine[];
+  storedDate: string;
+  date: string;
+  currency: string;
+  primaryCurrency: string;
+  build: (p: BuildLineParams) => Promise<{ insert: EditLine; pending: boolean }>;
+}): Promise<EditLine[]> {
+  const { stored, edited, storedDate, date, currency, build } = opts;
+  const entryPrimary = stored.find((s) => s.primaryAtPosting)?.primaryAtPosting;
+  const primary = entryPrimary ?? opts.primaryCurrency;
+  const used = new Set<number>();
+  const out: EditLine[] = [];
+  for (const [i, e] of edited.entries()) {
+    const sameValue = (s: StoredEditLine) =>
+      s.accountId === e.accountId &&
+      s.debit === e.debit &&
+      s.credit === e.credit &&
+      s.walletCurrency === currency &&
+      storedDate === date;
+    const match = stored.findIndex(
+      (s, j) =>
+        !used.has(j) &&
+        sameValue(s) &&
+        blank(s.accountName) === blank(e.accountName) &&
+        blank(s.accountCode) === blank(e.accountCode) &&
+        blank(s.description) === blank(e.description),
+    );
+    if (match >= 0) {
+      used.add(match);
+      out.push(stored[match].row);
+      continue;
+    }
+    const before = stored[i];
+    const built = await build({
+      wallet_currency: currency,
+      primary_currency: primary,
+      date,
+      debit: e.debit,
+      credit: e.credit,
+      account_id: e.accountId,
+      account_name: e.accountName,
+      account_code: e.accountCode,
+      description: e.description,
+      book_value: before && sameValue(before) ? before.bookValue : null,
+    });
+    if (built.pending && !(before?.ratePending ?? false)) {
+      throw new Error(
+        `No exchange rate was found for ${currency} on ${date}, so this change would remove a value the books already have. Nothing was saved. Try again later.`,
+      );
+    }
+    out.push(built.insert);
+  }
+  return out;
+}
+
+/** Loads the stored lines of one entry, in the order the Journal page shows them. */
+export async function loadStoredEditLines(
+  rows: Array<EditLine & { id: string }>,
+  decrypt: DecryptFn,
+): Promise<StoredEditLine[]> {
+  return Promise.all(
+    rows.map(async (row) => {
+      const d = await decryptJournalEntryLine(row, decrypt);
+      return {
+        row,
+        accountId: row.account_id,
+        accountName: d.account_name,
+        accountCode: d.account_code,
+        description: d.description,
+        debit: d.debit ?? 0,
+        credit: d.credit ?? 0,
+        walletCurrency: d.wallet_currency ?? null,
+        primaryAtPosting: d.primary_currency_at_posting ?? null,
+        bookValue: d.book_value ?? null,
+        ratePending: !!row.rate_pending,
+      };
+    }),
+  );
+}
+
 /** Sends the edit. Returns the new version number. */
 export async function editPostedEntry(
   client: SupabaseClient,
@@ -141,6 +273,7 @@ export interface EntryVersion {
   /** The entry as it was before this edit. */
   date: string;
   memo: string | null;
+  currency: string;
   lines: EntryVersionLine[];
 }
 
@@ -190,6 +323,7 @@ export async function fetchEntryHistory(
         reason: v.encrypted_reason ? await decrypt(v.encrypted_reason as string) : null,
         date: v.date as string,
         memo: header.memo,
+        currency: header.currency,
         lines,
       };
     }),

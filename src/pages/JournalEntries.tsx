@@ -26,6 +26,7 @@ import {
   startOfWeek,
   subMonths,
   subYears,
+  parseISO,
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { captureException } from '@/lib/observability/sentry';
@@ -50,6 +51,9 @@ import { postJournalEntry } from '@/lib/journal-entry-post';
 import {
   editPostedEntry,
   fetchEntryHistory,
+  loadStoredEditLines,
+  planPostedEditLines,
+  type EditLine,
   type EntryVersion,
 } from '@/lib/journal-entry-edit-posted';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -961,7 +965,7 @@ export default function JournalEntries() {
     }
     setFReason('');
     setEditingEntry(entry);
-    setFDate(new Date(entry.date));
+    setFDate(parseISO(entry.date));
     setFCurrency(entry.currency);
     setFRefNum(entry.ref_number || '');
     setFMemo(entry.memo || '');
@@ -1095,21 +1099,27 @@ export default function JournalEntries() {
           },
           encryptText,
         );
-        const editLines = await Promise.all(
-          savedLines.map((l) =>
-            buildLineInsert({
-              wallet_currency: fCurrency,
-              primary_currency: primaryCurrency,
-              date,
-              account_id: lineAccountId(l.account_name),
-              account_name: l.account_name || null,
-              account_code: l.account_code || null,
-              description: l.description || null,
-              debit: parseFloat(l.debit) || 0,
-              credit: parseFloat(l.credit) || 0,
-            }),
-          ),
-        );
+        // Unchanged lines go back exactly as stored, so their rates and values
+        // are kept. Read the stored rows fresh: the page holds them decrypted.
+        const storedRows = await fetchJournalEntryLines<EditLine & { id: string }>(supabase, [
+          editingEntry.id,
+        ]);
+        const editLines = await planPostedEditLines({
+          stored: await loadStoredEditLines(storedRows, decryptText),
+          edited: savedLines.map((l) => ({
+            accountId: lineAccountId(l.account_name),
+            accountName: l.account_name || null,
+            accountCode: l.account_code || null,
+            description: l.description || null,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0,
+          })),
+          storedDate: editingEntry.date,
+          date,
+          currency: fCurrency,
+          primaryCurrency,
+          build: (params) => buildJournalEntryLineInsert({ ...params, encrypt: encryptText }),
+        });
         await editPostedEntry(supabase, {
           entryId: editingEntry.id,
           entryKeyVersion: editingEntry.key_version ?? 0,
@@ -2443,7 +2453,7 @@ export default function JournalEntries() {
                     {v.reason || '—'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Date {v.date}
+                    Date {v.date} · {v.currency}
                     {v.memo ? ` · ${v.memo}` : ''}
                   </p>
                   <Table>
@@ -2459,10 +2469,10 @@ export default function JournalEntries() {
                         <TableRow key={i}>
                           <TableCell className="text-xs">{l.accountName || '—'}</TableCell>
                           <TableCell className="text-xs text-right font-mono">
-                            {l.debit ? fmtAmount(l.debit, historyEntry?.currency ?? 'USD') : ''}
+                            {l.debit ? fmtAmount(l.debit, v.currency) : ''}
                           </TableCell>
                           <TableCell className="text-xs text-right font-mono">
-                            {l.credit ? fmtAmount(l.credit, historyEntry?.currency ?? 'USD') : ''}
+                            {l.credit ? fmtAmount(l.credit, v.currency) : ''}
                           </TableCell>
                         </TableRow>
                       ))}

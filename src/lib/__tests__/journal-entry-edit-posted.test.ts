@@ -8,7 +8,10 @@ import {
   buildEditPostedEntryArgs,
   editPostedEntry,
   fetchEntryHistory,
+  planPostedEditLines,
+  type BuildLineParams,
   type EditLine,
+  type StoredEditLine,
   type EditPostedEntryInput,
 } from '../journal-entry-edit-posted';
 
@@ -76,6 +79,18 @@ describe('buildEditPostedEntryArgs', () => {
     expect(a.p_encrypted_reason).toBe('C_REASON');
     expect(a.p_key_version).toBe(2);
     expect(a.p_lines.map((l) => l.account_id)).toEqual(['acct-1', 'acct-2']);
+  });
+
+  it('sends every stored column of each line unchanged', () => {
+    const a = buildEditPostedEntryArgs(input());
+    const expected = Object.fromEntries(
+      EDIT_LINE_KEYS.filter((k) => k in line()).map((k) => [
+        k,
+        (line() as unknown as Record<string, unknown>)[k],
+      ]),
+    );
+    expect(a.p_lines[0]).toEqual(expected);
+    expect(a.p_lines[0].encrypted_amount_primary).toBe('C_P');
   });
 
   it('sends only the line columns the function reads', () => {
@@ -159,6 +174,7 @@ describe('editPostedEntry', () => {
     expect(await editPostedEntry(c, input())).toBe(3);
     expect(calls).toHaveLength(1);
     expect(calls[0].fn).toBe('owb_edit_posted_entry');
+    expect(calls[0].args).toEqual(buildEditPostedEntryArgs(input()));
   });
 
   it('surfaces the database refusal', async () => {
@@ -194,7 +210,7 @@ describe('fetchEntryHistory', () => {
       period_override: true,
       encrypted_reason: 'C_late rate',
       encrypted_memo: 'C_old memo',
-      encrypted_currency: 'C_USD',
+      encrypted_currency: 'C_EUR',
       key_version: 2,
     },
     {
@@ -269,10 +285,132 @@ describe('fetchEntryHistory', () => {
       [2, 'late rate', true, '2026-10-14', 'old memo'],
       [1, null, false, '2026-10-13', null],
     ]);
+    expect(h.map((v) => v.currency)).toEqual(['EUR', 'USD']);
     expect(h[0].lines).toEqual([
       { accountName: 'Cash', debit: 50, credit: 0, description: null },
       { accountName: 'Sales', debit: 0, credit: 50, description: null },
     ]);
     expect(h[1].lines.map((l) => l.debit)).toEqual([40]);
+  });
+});
+
+describe('planPostedEditLines', () => {
+  function stored(id: string, over: Partial<StoredEditLine> = {}): StoredEditLine {
+    return {
+      row: line({ account_id: `acct-${id}`, encrypted_amount_primary: `C_P_${id}` }),
+      accountId: `acct-${id}`,
+      accountName: `Account ${id}`,
+      accountCode: null,
+      description: null,
+      debit: id === 'a' ? 100 : 0,
+      credit: id === 'a' ? 0 : 100,
+      walletCurrency: 'MXN',
+      primaryAtPosting: 'BTC',
+      bookValue: 7,
+      ratePending: false,
+      ...over,
+    };
+  }
+  const edited = (s: StoredEditLine) => ({
+    accountId: s.accountId,
+    accountName: s.accountName,
+    accountCode: s.accountCode,
+    description: s.description,
+    debit: s.debit,
+    credit: s.credit,
+  });
+
+  function builder(pending = false) {
+    const seen: BuildLineParams[] = [];
+    const build = async (p: BuildLineParams) => {
+      seen.push(p);
+      return {
+        insert: line({ account_id: p.account_id, encrypted_amount_primary: 'C_NEW' }),
+        pending,
+      };
+    };
+    return { build, seen };
+  }
+
+  const base = (over: Record<string, unknown> = {}) => {
+    const s = [stored('a'), stored('b')];
+    return {
+      stored: s,
+      edited: s.map(edited),
+      storedDate: '2026-10-15',
+      date: '2026-10-15',
+      currency: 'MXN',
+      primaryCurrency: 'USD',
+      ...over,
+    };
+  };
+
+  it('sends unchanged lines back exactly as stored and rebuilds nothing', async () => {
+    const { build, seen } = builder(true);
+    const b = base();
+    const out = await planPostedEditLines({ ...b, build });
+    expect(seen).toHaveLength(0);
+    expect(out).toEqual([b.stored[0].row, b.stored[1].row]);
+  });
+
+  it('keeps unchanged lines when the user reorders them', async () => {
+    const { build, seen } = builder();
+    const b = base();
+    const out = await planPostedEditLines({ ...b, edited: [...b.edited].reverse(), build });
+    expect(seen).toHaveLength(0);
+    expect(out).toEqual([b.stored[1].row, b.stored[0].row]);
+  });
+
+  it('rebuilds only a changed line, under the currency the entry was posted in', async () => {
+    const { build, seen } = builder();
+    const b = base();
+    b.edited[1] = { ...b.edited[1], description: 'fixed text' };
+    const out = await planPostedEditLines({ ...b, build });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      primary_currency: 'BTC',
+      account_id: 'acct-b',
+      description: 'fixed text',
+      book_value: 7,
+    });
+    expect(out[0]).toBe(b.stored[0].row);
+    expect(out[1].encrypted_amount_primary).toBe('C_NEW');
+  });
+
+  it('rebuilds every line when the date or currency changes', async () => {
+    for (const over of [{ date: '2026-10-16' }, { currency: 'USD' }]) {
+      const { build, seen } = builder();
+      await planPostedEditLines({ ...base(over), build });
+      expect(seen).toHaveLength(2);
+      expect(seen.every((p) => p.book_value === null)).toBe(true);
+    }
+  });
+
+  it('refuses a change that would replace a stored value with a missing rate', async () => {
+    const { build } = builder(true);
+    const b = base();
+    b.edited[0] = { ...b.edited[0], debit: 90 };
+    b.edited[1] = { ...b.edited[1], credit: 90 };
+    await expect(planPostedEditLines({ ...b, build })).rejects.toThrow('Nothing was saved');
+  });
+
+  it('allows a still-missing rate on a line that had none before', async () => {
+    const { build } = builder(true);
+    const s = [stored('a', { ratePending: true }), stored('b', { ratePending: true })];
+    const e = s.map(edited);
+    e[0] = { ...e[0], debit: 90 };
+    e[1] = { ...e[1], credit: 90 };
+    const out = await planPostedEditLines({ ...base(), stored: s, edited: e, build });
+    expect(out).toHaveLength(2);
+  });
+});
+
+describe('Journal page posted edit', () => {
+  it('reads the stored date as a calendar date, not as UTC midnight', () => {
+    const src = readFileSync(join(__dirname, '../../pages/JournalEntries.tsx'), 'utf8');
+    const open = src.slice(src.search(/const openEdit = (async )?\(/));
+    const body = open.slice(0, open.indexOf('setModalOpen(true)'));
+    expect(body).toContain('setFDate(parseISO(entry.date))');
+    expect(body).not.toContain('new Date(entry.date)');
   });
 });
