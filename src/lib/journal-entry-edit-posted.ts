@@ -63,6 +63,17 @@ export interface EditPostedEntryInput {
   reasonText: string;
   /** journal_entries.updated_at as read before the edit. */
   expectedUpdatedAt?: string | null;
+  /** Linked transactions to change in the same call. Left out by the Journal screen. */
+  txs?: PostedTxUpdate[];
+}
+
+/** One linked transaction changed with the entry. owb_edit_posted_entry refuses other keys. */
+export interface PostedTxUpdate {
+  id: string;
+  date: string;
+  encrypted_amount: string;
+  signature_b64: string | null;
+  signature_key_version: number | null;
 }
 
 export interface EditPostedEntryArgs {
@@ -113,9 +124,15 @@ export function buildEditPostedEntryArgs(input: EditPostedEntryInput): EditPoste
       encrypted_currency: input.header.encrypted_currency,
     },
     p_lines,
-    // Linked transactions are not changed from the Journal screen: it only
-    // edits manual entries, which have none.
-    p_txs: [],
+    // The Journal screen only edits manual entries, which have no linked
+    // transactions. The transaction screen sends the ones it changes.
+    p_txs: (input.txs ?? []).map((t) => ({
+      id: t.id,
+      date: t.date,
+      encrypted_amount: t.encrypted_amount,
+      signature_b64: t.signature_b64,
+      signature_key_version: t.signature_key_version,
+    })),
     p_encrypted_reason: input.encryptedReason,
     p_key_version: input.entryKeyVersion,
     p_expected_updated_at: input.expectedUpdatedAt ?? null,
