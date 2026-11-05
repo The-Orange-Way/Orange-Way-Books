@@ -10,6 +10,10 @@
  * Line amounts are encrypted, so the server cannot check that debits equal
  * credits. This helper checks it on the plaintext amounts before anything is
  * sent, and refuses a missing reason.
+ *
+ * When expectedUpdatedAt is given, the database refuses the edit if the entry
+ * changed after it was read, checked under its row lock, so an edit is never
+ * saved over a newer one.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -57,6 +61,8 @@ export interface EditPostedEntryInput {
   amounts: Array<{ debit: number; credit: number }>;
   encryptedReason: string;
   reasonText: string;
+  /** journal_entries.updated_at as read before the edit. */
+  expectedUpdatedAt?: string | null;
 }
 
 export interface EditPostedEntryArgs {
@@ -67,6 +73,7 @@ export interface EditPostedEntryArgs {
   p_txs: unknown[];
   p_encrypted_reason: string;
   p_key_version: number;
+  p_expected_updated_at: string | null;
 }
 
 /** Builds the RPC arguments, or throws with a message the user can act on. */
@@ -111,6 +118,7 @@ export function buildEditPostedEntryArgs(input: EditPostedEntryInput): EditPoste
     p_txs: [],
     p_encrypted_reason: input.encryptedReason,
     p_key_version: input.entryKeyVersion,
+    p_expected_updated_at: input.expectedUpdatedAt ?? null,
   };
 }
 

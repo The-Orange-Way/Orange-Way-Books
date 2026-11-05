@@ -17,8 +17,10 @@
  * a waiting line that is sent back unresolved is marked rate_pending, which
  * the edit keeps. That way the next run still finds it.
  *
- * If the entry changed while the rates were being looked up, nothing is sent,
- * so a person's edit is never overwritten with the lines read before it.
+ * The edit carries the entry's updated_at as read here. If the entry changed
+ * while the rates were being looked up, the database refuses it under the
+ * row lock, so a person's edit is never overwritten with the lines read
+ * before it.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -148,18 +150,6 @@ export async function fillPendingRatesOnPostedEntry(
 
   if (filled === 0) return { waiting, filled, stillPending, version: null };
 
-  const { data: now, error: nErr } = await client
-    .from('journal_entries')
-    .select('updated_at')
-    .eq('id', entryId)
-    .single();
-  if (nErr || !now) throw new Error(nErr?.message ?? 'Entry not found.');
-  if ((now as { updated_at: string }).updated_at !== je.updated_at) {
-    throw new Error(
-      'The entry was changed while its rates were being looked up. Nothing was saved.',
-    );
-  }
-
   const version = await editPostedEntry(client, {
     entryId,
     entryKeyVersion: je.key_version ?? 0,
@@ -169,6 +159,7 @@ export async function fillPendingRatesOnPostedEntry(
     amounts,
     encryptedReason: await deps.encrypt(RATE_FILL_REASON),
     reasonText: RATE_FILL_REASON,
+    expectedUpdatedAt: je.updated_at,
   });
   return { waiting, filled, stillPending, version };
 }

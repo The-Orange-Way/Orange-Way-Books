@@ -1,7 +1,7 @@
 -- Tests for owb_edit_posted_entry and the history tables (OWB-T0238).
 --
 -- One self-contained script: everything runs in one transaction and is rolled back, so nothing
--- persists. Run it as the database owner after migrations 20261105160000 and 20261105190000. It prints one row per
+-- persists. Run it as the database owner after migrations 20261105160000, 20261105190000 and 20261105210000. It prints one row per
 -- check from the temp table results; every row must have ok = true.
 --
 -- Each check runs as a real caller: role authenticated with request.jwt.claims set, so auth.uid()
@@ -354,26 +354,55 @@ SELECT pg_temp.fact('history: a non-member sees none of it',
   (SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = e1) = 0) FROM e;
 RESET ROLE;
 
+-- 8b. An edit is refused when the entry changed after the caller read it.
+CREATE FUNCTION pg_temp.edit_at_sql(p_je UUID, p_expected TIMESTAMPTZ) RETURNS TEXT LANGUAGE sql AS $$
+  SELECT format('SELECT public.owb_edit_posted_entry(%L, %L, %L, %L, NULL, %L, 2, %L)',
+    p_je, DATE '2026-10-12', '{"encrypted_memo":"C_MEMO_AT"}'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('account_id', i.acct_a1, 'encrypted_debit', 'C_250', 'encrypted_credit', 'C_0'),
+      jsonb_build_object('account_id', i.acct_a2, 'encrypted_debit', 'C_0', 'encrypted_credit', 'C_250')),
+    'C_REASON', p_expected)
+  FROM ids i;
+$$;
+SELECT pg_temp.act(u_book) FROM ids;
+SELECT pg_temp.chk('an edit made with an older updated_at is refused',
+  pg_temp.edit_at_sql(e_open, TIMESTAMPTZ '2000-01-01'), 'changed after you opened it') FROM e;
+SELECT pg_temp.fact('the refused edit wrote nothing',
+  (SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = e_open) = 0
+  AND (SELECT encrypted_memo IS DISTINCT FROM 'C_MEMO_AT' FROM public.journal_entries WHERE id = e_open)) FROM e;
+SELECT pg_temp.chk('an edit made with the current updated_at goes through',
+  pg_temp.edit_at_sql(e_open, (SELECT updated_at FROM public.journal_entries WHERE id = e_open)), 'OK') FROM e;
+SELECT pg_temp.fact('it wrote one version and the new memo',
+  (SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = e_open) = 1
+  AND (SELECT encrypted_memo = 'C_MEMO_AT' FROM public.journal_entries WHERE id = e_open)) FROM e;
+RESET ROLE;
+
 -- 9. Who can call the function.
 SELECT pg_temp.fact('anon cannot run the edit',
-  NOT has_function_privilege('anon', 'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)', 'EXECUTE'));
+  NOT has_function_privilege('anon', 'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)', 'EXECUTE'));
 SELECT pg_temp.fact('authenticated can run the edit',
-  has_function_privilege('authenticated', 'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)', 'EXECUTE'));
+  has_function_privilege('authenticated', 'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)', 'EXECUTE'));
 
 -- ── Broken copies: each must be caught by the check named in it ───────────────
 
 SELECT pg_temp.broken('broken copy without the closed-month check on the entry date is caught',
-  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)',
+  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)',
   E'IF public.is_date_in_closed_period(v_je.org_id, v_user, v_je.date) IS NOT FALSE\n     OR public.is_date_in_closed_period(v_je.org_id, v_user, p_date) IS NOT FALSE THEN',
   'IF FALSE THEN', u_book,
   pg_temp.edit_sql(e_closed_notx, DATE '2026-03-07', acct_a1, acct_a2),
   format('EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id = %L)', e_closed_notx)) FROM ids, e;
 SELECT pg_temp.broken('broken copy without the linked-transaction permission check is caught',
-  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer)',
+  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)',
   E'IF (public.user_has_capability(v_user, ''transactions.write'', v_je.org_id)\n        OR (public.user_has_capability(v_user, ''transactions.write_own'', v_je.org_id)\n            AND v_tx_row.created_by = v_user)) IS NOT TRUE THEN',
   'IF FALSE THEN', u_book,
   pg_temp.edit_sql(e_owner_tx, DATE '2026-10-16', acct_a1, acct_a2),
   format('EXISTS (SELECT 1 FROM public.journal_entry_versions WHERE journal_entry_id = %L AND edited_by = %L)', e_owner_tx, u_book)) FROM ids, e;
+SELECT pg_temp.broken('broken copy without the changed-since check is caught',
+  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)',
+  'IF p_expected_updated_at IS NOT NULL AND v_je.updated_at IS DISTINCT FROM p_expected_updated_at THEN',
+  'IF FALSE THEN', u_book,
+  pg_temp.edit_at_sql(e_open, TIMESTAMPTZ '2000-01-01'),
+  format('(SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = %L) = 2', e_open)) FROM ids, e;
 SELECT pg_temp.broken('broken copy of the header lock that ignores which entry is caught',
   'public.owb_protect_finalized_journal_entry()',
   '= OLD.id::text', '<> ''''', u_owner,

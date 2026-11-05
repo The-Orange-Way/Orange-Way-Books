@@ -222,6 +222,7 @@ interface JournalEntry {
   exchange_rate: number | null;
   period_locked: boolean;
   created_at: string | null;
+  updated_at?: string | null;
   key_version?: number | null;
 }
 
@@ -1137,6 +1138,7 @@ export default function JournalEntries() {
           })),
           encryptedReason: await encryptText(fReason.trim()),
           reasonText: fReason,
+          expectedUpdatedAt: editingEntry.updated_at ?? null,
         });
         toast.success('Entry updated. The earlier version is in its history.');
       } else if (editingEntry) {

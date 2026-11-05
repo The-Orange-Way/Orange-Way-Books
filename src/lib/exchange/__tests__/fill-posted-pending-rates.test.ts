@@ -273,12 +273,10 @@ describe('fillPendingRatesOnPostedEntry', () => {
     expect(sent[2].encrypted_credit).toBe('C_150');
   });
 
-  it('sends nothing when the entry changed while the rates were being looked up', async () => {
-    const { c, rpcCalls } = setup({ lines: twoLines(), changedTo: 't2' });
+  it('sends the updated_at it read, so the database refuses the fill if the entry changed', async () => {
+    const { c, rpcCalls } = setup({ lines: twoLines() });
     const { build } = fakeBuild(false);
-    await expect(
-      fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build }),
-    ).rejects.toThrow('changed while its rates');
-    expect(rpcCalls).toHaveLength(0);
+    await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
+    expect(rpcCalls[0].args.p_expected_updated_at).toBe('t1');
   });
 });
