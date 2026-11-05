@@ -338,9 +338,11 @@ describe('planPostedEditLines', () => {
       stored: s,
       edited: s.map(edited),
       storedDate: '2026-10-15',
+      storedCurrency: 'MXN',
       date: '2026-10-15',
       currency: 'MXN',
       primaryCurrency: 'USD',
+      encrypt: async (t: string) => `C_${t}`,
       ...over,
     };
   };
@@ -361,20 +363,39 @@ describe('planPostedEditLines', () => {
     expect(out).toEqual([b.stored[1].row, b.stored[0].row]);
   });
 
-  it('rebuilds only a changed line, under the currency the entry was posted in', async () => {
+  it('replaces only the text when only a description changes, keeping the values', async () => {
     const { build, seen } = builder();
     const b = base();
     b.edited[1] = { ...b.edited[1], description: 'fixed text' };
     const out = await planPostedEditLines({ ...b, build });
-    expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatchObject({
-      primary_currency: 'BTC',
-      account_id: 'acct-b',
-      description: 'fixed text',
-      book_value: 7,
-    });
+    expect(seen).toHaveLength(0);
     expect(out[0]).toBe(b.stored[0].row);
-    expect(out[1].encrypted_amount_primary).toBe('C_NEW');
+    expect(out[1]).toEqual({
+      ...b.stored[1].row,
+      account_name: 'C_Account b',
+      description: 'C_fixed text',
+    });
+    expect(out[1].encrypted_amount_primary).toBe('C_P_b');
+  });
+
+  it('keeps an older line that stores no currency of its own when the entry currency is unchanged', async () => {
+    const { build, seen } = builder();
+    const b = base();
+    b.stored[0].walletCurrency = null;
+    const out = await planPostedEditLines({ ...b, build });
+    expect(seen).toHaveLength(0);
+    expect(out[0]).toBe(b.stored[0].row);
+  });
+
+  it('rebuilds a line whose amount changed, under the currency the entry was posted in', async () => {
+    const { build, seen } = builder();
+    const b = base();
+    b.edited[0] = { ...b.edited[0], debit: 90 };
+    b.edited[1] = { ...b.edited[1], credit: 90 };
+    const out = await planPostedEditLines({ ...b, build });
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toMatchObject({ primary_currency: 'BTC', account_id: 'acct-a', debit: 90 });
+    expect(out.map((l) => l.encrypted_amount_primary)).toEqual(['C_NEW', 'C_NEW']);
   });
 
   it('rebuilds every line when the date or currency changes', async () => {

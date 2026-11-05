@@ -1115,9 +1115,11 @@ export default function JournalEntries() {
             credit: parseFloat(l.credit) || 0,
           })),
           storedDate: editingEntry.date,
+          storedCurrency: editingEntry.currency,
           date,
           currency: fCurrency,
           primaryCurrency,
+          encrypt: encryptText,
           build: (params) => buildJournalEntryLineInsert({ ...params, encrypt: encryptText }),
         });
         await editPostedEntry(supabase, {

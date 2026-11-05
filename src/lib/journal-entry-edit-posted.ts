@@ -157,45 +157,66 @@ const blank = (v: string | null | undefined) => (v ?? '').trim();
 /**
  * Chooses the lines to send for a posted edit.
  *
- * A line the user did not change is sent back exactly as stored, so its rate,
- * value in the primary currency, book value and any rate entered by hand stay
- * as they were. Only a changed or added line is rebuilt, under the primary
- * currency the entry was posted in. If a rebuilt line has no rate and the
- * stored line had one, the edit is refused, because saving it would remove a
- * value the books already have.
+ * A line whose account, amounts, currency and date did not change is sent
+ * back as stored, so its rate, value in the primary currency, book value and
+ * any rate entered by hand stay as they were. If only its account name, code
+ * or description changed, just that text is replaced. Only a line whose
+ * value changed, or a new line, is rebuilt, under the primary currency the
+ * entry was posted in. If a rebuilt line has no rate and the stored line had
+ * one, the edit is refused, because saving it would remove a value the books
+ * already have.
  */
 export async function planPostedEditLines(opts: {
   stored: StoredEditLine[];
   edited: EditedLine[];
   storedDate: string;
+  /** The entry's currency as stored, for older lines that do not carry their own. */
+  storedCurrency: string;
   date: string;
   currency: string;
   primaryCurrency: string;
+  encrypt: (plaintext: string) => Promise<string>;
   build: (p: BuildLineParams) => Promise<{ insert: EditLine; pending: boolean }>;
 }): Promise<EditLine[]> {
-  const { stored, edited, storedDate, date, currency, build } = opts;
+  const { stored, edited, storedDate, date, currency, build, encrypt } = opts;
   const entryPrimary = stored.find((s) => s.primaryAtPosting)?.primaryAtPosting;
   const primary = entryPrimary ?? opts.primaryCurrency;
+  const sameValue = (s: StoredEditLine, e: EditedLine) =>
+    s.accountId === e.accountId &&
+    s.debit === e.debit &&
+    s.credit === e.credit &&
+    (s.walletCurrency ?? opts.storedCurrency) === currency &&
+    storedDate === date;
+  const sameText = (s: StoredEditLine, e: EditedLine) =>
+    blank(s.accountName) === blank(e.accountName) &&
+    blank(s.accountCode) === blank(e.accountCode) &&
+    blank(s.description) === blank(e.description);
+
+  // Exact matches first, so a line that only moved is never taken by a
+  // line whose text changed.
   const used = new Set<number>();
+  const pick = (test: (s: StoredEditLine) => boolean) => {
+    const j = stored.findIndex((s, k) => !used.has(k) && test(s));
+    if (j >= 0) used.add(j);
+    return j;
+  };
+  const exact = edited.map((e) => pick((s) => sameValue(s, e) && sameText(s, e)));
+  const byValue = edited.map((e, i) => (exact[i] >= 0 ? -1 : pick((s) => sameValue(s, e))));
+
+  const enc = async (v: string | null) => (v && v.trim() ? encrypt(v) : null);
   const out: EditLine[] = [];
   for (const [i, e] of edited.entries()) {
-    const sameValue = (s: StoredEditLine) =>
-      s.accountId === e.accountId &&
-      s.debit === e.debit &&
-      s.credit === e.credit &&
-      s.walletCurrency === currency &&
-      storedDate === date;
-    const match = stored.findIndex(
-      (s, j) =>
-        !used.has(j) &&
-        sameValue(s) &&
-        blank(s.accountName) === blank(e.accountName) &&
-        blank(s.accountCode) === blank(e.accountCode) &&
-        blank(s.description) === blank(e.description),
-    );
-    if (match >= 0) {
-      used.add(match);
-      out.push(stored[match].row);
+    if (exact[i] >= 0) {
+      out.push(stored[exact[i]].row);
+      continue;
+    }
+    if (byValue[i] >= 0) {
+      out.push({
+        ...stored[byValue[i]].row,
+        account_name: await enc(e.accountName),
+        account_code: await enc(e.accountCode),
+        description: await enc(e.description),
+      });
       continue;
     }
     const before = stored[i];
@@ -209,7 +230,7 @@ export async function planPostedEditLines(opts: {
       account_name: e.accountName,
       account_code: e.accountCode,
       description: e.description,
-      book_value: before && sameValue(before) ? before.bookValue : null,
+      book_value: null,
     });
     if (built.pending && !(before?.ratePending ?? false)) {
       throw new Error(
