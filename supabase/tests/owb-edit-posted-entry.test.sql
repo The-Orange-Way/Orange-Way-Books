@@ -1,7 +1,7 @@
 -- Tests for owb_edit_posted_entry and the history tables (OWB-T0238).
 --
 -- One self-contained script: everything runs in one transaction and is rolled back, so nothing
--- persists. Run it as the database owner after migrations 20261105160000, 20261105190000 and 20261105210000. It prints one row per
+-- persists. Run it as the database owner after migrations 20261105160000, 20261105190000, 20261105210000 and 20261105230000. It prints one row per
 -- check from the temp table results; every row must have ok = true.
 --
 -- Each check runs as a real caller: role authenticated with request.jwt.claims set, so auth.uid()
