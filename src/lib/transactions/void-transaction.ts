@@ -126,10 +126,10 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     const { data: done, error: doneErr } = await supabase
       .from('journal_entry_lines')
       .select('id')
-      .eq('journal_entry_id', (existingReversal as any).id);
+      .eq('journal_entry_id', existingReversal.id);
     if (doneErr) throw doneErr;
     existingReversalHasLines = (done ?? []).length > 0;
-    if (!existingReversalHasLines && (existingReversal as any).status !== 'DRAFT') {
+    if (!existingReversalHasLines && existingReversal.status !== 'DRAFT') {
       throw new Error('This void stopped in a state it cannot finish on its own. Contact support.');
     }
   }
@@ -194,7 +194,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
 
   let reversalJeId: string;
   if (existingReversal) {
-    reversalJeId = (existingReversal as any).id;
+    reversalJeId = existingReversal.id;
   } else {
     const { data: reversalJeRow, error: reversalJeErr } = await supabase
       .from('journal_entries')
@@ -246,7 +246,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // void entry still counts in the books (see entriesInBooks), so the two still cancel. An original
   // that was never posted is marked void too, or its posted reversal would count with nothing to cancel.
   if (origJe.status !== 'VOID') await setEntryStatus(origTx.journal_entry_id, 'VOID');
-  if (!existingReversal || (existingReversal as any).status === 'DRAFT') {
+  if (!existingReversal || existingReversal.status === 'DRAFT') {
     await setEntryStatus(reversalJeId, 'POSTED');
   }
 
@@ -301,7 +301,7 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
 async function setEntryStatus(id: string, status: 'POSTED' | 'VOID'): Promise<void> {
   const { data, error } = await supabase
     .from('journal_entries')
-    .update({ status } as any)
+    .update({ status })
     .eq('id', id)
     .select('id');
   if (error) throw error;

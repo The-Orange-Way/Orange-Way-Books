@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { format } from 'date-fns';
-import { linesInBooks } from '@/lib/ledger/entries-in-books';
+import { linesInBooks, type LineWithEntry } from '@/lib/ledger/entries-in-books';
 
 interface RegisterRow {
   id: string;
@@ -134,7 +134,11 @@ export default function AccountRegister() {
         const jelDecrypted: Omit<RegisterRow, 'running'>[] = [];
         // Only entries in the books, the same rule the reports use. A voided entry and its
         // reversal are both shown, so they cancel in the running balance.
-        const inBooks = new Set(linesInBooks((jelRows ?? []) as any[]).map((r) => r.id));
+        const inBooks = new Set(
+          linesInBooks((jelRows ?? []) as unknown as (LineWithEntry & { id: string })[]).map(
+            (r) => r.id,
+          ),
+        );
         for (const row of (jelRows ?? []) as any[]) {
           if (!inBooks.has(row.id)) continue;
           try {

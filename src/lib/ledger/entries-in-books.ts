@@ -33,9 +33,13 @@ export function entriesInBooks(entries: Iterable<EntryStatus>): Set<string> {
 }
 
 /** Keeps the journal lines whose entry is in the books. Each line carries its entry as `journal_entries`. */
-export function linesInBooks<
-  T extends { journal_entry_id: string; journal_entries?: Omit<EntryStatus, 'id'> | null },
->(lines: T[]): T[] {
+/** A journal line loaded with its entry's status fields. */
+export type LineWithEntry = {
+  journal_entry_id: string;
+  journal_entries?: Omit<EntryStatus, 'id'> | null;
+};
+
+export function linesInBooks<T extends LineWithEntry>(lines: T[]): T[] {
   const byId = new Map<string, EntryStatus>();
   for (const l of lines) {
     if (l.journal_entries)

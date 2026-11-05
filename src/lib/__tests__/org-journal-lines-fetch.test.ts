@@ -150,7 +150,7 @@ describe('no page reads all of an org journal lines in one request', () => {
 
   it('the register and revaluation count lines by the same rule as the reports', () => {
     for (const [f, call] of [
-      ['pages/AccountRegister.tsx', 'linesInBooks((jelRows ?? []) as any[])'],
+      ['pages/AccountRegister.tsx', 'linesInBooks((jelRows ?? [])'],
       [
         'components/fx-revaluation/RevaluationWizard.tsx',
         'linesInBooks((jeRes.data as any[]) ?? [])',

@@ -195,7 +195,7 @@ import {
   ENTRY_NOT_UPDATED_MESSAGE,
 } from '../void-transaction';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
-import { entriesInBooks } from '@/lib/ledger/entries-in-books';
+import { entriesInBooks, type EntryStatus } from '@/lib/ledger/entries-in-books';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
@@ -419,7 +419,7 @@ describe('voidTransaction', () => {
       signMutation,
     });
     // Ask the shared rule what reports will count: both sides, or neither.
-    const counted = entriesInBooks(store.journal_entries as any[]);
+    const counted = entriesInBooks(store.journal_entries as unknown as EntryStatus[]);
     expect(counted.has('je-1')).toBe(counted.has(result.reversalJournalEntryId));
     expect(store.journal_entries.find((j) => j.id === 'je-1')!.status).toBe('VOID');
   });

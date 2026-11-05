@@ -13,7 +13,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { linesInBooks } from './ledger/entries-in-books';
+import { linesInBooks, type LineWithEntry } from './ledger/entries-in-books';
 
 export const ORG_LINES_PAGE = 1000;
 
@@ -39,7 +39,10 @@ export async function fetchOrgJournalLines<T = Record<string, unknown>>(
     const page = (data ?? []) as T[];
     if (page.length === 0) {
       // Filtered after loading, because whether a draft reversal counts depends on its original.
-      return { data: linesInBooks(rows as any[]) as T[], error: null };
+      return {
+        data: linesInBooks(rows as unknown as LineWithEntry[]) as unknown as T[],
+        error: null,
+      };
     }
     rows.push(...page);
   }
