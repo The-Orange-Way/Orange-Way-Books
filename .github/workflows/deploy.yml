@@ -86,6 +86,19 @@ jobs:
           # Prod keeps the live key. Only the prod project has the captcha
           # switch on, and only a real challenge should satisfy it.
           VITE_TURNSTILE_SITE_KEY: ${{ (github.ref_name == 'prod' || startsWith(github.ref_name, 'hotfix/prod-')) && vars.TURNSTILE_SITE_KEY_PROD || '1x00000000000000000000AA' }}
+          # Orange Rails platform slug for the wallet connect widget. There is
+          # no default in code (src/lib/or/widget.ts refuses to guess), because
+          # dev and prod are different platform rows and a wrong slug fails
+          # later as a misleading 401 on the widget token. Both arms explicit,
+          # same branch rule as the Turnstile key above.
+          VITE_OR_PLATFORM_SLUG: ${{ (github.ref_name == 'prod' || startsWith(github.ref_name, 'hotfix/prod-')) && 'orangewaybooks' || 'orangeway-books' }}
+          # Stealth Sync connect button (src/pages/Connections.tsx reads the
+          # string "true"). Same name as the sibling app's flag. On for dev
+          # only, so the flow can be exercised on the dev site. Prod stays off:
+          # turning it on for customers is a release decision taken after the
+          # dev run. VITE_OR_CONNECT_URL is left unset on purpose so the code
+          # default (the connect host itself, not the apex) is used.
+          VITE_STEALTH_SYNC_ENABLED: ${{ github.ref_name == 'dev' && 'true' || 'false' }}
 
       - name: Pick Pages project for this branch
         id: target

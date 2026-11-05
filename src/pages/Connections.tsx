@@ -184,7 +184,8 @@ const BANK_CONNECT_ENABLED =
 // two builds are switched by the same variable name, even though this build
 // does not yet read it from a runtime kill switch the way the sibling does.
 // That kill switch is a separate, still pending piece of work, do not port
-// it here yet. Off in both dev and prod until the team turns it on.
+// it here yet. The deploy workflow turns it on for dev builds only; prod
+// stays off until the release owner turns it on.
 const STEALTH_SYNC_ENABLED =
   (import.meta.env.VITE_STEALTH_SYNC_ENABLED as string | undefined) === 'true';
 
