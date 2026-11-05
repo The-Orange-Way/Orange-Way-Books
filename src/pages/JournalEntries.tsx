@@ -52,6 +52,7 @@ import {
   editPostedEntry,
   fetchEntryHistory,
   firstOpenDay,
+  laterDate,
   loadStoredEditLines,
   planPostedEditLines,
   type EditLine,
@@ -224,6 +225,7 @@ interface JournalEntry {
   period_locked: boolean;
   created_at: string | null;
   key_version?: number | null;
+  reversal_of_id?: string | null;
 }
 
 interface JournalLine {
@@ -599,6 +601,9 @@ export default function JournalEntries() {
 
   // Lock date from org_settings
   const [lockDate, setLockDate] = useState<string | null>(null);
+  // The latest period close. The database enforces this one; lockDate is the
+  // older settings field, still honoured by this screen.
+  const [periodCloseDate, setPeriodCloseDate] = useState<string | null>(null);
 
   // Manual rate dialog — shown when a JE line posts with rate_pending=true
   const [manualRateOpen, setManualRateOpen] = useState(false);
@@ -654,6 +659,16 @@ export default function JournalEntries() {
       supabase.from('chart_of_accounts').select('*').eq('org_id', orgId),
       supabase.from('organizations').select('name, key_version').eq('id', orgId).maybeSingle(),
     ]);
+    const { data: closeRow } = await supabase
+      .from('org_period_closes' as never)
+      .select('locked_through_date')
+      .eq('org_id', orgId)
+      .order('closed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setPeriodCloseDate(
+      (closeRow as { locked_through_date?: string | null } | null)?.locked_through_date ?? null,
+    );
     if (orgRes.data) {
       const decOrg = await decryptOrganization(orgRes.data as any, decryptText);
       setOrgName((decOrg.name ?? '').trim());
@@ -992,11 +1007,17 @@ export default function JournalEntries() {
   const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.001 && totalDebits > 0;
   const editingPosted = editingEntry?.status === 'POSTED';
+  const closedThrough = laterDate(lockDate, periodCloseDate);
+  const reversedIds = useMemo(
+    () => new Set(entries.map((e) => e.reversal_of_id).filter((id): id is string => !!id)),
+    [entries],
+  );
   const editingPostedClosed =
     editingPosted &&
     !!editingEntry &&
     !editingEntry.source_type &&
-    entryFallsInLockedPeriod(editingEntry.date, lockDate);
+    !reversedIds.has(editingEntry.id) &&
+    entryFallsInLockedPeriod(editingEntry.date, closedThrough);
 
   // Lock date check whenever date changes
   const isLocked = useMemo(() => {
@@ -1309,8 +1330,8 @@ export default function JournalEntries() {
   // A posted entry in a closed month cannot be edited. It is reversed on the
   // first open day instead, at the original entry's rate.
   const handleReverseClosed = async () => {
-    if (!editingEntry || !lockDate) return;
-    const day = firstOpenDay(lockDate);
+    if (!editingEntry || !closedThrough) return;
+    const day = firstOpenDay(closedThrough);
     const done = await reverseOn(
       editingEntry.id,
       day,
@@ -1745,7 +1766,10 @@ export default function JournalEntries() {
                   const isDraft = entry.status === 'DRAFT';
                   const canEdit = isDraft && !entry.period_locked;
                   const canReverse =
-                    entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
+                    entry.status === 'POSTED' &&
+                    !entry.period_locked &&
+                    !entry.source_type &&
+                    !reversedIds.has(entry.id);
 
                   return (
                     <>
@@ -1956,7 +1980,10 @@ export default function JournalEntries() {
               const isDraft = entry.status === 'DRAFT';
               const canEdit = isDraft && !entry.period_locked;
               const canReverse =
-                entry.status === 'POSTED' && !entry.period_locked && !entry.source_type;
+                entry.status === 'POSTED' &&
+                !entry.period_locked &&
+                !entry.source_type &&
+                !reversedIds.has(entry.id);
               const isBtcCurrency = entry.currency === 'BTC' || entry.currency === 'SATS';
               return (
                 <div

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { decryptJournalEntryLine } from '@/lib/crypto-fields';
 import { reversalLineAtOriginalRate } from '../reverse-journal-entry';
-import { firstOpenDay } from '@/lib/journal-entry-edit-posted';
+import { firstOpenDay, laterDate } from '@/lib/journal-entry-edit-posted';
 
 const encrypt = async (s: string) => `C_${s}`;
 const decrypt = async (s: string) => s.replace(/^C_/, '');
@@ -57,31 +57,67 @@ describe('reversalLineAtOriginalRate', () => {
     expect(back.amount_native! + orig.amount_native!).toBe(0);
   });
 
-  it('returns null for a line the original never priced', async () => {
+  it('returns null only for a line with no value in the primary currency', async () => {
     expect(
       await reversalLineAtOriginalRate({ ...row, rate_pending: true }, dec(), encrypt),
     ).toBeNull();
     expect(
       await reversalLineAtOriginalRate(row, dec({ amount_primary: null }), encrypt),
     ).toBeNull();
-    expect(await reversalLineAtOriginalRate(row, dec({ posted_rate: null }), encrypt)).toBeNull();
-    expect(
-      await reversalLineAtOriginalRate(row, dec({ primary_currency_at_posting: null }), encrypt),
-    ).toBeNull();
-    expect(
-      await reversalLineAtOriginalRate(row, dec({ wallet_currency: null }), encrypt),
-    ).toBeNull();
   });
 
-  it('reverseJournalEntry tries the original rate before pricing afresh', () => {
+  it('keeps a stored value even when the rate or currencies are missing', async () => {
+    const orig = dec({
+      amount_native: 100,
+      amount_primary: 200,
+      posted_rate: null,
+      wallet_currency: null,
+      primary_currency_at_posting: null,
+    });
+    const line = await reversalLineAtOriginalRate(row, orig, encrypt);
+    expect(line).not.toBeNull();
+    const back = await decryptJournalEntryLine({ ...line }, decrypt);
+    expect(back.amount_primary).toBe(-200);
+    expect(back.amount_native).toBe(-100);
+    expect(back.posted_rate).toBeNull();
+    expect(back.primary_currency_at_posting).toBeNull();
+  });
+
+  it('works out the native amount from the sides when it was not stored', async () => {
+    const line = await reversalLineAtOriginalRate(row, dec({ amount_native: null }), encrypt);
+    const back = await decryptJournalEntryLine({ ...line }, decrypt);
+    expect(back.amount_native).toBe(-100);
+  });
+
+  it('refuses a line whose posting currency cannot be read', async () => {
+    await expect(
+      reversalLineAtOriginalRate(
+        row,
+        dec({ primary_currency_at_posting: null, primary_currency_at_posting_unreadable: true }),
+        encrypt,
+      ),
+    ).rejects.toThrow('cannot be read');
+  });
+
+  it('reverseJournalEntry tries the original value before pricing afresh', () => {
     const code = readFileSync(join(__dirname, '..', 'reverse-journal-entry.ts'), 'utf8');
     const tryAt = code.indexOf('await reversalLineAtOriginalRate(row, dec');
     const buildAt = code.indexOf('await buildJournalEntryLineInsert({');
     expect(tryAt).toBeGreaterThan(-1);
     expect(buildAt).toBeGreaterThan(tryAt);
     expect(code).toMatch(
-      /if \(atOriginal\) \{\s*return \{ journal_entry_id: reversalId, account_id: accountId, \.\.\.atOriginal \};/,
+      /if \(atOriginal\) \{\s*return \{ account_id: accountId, \.\.\.atOriginal \};/,
     );
+  });
+});
+
+describe('laterDate', () => {
+  it('picks the later date and copes with a missing one', () => {
+    expect(laterDate('2026-09-30', '2026-10-31')).toBe('2026-10-31');
+    expect(laterDate('2026-10-31', '2026-09-30')).toBe('2026-10-31');
+    expect(laterDate(null, '2026-09-30')).toBe('2026-09-30');
+    expect(laterDate('2026-09-30', null)).toBe('2026-09-30');
+    expect(laterDate(null, null)).toBeNull();
   });
 });
 
@@ -97,13 +133,23 @@ describe('Journal screen: a posted entry in a closed month', () => {
   const page = readFileSync(join(__dirname, '../../../pages/JournalEntries.tsx'), 'utf8');
   it('offers a reversal dated the first open day', () => {
     expect(page).toMatch(
-      /const day = firstOpenDay\(lockDate\);\s*const done = await reverseOn\(\s*editingEntry\.id,\s*day,/,
+      /const day = firstOpenDay\(closedThrough\);\s*const done = await reverseOn\(\s*editingEntry\.id,\s*day,/,
     );
     expect(page).toMatch(
       /\{editingPostedClosed && \(\s*<Button[^>]*onClick=\{handleReverseClosed\}/,
     );
   });
+  it('uses the later of the settings lock and the latest period close', () => {
+    expect(page).toMatch(/const closedThrough = laterDate\(lockDate, periodCloseDate\);/);
+    expect(page).toMatch(
+      /from\('org_period_closes' as never\)\s*\.select\('locked_through_date'\)[\s\S]{0,120}\.order\('closed_at', \{ ascending: false \}\)/,
+    );
+  });
+  it('does not offer a second reversal of an entry already reversed', () => {
+    expect(page.match(/!reversedIds\.has\(entry\.id\)/g)?.length).toBe(2);
+    expect(page).toMatch(/!reversedIds\.has\(editingEntry\.id\)/);
+  });
   it('decides "closed" from the stored date, not the date in the form', () => {
-    expect(page).toMatch(/entryFallsInLockedPeriod\(editingEntry\.date, lockDate\)/);
+    expect(page).toMatch(/entryFallsInLockedPeriod\(editingEntry\.date, closedThrough\)/);
   });
 });
