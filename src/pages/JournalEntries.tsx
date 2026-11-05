@@ -51,6 +51,7 @@ import { postJournalEntry } from '@/lib/journal-entry-post';
 import {
   editPostedEntry,
   fetchEntryHistory,
+  firstOpenDay,
   loadStoredEditLines,
   planPostedEditLines,
   type EditLine,
@@ -991,6 +992,11 @@ export default function JournalEntries() {
   const totalCredits = fLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.001 && totalDebits > 0;
   const editingPosted = editingEntry?.status === 'POSTED';
+  const editingPostedClosed =
+    editingPosted &&
+    !!editingEntry &&
+    !editingEntry.source_type &&
+    entryFallsInLockedPeriod(editingEntry.date, lockDate);
 
   // Lock date check whenever date changes
   const isLocked = useMemo(() => {
@@ -1275,25 +1281,42 @@ export default function JournalEntries() {
     await fetchData();
   };
 
-  const handleReverse = async (id: string) => {
-    if (
-      !confirm(
-        'Reverse this journal entry? A new reversing entry will be posted in the current period.',
-      )
-    )
-      return;
+  const reverseOn = async (id: string, date: string, question: string): Promise<boolean> => {
+    if (!confirm(question)) return false;
     try {
       await reverseJournalEntry({
         journalEntryId: id,
         orgId: orgId!,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date,
         encryptText,
         decryptText,
       });
       await fetchData();
+      return true;
     } catch (err: any) {
       alert(`Reverse failed: ${err?.message ?? err}`);
+      return false;
     }
+  };
+
+  const handleReverse = (id: string) =>
+    reverseOn(
+      id,
+      format(new Date(), 'yyyy-MM-dd'),
+      'Reverse this journal entry? A new reversing entry will be posted in the current period.',
+    );
+
+  // A posted entry in a closed month cannot be edited. It is reversed on the
+  // first open day instead, at the original entry's rate.
+  const handleReverseClosed = async () => {
+    if (!editingEntry || !lockDate) return;
+    const day = firstOpenDay(lockDate);
+    const done = await reverseOn(
+      editingEntry.id,
+      day,
+      `This month is closed, so the entry cannot be edited. Reverse it instead? The reversing entry is dated ${day}, the first open day, at the original entry's rates.`,
+    );
+    if (done) setModalOpen(false);
   };
 
   /* ───── Bulk actions (Track 7) ─────
@@ -2397,6 +2420,11 @@ export default function JournalEntries() {
             <Button variant="outline" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
+            {editingPostedClosed && (
+              <Button variant="outline" onClick={handleReverseClosed} disabled={saving}>
+                Reverse instead
+              </Button>
+            )}
             <Button
               onClick={() => handleSave('save_close')}
               disabled={saving || !isBalanced || isLocked || (editingPosted && !fReason.trim())}

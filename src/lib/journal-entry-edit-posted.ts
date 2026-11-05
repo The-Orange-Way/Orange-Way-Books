@@ -154,6 +154,13 @@ export interface BuildLineParams {
 
 const blank = (v: string | null | undefined) => (v ?? '').trim();
 
+/** The day after the lock date, yyyy-MM-dd: the first day an entry can be posted. */
+export function firstOpenDay(lockDate: string): string {
+  const d = new Date(`${lockDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Chooses the lines to send for a posted edit.
  *

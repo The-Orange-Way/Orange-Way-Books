@@ -15,10 +15,15 @@
  *      currency via buildJournalEntryLineInsert.
  *   5. Flip the original journal_entries.status to encrypted 'VOID'.
  *
+ * A reversed line that the original priced is written at the original line's
+ * rate, primary currency and value, so the reversal cancels the original in
+ * the primary currency as well as in the wallet currency. Only a line the
+ * original never priced (rate still pending, or an older line without a value
+ * in the primary currency) is priced afresh at the reversal date.
+ *
  * Limitations:
- *   - Reverse-JE always lands in the current period (T3.b lock). When period-
- *     lock enforcement ships, this can branch on original_period vs
- *     current_period.
+ *   - The caller picks the reversal date. The Journal screen uses today, or the
+ *     first open day when the entry sits in a closed month.
  *   - Reversing entries created by this helper themselves cannot be reversed
  *     (canReverse check on the UI already filters source_type='void_reversal').
  */
@@ -26,8 +31,10 @@
 import { supabase } from '@/lib/supabase';
 import {
   encryptJournalEntry,
+  encryptJournalEntryLine,
   decryptJournalEntry,
   decryptJournalEntryLine,
+  type JournalEntryLineEncrypted,
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { writeAuditLog } from '@/lib/audit-logger';
@@ -41,12 +48,57 @@ const KEY_VERSION = 2;
 export interface ReverseJournalEntryParams {
   journalEntryId: string;
   orgId: string;
-  /** Date for the reversing JE. Today in YYYY-MM-DD. */
+  /** Date for the reversing JE, YYYY-MM-DD: today, or the first open day when the original is in a closed month. */
   date: string;
   /** Optional reason; recorded in the reversing JE's memo. */
   reason?: string;
   encryptText: EncryptFn;
   decryptText: DecryptFn;
+}
+
+type DecryptedLine = Awaited<ReturnType<typeof decryptJournalEntryLine>>;
+
+/**
+ * The reversing line for one original line, at the original line's rate.
+ * Returns null when the original line was never priced, so the caller prices
+ * it afresh.
+ */
+export async function reversalLineAtOriginalRate(
+  row: { rate_pending?: boolean | null; rate_asof?: string | null; pinned_rate_id?: string | null },
+  dec: DecryptedLine,
+  encrypt: EncryptFn,
+): Promise<JournalEntryLineEncrypted | null> {
+  if (
+    row.rate_pending ||
+    dec.amount_native == null ||
+    dec.amount_primary == null ||
+    dec.posted_rate == null ||
+    !dec.wallet_currency ||
+    !dec.primary_currency_at_posting
+  ) {
+    return null;
+  }
+  return encryptJournalEntryLine(
+    {
+      account_name: dec.account_name,
+      account_code: dec.account_code,
+      description: `Reversal of: ${dec.description ?? ''}`.trim(),
+      debit: dec.credit,
+      credit: dec.debit,
+      book_value: null,
+      amount_native: -dec.amount_native,
+      amount_primary: -dec.amount_primary,
+      posted_rate: dec.posted_rate,
+      wallet_currency: dec.wallet_currency,
+    },
+    encrypt,
+    {
+      primary_currency_at_posting: dec.primary_currency_at_posting,
+      rate_pending: false,
+      rate_asof: row.rate_asof ?? null,
+      pinned_rate_id: row.pinned_rate_id ?? null,
+    },
+  );
 }
 
 export interface ReverseJournalEntryResult {
@@ -80,6 +132,7 @@ export async function reverseJournalEntry(
     origLines.map((l: any) =>
       decryptJournalEntryLine(l, p.decryptText).then((dec) => ({
         dec,
+        row: l,
         accountId: l.account_id as string,
       })),
     ),
@@ -123,7 +176,11 @@ export async function reverseJournalEntry(
 
   // ── Build reversed lines (debit ↔ credit swapped) ────────────────────
   const reversedLineInserts = await Promise.all(
-    origLineDecs.map(async ({ dec, accountId }) => {
+    origLineDecs.map(async ({ dec, row, accountId }) => {
+      const atOriginal = await reversalLineAtOriginalRate(row, dec, p.encryptText);
+      if (atOriginal) {
+        return { journal_entry_id: reversalId, account_id: accountId, ...atOriginal };
+      }
       const buildRes = await buildJournalEntryLineInsert({
         wallet_currency: dec.wallet_currency ?? origJeDec.currency,
         primary_currency: orgPrimary,
