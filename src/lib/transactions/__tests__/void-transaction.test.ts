@@ -30,6 +30,8 @@ interface FakeStore {
 let store: FakeStore;
 /** When set, an insert into this table fails like a unique-index violation. */
 let uniqueViolationOn: keyof FakeStore | null = null;
+/** When set, an update on this table fails as the database would refuse it. */
+let updateFailsOn: keyof FakeStore | null = null;
 
 function makeSupabase() {
   function from(table: keyof FakeStore) {
@@ -73,6 +75,11 @@ function makeSupabase() {
     async function run(): Promise<{ data: unknown; error: null }> {
       const rows = applyFilters(store[table]);
       if (updatePayload !== null) {
+        if (updateFailsOn === table)
+          return { data: null, error: { message: 'update refused' } } as unknown as {
+            data: unknown;
+            error: null;
+          };
         for (const r of rows) Object.assign(r, updatePayload);
         return { data: null, error: null };
       }
@@ -324,6 +331,7 @@ beforeEach(() => {
     org_settings: [{ org_id: ORG, primary_currency: 'USD', key_version: null }],
   };
   uniqueViolationOn = null;
+  updateFailsOn = null;
   resolvePinnedRate.mockClear();
   loadOrgSigningKey.mockClear();
   signMutation.mockClear();
@@ -379,6 +387,24 @@ describe('voidTransaction', () => {
     expect(loadOrgSigningKey).toHaveBeenCalledWith(ORG);
     expect(signMutation).toHaveBeenCalledTimes(1);
     expect(signMutation.mock.calls[0][1]).toBe(ORG);
+  });
+
+  it('stops and leaves the transaction unvoided when the entry status cannot be written', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    updateFailsOn = 'journal_entries';
+    await expect(
+      voidTransaction({
+        txId: 'tx-1',
+        orgId: ORG,
+        legacyJournalId: null,
+        date: '2026-05-21',
+        encryptText,
+        decryptText,
+        loadOrgSigningKey,
+        signMutation,
+      }),
+    ).rejects.toEqual({ message: 'update refused' });
+    expect(store.transactions.find((t) => t.id === 'tx-1')!.status).toBe('enc(POSTED)');
   });
 
   it("values the reversal in the org's primary currency, not the entry's own currency", async () => {
