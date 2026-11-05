@@ -54,7 +54,7 @@ describe('Journal Entries page', () => {
 
   /** The body of `const openEdit = (` up to the next `const ` at the same indent. */
   function openEditBody(src: string): string {
-    const start = src.indexOf('const openEdit = (');
+    const start = src.search(/const openEdit = (async )?\(/);
     if (start === -1) throw new Error('openEdit not found');
     const end = src.indexOf('\n  const ', start + 1);
     return src.slice(start, end === -1 ? undefined : end);
