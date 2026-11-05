@@ -377,6 +377,34 @@ SELECT pg_temp.fact('it wrote one version and the new memo',
   AND (SELECT encrypted_memo = 'C_MEMO_AT' FROM public.journal_entries WHERE id = e_open)) FROM e;
 RESET ROLE;
 
+-- 8c. An edit with no reason is refused, before anything is written.
+CREATE FUNCTION pg_temp.edit_reason_sql(p_je UUID, p_date DATE, p_reason TEXT) RETURNS TEXT LANGUAGE sql AS $$
+  SELECT format('SELECT public.owb_edit_posted_entry(%L, %L, %L, %L, NULL, %L, 2, NULL)',
+    p_je, p_date, '{"encrypted_memo":"C_MEMO_NOREASON"}'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('account_id', i.acct_a1, 'encrypted_debit', 'C_250', 'encrypted_credit', 'C_0'),
+      jsonb_build_object('account_id', i.acct_a2, 'encrypted_debit', 'C_0', 'encrypted_credit', 'C_250')),
+    p_reason)
+  FROM ids i;
+$$;
+SELECT pg_temp.act(u_book) FROM ids;
+SELECT pg_temp.chk('an edit with no reason is refused',
+  pg_temp.edit_reason_sql(e_open, DATE '2026-10-13', NULL), 'Say why this posted entry is being changed') FROM e;
+SELECT pg_temp.chk('an edit with an empty reason is refused',
+  pg_temp.edit_reason_sql(e_open, DATE '2026-10-13', ''), 'Say why this posted entry is being changed') FROM e;
+SELECT pg_temp.chk('an edit with a blank reason is refused',
+  pg_temp.edit_reason_sql(e_open, DATE '2026-10-13', '   '), 'Say why this posted entry is being changed') FROM e;
+SELECT pg_temp.fact('the refused edits wrote nothing',
+  (SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = e_open) = 1
+  AND (SELECT encrypted_memo IS DISTINCT FROM 'C_MEMO_NOREASON' FROM public.journal_entries WHERE id = e_open)) FROM e;
+RESET ROLE;
+SELECT pg_temp.act(u_owner) FROM ids;
+SELECT pg_temp.chk('an override edit in a closed month with no reason is refused',
+  pg_temp.edit_reason_sql(e_closed, DATE '2026-03-06', NULL), 'Say why this posted entry is being changed') FROM e;
+RESET ROLE;
+SELECT pg_temp.fact('the refused override edit wrote no version',
+  (SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = e_closed) = 1) FROM e;
+
 -- 9. Who can call the function.
 SELECT pg_temp.fact('anon cannot run the edit',
   NOT has_function_privilege('anon', 'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)', 'EXECUTE'));
@@ -402,6 +430,12 @@ SELECT pg_temp.broken('broken copy without the changed-since check is caught',
   'IF p_expected_updated_at IS NOT NULL AND v_je.updated_at IS DISTINCT FROM p_expected_updated_at THEN',
   'IF FALSE THEN', u_book,
   pg_temp.edit_at_sql(e_open, TIMESTAMPTZ '2000-01-01'),
+  format('(SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = %L) = 2', e_open)) FROM ids, e;
+SELECT pg_temp.broken('broken copy without the reason check is caught',
+  'public.owb_edit_posted_entry(uuid,date,jsonb,jsonb,jsonb,text,integer,timestamptz)',
+  'IF p_encrypted_reason IS NULL OR btrim(p_encrypted_reason) = '''' THEN',
+  'IF FALSE THEN', u_book,
+  pg_temp.edit_reason_sql(e_open, DATE '2026-10-13', NULL),
   format('(SELECT count(*) FROM public.journal_entry_versions WHERE journal_entry_id = %L) = 2', e_open)) FROM ids, e;
 SELECT pg_temp.broken('broken copy of the header lock that ignores which entry is caught',
   'public.owb_protect_finalized_journal_entry()',
