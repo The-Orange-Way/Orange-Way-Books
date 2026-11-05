@@ -30,6 +30,9 @@ export async function fetchOrgJournalLines<T = Record<string, unknown>>(
         '*, journal_entries!inner(date, org_id, reversal_of_id, encrypted_currency, key_version)',
       )
       .eq('journal_entries.org_id', orgId)
+      // Drafts are not in the books yet. Voided entries stay in, because each one is cancelled by its
+      // posted reversal, and dropping one side would leave the other uncancelled.
+      .neq('journal_entries.status', 'DRAFT')
       .order('id', { ascending: true })
       .range(rows.length, rows.length + pageSize - 1);
     if (error) return { data: null, error };

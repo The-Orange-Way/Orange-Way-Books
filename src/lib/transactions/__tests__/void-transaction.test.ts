@@ -352,6 +352,10 @@ describe('voidTransaction', () => {
     // the immutability trigger). Not encrypted.
     expect(reversalJe!.source_type).toBe('void_reversal');
     expect(reversalJe!.reversal_of_id).toBe('je-1');
+    // The reversal is posted, not left as an editable draft, and the original entry is marked void,
+    // so reports that count posted and voided entries see both sides and they cancel.
+    expect(reversalJe!.status).toBe('POSTED');
+    expect(store.journal_entries.find((j) => j.id === 'je-1')!.status).toBe('VOID');
 
     // Lines were inserted with debit / credit swapped.
     const reversedLines = store.journal_entry_lines.filter(

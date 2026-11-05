@@ -11,6 +11,7 @@ function client(total: number, maxRows: number, failAtOffset?: number) {
   const query = {
     select: () => query,
     eq: () => query,
+    neq: () => query,
     order: () => query,
     range: async (from: number, to: number) => {
       ranges.push([from, to]);
@@ -61,6 +62,44 @@ describe('fetchOrgJournalLines', () => {
       }
     ).range(0, 1_000_000);
     expect(data).toHaveLength(1000);
+  });
+});
+
+/** Fake that applies the filters it is given, over lines whose entries have the given statuses. */
+function statusClient(statuses: string[]) {
+  const rows = statuses.map((status, id) => ({ id, journal_entries: { status } }));
+  const filters: Array<(r: (typeof rows)[number]) => boolean> = [];
+  const field = (col: string) => (r: (typeof rows)[number]) =>
+    col === 'journal_entries.status' ? r.journal_entries.status : undefined;
+  const query = {
+    select: () => query,
+    eq: (col: string, v: unknown) => (
+      col === 'journal_entries.status' && filters.push((r) => field(col)(r) === v),
+      query
+    ),
+    neq: (col: string, v: unknown) => (filters.push((r) => field(col)(r) !== v), query),
+    order: () => query,
+    range: async (from: number, to: number) => ({
+      data: rows.filter((r) => filters.every((f) => f(r))).slice(from, to + 1),
+      error: null,
+    }),
+  };
+  return { from: () => query } as unknown as SupabaseClient;
+}
+
+describe('fetchOrgJournalLines counts only entries that are in the books', () => {
+  it('leaves out draft entries and keeps posted, voided and void reversals', async () => {
+    const c = statusClient(['POSTED', 'DRAFT', 'VOID', 'VOID_REVERSAL', 'DRAFT']);
+    const { data } = await fetchOrgJournalLines<{ id: number }>(c, 'org');
+    expect(data!.map((r) => r.id)).toEqual([0, 2, 3]);
+  });
+
+  it('negative control: the same fake with no filter returns the drafts too', async () => {
+    const c = statusClient(['POSTED', 'DRAFT']);
+    const q = c.from('journal_entry_lines').select('*') as unknown as {
+      range: (a: number, b: number) => Promise<{ data: unknown[] }>;
+    };
+    expect((await q.range(0, 10)).data).toHaveLength(2);
   });
 });
 

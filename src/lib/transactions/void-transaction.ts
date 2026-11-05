@@ -214,6 +214,20 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
     .insert(reversedLineInserts as any);
   if (reversedLinesErr) throw reversedLinesErr;
 
+  // ── Phase 4b: post the reversal and void the original entry ───────────
+  // The reversal is written as a draft so its lines can be added, then posted. Left as a draft it
+  // would stay editable and the reports, which count posted entries only, would not cancel the original.
+  const { error: postErr } = await supabase
+    .from('journal_entries')
+    .update({ status: 'POSTED' } as any)
+    .eq('id', reversalJeId);
+  if (postErr) throw postErr;
+  const { error: origVoidErr } = await supabase
+    .from('journal_entries')
+    .update({ status: 'VOID' } as any)
+    .eq('id', origTx.journal_entry_id);
+  if (origVoidErr) throw origVoidErr;
+
   // ── Phase 5: flip original transactions to VOID status ────────────────
   // Phase 4.4: sign the status flip. We compute one signature over the
   // reversal JE id + the void status, then stamp it on each affected row.
