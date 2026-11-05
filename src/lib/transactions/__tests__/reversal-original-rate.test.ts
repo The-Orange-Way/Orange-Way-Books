@@ -149,6 +149,15 @@ describe('Journal screen: a posted entry in a closed month', () => {
     expect(page.match(/!reversedIds\.has\(entry\.id\)/g)?.length).toBe(2);
     expect(page).toMatch(/!reversedIds\.has\(editingEntry\.id\)/);
   });
+  it('bulk Reverse skips an entry already reversed', () => {
+    const bulk = page.slice(
+      page.indexOf('const handleBulkReverse'),
+      page.indexOf('const handleBulkDelete'),
+    );
+    expect(bulk).toMatch(
+      /e\.source_type === 'void_reversal' \|\|\s*reversedIds\.has\(id\)\s*\)\s*continue;/,
+    );
+  });
   it('decides "closed" from the stored date, not the date in the form', () => {
     expect(page).toMatch(/entryFallsInLockedPeriod\(editingEntry\.date, closedThrough\)/);
   });

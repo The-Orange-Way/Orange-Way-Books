@@ -5,7 +5,8 @@ const state: {
   calls: Call[];
   voidRows: Array<{ id: string }>;
   lines: Array<Record<string, unknown>>;
-} = { calls: [], voidRows: [{ id: 'je-1' }], lines: [] };
+  existing: Array<{ id: string }>;
+} = { calls: [], voidRows: [{ id: 'je-1' }], lines: [], existing: [] };
 
 vi.mock('@/lib/supabase', () => {
   const from = (table: string) => {
@@ -33,6 +34,10 @@ vi.mock('@/lib/supabase', () => {
       update: (v: unknown) => ((op = 'update'), (payload = v), q),
       eq: () => (table === 'journal_entry_lines' && op === 'select' ? done() : q),
       single: async () => done(),
+      limit: async () => {
+        state.calls.push({ table, op: 'select-existing' });
+        return { data: state.existing, error: null };
+      },
       then: (res: (v: unknown) => void) => res(done()),
     });
     return q;
@@ -76,6 +81,7 @@ function line(id: string, over: Record<string, unknown> = {}) {
 beforeEach(() => {
   state.calls = [];
   state.voidRows = [{ id: 'je-1' }];
+  state.existing = [];
   state.lines = [
     line('a', {
       encrypted_debit: 'C_10',
@@ -141,6 +147,13 @@ describe('reverseJournalEntry', () => {
         decryptText: dec,
       }),
     ).rejects.toThrow('cannot be read');
-    expect(state.calls.filter((c) => c.op !== 'select')).toEqual([]);
+    expect(state.calls.filter((c) => !c.op.startsWith('select'))).toEqual([]);
+  });
+
+  it('refuses an entry that already has a reversal, before writing anything', async () => {
+    state.existing = [{ id: 'rev-0' }];
+    await expect(run()).rejects.toThrow('already been reversed');
+    expect(state.calls.some((c) => c.op === 'select-existing')).toBe(true);
+    expect(state.calls.filter((c) => !c.op.startsWith('select'))).toEqual([]);
   });
 });

@@ -123,6 +123,18 @@ export async function reverseJournalEntry(
   if (jeErr) throw jeErr;
   if (!origJe) throw new Error('Journal entry not found.');
 
+  // An entry left POSTED in a closed month can be selected again. Refuse a
+  // second reversal before anything is written.
+  const { data: existing, error: existingErr } = await supabase
+    .from('journal_entries')
+    .select('id')
+    .eq('reversal_of_id', p.journalEntryId)
+    .limit(1);
+  if (existingErr) throw existingErr;
+  if ((existing ?? []).length > 0) {
+    throw new Error('This entry has already been reversed. Nothing was changed.');
+  }
+
   const { data: origLines, error: linesErr } = await supabase
     .from('journal_entry_lines')
     .select('*')
