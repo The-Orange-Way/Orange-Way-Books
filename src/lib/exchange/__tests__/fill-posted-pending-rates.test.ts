@@ -39,7 +39,10 @@ function setup(opts: {
   status?: string;
   lines: Array<Record<string, unknown>>;
   rpcError?: { message: string } | null;
+  /** updated_at seen on the second read, to simulate an edit in between. */
+  changedTo?: string;
 }) {
+  let reads = 0;
   const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const c = {
     from: (table: string) => {
@@ -48,6 +51,7 @@ function setup(opts: {
         eq: () => q,
         single: async () => ({
           data: {
+            updated_at: reads++ === 0 ? 't1' : (opts.changedTo ?? 't1'),
             id: 'je-1',
             status: opts.status ?? 'POSTED',
             date: '2026-10-15',
@@ -121,7 +125,7 @@ describe('fillPendingRatesOnPostedEntry', () => {
     const { c, rpcCalls } = setup({ lines: twoLines() });
     const { build, seen } = fakeBuild(false);
     const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
-    expect(r).toEqual({ filled: 1, stillPending: 0, version: 4 });
+    expect(r).toEqual({ waiting: 1, filled: 1, stillPending: 0, version: 4 });
     expect(rpcCalls).toHaveLength(1);
     expect(rpcCalls[0].fn).toBe('owb_edit_posted_entry');
     const lines = rpcCalls[0].args.p_lines as Array<Record<string, unknown>>;
@@ -158,7 +162,7 @@ describe('fillPendingRatesOnPostedEntry', () => {
     const { c, rpcCalls } = setup({ lines: twoLines() });
     const { build } = fakeBuild(true);
     const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
-    expect(r).toEqual({ filled: 0, stillPending: 1, version: null });
+    expect(r).toEqual({ waiting: 1, filled: 0, stillPending: 1, version: null });
     expect(rpcCalls).toHaveLength(0);
   });
 
@@ -209,7 +213,7 @@ describe('fillPendingRatesOnPostedEntry', () => {
       throw new Error('rate service down');
     };
     const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
-    expect(r).toEqual({ filled: 0, stillPending: 1, version: null });
+    expect(r).toEqual({ waiting: 1, filled: 0, stillPending: 1, version: null });
     expect(rpcCalls).toHaveLength(0);
   });
 
@@ -222,6 +226,59 @@ describe('fillPendingRatesOnPostedEntry', () => {
     const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
     expect(seen).toHaveLength(0);
     expect(r.stillPending).toBe(1);
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  it('keeps the stored metadata on a rebuilt line', async () => {
+    const lines = twoLines();
+    lines[0].encrypted_metadata = 'C_meta' as unknown as null;
+    const { c, rpcCalls } = setup({ lines });
+    const { build } = fakeBuild(false);
+    await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
+    const sent = rpcCalls[0].args.p_lines as Array<Record<string, unknown>>;
+    expect(sent[0].encrypted_metadata).toBe('C_meta');
+  });
+
+  it('fills an older line marked not backfilled, even with rate_pending off', async () => {
+    const lines = twoLines();
+    Object.assign(lines[0], { rate_pending: false, dual_amounts_backfilled: false });
+    const { c, rpcCalls } = setup({ lines });
+    const { build, seen } = fakeBuild(false);
+    const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
+    expect(seen).toHaveLength(1);
+    expect(r).toMatchObject({ waiting: 1, filled: 1 });
+    expect(rpcCalls).toHaveLength(1);
+  });
+
+  it('marks a waiting line sent back unresolved as rate_pending, so the next run finds it', async () => {
+    const lines = [
+      storedLine('a', { encrypted_debit: 'C_100', rate_pending: true }),
+      storedLine('b', {
+        encrypted_debit: 'C_50',
+        rate_pending: false,
+        dual_amounts_backfilled: false,
+      }),
+      storedLine('c', {
+        encrypted_credit: 'C_150',
+        encrypted_wallet_currency: null,
+        dual_amounts_backfilled: false,
+      }),
+    ];
+    const { c, rpcCalls } = setup({ lines });
+    const { build } = fakeBuild(false);
+    const r = await fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build });
+    expect(r).toMatchObject({ waiting: 3, filled: 2, stillPending: 1 });
+    const sent = rpcCalls[0].args.p_lines as Array<Record<string, unknown>>;
+    expect(sent[2].rate_pending).toBe(true);
+    expect(sent[2].encrypted_credit).toBe('C_150');
+  });
+
+  it('sends nothing when the entry changed while the rates were being looked up', async () => {
+    const { c, rpcCalls } = setup({ lines: twoLines(), changedTo: 't2' });
+    const { build } = fakeBuild(false);
+    await expect(
+      fillPendingRatesOnPostedEntry(c, 'je-1', { encrypt, decrypt, build }),
+    ).rejects.toThrow('changed while its rates');
     expect(rpcCalls).toHaveLength(0);
   });
 });

@@ -1,11 +1,15 @@
 /**
  * Fill late exchange rates on journal entry lines (OWB-T0237, OWB-T0238).
  *
- * A line saved while its rate was not yet known has dual_amounts_backfilled =
- * false and no amount in the primary currency. The lines of a posted entry
+ * A line saved while its rate was not yet known has rate_pending set, or (on
+ * older lines) dual_amounts_backfilled = false, and no amount in the primary
+ * currency. The lines of a posted entry
  * cannot be updated directly, so each posted entry is filled through
  * owb_edit_posted_entry (fillPendingRatesOnPostedEntry). That keeps the
  * entry's id and number and saves the earlier version in its history.
+ *
+ * Counts are per line and always cover the whole entry, even when its lines
+ * span two pages of the search.
  *
  * Lines on a draft are left for later: they are not in any report, and they
  * are filled by a run after the entry is posted. Voided entries are left as
@@ -25,6 +29,7 @@ type EncryptFn = (plaintext: string) => Promise<string>;
 type DecryptFn = (ciphertext: string) => Promise<string>;
 
 const PAGE_SIZE = 500;
+const WAITING = 'rate_pending.eq.true,dual_amounts_backfilled.eq.false';
 const STORAGE_KEY = 'owb_backfill_progress';
 
 export interface BackfillProgress {
@@ -105,7 +110,7 @@ export async function backfillDualAmounts(
     let query = client
       .from('journal_entry_lines')
       .select('journal_entry_id, journal_entries!inner(status, org_id)')
-      .eq('dual_amounts_backfilled', false)
+      .or(WAITING)
       .eq('journal_entries.org_id', orgId)
       .order('journal_entry_id', { ascending: true })
       .limit(PAGE_SIZE);
@@ -120,33 +125,33 @@ export async function backfillDualAmounts(
     }>;
     if (rows.length === 0) break;
 
-    // Lines waiting, per entry, in id order.
-    const entries = new Map<string, { status: string; lines: number }>();
+    // Entries with waiting lines, in id order. The page may hold only some of
+    // an entry's lines, so the counts below come from the whole entry.
+    const entries = new Map<string, string>();
     for (const r of rows) {
       const je = r.journal_entries;
       const parent: Parent = Array.isArray(je) ? (je[0] ?? null) : je;
-      const e = entries.get(r.journal_entry_id);
-      if (e) e.lines++;
-      else entries.set(r.journal_entry_id, { status: parent?.status ?? '', lines: 1 });
+      if (!entries.has(r.journal_entry_id)) entries.set(r.journal_entry_id, parent?.status ?? '');
     }
 
-    for (const [entryId, e] of entries) {
+    for (const [entryId, status] of entries) {
       if (callbacks.signal?.aborted) break;
-      if (e.status === 'POSTED') {
+      const lines = await countWaiting(client, entryId);
+      if (status === 'POSTED') {
         try {
           const r = await fillPosted(client, entryId, { encrypt, decrypt });
           progress.resolved += r.filled;
           progress.pending += r.stillPending;
           // A waiting line that is neither filled nor pending has no rate to
           // fill and no amounts: it needs a person to look at it.
-          progress.failed += Math.max(0, e.lines - r.filled - r.stillPending);
+          progress.failed += Math.max(0, r.waiting - r.filled - r.stillPending);
         } catch {
-          progress.failed += e.lines;
+          progress.failed += lines;
         }
       } else {
-        progress.pending += e.lines;
+        progress.pending += lines;
       }
-      progress.processed += e.lines;
+      progress.processed += lines;
       cursor = entryId;
       progress.lastCursor = cursor;
     }
@@ -163,4 +168,14 @@ export async function backfillDualAmounts(
   clearBackfillProgress(orgId);
   callbacks.onDone({ ...progress });
   return progress;
+}
+
+async function countWaiting(client: SupabaseClient, entryId: string): Promise<number> {
+  const { count, error } = await client
+    .from('journal_entry_lines')
+    .select('id', { count: 'exact', head: true })
+    .eq('journal_entry_id', entryId)
+    .or(WAITING);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
 }
