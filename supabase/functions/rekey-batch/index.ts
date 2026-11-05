@@ -85,6 +85,8 @@ const ALLOWED_REKEY_TABLES = new Set([
   'attachments',
   'transaction_metadata',
   'account_metadata',
+  'journal_entry_versions',
+  'journal_entry_line_versions',
 ]);
 
 // Per-table allowed ciphertext column names. Accepting any column name
@@ -108,6 +110,30 @@ const ALLOWED_CIPHERTEXT_COLUMNS: Readonly<Record<string, Set<string>>> = Object
     'status',
     'source_type',
     'encrypted_period_locked',
+  ]),
+  // Edit history of posted entries (OWB-T0238).
+  journal_entry_versions: new Set([
+    'encrypted_reason',
+    'encrypted_currency',
+    'encrypted_exchange_rate',
+    'encrypted_memo',
+    'encrypted_ref_number',
+    'encrypted_period_locked',
+  ]),
+  journal_entry_line_versions: new Set([
+    'account_code',
+    'account_name',
+    'description',
+    'encrypted_debit',
+    'encrypted_credit',
+    'encrypted_amount_native',
+    'encrypted_amount_primary',
+    'encrypted_book_value',
+    'encrypted_manual_rate_reason',
+    'encrypted_manual_rate_source',
+    'encrypted_posted_rate',
+    'encrypted_primary_currency_at_posting',
+    'encrypted_wallet_currency',
   ]),
   journal_entry_lines: new Set([
     'account_name',
