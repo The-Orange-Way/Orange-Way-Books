@@ -187,6 +187,11 @@ BEGIN
   -- An edit through owb_edit_posted_entry may also change the date and the header's encrypted
   -- business fields. id, org_id, status, source_type, reversal_of_id, import ids, created_at
   -- and the ref number stay frozen.
+  IF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status
+     AND OLD.id::text = coalesce(current_setting('owb.edit_je', true), '') THEN
+    RAISE EXCEPTION 'Cannot change the status of journal entry % while it is being edited.', OLD.id
+      USING ERRCODE = 'integrity_constraint_violation';
+  END IF;
   v_editing := TG_OP = 'UPDATE'
     AND OLD.status = 'POSTED' AND NEW.status = 'POSTED'
     AND coalesce(current_setting('owb.edit_je', true), '') = OLD.id::text;

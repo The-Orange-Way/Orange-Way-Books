@@ -312,6 +312,8 @@ SELECT pg_temp.chk('even with the setting, the ref number stays frozen',
   format('UPDATE public.journal_entries SET encrypted_ref_number = %L WHERE id = %L', 'C_X', e1), 'Cannot modify finalized') FROM e;
 SELECT pg_temp.chk('even with the setting, a line cannot move to another entry',
   format('UPDATE public.journal_entry_lines SET journal_entry_id = %L WHERE journal_entry_id = %L', e_open, e1), 'Cannot update line') FROM e;
+SELECT pg_temp.chk('even with the setting, the status cannot change',
+  format('UPDATE public.journal_entries SET status = %L WHERE id = %L', 'VOID', e1), 'while it is being edited') FROM e;
 SELECT pg_temp.chk('even with the setting, a posted entry cannot be deleted',
   format('DELETE FROM public.journal_entries WHERE id = %L', e1), 'Cannot delete finalized') FROM e;
 SELECT set_config('owb.edit_je', e_void::text, true) FROM e;
