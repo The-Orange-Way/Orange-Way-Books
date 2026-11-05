@@ -53,6 +53,10 @@ import {
 import { saveErrorText } from '@/lib/transactions/save-error-text';
 import { linkedLegAmount } from '@/lib/transactions/linked-leg';
 import { TRANSFER_BOX_LABEL, transferBoxOrder } from '@/lib/transactions/transfer-boxes';
+import {
+  keepsSavedTransferAmounts,
+  type SavedTransfer,
+} from '@/lib/transactions/transfer-saved-amounts';
 // Phase 2 removal: external-ledger dual-write deleted. Transactions land in Postgres only.
 import {
   ensureTransferClearingAccount,
@@ -225,6 +229,10 @@ export default function TransactionModal({
   const [mode, setMode] = useState<TxMode>('standard');
   const [walletId, setWalletId] = useState('');
   const [direction, setDirection] = useState<Direction>('OUT');
+  // Whether the received amount was typed (it then stops following the exchange rate), and the
+  // wallets an opened transfer's amounts were saved with.
+  const [rateOverride, setRateOverride] = useState(false);
+  const [savedTransfer, setSavedTransfer] = useState<SavedTransfer | null>(null);
   const [accountId, setAccountId] = useState(''); // Standard mode: destination account
   const [contactId, setContactId] = useState(''); // Standard mode: customer / vendor on the right-side picker
   const [counterpartyWalletId, setCounterpartyWalletId] = useState(''); // Transfer mode
@@ -255,6 +263,9 @@ export default function TransactionModal({
   // ── Reset form on open ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
+    // Each opening starts with the received amount following the exchange rate.
+    setRateOverride(false);
+    setSavedTransfer(null);
     if (editingTx) {
       // ── Synchronous seed: standard-mode defaults from the row itself ──
       // The async detector below upgrades to split/transfer if the row has
@@ -327,6 +338,13 @@ export default function TransactionModal({
                 editingIsSource ? linkedAmount : Math.abs(Number(editingTx.amount)),
               ),
             );
+            // The saved amounts are what was recorded; a rate for the same currencies must not
+            // replace them.
+            setSavedTransfer({
+              walletId: editingTx.account_id || '',
+              counterpartyWalletId: linkedRow.account_id as string,
+              direction: editingIsSource ? 'OUT' : 'IN',
+            });
             return;
           }
 
@@ -511,14 +529,18 @@ export default function TransactionModal({
   const rateQuote = needsTransferRate ? transferReceivedWallet!.asset : null;
   const rateDate = date ? format(date, 'yyyy-MM-dd') : undefined;
   const { rate: autoRate, loading: rateLoading } = useExchangeRate(rateBase, rateQuote, rateDate);
-  const [rateOverride, setRateOverride] = useState(false);
+  const keepSavedAmounts = keepsSavedTransferAmounts(savedTransfer, wallets, rateBase, rateQuote);
+  // Once the currencies leave the saved pair the saved amounts no longer apply, even if the user
+  // comes back to it, because the amounts on screen may already follow another rate. Set during
+  // render (React's pattern for adjusting state to a change), so no frame keeps the old lock.
+  if (savedTransfer && !keepSavedAmounts) setSavedTransfer(null);
   useEffect(() => {
-    if (!needsTransferRate || rateOverride) return;
+    if (!needsTransferRate || rateOverride || keepSavedAmounts) return;
     if (autoRate && sentAmount) {
       const sent = parseAmount(sentAmount);
       if (sent != null) setReceivedAmount((sent * autoRate).toFixed(8));
     }
-  }, [autoRate, sentAmount, needsTransferRate, rateOverride]);
+  }, [autoRate, sentAmount, needsTransferRate, rateOverride, keepSavedAmounts]);
 
   // ── Receipt handlers ───────────────────────────────────────────────────────
   const addReceipts = useCallback((files: FileList | File[]) => {
