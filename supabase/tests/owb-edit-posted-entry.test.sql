@@ -1,7 +1,7 @@
 -- Tests for owb_edit_posted_entry and the history tables (OWB-T0238).
 --
 -- One self-contained script: everything runs in one transaction and is rolled back, so nothing
--- persists. Run it as the database owner after migration 20261105160000. It prints one row per
+-- persists. Run it as the database owner after migrations 20261105160000 and 20261105190000. It prints one row per
 -- check from the temp table results; every row must have ok = true.
 --
 -- Each check runs as a real caller: role authenticated with request.jwt.claims set, so auth.uid()
@@ -302,7 +302,16 @@ SELECT pg_temp.chk('signed org: an edit with a signature is accepted',
     'id', t.id, 'encrypted_amount', 'C_AMT_NEW', 'signature_b64', 'TEST-SIG', 'signature_key_version', 1))),
   'OK')
 FROM ids, e JOIN public.transactions t ON t.journal_entry_id = e.e_signed;
+SELECT pg_temp.chk('signed org: an edit that leaves the signature out keeps the stored one',
+  pg_temp.edit_sql(e_signed, DATE '2026-10-15', acct_b1, acct_b2, p_txs => jsonb_build_array(jsonb_build_object(
+    'id', t.id, 'encrypted_amount', 'C_AMT_NEWER'))),
+  'OK')
+FROM ids, e JOIN public.transactions t ON t.journal_entry_id = e.e_signed;
 RESET ROLE;
+SELECT pg_temp.fact('the stored signature and its key version survive that edit',
+  t.signature_b64 = 'TEST-SIG' AND t.signature_key_version = 1 AND t.encrypted_amount = 'C_AMT_NEWER',
+  concat_ws('|', t.signature_b64, t.signature_key_version, t.encrypted_amount))
+FROM e JOIN public.transactions t ON t.journal_entry_id = e.e_signed;
 
 -- 7. The edit setting only opens the entry it names, and only for the allowed columns.
 SELECT pg_temp.act(u_owner) FROM ids;
