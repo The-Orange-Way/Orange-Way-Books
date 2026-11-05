@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { useFormatCurrency } from '@/hooks/useOrgSettings';
 import { format } from 'date-fns';
+import { linesInBooks, type LineWithEntry } from '@/lib/ledger/entries-in-books';
 
 interface RegisterRow {
   id: string;
@@ -125,17 +126,25 @@ export default function AccountRegister() {
         const { data: jelRows } = await supabase
           .from('journal_entry_lines')
           .select(
-            '*, journal_entries!inner(id, date, status, key_version, source_type, org_id, encrypted_memo)',
+            '*, journal_entries!inner(id, date, status, key_version, source_type, reversal_of_id, org_id, encrypted_memo)',
           )
           .eq('account_id', accountId)
           .eq('journal_entries.org_id', orgId);
 
         const jelDecrypted: Omit<RegisterRow, 'running'>[] = [];
+        // Only entries in the books, the same rule the reports use. A voided entry and its
+        // reversal are both shown, so they cancel in the running balance.
+        const inBooks = new Set(
+          linesInBooks((jelRows ?? []) as unknown as (LineWithEntry & { id: string })[]).map(
+            (r) => r.id,
+          ),
+        );
         for (const row of (jelRows ?? []) as any[]) {
+          if (!inBooks.has(row.id)) continue;
           try {
             const dec = await decryptJournalEntryLine(row, decryptText);
             const je = row.journal_entries;
-            // Skip lines whose parent JE is VOID.
+            // Status is shown on the row; which lines count is decided above.
             let jeStatus = je?.status as string | null;
             try {
               if (je?.key_version) {
@@ -145,7 +154,6 @@ export default function AccountRegister() {
             } catch {
               /* keep raw status */
             }
-            if (jeStatus === 'VOID') continue;
             jelDecrypted.push({
               id: `jel-${row.id}`,
               date: je?.date ?? '',
