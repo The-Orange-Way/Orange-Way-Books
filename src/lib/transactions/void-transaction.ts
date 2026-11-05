@@ -243,8 +243,9 @@ export async function voidTransaction(p: VoidTransactionParams): Promise<VoidTra
   // ── Phase 4b: void the original entry, then post the reversal ─────────
   // The reversal is written as a draft so its lines can be added; left as a draft it would stay
   // editable. The original goes first: if the run stops between the two, a draft void reversal of a
-  // void entry still counts in the books (see entriesInBooks), so the two still cancel.
-  if (origJe.status === 'POSTED') await setEntryStatus(origTx.journal_entry_id, 'VOID');
+  // void entry still counts in the books (see entriesInBooks), so the two still cancel. An original
+  // that was never posted is marked void too, or its posted reversal would count with nothing to cancel.
+  if (origJe.status !== 'VOID') await setEntryStatus(origTx.journal_entry_id, 'VOID');
   if (!existingReversal || (existingReversal as any).status === 'DRAFT') {
     await setEntryStatus(reversalJeId, 'POSTED');
   }

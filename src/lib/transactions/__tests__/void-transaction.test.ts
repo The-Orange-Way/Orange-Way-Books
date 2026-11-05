@@ -195,6 +195,7 @@ import {
   ENTRY_NOT_UPDATED_MESSAGE,
 } from '../void-transaction';
 import { FIELD_KEY_VERSION } from '@/lib/crypto-fields';
+import { entriesInBooks } from '@/lib/ledger/entries-in-books';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
@@ -402,6 +403,25 @@ describe('voidTransaction', () => {
     expect(loadOrgSigningKey).toHaveBeenCalledWith(ORG);
     expect(signMutation).toHaveBeenCalledTimes(1);
     expect(signMutation.mock.calls[0][1]).toBe(ORG);
+  });
+
+  it('voids an entry that was never posted so the books still net to zero', async () => {
+    seedSplitTransaction({ withExternalLedger: false });
+    store.journal_entries.find((j) => j.id === 'je-1')!.status = 'DRAFT';
+    const result = await voidTransaction({
+      txId: 'tx-1',
+      orgId: ORG,
+      legacyJournalId: null,
+      date: '2026-05-21',
+      encryptText,
+      decryptText,
+      loadOrgSigningKey,
+      signMutation,
+    });
+    // Ask the shared rule what reports will count: both sides, or neither.
+    const counted = entriesInBooks(store.journal_entries as any[]);
+    expect(counted.has('je-1')).toBe(counted.has(result.reversalJournalEntryId));
+    expect(store.journal_entries.find((j) => j.id === 'je-1')!.status).toBe('VOID');
   });
 
   it('stops and leaves the transaction unvoided when the entry status cannot be written', async () => {
