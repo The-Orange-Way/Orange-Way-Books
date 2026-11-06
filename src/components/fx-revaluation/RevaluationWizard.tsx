@@ -40,6 +40,7 @@ import {
   type RevaluationRunResult,
 } from '@/lib/fx-revaluation/run';
 import type { AccountInfo, JournalLine } from '@/lib/ledger-engine';
+import { linesInBooks } from '@/lib/ledger/entries-in-books';
 
 type WizardStep = 'period' | 'preview' | 'confirm' | 'done';
 
@@ -118,7 +119,7 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
           .eq('org_id', orgId),
         supabase
           .from('journal_entry_lines')
-          .select('*, journal_entries!inner(date, org_id)')
+          .select('*, journal_entries!inner(date, org_id, status, source_type, reversal_of_id)')
           .eq('journal_entries.org_id', orgId)
           .lte('journal_entries.date', periodEnd),
         supabase.from('wallets').select('id, asset, external_account_id').eq('org_id', orgId),
@@ -139,7 +140,8 @@ export function RevaluationWizard({ orgId }: RevaluationWizardProps) {
         }),
       );
 
-      const rawLines = (jeRes.data as any[]) ?? [];
+      // Only entries in the books, the same rule the reports use.
+      const rawLines = linesInBooks((jeRes.data as any[]) ?? []);
       const journalLines: JournalLine[] = await Promise.all(
         rawLines.map(async (l: any) => {
           const fields = await decryptJournalEntryLine(l, decryptText);

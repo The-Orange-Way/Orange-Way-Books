@@ -258,6 +258,41 @@ const BUSINESS_TABLES: readonly TableRekeyDescriptor[] = Object.freeze([
       'encrypted_wallet_currency',
     ],
   },
+  // History of edits to posted entries (OWB-T0238). Same column names as the live tables, so a
+  // rotation must rewrite them too or the edit history becomes unreadable after the purge.
+  {
+    table: 'journal_entry_versions',
+    idColumn: 'id',
+    orgColumn: 'org_id',
+    encryptedColumns: [
+      'encrypted_reason',
+      'encrypted_currency',
+      'encrypted_exchange_rate',
+      'encrypted_memo',
+      'encrypted_ref_number',
+      'encrypted_period_locked',
+    ],
+  },
+  {
+    table: 'journal_entry_line_versions',
+    idColumn: 'id',
+    orgColumn: 'org_id',
+    encryptedColumns: [
+      'account_code',
+      'account_name',
+      'description',
+      'encrypted_debit',
+      'encrypted_credit',
+      'encrypted_amount_native',
+      'encrypted_amount_primary',
+      'encrypted_book_value',
+      'encrypted_manual_rate_reason',
+      'encrypted_manual_rate_source',
+      'encrypted_posted_rate',
+      'encrypted_primary_currency_at_posting',
+      'encrypted_wallet_currency',
+    ],
+  },
   {
     table: 'contacts',
     idColumn: 'id',
