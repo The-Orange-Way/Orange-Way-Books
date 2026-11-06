@@ -273,6 +273,9 @@ export default function TransactionModal({
   const [editReason, setEditReason] = useState('');
   // True when the list row the form opened from is older than the database.
   const [postedStale, setPostedStale] = useState(false);
+  // The other wallet of a transfer as it was saved. Kept apart from savedTransfer,
+  // which the rate logic clears when the two wallets share a currency.
+  const [postedCounterparty, setPostedCounterparty] = useState<string | null>(null);
   const [draggingReceipt, setDraggingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -284,6 +287,7 @@ export default function TransactionModal({
     setSavedTransfer(null);
     setPostedEntry(null);
     setPostedStale(false);
+    setPostedCounterparty(null);
     setEditReason('');
     if (editingTx) {
       // ── Synchronous seed: standard-mode defaults from the row itself ──
@@ -377,6 +381,7 @@ export default function TransactionModal({
             );
             // The saved amounts are what was recorded; a rate for the same currencies must not
             // replace them.
+            setPostedCounterparty(linkedRow.account_id as string);
             setSavedTransfer({
               walletId: editingTx.account_id || '',
               counterpartyWalletId: linkedRow.account_id as string,
@@ -673,7 +678,7 @@ export default function TransactionModal({
           {
             mode: postedEntryMode(postedEntry) ?? 'standard',
             walletId: editingTx.account_id ?? '',
-            counterpartyWalletId: savedTransfer?.counterpartyWalletId ?? null,
+            counterpartyWalletId: postedCounterparty,
             direction: Number(editingTx.amount) >= 0 ? 'IN' : 'OUT',
             memo: editingTx.memo,
           },

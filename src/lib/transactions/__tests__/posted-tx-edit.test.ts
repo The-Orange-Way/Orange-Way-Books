@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { keepsSavedTransferAmounts } from '../transfer-saved-amounts';
 import { join } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
@@ -470,6 +471,42 @@ function postedGoesFirst(source: string, name: string): boolean {
 }
 
 describe('transaction screen, posted entries', () => {
+  /** The saved counterparty the refusal compares against, read from the source. */
+  const wasCounterparty = (source: string) => {
+    const call = source.slice(source.indexOf('postedEditRefusal('));
+    return /counterpartyWalletId: ([^,\n]+),/.exec(call)?.[1] ?? '';
+  };
+  const clearedOutsideOpen = (source: string, name: string) =>
+    source.split(`${name}(null)`).length - 1 > 1;
+
+  it('compares a transfer with the wallet it was saved with, kept apart from the rate logic', () => {
+    // The rate logic clears savedTransfer when both wallets share a currency, so
+    // reading the saved wallet from it refused every same-currency transfer.
+    expect(wasCounterparty(modalSource)).toBe('postedCounterparty');
+    expect(modalSource).toContain('setPostedCounterparty(linkedRow.account_id as string);');
+    expect(clearedOutsideOpen(modalSource, 'setPostedCounterparty')).toBe(false);
+  });
+
+  it('relies on a value the rate logic clears for same-currency transfers', () => {
+    // Why the saved wallet cannot come from savedTransfer: with no rate needed,
+    // the rate logic drops it on the first render.
+    const saved = { walletId: 'w1', counterpartyWalletId: 'w2', direction: 'OUT' as const };
+    const wallets = [
+      { id: 'w1', asset: 'USD' },
+      { id: 'w2', asset: 'USD' },
+    ];
+    expect(keepsSavedTransferAmounts(saved, wallets, null, null)).toBe(false);
+  });
+
+  it('catches reading the saved wallet from savedTransfer (broken copy)', () => {
+    const broken = modalSource.replace(
+      'counterpartyWalletId: postedCounterparty,',
+      'counterpartyWalletId: savedTransfer?.counterpartyWalletId ?? null,',
+    );
+    expect(broken).not.toBe(modalSource);
+    expect(wasCounterparty(broken)).not.toBe('postedCounterparty');
+  });
+
   it.each(['handleSaveSplit', 'handleSaveTransfer'])(
     '%s sends a posted entry through the edit function first',
     (name) => {
