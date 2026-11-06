@@ -181,7 +181,8 @@ export interface PostedTxShape {
 }
 
 /** The mode a posted entry was saved in, from its source type. */
-export function postedEntryMode(entry: PostedEntry): 'split' | 'transfer' | null {
+export function postedEntryMode(entry: PostedEntry): 'standard' | 'split' | 'transfer' | null {
+  if (entry.sourceType === 'TRANSACTION_STANDARD') return 'standard';
   if (entry.sourceType === 'TRANSACTION_SPLIT') return 'split';
   if (entry.sourceType === 'TRANSACTION_TRANSFER') return 'transfer';
   return null;

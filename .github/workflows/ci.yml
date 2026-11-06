@@ -576,7 +576,7 @@ jobs:
       # Errors present on dev when this job was added (DL-0782). Lower it in
       # the same PR that fixes errors -- the job prints the new value when the
       # count drops. At 0, delete the ratchet and let `tsc` fail on its own.
-      TSC_CHECK_BASELINE: '46'
+      TSC_CHECK_BASELINE: '38'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
