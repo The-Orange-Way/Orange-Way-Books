@@ -240,8 +240,8 @@ prevail.
 - Other channels: the public Contact page at `/contact` (public issue
   tracker for bugs and feature requests, private security advisories for
   anything sensitive).
-- Privacy requests: the contact named in the Contact section of the
-  public Privacy page at `/privacy`.
+- Privacy requests: `hello@orangeway.app` (also listed in the Contact
+  section of the public Privacy page at `/privacy`).
 - Security disclosure: see `SECURITY.md` for the responsible-disclosure
   contact and timeline. Do not open a public issue for a vulnerability.
 
