@@ -133,7 +133,7 @@ BEGIN
     SET last_seq = public.je_ref_sequence.last_seq + 1
   RETURNING last_seq INTO v_seq;
 
-  RETURN 'JE-' | p_year::text | '-' | LPAD(v_seq::text, 4, '0');
+  RETURN 'JE-' || p_year::text || '-' || LPAD(v_seq::text, 4, '0');
 END;
 $$;
 
