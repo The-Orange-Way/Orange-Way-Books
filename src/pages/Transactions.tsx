@@ -107,6 +107,7 @@ import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { toast } from 'sonner';
+import { deleteTxWithDraftEntry } from '@/lib/transactions/delete-tx-entry';
 import TransactionModal, {
   fetchAccountsForModal,
   fetchContactsForModal,
@@ -741,7 +742,13 @@ export default function Transactions() {
       return;
     }
     if (!confirm('Delete this transaction?')) return;
-    await supabase.from('transactions').delete().eq('id', id);
+    try {
+      await deleteTxWithDraftEntry(supabase, { id, journal_entry_id: tx?.journal_entry_id });
+    } catch (err) {
+      toast.error(`Couldn't delete: ${(err as Error).message}`);
+      await fetchData();
+      return;
+    }
     writeAuditLog({
       orgId: orgId!,
       action: 'DELETE',
@@ -948,7 +955,12 @@ export default function Transactions() {
     setBulkActing(true);
     try {
       for (const id of selected) {
-        await supabase.from('transactions').delete().eq('id', id);
+        const tx = txs.find((t) => t.id === id);
+        try {
+          await deleteTxWithDraftEntry(supabase, { id, journal_entry_id: tx?.journal_entry_id });
+        } catch (err) {
+          toast.error(`Couldn't delete ${id.slice(0, 8)}: ${(err as Error).message}`);
+        }
       }
       setSelected(new Set());
       await fetchData();

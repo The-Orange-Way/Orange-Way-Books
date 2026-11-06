@@ -173,3 +173,73 @@ describe('source type migration', () => {
     expect(migrationAllowsStandard(broken)).toBe(false);
   });
 });
+
+/** Review fixes (Codex round 1). */
+function postedRefusesContactChange(src: string): boolean {
+  const body = handler(src, 'handleSaveSplit');
+  const posted = body.slice(body.indexOf('const jeId = postedEntry.id;'));
+  const refusal = posted.indexOf('(contactId || null) !== (editingTx.contact_id ?? null)');
+  const send = posted.indexOf('await savePostedTxEdit(');
+  return refusal >= 0 && send > refusal;
+}
+
+function postedLegacyRowKeepsRowSave(src: string): boolean {
+  const body = handler(src, 'handleSaveStandard');
+  const guard = body.indexOf(
+    "editingTx && !editingTx.journal_entry_id && editingTx.status === 'POSTED'",
+  );
+  const writer = body.indexOf("await handleSaveSplit(dateStr, 'standard');");
+  return guard >= 0 && writer > guard;
+}
+
+function categoryReadBySide(src: string): boolean {
+  const i = src.indexOf('if (linesWithIds.length === 2) {');
+  const block = src.slice(i, src.indexOf('const accountLegs', i));
+  return (
+    i >= 0 &&
+    block.includes('isIn ? (l.credit ?? 0) > 0 : (l.debit ?? 0) > 0') &&
+    block.includes('accounts.find((a) => a.id === leg.accountId)') &&
+    !block.includes('account_name')
+  );
+}
+
+describe('transaction screen, review fixes', () => {
+  it('refuses a contact change on a posted standard entry before sending it', () => {
+    expect(postedRefusesContactChange(modalSrc)).toBe(true);
+  });
+
+  it('the check fails on a copy without the refusal', () => {
+    const broken = modalSrc.replace(
+      '(contactId || null) !== (editingTx.contact_id ?? null)',
+      'false',
+    );
+    expect(broken).not.toBe(modalSrc);
+    expect(postedRefusesContactChange(broken)).toBe(false);
+  });
+
+  it('keeps the row-only save for a posted row with no entry', () => {
+    expect(postedLegacyRowKeepsRowSave(modalSrc)).toBe(true);
+  });
+
+  it('the check fails on a copy without that guard', () => {
+    const broken = modalSrc.replace(
+      "editingTx && !editingTx.journal_entry_id && editingTx.status === 'POSTED'",
+      'false',
+    );
+    expect(broken).not.toBe(modalSrc);
+    expect(postedLegacyRowKeepsRowSave(broken)).toBe(false);
+  });
+
+  it('reads the category of a standard entry by side and account id, not by name', () => {
+    expect(categoryReadBySide(modalSrc)).toBe(true);
+  });
+
+  it('the check fails on a copy that picks the wallet side', () => {
+    const broken = modalSrc.replace(
+      'isIn ? (l.credit ?? 0) > 0 : (l.debit ?? 0) > 0',
+      'isIn ? (l.debit ?? 0) > 0 : (l.credit ?? 0) > 0',
+    );
+    expect(broken).not.toBe(modalSrc);
+    expect(categoryReadBySide(broken)).toBe(false);
+  });
+});

@@ -413,6 +413,16 @@ export default function TransactionModal({
             ...l,
             accountId: (linesRaw as Array<{ account_id: string }>)[i].account_id,
           }));
+          if (linesWithIds.length === 2) {
+            // A standard entry: a wallet line and a category line. The wallet is
+            // debited on money in and credited on money out, so the category is
+            // the other side. Names are not used: they can match or be renamed.
+            const isIn = Number(editingTx.amount) >= 0;
+            const leg = linesWithIds.find((l) => (isIn ? (l.credit ?? 0) > 0 : (l.debit ?? 0) > 0));
+            const acct = leg && accounts.find((a) => a.id === leg.accountId);
+            if (acct) setAccountId(acct.id);
+            return;
+          }
           const accountLegs = linesWithIds.filter(
             (l) => !walletName || (l.account_name || '').trim() !== walletName.trim(),
           );
@@ -445,13 +455,6 @@ export default function TransactionModal({
             toast.warning(
               "Some split lines couldn't be matched to current accounts; saving will replace them.",
             );
-          } else if (accountLegs.length === 1) {
-            // A standard entry: one wallet line and one account line.
-            const leg = accountLegs[0];
-            const acct =
-              accounts.find((a) => a.id === leg.accountId) ??
-              accounts.find((a) => a.name.trim() === (leg.account_name || '').trim());
-            if (acct) setAccountId(acct.id);
           }
         } catch (err) {
           console.warn('[tx-modal] mode detection failed:', err);
@@ -756,6 +759,12 @@ export default function TransactionModal({
   // standard is rewritten the same way. A row tied to an entry made elsewhere
   // (an import, a transfer) keeps the row-only save below.
   async function handleSaveStandard(dateStr: string) {
+    // A posted row from before this change has no entry. A new entry would be
+    // a draft while the row says posted, so it keeps the row-only save.
+    if (editingTx && !editingTx.journal_entry_id && editingTx.status === 'POSTED') {
+      await saveStandardRowOnly(dateStr);
+      return;
+    }
     if (editingTx?.journal_entry_id) {
       const { data, error } = await supabase
         .from('journal_entries')
@@ -930,6 +939,13 @@ export default function TransactionModal({
     // history, and updates the transaction with it (see posted-tx-edit.ts).
     if (editingTx && postedEntry && editingTx.journal_entry_id === postedEntry.id) {
       const jeId = postedEntry.id;
+      // The posted edit call cannot change the contact, so refuse rather than
+      // report a save that left the old contact in place.
+      if (standard && (contactId || null) !== (editingTx.contact_id ?? null)) {
+        throw new Error(
+          'The contact of a posted transaction cannot be changed here yet. Put the contact back and save, or reverse the entry and enter it again.',
+        );
+      }
       // The accounts the posted lines already use, read without writing, so a
       // refused edit creates nothing.
       const posted = await postedLineAccounts(supabase, jeId, [selectedWallet.id], decryptText);

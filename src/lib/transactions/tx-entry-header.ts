@@ -5,7 +5,8 @@
  * A new entry gets the next JE-YYYY-NNNN reference from next_je_ref_number,
  * the same way an entry made on the Journal page does, so it can be cited
  * and found by Ref #. An existing entry keeps the reference it has: the
- * update leaves that column out rather than writing it empty.
+ * update leaves that column out rather than writing it empty. Its date is
+ * written with the rest, so a changed date reaches the reports.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -39,7 +40,7 @@ export async function saveTxEntryHeader(
     delete enc.encrypted_ref_number;
     const { error } = await client
       .from('journal_entries')
-      .update(enc as never)
+      .update({ ...enc, date: input.date } as never)
       .eq('id', input.existingId);
     if (error) throw error;
     return input.existingId;
