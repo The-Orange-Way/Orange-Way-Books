@@ -84,7 +84,20 @@ describe('saveTxEntryHeader', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ op: 'update', id: 'je-1' });
     expect(calls[0].row).not.toHaveProperty('encrypted_ref_number');
-    expect(calls[0].row).toMatchObject({ encrypted_memo: 'C_rent' });
+    expect(calls[0].row).toMatchObject({ encrypted_memo: 'C_rent', date: '2026-11-06' });
+  });
+
+  it('moves an existing entry to the new date', async () => {
+    const { client, calls } = fakeClient();
+    await saveTxEntryHeader(client, {
+      orgId: 'org-1',
+      date: '2026-02-03',
+      existingId: 'je-1',
+      fields,
+      encrypt,
+      mintRef: async () => 'JE-2026-0008',
+    });
+    expect(calls[0].row).toMatchObject({ date: '2026-02-03' });
   });
 
   it('writes nothing when no Ref # can be minted', async () => {

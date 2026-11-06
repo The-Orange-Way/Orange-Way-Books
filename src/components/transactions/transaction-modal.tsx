@@ -297,10 +297,10 @@ export default function TransactionModal({
       setMode('standard');
       setWalletId(editingTx.account_id || '');
       setDirection(Number(editingTx.amount) >= 0 ? 'IN' : 'OUT');
-      // Restore the account picked when this row was created. Falls back to
-      // empty string for legacy rows (account_id null), those still show
-      // "Select account" until the user picks one + saves.
-      setAccountId(editingTx.account_id ?? '');
+      // account_id is the wallet. The account picked for a standard row is on
+      // its journal entry and is restored by the detector below; a row with no
+      // entry shows "Select account" until one is picked and saved.
+      setAccountId('');
       setContactId(editingTx.contact_id ?? '');
       setCounterpartyWalletId('');
       setAmount(formatAmountForInput(Math.abs(Number(editingTx.amount))));
@@ -409,7 +409,21 @@ export default function TransactionModal({
 
           // Resolve wallet name (plaintext on WalletOption.encrypted_name field).
           const walletName = wallets.find((w) => w.id === editingTx.account_id)?.encrypted_name;
-          const accountLegs = decryptedLines.filter(
+          const linesWithIds = decryptedLines.map((l, i) => ({
+            ...l,
+            accountId: (linesRaw as Array<{ account_id: string }>)[i].account_id,
+          }));
+          if (linesWithIds.length === 2) {
+            // A standard entry: a wallet line and a category line. The wallet is
+            // debited on money in and credited on money out, so the category is
+            // the other side. Names are not used: they can match or be renamed.
+            const isIn = Number(editingTx.amount) >= 0;
+            const leg = linesWithIds.find((l) => (isIn ? (l.credit ?? 0) > 0 : (l.debit ?? 0) > 0));
+            const acct = leg && accounts.find((a) => a.id === leg.accountId);
+            if (acct) setAccountId(acct.id);
+            return;
+          }
+          const accountLegs = linesWithIds.filter(
             (l) => !walletName || (l.account_name || '').trim() !== walletName.trim(),
           );
           if (accountLegs.length >= 2) {
@@ -737,7 +751,38 @@ export default function TransactionModal({
   }
 
   // ── Standard save ──────────────────────────────────────────────────────────
+  //
+  // A standard send or receive is written like a split with one account line:
+  // a TRANSACTION_STANDARD journal entry with a wallet line and an account
+  // line, linked from the transactions row, so it reaches the reports and
+  // follows the posted-entry rules (OWB-T0241). A draft split switched to
+  // standard is rewritten the same way. A row tied to an entry made elsewhere
+  // (an import, a transfer) keeps the row-only save below.
   async function handleSaveStandard(dateStr: string) {
+    // A posted row from before this change has no entry. A new entry would be
+    // a draft while the row says posted, so it keeps the row-only save.
+    if (editingTx && !editingTx.journal_entry_id && editingTx.status === 'POSTED') {
+      await saveStandardRowOnly(dateStr);
+      return;
+    }
+    if (editingTx?.journal_entry_id) {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('source_type')
+        .eq('id', editingTx.journal_entry_id)
+        .maybeSingle();
+      if (error) throw error;
+      const source = (data as { source_type: string | null } | null)?.source_type;
+      if (source !== 'TRANSACTION_STANDARD' && source !== 'TRANSACTION_SPLIT') {
+        await saveStandardRowOnly(dateStr);
+        return;
+      }
+    }
+    await handleSaveSplit(dateStr, 'standard');
+  }
+
+  // Saves only the transactions row, for a row whose entry was made elsewhere.
+  async function saveStandardRowOnly(dateStr: string) {
     const amt = parseAmount(amount)!;
     const signedAmt = direction === 'OUT' ? -amt : amt;
     const type = direction === 'OUT' ? 'Send' : 'Receive';
@@ -800,11 +845,8 @@ export default function TransactionModal({
 
     const payload = {
       org_id: orgId,
+      // The wallet. The account the row is booked to is on its entry.
       account_id: walletId,
-      // Persist the chart-of-accounts pick so Edit Transaction can restore
-      // the dropdown next time the row is opened. Empty string → null
-      // (rows without an account assignment, e.g. transfers).
-      account_id: accountId || null,
       // Customer / vendor / employee, independent of account_id. Optional
       // even on standard transactions; OR imports leave it null.
       contact_id: contactId || null,
@@ -870,15 +912,22 @@ export default function TransactionModal({
   //
   // TODO: extend mutation signing to the JE.
   //
-  async function handleSaveSplit(dateStr: string) {
-    if (!selectedWallet) throw new Error('Wallet required for split.');
+  async function handleSaveSplit(dateStr: string, kind: 'split' | 'standard' = 'split') {
+    const standard = kind === 'standard';
+    if (!selectedWallet) throw new Error(`Wallet required for ${kind}.`);
     const walletCurrency = selectedWallet.asset;
     const amt = parseAmount(amount)!;
     const signedAmt = direction === 'OUT' ? -amt : amt;
     const type = direction === 'OUT' ? 'Send' : 'Receive';
 
-    // Filter to lines that are actually populated (account + amount).
-    const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
+    // Filter to lines that are actually populated (account + amount). A
+    // standard transaction is one account line for the whole amount.
+    const validLines: SplitLine[] = standard
+      ? [{ clientId: 'standard', accountId, amount }]
+      : splitLines.filter((l) => l.accountId && parseAmount(l.amount));
+    const walletLineText = standard
+      ? memo || null
+      : memo || `Split across ${validLines.length} accounts`;
 
     // Decide how the row will be signed before the first write (see prepareSigner).
     // Lines are priced into the ORG's primary currency, read now; never the
@@ -890,6 +939,13 @@ export default function TransactionModal({
     // history, and updates the transaction with it (see posted-tx-edit.ts).
     if (editingTx && postedEntry && editingTx.journal_entry_id === postedEntry.id) {
       const jeId = postedEntry.id;
+      // The posted edit call cannot change the contact, so refuse rather than
+      // report a save that left the old contact in place.
+      if (standard && (contactId || null) !== (editingTx.contact_id ?? null)) {
+        throw new Error(
+          'The contact of a posted transaction cannot be changed here yet. Put the contact back and save, or reverse the entry and enter it again.',
+        );
+      }
       // The accounts the posted lines already use, read without writing, so a
       // refused edit creates nothing.
       const posted = await postedLineAccounts(supabase, jeId, [selectedWallet.id], decryptText);
@@ -905,7 +961,7 @@ export default function TransactionModal({
             accountId: posted.wallet.get(selectedWallet.id)!,
             accountName: selectedWallet.encrypted_name,
             accountCode: null,
-            description: memo || `Split across ${validLines.length} accounts`,
+            description: walletLineText,
             debit: direction === 'IN' ? amt : 0,
             credit: direction === 'OUT' ? amt : 0,
             currency: walletCurrency,
@@ -929,7 +985,7 @@ export default function TransactionModal({
             id: editingTx.id,
             date: dateStr,
             encrypted_amount: (await encryptNumber(signedAmt, encryptText))!,
-            ...signer.sign(`split|${jeId}|${dateStr}|${signedAmt}|${validLines.length}`),
+            ...signer.sign(`${kind}|${jeId}|${dateStr}|${signedAmt}|${validLines.length}`),
           },
         ],
       });
@@ -938,13 +994,15 @@ export default function TransactionModal({
         action: 'UPDATE',
         entityType: 'transaction',
         entityId: editingTx.id,
-        summary: `Updated posted split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
+        summary: standard
+          ? `Updated posted transaction: ${type} ${amt} ${walletCurrency}`
+          : `Updated posted split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
         after: {
           type,
           amount: amt,
           asset: walletCurrency,
           date: dateStr,
-          split: true,
+          split: !standard,
           lines: validLines.length,
         },
         encrypt: encryptText,
@@ -975,7 +1033,7 @@ export default function TransactionModal({
         currency: walletCurrency,
         exchange_rate: null,
         status: 'DRAFT',
-        source_type: 'TRANSACTION_SPLIT',
+        source_type: standard ? 'TRANSACTION_STANDARD' : 'TRANSACTION_SPLIT',
         period_locked: false,
       },
       encrypt: encryptText,
@@ -1004,7 +1062,7 @@ export default function TransactionModal({
       account_id: walletAccountId,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
-      description: memo || `Split across ${validLines.length} accounts`,
+      description: walletLineText,
       encrypt: encryptText,
     });
 
@@ -1066,7 +1124,7 @@ export default function TransactionModal({
 
     // Phase 4.4 mutation signing for split path (signer prepared before any write).
     const splitSig = signer.sign(
-      `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
+      `${kind}|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
     );
 
     const txPayload = {
@@ -1075,6 +1133,8 @@ export default function TransactionModal({
       date: dateStr,
       linked_transfer_id: null,
       journal_entry_id: journalEntryId,
+      // Customer / vendor / employee, set on the standard form only.
+      ...(standard ? { contact_id: contactId || null } : {}),
       ...encFields,
       ...splitSig,
     };
@@ -1102,13 +1162,15 @@ export default function TransactionModal({
       action: editingTx ? 'UPDATE' : 'CREATE',
       entityType: 'transaction',
       entityId: txId,
-      summary: `${editingTx ? 'Updated' : 'Created'} split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
+      summary: standard
+        ? `${editingTx ? 'Updated' : 'Created'} transaction: ${type} ${amt} ${walletCurrency}`
+        : `${editingTx ? 'Updated' : 'Created'} split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
       after: {
         type,
         amount: amt,
         asset: walletCurrency,
         date: dateStr,
-        split: true,
+        split: !standard,
         lines: validLines.length,
       },
       encrypt: encryptText,
