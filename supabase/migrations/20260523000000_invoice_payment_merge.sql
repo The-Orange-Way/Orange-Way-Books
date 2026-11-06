@@ -172,7 +172,7 @@ BEGIN
     FROM public.journal_entries je
    WHERE je.org_id = v_org_id
      AND je.source_type = 'invoice_payment'
-     AND je.memo = 'Invoice payment ' | v_invoice_number
+     AND je.memo = 'Invoice payment ' || v_invoice_number
      AND je.reversal_of_id IS NULL
    ORDER BY je.created_at DESC NULLS LAST, je.date DESC
    LIMIT 1;
@@ -183,7 +183,7 @@ BEGIN
     ) VALUES (
       v_org_id,
       COALESCE(v_new_tx_date, CURRENT_DATE),
-      'Reversal of placeholder payment ' | v_invoice_number,
+      'Reversal of placeholder payment ' || v_invoice_number,
       v_invoice_currency,
       'POSTED',
       'invoice_payment_merge',
@@ -195,7 +195,7 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     )
     SELECT v_reversal_je_id, account_id, credit, debit,
-           'Reversal — placeholder payment ' | v_invoice_number
+           'Reversal — placeholder payment ' || v_invoice_number
       FROM public.journal_entry_lines
      WHERE journal_entry_id = v_existing_je_id;
   END IF;
@@ -218,7 +218,7 @@ BEGIN
     ) VALUES (
       v_org_id,
       COALESCE(v_new_tx_date, CURRENT_DATE),
-      'Invoice payment ' | v_invoice_number,
+      'Invoice payment ' || v_invoice_number,
       v_invoice_currency,
       'POSTED',
       'invoice_payment'
@@ -229,9 +229,9 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     ) VALUES
       (v_fresh_je_id, v_new_wallet_acct, v_amount_applied, 0,
-        'Dr Wallet — payment on ' | v_invoice_number),
+        'Dr Wallet — payment on ' || v_invoice_number),
       (v_fresh_je_id, v_ar_account_id, 0, v_amount_applied,
-        'Cr A/R — payment on ' | v_invoice_number);
+        'Cr A/R — payment on ' || v_invoice_number);
   END IF;
 
   UPDATE public.invoice_payments
