@@ -37,7 +37,6 @@ import {
   encryptTransaction,
   encryptNumber,
   encryptAttachment,
-  encryptJournalEntry,
   decryptChartOfAccount,
   decryptJournalEntryLine,
   encryptContact,
@@ -45,6 +44,7 @@ import {
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
+import { saveTxEntryHeader } from '@/lib/transactions/tx-entry-header';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 import {
@@ -965,45 +965,28 @@ export default function TransactionModal({
     ).get(selectedWallet.id)!;
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry(
-      {
+    // A new entry gets the next Ref #; an existing one keeps its own.
+    const journalEntryId = await saveTxEntryHeader(supabase, {
+      orgId,
+      date: dateStr,
+      existingId: editingTx?.journal_entry_id ?? null,
+      fields: {
         memo: memo || null,
-        ref_number: null,
         currency: walletCurrency,
         exchange_rate: null,
         status: 'DRAFT',
         source_type: 'TRANSACTION_SPLIT',
         period_locked: false,
       },
-      encryptText,
-    );
-
-    let journalEntryId: string;
+      encrypt: encryptText,
+    });
     if (editingTx && editingTx.journal_entry_id) {
-      const { error } = await supabase
-        .from('journal_entries')
-        .update(encEntry as any)
-        .eq('id', editingTx.journal_entry_id);
-      if (error) throw error;
-      journalEntryId = editingTx.journal_entry_id;
       // Wipe the old lines so we can re-insert the new ones cleanly.
       const { error: wipeErr } = await supabase
         .from('journal_entry_lines')
         .delete()
         .eq('journal_entry_id', journalEntryId);
       if (wipeErr) throw wipeErr;
-    } else {
-      const { data: je, error } = await supabase
-        .from('journal_entries')
-        .insert({
-          org_id: orgId,
-          date: dateStr,
-          ...encEntry,
-        } as any)
-        .select('id')
-        .single();
-      if (error) throw error;
-      journalEntryId = (je as any).id;
     }
 
     // ── Phase 2: build N+1 encrypted JE lines ─────────────────────────────
@@ -1334,27 +1317,22 @@ export default function TransactionModal({
     const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry(
-      {
+    // A new entry gets the next Ref #; an existing one keeps its own.
+    const journalEntryId = await saveTxEntryHeader(supabase, {
+      orgId,
+      date: dateStr,
+      existingId: editingTx?.journal_entry_id ?? null,
+      fields: {
         memo: memo || null,
-        ref_number: null,
         currency: sourceAsset, // primary currency for the JE; dest line carries its own native currency
         exchange_rate: null,
         status: 'DRAFT',
         source_type: 'TRANSACTION_TRANSFER',
         period_locked: false,
       },
-      encryptText,
-    );
-
-    let journalEntryId: string;
+      encrypt: encryptText,
+    });
     if (editingTx && editingTx.journal_entry_id) {
-      const { error } = await supabase
-        .from('journal_entries')
-        .update(encEntry as any)
-        .eq('id', editingTx.journal_entry_id);
-      if (error) throw error;
-      journalEntryId = editingTx.journal_entry_id;
       // Wipe old lines + clear legacy_transaction_id from old transactions rows so
       // void semantics stay clean (T3: void = direction-flip; here we re-create).
       const { error: wipeErr } = await supabase
@@ -1362,18 +1340,6 @@ export default function TransactionModal({
         .delete()
         .eq('journal_entry_id', journalEntryId);
       if (wipeErr) throw wipeErr;
-    } else {
-      const { data: je, error } = await supabase
-        .from('journal_entries')
-        .insert({
-          org_id: orgId,
-          date: dateStr,
-          ...encEntry,
-        } as any)
-        .select('id')
-        .single();
-      if (error) throw error;
-      journalEntryId = (je as any).id;
     }
 
     // ── Phase 2: 4 encrypted JE lines routed through Transfer Clearing ────
