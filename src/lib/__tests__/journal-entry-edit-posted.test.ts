@@ -446,6 +446,62 @@ describe('planPostedEditLines', () => {
     const out = await planPostedEditLines({ ...base(), stored: s, edited: e, build });
     expect(out).toHaveLength(2);
   });
+
+  it('refuses dropping a stored value when a removed line shifts the positions', async () => {
+    // Wallet credit 100; A 20 had no rate; B 30 has a value; C 50 had no rate.
+    // The user removes A and raises B to 50, and no rate is found for B.
+    const { build } = builder(true);
+    const w = stored('w', { debit: 0, credit: 100 });
+    const a = stored('a', { debit: 20, credit: 0, ratePending: true });
+    const bLine = stored('b', { debit: 30, credit: 0 });
+    const c = stored('c', { debit: 50, credit: 0, ratePending: true });
+    const e = [edited(w), { ...edited(bLine), debit: 50 }, edited(c)];
+    await expect(
+      planPostedEditLines({ ...base(), stored: [w, a, bLine, c], edited: e, build }),
+    ).rejects.toThrow('Nothing was saved');
+  });
+
+  it('refuses dropping a stored value when the removed line is on the same account', async () => {
+    // As above, but A and B share an account, so which stored line B replaces
+    // is not known. B had a value, so a missing rate is refused.
+    const { build } = builder(true);
+    const w = stored('w', { debit: 0, credit: 100 });
+    const a = stored('a', { debit: 20, credit: 0, ratePending: true });
+    const bLine = stored('b', { debit: 30, credit: 0, accountId: 'acct-a' });
+    const c = stored('c', { debit: 50, credit: 0, ratePending: true });
+    const e = [edited(w), { ...edited(bLine), debit: 50 }, edited(c)];
+    await expect(
+      planPostedEditLines({ ...base(), stored: [w, a, bLine, c], edited: e, build }),
+    ).rejects.toThrow('Nothing was saved');
+  });
+
+  it('accepts deleting a valued pair while a pending pair changes', async () => {
+    // Pending debit/credit 100 and valued debit/credit 50. The user deletes the
+    // valued pair and changes the pending pair to 120, and no rate is found.
+    const { build } = builder(true);
+    const pd = stored('pd', { debit: 100, credit: 0, ratePending: true });
+    const pc = stored('pc', { debit: 0, credit: 100, ratePending: true });
+    const vd = stored('vd', { debit: 50, credit: 0 });
+    const vc = stored('vc', { debit: 0, credit: 50 });
+    const e = [
+      { ...edited(pd), debit: 120 },
+      { ...edited(pc), credit: 120 },
+    ];
+    const out = await planPostedEditLines({
+      ...base(),
+      stored: [pd, pc, vd, vc],
+      edited: e,
+      build,
+    });
+    expect(out).toHaveLength(2);
+  });
+
+  it('refuses a new line without a rate on an entry that has values', async () => {
+    const { build } = builder(true);
+    const b = base();
+    b.edited[0] = { ...b.edited[0], accountId: 'acct-new' };
+    await expect(planPostedEditLines({ ...b, build })).rejects.toThrow('Nothing was saved');
+  });
 });
 
 describe('Journal page posted edit', () => {

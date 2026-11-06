@@ -63,6 +63,17 @@ export interface EditPostedEntryInput {
   reasonText: string;
   /** journal_entries.updated_at as read before the edit. */
   expectedUpdatedAt?: string | null;
+  /** Linked transactions to change in the same call. Left out by the Journal screen. */
+  txs?: PostedTxUpdate[];
+}
+
+/** One linked transaction changed with the entry. owb_edit_posted_entry refuses other keys. */
+export interface PostedTxUpdate {
+  id: string;
+  date: string;
+  encrypted_amount: string;
+  signature_b64: string | null;
+  signature_key_version: number | null;
 }
 
 export interface EditPostedEntryArgs {
@@ -113,9 +124,15 @@ export function buildEditPostedEntryArgs(input: EditPostedEntryInput): EditPoste
       encrypted_currency: input.header.encrypted_currency,
     },
     p_lines,
-    // Linked transactions are not changed from the Journal screen: it only
-    // edits manual entries, which have none.
-    p_txs: [],
+    // The Journal screen only edits manual entries, which have no linked
+    // transactions. The transaction screen sends the ones it changes.
+    p_txs: (input.txs ?? []).map((t) => ({
+      id: t.id,
+      date: t.date,
+      encrypted_amount: t.encrypted_amount,
+      signature_b64: t.signature_b64,
+      signature_key_version: t.signature_key_version,
+    })),
     p_encrypted_reason: input.encryptedReason,
     p_key_version: input.entryKeyVersion,
     p_expected_updated_at: input.expectedUpdatedAt ?? null,
@@ -224,6 +241,18 @@ export async function planPostedEditLines(opts: {
   };
   const exact = edited.map((e) => pick((s) => sameValue(s, e) && sameText(s, e)));
   const byValue = edited.map((e, i) => (exact[i] >= 0 ? -1 : pick((s) => sameValue(s, e))));
+  // A line whose value changed replaces a stored line left over on the same
+  // account. Which one is not known when there are several, so if any of them
+  // has a value the rebuilt line is treated as replacing a value. A line with
+  // none left over is new, or moved to another account.
+  const leftOver = (accountId: string) =>
+    stored.filter((s, k) => !used.has(k) && s.accountId === accountId);
+  const replacesValue = edited.map((e, i) => {
+    if (exact[i] >= 0 || byValue[i] >= 0) return null;
+    const left = leftOver(e.accountId);
+    return left.length ? left.some((s) => !s.ratePending) : null;
+  });
+  const entryHasValues = stored.some((s) => !s.ratePending);
 
   const enc = async (v: string | null) => (v && v.trim() ? encrypt(v) : null);
   const out: EditLine[] = [];
@@ -241,7 +270,6 @@ export async function planPostedEditLines(opts: {
       });
       continue;
     }
-    const before = stored[i];
     const built = await build({
       wallet_currency: currency,
       primary_currency: primary,
@@ -254,7 +282,12 @@ export async function planPostedEditLines(opts: {
       description: e.description,
       book_value: null,
     });
-    if (built.pending && !(before?.ratePending ?? false)) {
+    // Compare with the lines it may replace, never the one at the same
+    // position: removing a line shifts the positions. A line deleted on purpose is not
+    // compared with anything. A new line without a rate is only accepted on
+    // an entry that had no values to begin with.
+    const dropsAValue = replacesValue[i] ?? entryHasValues;
+    if (built.pending && dropsAValue) {
       throw new Error(
         `No exchange rate was found for ${currency} on ${date}, so this change would remove a value the books already have. Nothing was saved. Try again later.`,
       );
