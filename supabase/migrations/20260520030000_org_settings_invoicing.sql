@@ -79,7 +79,7 @@ BEGIN
 
   -- Format: "<prefix><zero-padded-3-digit-number>" — but allow > 999 to
   -- overflow naturally. 'INV-' + '001' / '042' / '1042' all valid.
-  v_result := v_prefix | lpad(v_next::text, 3, '0');
+  v_result := v_prefix || lpad(v_next::text, 3, '0');
   RETURN v_result;
 END;
 $$;

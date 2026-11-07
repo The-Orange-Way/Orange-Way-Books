@@ -52,10 +52,10 @@ BEGIN
     FROM public.vault_security_events
    WHERE user_id = v_user_id
      AND event = 'vault_unlock_failed'
-     AND created_at >= (now() - (v_window_min | ' minutes')::interval);
+     AND created_at >= (now() - (v_window_min || ' minutes')::interval);
 
   IF v_failed_count >= v_max_failures AND v_first_failure IS NOT NULL THEN
-    v_cooldown_until := v_first_failure + (v_window_min | ' minutes')::interval;
+    v_cooldown_until := v_first_failure + (v_window_min || ' minutes')::interval;
     RETURN QUERY SELECT FALSE, v_failed_count, v_window_min, v_cooldown_until;
   ELSE
     RETURN QUERY SELECT TRUE, COALESCE(v_failed_count, 0), v_window_min, NULL::timestamptz;

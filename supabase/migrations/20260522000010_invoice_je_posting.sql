@@ -162,7 +162,7 @@ BEGIN
     ) VALUES (
       v_org_id,
       COALESCE(v_tx_date, CURRENT_DATE),
-      'Invoice payment ' | v_invoice_number,
+      'Invoice payment ' || v_invoice_number,
       v_invoice_currency,
       'POSTED',
       'invoice_payment'
@@ -173,9 +173,9 @@ BEGIN
       journal_entry_id, account_id, debit, credit, description
     ) VALUES
       (v_je_id, v_wallet_account_id, p_amount_applied, 0,
-        'Dr Wallet — payment on ' | v_invoice_number),
+        'Dr Wallet — payment on ' || v_invoice_number),
       (v_je_id, v_ar_account_id, 0, p_amount_applied,
-        'Cr A/R — payment on ' | v_invoice_number);
+        'Cr A/R — payment on ' || v_invoice_number);
 
     v_je_posted := TRUE;
   END IF;

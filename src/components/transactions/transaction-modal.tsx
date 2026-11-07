@@ -35,8 +35,8 @@ import { AttachmentList } from '@/components/attachments/AttachmentList';
 import { useVault } from '@/context/VaultContext';
 import {
   encryptTransaction,
+  encryptNumber,
   encryptAttachment,
-  encryptJournalEntry,
   decryptChartOfAccount,
   decryptJournalEntryLine,
   encryptContact,
@@ -44,6 +44,7 @@ import {
 } from '@/lib/crypto-fields';
 import { buildJournalEntryLineInsert } from '@/lib/exchange/build-je-line-insert';
 import { ensureWalletChartAccountIds } from '@/lib/transactions/line-accounts';
+import { saveTxEntryHeader } from '@/lib/transactions/tx-entry-header';
 import { prepareMutationSigner } from '@/lib/transactions/mutation-signer';
 import { loadOrgPrimaryCurrency } from '@/lib/transactions/org-primary-currency';
 import {
@@ -51,6 +52,15 @@ import {
   saveTransferEditLegs,
 } from '@/lib/transactions/transfer-edit-targets';
 import { saveErrorText } from '@/lib/transactions/save-error-text';
+import {
+  loadPostedEditSnapshot,
+  loadPostedEntry,
+  postedEditRefusal,
+  postedLineAccounts,
+  postedEntryMode,
+  savePostedTxEdit,
+  type PostedEntry,
+} from '@/lib/transactions/posted-tx-edit';
 import { linkedLegAmount } from '@/lib/transactions/linked-leg';
 import { TRANSFER_BOX_LABEL, transferBoxOrder } from '@/lib/transactions/transfer-boxes';
 import {
@@ -257,6 +267,15 @@ export default function TransactionModal({
   const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // A posted split or transfer is saved through owb_edit_posted_entry, which
+  // needs a reason and the entry as it was read when the form opened.
+  const [postedEntry, setPostedEntry] = useState<PostedEntry | null>(null);
+  const [editReason, setEditReason] = useState('');
+  // True when the list row the form opened from is older than the database.
+  const [postedStale, setPostedStale] = useState(false);
+  // The other wallet of a transfer as it was saved. Kept apart from savedTransfer,
+  // which the rate logic clears when the two wallets share a currency.
+  const [postedCounterparty, setPostedCounterparty] = useState<string | null>(null);
   const [draggingReceipt, setDraggingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +285,10 @@ export default function TransactionModal({
     // Each opening starts with the received amount following the exchange rate.
     setRateOverride(false);
     setSavedTransfer(null);
+    setPostedEntry(null);
+    setPostedStale(false);
+    setPostedCounterparty(null);
+    setEditReason('');
     if (editingTx) {
       // ── Synchronous seed: standard-mode defaults from the row itself ──
       // The async detector below upgrades to split/transfer if the row has
@@ -274,10 +297,10 @@ export default function TransactionModal({
       setMode('standard');
       setWalletId(editingTx.account_id || '');
       setDirection(Number(editingTx.amount) >= 0 ? 'IN' : 'OUT');
-      // Restore the account picked when this row was created. Falls back to
-      // empty string for legacy rows (account_id null), those still show
-      // "Select account" until the user picks one + saves.
-      setAccountId(editingTx.account_id ?? '');
+      // account_id is the wallet. The account picked for a standard row is on
+      // its journal entry and is restored by the detector below; a row with no
+      // entry shows "Select account" until one is picked and saved.
+      setAccountId('');
       setContactId(editingTx.contact_id ?? '');
       setCounterpartyWalletId('');
       setAmount(formatAmountForInput(Math.abs(Number(editingTx.amount))));
@@ -305,6 +328,24 @@ export default function TransactionModal({
         const isTransfer = !!editingTx.linked_transfer_id;
         if (!editingTx.journal_entry_id && !isTransfer) return;
         try {
+          // A posted entry: read its version first, so every read below (the
+          // other side of a transfer, the split lines) is at least as new.
+          if (editingTx.journal_entry_id) {
+            const snap = await loadPostedEditSnapshot(
+              supabase,
+              editingTx.journal_entry_id,
+              {
+                id: editingTx.id,
+                amount: Number(editingTx.amount),
+                date: editingTx.date,
+                memo: editingTx.memo,
+              },
+              decryptText,
+            );
+            if (cancelled) return;
+            setPostedEntry(snap.entry);
+            setPostedStale(snap.stale);
+          }
           if (isTransfer) {
             const { data: linkedRow, error: linkedErr } = await supabase
               .from('transactions')
@@ -340,6 +381,7 @@ export default function TransactionModal({
             );
             // The saved amounts are what was recorded; a rate for the same currencies must not
             // replace them.
+            setPostedCounterparty(linkedRow.account_id as string);
             setSavedTransfer({
               walletId: editingTx.account_id || '',
               counterpartyWalletId: linkedRow.account_id as string,
@@ -367,7 +409,21 @@ export default function TransactionModal({
 
           // Resolve wallet name (plaintext on WalletOption.encrypted_name field).
           const walletName = wallets.find((w) => w.id === editingTx.account_id)?.encrypted_name;
-          const accountLegs = decryptedLines.filter(
+          const linesWithIds = decryptedLines.map((l, i) => ({
+            ...l,
+            accountId: (linesRaw as Array<{ account_id: string }>)[i].account_id,
+          }));
+          if (linesWithIds.length === 2) {
+            // A standard entry: a wallet line and a category line. The wallet is
+            // debited on money in and credited on money out, so the category is
+            // the other side. Names are not used: they can match or be renamed.
+            const isIn = Number(editingTx.amount) >= 0;
+            const leg = linesWithIds.find((l) => (isIn ? (l.credit ?? 0) > 0 : (l.debit ?? 0) > 0));
+            const acct = leg && accounts.find((a) => a.id === leg.accountId);
+            if (acct) setAccountId(acct.id);
+            return;
+          }
+          const accountLegs = linesWithIds.filter(
             (l) => !walletName || (l.account_name || '').trim() !== walletName.trim(),
           );
           if (accountLegs.length >= 2) {
@@ -562,6 +618,9 @@ export default function TransactionModal({
     const e: Record<string, string> = {};
     if (!walletId) e.wallet = 'Wallet is required.';
     if (!date) e.date = 'Date is required.';
+    if (postedEntry && !editReason.trim()) {
+      e.editReason = 'Say why this posted entry is being changed.';
+    }
 
     if (mode === 'standard') {
       const amt = parseAmount(amount);
@@ -613,6 +672,41 @@ export default function TransactionModal({
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
 
+      // Check again now: an entry posted after the form opened would otherwise
+      // go down the draft path, which cannot change a posted entry.
+      const postedNow = editingTx?.journal_entry_id
+        ? await loadPostedEntry(supabase, editingTx.journal_entry_id)
+        : null;
+      if (postedNow && !postedEntry) {
+        throw new Error(
+          'This entry was posted after it was opened. Close it and open it again to edit it.',
+        );
+      }
+      if (postedStale) {
+        throw new Error(
+          'This transaction changed since the list was loaded. Close it and open it again.',
+        );
+      }
+      if (editingTx && postedEntry) {
+        const refusal = postedEditRefusal(
+          {
+            mode: postedEntryMode(postedEntry) ?? 'standard',
+            walletId: editingTx.account_id ?? '',
+            counterpartyWalletId: postedCounterparty,
+            direction: Number(editingTx.amount) >= 0 ? 'IN' : 'OUT',
+            memo: editingTx.memo,
+          },
+          {
+            mode,
+            walletId,
+            counterpartyWalletId: mode === 'transfer' ? counterpartyWalletId : null,
+            direction,
+            memo,
+          },
+        );
+        if (refusal) throw new Error(refusal);
+      }
+
       if (mode === 'transfer') {
         await handleSaveTransfer(dateStr);
       } else if (mode === 'split') {
@@ -657,7 +751,38 @@ export default function TransactionModal({
   }
 
   // ── Standard save ──────────────────────────────────────────────────────────
+  //
+  // A standard send or receive is written like a split with one account line:
+  // a TRANSACTION_STANDARD journal entry with a wallet line and an account
+  // line, linked from the transactions row, so it reaches the reports and
+  // follows the posted-entry rules (OWB-T0241). A draft split switched to
+  // standard is rewritten the same way. A row tied to an entry made elsewhere
+  // (an import, a transfer) keeps the row-only save below.
   async function handleSaveStandard(dateStr: string) {
+    // A posted row from before this change has no entry. A new entry would be
+    // a draft while the row says posted, so it keeps the row-only save.
+    if (editingTx && !editingTx.journal_entry_id && editingTx.status === 'POSTED') {
+      await saveStandardRowOnly(dateStr);
+      return;
+    }
+    if (editingTx?.journal_entry_id) {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('source_type')
+        .eq('id', editingTx.journal_entry_id)
+        .maybeSingle();
+      if (error) throw error;
+      const source = (data as { source_type: string | null } | null)?.source_type;
+      if (source !== 'TRANSACTION_STANDARD' && source !== 'TRANSACTION_SPLIT') {
+        await saveStandardRowOnly(dateStr);
+        return;
+      }
+    }
+    await handleSaveSplit(dateStr, 'standard');
+  }
+
+  // Saves only the transactions row, for a row whose entry was made elsewhere.
+  async function saveStandardRowOnly(dateStr: string) {
     const amt = parseAmount(amount)!;
     const signedAmt = direction === 'OUT' ? -amt : amt;
     const type = direction === 'OUT' ? 'Send' : 'Receive';
@@ -720,11 +845,8 @@ export default function TransactionModal({
 
     const payload = {
       org_id: orgId,
+      // The wallet. The account the row is booked to is on its entry.
       account_id: walletId,
-      // Persist the chart-of-accounts pick so Edit Transaction can restore
-      // the dropdown next time the row is opened. Empty string → null
-      // (rows without an account assignment, e.g. transfers).
-      account_id: accountId || null,
       // Customer / vendor / employee, independent of account_id. Optional
       // even on standard transactions; OR imports leave it null.
       contact_id: contactId || null,
@@ -790,15 +912,104 @@ export default function TransactionModal({
   //
   // TODO: extend mutation signing to the JE.
   //
-  async function handleSaveSplit(dateStr: string) {
-    if (!selectedWallet) throw new Error('Wallet required for split.');
+  async function handleSaveSplit(dateStr: string, kind: 'split' | 'standard' = 'split') {
+    const standard = kind === 'standard';
+    if (!selectedWallet) throw new Error(`Wallet required for ${kind}.`);
     const walletCurrency = selectedWallet.asset;
     const amt = parseAmount(amount)!;
     const signedAmt = direction === 'OUT' ? -amt : amt;
     const type = direction === 'OUT' ? 'Send' : 'Receive';
 
-    // Filter to lines that are actually populated (account + amount).
-    const validLines = splitLines.filter((l) => l.accountId && parseAmount(l.amount));
+    // Filter to lines that are actually populated (account + amount). A
+    // standard transaction is one account line for the whole amount.
+    const validLines: SplitLine[] = standard
+      ? [{ clientId: 'standard', accountId, amount }]
+      : splitLines.filter((l) => l.accountId && parseAmount(l.amount));
+    const walletLineText = standard
+      ? memo || null
+      : memo || `Split across ${validLines.length} accounts`;
+
+    // Decide how the row will be signed before the first write (see prepareSigner).
+    // Lines are priced into the ORG's primary currency, read now; never the
+    // picked wallet's currency (see org-primary-currency.ts).
+    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
+    const signer = await prepareSigner();
+
+    // A posted split is changed in one call that keeps its id, number and
+    // history, and updates the transaction with it (see posted-tx-edit.ts).
+    if (editingTx && postedEntry && editingTx.journal_entry_id === postedEntry.id) {
+      const jeId = postedEntry.id;
+      // The posted edit call cannot change the contact, so refuse rather than
+      // report a save that left the old contact in place.
+      if (standard && (contactId || null) !== (editingTx.contact_id ?? null)) {
+        throw new Error(
+          'The contact of a posted transaction cannot be changed here yet. Put the contact back and save, or reverse the entry and enter it again.',
+        );
+      }
+      // The accounts the posted lines already use, read without writing, so a
+      // refused edit creates nothing.
+      const posted = await postedLineAccounts(supabase, jeId, [selectedWallet.id], decryptText);
+      await savePostedTxEdit(supabase, {
+        entry: postedEntry,
+        date: dateStr,
+        primaryCurrency: orgPrimary,
+        reason: editReason,
+        encrypt: encryptText,
+        decrypt: decryptText,
+        lines: [
+          {
+            accountId: posted.wallet.get(selectedWallet.id)!,
+            accountName: selectedWallet.encrypted_name,
+            accountCode: null,
+            description: walletLineText,
+            debit: direction === 'IN' ? amt : 0,
+            credit: direction === 'OUT' ? amt : 0,
+            currency: walletCurrency,
+          },
+          ...validLines.map((line) => {
+            const acct = accounts.find((a) => a.id === line.accountId);
+            const lineAmt = parseAmount(line.amount)!;
+            return {
+              accountId: line.accountId,
+              accountName: acct?.name ?? null,
+              accountCode: acct?.code ?? null,
+              description: line.memo ?? null,
+              debit: direction === 'OUT' ? lineAmt : 0,
+              credit: direction === 'IN' ? lineAmt : 0,
+              currency: walletCurrency,
+            };
+          }),
+        ],
+        txs: [
+          {
+            id: editingTx.id,
+            date: dateStr,
+            encrypted_amount: (await encryptNumber(signedAmt, encryptText))!,
+            ...signer.sign(`${kind}|${jeId}|${dateStr}|${signedAmt}|${validLines.length}`),
+          },
+        ],
+      });
+      writeAuditLog({
+        orgId,
+        action: 'UPDATE',
+        entityType: 'transaction',
+        entityId: editingTx.id,
+        summary: standard
+          ? `Updated posted transaction: ${type} ${amt} ${walletCurrency}`
+          : `Updated posted split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
+        after: {
+          type,
+          amount: amt,
+          asset: walletCurrency,
+          date: dateStr,
+          split: !standard,
+          lines: validLines.length,
+        },
+        encrypt: encryptText,
+      });
+      await uploadReceipts(editingTx.id);
+      return;
+    }
 
     // Resolve the chart account behind the wallet before anything is written,
     // so a missing account stops the save instead of leaving an entry with no lines.
@@ -810,52 +1021,30 @@ export default function TransactionModal({
         encryptText,
       )
     ).get(selectedWallet.id)!;
-    // Decide how the row will be signed before the first write (see prepareSigner).
-    // Lines are priced into the ORG's primary currency, read now; never the
-    // picked wallet's currency (see org-primary-currency.ts).
-    const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
-    const signer = await prepareSigner();
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry(
-      {
+    // A new entry gets the next Ref #; an existing one keeps its own.
+    const journalEntryId = await saveTxEntryHeader(supabase, {
+      orgId,
+      date: dateStr,
+      existingId: editingTx?.journal_entry_id ?? null,
+      fields: {
         memo: memo || null,
-        ref_number: null,
         currency: walletCurrency,
         exchange_rate: null,
         status: 'DRAFT',
-        source_type: 'TRANSACTION_SPLIT',
+        source_type: standard ? 'TRANSACTION_STANDARD' : 'TRANSACTION_SPLIT',
         period_locked: false,
       },
-      encryptText,
-    );
-
-    let journalEntryId: string;
+      encrypt: encryptText,
+    });
     if (editingTx && editingTx.journal_entry_id) {
-      const { error } = await supabase
-        .from('journal_entries')
-        .update(encEntry as any)
-        .eq('id', editingTx.journal_entry_id);
-      if (error) throw error;
-      journalEntryId = editingTx.journal_entry_id;
       // Wipe the old lines so we can re-insert the new ones cleanly.
       const { error: wipeErr } = await supabase
         .from('journal_entry_lines')
         .delete()
         .eq('journal_entry_id', journalEntryId);
       if (wipeErr) throw wipeErr;
-    } else {
-      const { data: je, error } = await supabase
-        .from('journal_entries')
-        .insert({
-          org_id: orgId,
-          date: dateStr,
-          ...encEntry,
-        } as any)
-        .select('id')
-        .single();
-      if (error) throw error;
-      journalEntryId = (je as any).id;
     }
 
     // ── Phase 2: build N+1 encrypted JE lines ─────────────────────────────
@@ -873,7 +1062,7 @@ export default function TransactionModal({
       account_id: walletAccountId,
       account_name: selectedWallet.encrypted_name, // already-decrypted plaintext per WalletOption shape
       account_code: null,
-      description: memo || `Split across ${validLines.length} accounts`,
+      description: walletLineText,
       encrypt: encryptText,
     });
 
@@ -935,7 +1124,7 @@ export default function TransactionModal({
 
     // Phase 4.4 mutation signing for split path (signer prepared before any write).
     const splitSig = signer.sign(
-      `split|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
+      `${kind}|${journalEntryId}|${dateStr}|${signedAmt}|${validLines.length}`,
     );
 
     const txPayload = {
@@ -944,6 +1133,8 @@ export default function TransactionModal({
       date: dateStr,
       linked_transfer_id: null,
       journal_entry_id: journalEntryId,
+      // Customer / vendor / employee, set on the standard form only.
+      ...(standard ? { contact_id: contactId || null } : {}),
       ...encFields,
       ...splitSig,
     };
@@ -971,13 +1162,15 @@ export default function TransactionModal({
       action: editingTx ? 'UPDATE' : 'CREATE',
       entityType: 'transaction',
       entityId: txId,
-      summary: `${editingTx ? 'Updated' : 'Created'} split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
+      summary: standard
+        ? `${editingTx ? 'Updated' : 'Created'} transaction: ${type} ${amt} ${walletCurrency}`
+        : `${editingTx ? 'Updated' : 'Created'} split: ${type} ${amt} ${walletCurrency} across ${validLines.length} accounts`,
       after: {
         type,
         amount: amt,
         asset: walletCurrency,
         date: dateStr,
-        split: true,
+        split: !standard,
         lines: validLines.length,
       },
       encrypt: encryptText,
@@ -1057,6 +1250,121 @@ export default function TransactionModal({
     // picked wallet's currency (see org-primary-currency.ts).
     const orgPrimary = await loadOrgPrimaryCurrency(supabase, orgId, decryptText);
     const signer = await prepareSigner();
+
+    // A posted transfer is changed in one call that keeps its id, number and
+    // history, and updates both transactions with it (see posted-tx-edit.ts).
+    if (editingTx && postedEntry && editingTx.journal_entry_id === postedEntry.id) {
+      const partnerId = editingTx.linked_transfer_id;
+      if (!partnerId) {
+        throw new Error(
+          'The other side of this posted transfer is missing, so it cannot be edited here.',
+        );
+      }
+      const jeId = postedEntry.id;
+      // The accounts the posted lines already use, read without writing, so a
+      // refused edit creates nothing (not even a missing Transfer Clearing).
+      const posted = await postedLineAccounts(
+        supabase,
+        jeId,
+        [sourceWallet.id, destWallet.id],
+        decryptText,
+      );
+      if (posted.other.length !== 1) {
+        throw new Error(
+          'This posted transfer does not have exactly one clearing account, so it cannot be edited here. Reverse the entry and enter it again instead.',
+        );
+      }
+      const clearing = posted.other[0];
+      const clearingName = clearing.name ?? TRANSFER_CLEARING_NAME;
+      const sourceAccountId = posted.wallet.get(sourceWallet.id)!;
+      const destAccountId = posted.wallet.get(destWallet.id)!;
+      const srcId = direction === 'OUT' ? editingTx.id : partnerId;
+      const destId = direction === 'OUT' ? partnerId : editingTx.id;
+      const line = (
+        accountId: string,
+        accountName: string | null,
+        description: string,
+        debit: number,
+        credit: number,
+        currency: string,
+      ) => ({ accountId, accountName, accountCode: null, description, debit, credit, currency });
+      await savePostedTxEdit(supabase, {
+        entry: postedEntry,
+        date: dateStr,
+        primaryCurrency: orgPrimary,
+        reason: editReason,
+        encrypt: encryptText,
+        decrypt: decryptText,
+        // Same four lines, in the same order, as a new transfer (Phase 2 below).
+        lines: [
+          line(
+            destAccountId,
+            destWallet.encrypted_name,
+            memo || `Transfer from ${sourceWallet.encrypted_name}`,
+            Math.abs(receivedValue),
+            0,
+            destAsset,
+          ),
+          line(
+            clearing.id,
+            clearingName,
+            memo || `Transfer clearing (in ${destAsset})`,
+            0,
+            Math.abs(receivedValue),
+            destAsset,
+          ),
+          line(
+            clearing.id,
+            clearingName,
+            memo || `Transfer clearing (out ${sourceAsset})`,
+            Math.abs(sentValue),
+            0,
+            sourceAsset,
+          ),
+          line(
+            sourceAccountId,
+            sourceWallet.encrypted_name,
+            memo || `Transfer to ${destWallet.encrypted_name}`,
+            0,
+            Math.abs(sentValue),
+            sourceAsset,
+          ),
+        ],
+        txs: [
+          {
+            id: srcId,
+            date: dateStr,
+            encrypted_amount: (await encryptNumber(-Math.abs(sentValue), encryptText))!,
+            ...signer.sign(`transfer-src|${jeId}|${dateStr}|${sourceAsset}|${sentValue}`),
+          },
+          {
+            id: destId,
+            date: dateStr,
+            encrypted_amount: (await encryptNumber(Math.abs(receivedValue), encryptText))!,
+            ...signer.sign(`transfer-dest|${jeId}|${dateStr}|${destAsset}|${receivedValue}`),
+          },
+        ],
+      });
+      writeAuditLog({
+        orgId,
+        action: 'UPDATE',
+        entityType: 'transaction',
+        entityId: editingTx.id,
+        summary: `Updated posted transfer: ${sentValue} ${sourceAsset} → ${receivedValue} ${destAsset}${fee > 0 ? ` (fee ${fee})` : ''}`,
+        after: {
+          sent: sentValue,
+          sourceAsset,
+          received: receivedValue,
+          destAsset,
+          date: dateStr,
+          fee,
+        },
+        encrypt: encryptText,
+      });
+      await uploadReceipts(editingTx.id);
+      return;
+    }
+
     const walletAccountIds = await ensureWalletChartAccountIds(
       supabase,
       orgId,
@@ -1071,27 +1379,22 @@ export default function TransactionModal({
     const transferClearing = await ensureTransferClearingAccount(orgId, encryptText, decryptText);
 
     // ── Phase 1: wrapper journal_entries row ──────────────────────────────
-    const encEntry = await encryptJournalEntry(
-      {
+    // A new entry gets the next Ref #; an existing one keeps its own.
+    const journalEntryId = await saveTxEntryHeader(supabase, {
+      orgId,
+      date: dateStr,
+      existingId: editingTx?.journal_entry_id ?? null,
+      fields: {
         memo: memo || null,
-        ref_number: null,
         currency: sourceAsset, // primary currency for the JE; dest line carries its own native currency
         exchange_rate: null,
         status: 'DRAFT',
         source_type: 'TRANSACTION_TRANSFER',
         period_locked: false,
       },
-      encryptText,
-    );
-
-    let journalEntryId: string;
+      encrypt: encryptText,
+    });
     if (editingTx && editingTx.journal_entry_id) {
-      const { error } = await supabase
-        .from('journal_entries')
-        .update(encEntry as any)
-        .eq('id', editingTx.journal_entry_id);
-      if (error) throw error;
-      journalEntryId = editingTx.journal_entry_id;
       // Wipe old lines + clear legacy_transaction_id from old transactions rows so
       // void semantics stay clean (T3: void = direction-flip; here we re-create).
       const { error: wipeErr } = await supabase
@@ -1099,18 +1402,6 @@ export default function TransactionModal({
         .delete()
         .eq('journal_entry_id', journalEntryId);
       if (wipeErr) throw wipeErr;
-    } else {
-      const { data: je, error } = await supabase
-        .from('journal_entries')
-        .insert({
-          org_id: orgId,
-          date: dateStr,
-          ...encEntry,
-        } as any)
-        .select('id')
-        .single();
-      if (error) throw error;
-      journalEntryId = (je as any).id;
     }
 
     // ── Phase 2: 4 encrypted JE lines routed through Transfer Clearing ────
@@ -2040,6 +2331,24 @@ export default function TransactionModal({
                 rows={2}
               />
             </div>
+
+            {/* Reason, only for a posted entry: it goes into the entry's history */}
+            {postedEntry && (
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Reason for the change
+                </Label>
+                <Textarea
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="This entry is posted. Say why it is being changed; the earlier version is kept in its history."
+                  rows={2}
+                />
+                {errors.editReason && (
+                  <div className="text-xs text-destructive">{errors.editReason}</div>
+                )}
+              </div>
+            )}
 
             {/* Row 5, Match to invoice (inflow only, existing tx only) */}
             {(() => {
