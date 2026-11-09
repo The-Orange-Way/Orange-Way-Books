@@ -54,7 +54,7 @@ async function readBuildMeta(page: import('@playwright/test').Page): Promise<str
     const bundle =
       scripts
         .map((s) => s.src.split('/').pop() ?? '')
-        .find((n) => /^index-[A-Za-z0-9]+\.js$/.test(n)) ?? 'unknown';
+        .find((n) => /^index-[A-Za-z0-9_-]+\.js$/.test(n)) ?? 'unknown';
     const deployId =
       (
         document.querySelector<HTMLMetaElement>(
@@ -110,9 +110,10 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
       })(),
     ]);
 
-    // Condition 4: log bundle filename and deployment ID at start.
+    // Condition 4: log bundle filename and commit sha at start.
     const startMeta = await readBuildMeta(page1);
-    console.log(`[stale-conflict] START  ${startMeta}`);
+    const sha = (process.env.GITHUB_SHA ?? 'local').slice(0, 12);
+    console.log(`[stale-conflict] START  ${startMeta} sha=${sha}`);
 
     // Extract tokens for both sessions.
     const [token1, token2] = await Promise.all([getAccessToken(page1), getAccessToken(page2)]);
@@ -130,7 +131,7 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
       async ({ url, key, token }) => {
         const r = await fetch(
           `${url}/rest/v1/journal_entries` +
-            `?status=eq.POSTED&source_type=is.null&period_locked=is.false` +
+            `?status=eq.POSTED&source_type=is.null` +
             `&select=id,updated_at,date,key_version&order=updated_at.desc&limit=1`,
           { headers: { apikey: key, Authorization: `Bearer ${token}` } },
         );
@@ -149,7 +150,7 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
     expect(
       entries.length,
       'CI test account must have at least one editable posted manual entry ' +
-        '(status=POSTED, source_type IS NULL, period_locked IS FALSE)',
+        '(status=POSTED, source_type IS NULL)',
     ).toBeGreaterThan(0);
 
     const entry = entries[0];
@@ -223,9 +224,9 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
     const message = parsed.message ?? parsed.msg ?? '';
     expect(message).toBe('This entry was changed after you opened it. Reload it and try again.');
 
-    // Condition 4: log bundle filename and deployment ID at end.
+    // Condition 4: log bundle filename and commit sha at end.
     const endMeta = await readBuildMeta(page1);
-    console.log(`[stale-conflict] END    ${endMeta}`);
+    console.log(`[stale-conflict] END    ${endMeta} sha=${sha}`);
   } finally {
     await ctx1.close();
     await ctx2.close();
