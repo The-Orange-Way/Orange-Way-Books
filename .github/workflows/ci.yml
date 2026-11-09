@@ -128,11 +128,54 @@ jobs:
       # rather than leaving a contributor staring at "exit code 1".
       - name: Format check
         run: |
-          if ! bun run format:check; then
-            echo ""
-            echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
+          set -uo pipefail
+
+          if bun run format:check > /dev/null 2>&1; then
+            echo "all files are prettier-formatted"
+            exit 0
+          fi
+
+          echo "::error::Prettier check failed. Run \`bun run format\` locally to fix, then commit. To never see this again on this clone, run \`bash scripts/install-hooks.sh\` once and every commit will auto-format its staged files."
+
+          # Builder seats commit through the GitHub API and cannot run
+          # Prettier locally or open this job's log, so the failure above is
+          # not actionable to them on its own. List the failing files and
+          # publish the corrected diff for each as a check-run annotation,
+          # which is readable through the public checks API with no log
+          # access. Re-run prettier --check ourselves (rather than parsing
+          # the project wrapper's output) so the file list format is ours to
+          # rely on.
+          mapfile -t FAILED < <(bunx prettier --check . 2>&1 | grep -E '^\[warn\] ' | sed -E 's/^\[warn\] //' | grep -vE '^(Checking formatting|Code style issues found)')
+
+          if [ "${#FAILED[@]}" -eq 0 ]; then
+            echo "::error::format:check failed but no failing file could be parsed from prettier's output. Run \`bun run format\` locally and check the raw log."
             exit 1
           fi
+
+          MAX_ANNOTATED=8
+          i=0
+          for FILE in "${FAILED[@]}"; do
+            i=$((i + 1))
+            if [ "$i" -gt "$MAX_ANNOTATED" ]; then
+              REST=$(printf '%s, ' "${FAILED[@]:$MAX_ANNOTATED}")
+              echo "::warning::${#FAILED[@]} file(s) fail Prettier; only the first ${MAX_ANNOTATED} got a diff annotation. Remaining: ${REST%, }"
+              break
+            fi
+            if [ ! -f "$FILE" ]; then
+              echo "::warning::${FILE} was listed by prettier --check but is not a readable file; skipping its annotation"
+              continue
+            fi
+            DIFF=$(diff -u "$FILE" <(bunx prettier "$FILE" 2>/dev/null) || true)
+            SHORT=$(printf '%s' "$DIFF" | head -c 4000)
+            if [ "$(printf '%s' "$DIFF" | wc -c)" -gt 4000 ]; then
+              SHORT="${SHORT}
+... diff truncated at 4000 chars, run \`bunx prettier --write ${FILE}\` locally for the rest"
+            fi
+            ENCODED=$(printf '%s' "$SHORT" | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error file=${FILE}::Prettier would reformat this file. Diff:%0A${ENCODED}"
+          done
+
+          exit 1
 
       - name: Lint
         run: bun run lint
