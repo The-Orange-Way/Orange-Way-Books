@@ -115,10 +115,7 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
     console.log(`[stale-conflict] START  ${startMeta}`);
 
     // Extract tokens for both sessions.
-    const [token1, token2] = await Promise.all([
-      getAccessToken(page1),
-      getAccessToken(page2),
-    ]);
+    const [token1, token2] = await Promise.all([getAccessToken(page1), getAccessToken(page2)]);
 
     // Both sessions navigate to the journal entries page concurrently,
     // simulating two users having the same screen open at the same time.
@@ -214,9 +211,7 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
     );
 
     // Condition 2: HTTP 409 within 10 seconds.
-    expect(elapsed, `RPC must respond within 10 000 ms (took ${elapsed} ms)`).toBeLessThan(
-      10_000,
-    );
+    expect(elapsed, `RPC must respond within 10 000 ms (took ${elapsed} ms)`).toBeLessThan(10_000);
     expect(rpcResp.status, `expected HTTP 409 conflict; body: ${rpcResp.body}`).toBe(409);
 
     // Condition 2: exact message text as raised by the DB function.
@@ -226,9 +221,7 @@ test('stale save of a posted entry returns HTTP 409 with exact message', async (
       code?: string;
     };
     const message = parsed.message ?? parsed.msg ?? '';
-    expect(message).toBe(
-      'This entry was changed after you opened it. Reload it and try again.',
-    );
+    expect(message).toBe('This entry was changed after you opened it. Reload it and try again.');
 
     // Condition 4: log bundle filename and deployment ID at end.
     const endMeta = await readBuildMeta(page1);
