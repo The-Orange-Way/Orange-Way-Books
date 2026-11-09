@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
-import { deleteTxWithDraftEntry } from '../delete-tx-entry';
+import { deleteBlocked, deleteTxWithDraftEntry } from '../delete-tx-entry';
 
 type Call = { table: string; filters: Array<[string, string, unknown]> };
 
@@ -49,5 +51,53 @@ describe('deleteTxWithDraftEntry', () => {
       deleteTxWithDraftEntry(client, { id: 'tx-1', journal_entry_id: 'je-1' }),
     ).rejects.toThrow('denied');
     expect(calls.map((c) => c.table)).toEqual(['transactions']);
+  });
+});
+
+describe('deleteBlocked', () => {
+  const rule = (fn: typeof deleteBlocked) =>
+    fn({ status: 'POSTED' }) &&
+    fn({ status: 'VOID' }) &&
+    fn({ status: 'DRAFT', cleared_status: 'RECONCILED' }) &&
+    !fn({ status: 'DRAFT' }) &&
+    !fn(undefined);
+
+  it('refuses posted, void and reconciled rows and allows a draft', () => {
+    expect(rule(deleteBlocked)).toBe(true);
+  });
+
+  it('the check fails on a copy that only blocks reconciled rows', () => {
+    const broken: typeof deleteBlocked = (tx) => tx?.cleared_status === 'RECONCILED';
+    expect(rule(broken)).toBe(false);
+  });
+
+  const src = readFileSync(join(__dirname, '..', '..', '..', 'pages', 'Transactions.tsx'), 'utf8');
+  const usesGuard = (text: string, from: string, to: string) => {
+    const start = text.indexOf(from);
+    return start >= 0 && text.slice(start, text.indexOf(to, start)).includes('deleteBlocked(tx)');
+  };
+  const singleOk = (t: string) =>
+    usesGuard(t, 'const handleDelete = async', "if (!confirm('Delete this transaction?'))");
+  const bulkOk = (t: string) =>
+    usesGuard(t, 'const handleBulkDelete = async', 'if (!confirm(`Delete ${selected.size}');
+
+  it('single and bulk delete both use it', () => {
+    expect(singleOk(src)).toBe(true);
+    expect(bulkOk(src)).toBe(true);
+  });
+
+  it('the checks fail on a copy where a handler does not use it', () => {
+    const noSingle = src.replace(
+      'if (deleteBlocked(tx)) {\n      toast.error',
+      'if (false) {\n      toast.error',
+    );
+    expect(noSingle).not.toBe(src);
+    expect(singleOk(noSingle)).toBe(false);
+    const noBulk = src.replace(
+      '.filter((tx): tx is TxRow => deleteBlocked(tx))',
+      '.filter(() => false)',
+    );
+    expect(noBulk).not.toBe(src);
+    expect(bulkOk(noBulk)).toBe(false);
   });
 });
