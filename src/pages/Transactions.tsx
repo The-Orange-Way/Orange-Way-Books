@@ -107,7 +107,7 @@ import { printTable } from '@/lib/exports/print-table';
 import { csvExportCurrencyLabel } from '@/lib/exports/csv-currency-label';
 import { transactionAmountNumericForCsv } from '@/lib/exports/csv-transaction-amount';
 import { toast } from 'sonner';
-import { deleteTxWithDraftEntry } from '@/lib/transactions/delete-tx-entry';
+import { deleteBlocked, deleteTxWithDraftEntry } from '@/lib/transactions/delete-tx-entry';
 import TransactionModal, {
   fetchAccountsForModal,
   fetchContactsForModal,
@@ -741,6 +741,11 @@ export default function Transactions() {
       setLockedDialogOpen(true);
       return;
     }
+    // The same rule as bulk delete: a posted or void row is voided, not deleted.
+    if (deleteBlocked(tx)) {
+      toast.error('A posted or voided transaction cannot be deleted. Void it instead.');
+      return;
+    }
     if (!confirm('Delete this transaction?')) return;
     try {
       await deleteTxWithDraftEntry(supabase, { id, journal_entry_id: tx?.journal_entry_id });
@@ -938,12 +943,7 @@ export default function Transactions() {
     // rows must be voided or the reconciliation undone first.
     const blockers = Array.from(selected)
       .map((id) => txs.find((t) => t.id === id))
-      .filter(
-        (tx): tx is TxRow =>
-          (!!tx && tx.status === 'POSTED') ||
-          tx.status === 'VOID' ||
-          tx.cleared_status === 'RECONCILED',
-      );
+      .filter((tx): tx is TxRow => deleteBlocked(tx));
     if (blockers.length > 0) {
       alert(
         `${blockers.length} of the selected transactions cannot be deleted because they are posted, voided, or reconciled. ` +

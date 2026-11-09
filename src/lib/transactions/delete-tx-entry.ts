@@ -11,6 +11,16 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/** True when a row may not be deleted: posted, void or reconciled rows are
+ *  voided (or unreconciled) instead. Used by single and bulk delete alike. */
+export function deleteBlocked(
+  tx: { status?: string | null; cleared_status?: string | null } | undefined,
+): boolean {
+  return (
+    !!tx && (tx.status === 'POSTED' || tx.status === 'VOID' || tx.cleared_status === 'RECONCILED')
+  );
+}
+
 export async function deleteTxWithDraftEntry(
   client: SupabaseClient,
   tx: { id: string; journal_entry_id?: string | null },
