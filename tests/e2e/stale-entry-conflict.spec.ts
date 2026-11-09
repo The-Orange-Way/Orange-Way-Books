@@ -1,5 +1,5 @@
 /**
- * stale-entry-conflict.spec.ts — OWB-T0246
+ * stale-entry-conflict.spec.ts - OWB-T0246
  *
  * Proves that a stale save of a posted journal entry returns HTTP 409 with
  * the exact message "This entry was changed after you opened it. Reload it
@@ -8,7 +8,7 @@
  * QA conditions:
  *   1. Two concurrent browser contexts, both signed in.
  *   2. Assert both HTTP 409 status AND the exact error message text.
- *   3. RPC calls target the live Supabase dev project (OWB_E2E_SUPABASE_URL) —
+ *   3. RPC calls target the live Supabase dev project (OWB_E2E_SUPABASE_URL) -
  *      the stale check lives in the deployed owb_edit_posted_entry function, not
  *      a local emulator.
  *   4. Log the served bundle filename and deployment ID at start and end.
@@ -74,7 +74,7 @@ async function getAccessToken(page: import('@playwright/test').Page): Promise<st
     const key = Object.keys(localStorage).find(
       (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
     );
-    if (!key) throw new Error('no sb-auth-token in localStorage — sign in first');
+    if (!key) throw new Error('no sb-auth-token in localStorage - sign in first');
     const raw = localStorage.getItem(key)!;
     return (JSON.parse(raw) as { access_token: string }).access_token;
   });
