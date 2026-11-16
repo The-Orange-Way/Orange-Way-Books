@@ -49,13 +49,17 @@ function primaryArgs(body: string): string[] {
   return out;
 }
 
-/** True when the org primary is read before the first table write. */
+/**
+ * True when the org primary is read before the first table write, so a refused save writes
+ * nothing. The account helpers count as writes: they can create chart accounts and link wallets.
+ */
 function primaryReadBeforeWrites(body: string): boolean {
   const readAt = body.indexOf('await loadOrgPrimaryCurrency(');
   const writes = [
     ...body.matchAll(
-      /\.from\(\s*'(journal_entries|journal_entry_lines|transactions)'\s*\)\s*\.(insert|update|delete|upsert)\(/g,
+      /\.from\(\s*'(journal_entries|journal_entry_lines|transactions|chart_of_accounts|wallets)'\s*\)\s*\.(insert|update|delete|upsert)\(/g,
     ),
+    ...body.matchAll(/await\s+(ensureWalletChartAccountIds|ensureTransferClearingAccount)\(/g),
   ];
   return readAt !== -1 && writes.length > 0 && writes.every((m) => (m.index ?? 0) > readAt);
 }
@@ -122,5 +126,15 @@ describe('transaction modal prices every line into the org primary currency', ()
     expect(primaryReadBeforeWrites(old)).toBe(false);
     const lateRead = `await supabase.from('transactions').insert(x);\nconst p = await loadOrgPrimaryCurrency(a, b, c);`;
     expect(primaryReadBeforeWrites(lateRead)).toBe(false);
+    const read = `const p = await loadOrgPrimaryCurrency(a, b, c);`;
+    for (const early of [
+      `await ensureWalletChartAccountIds(supabase, orgId, w, enc);`,
+      `await ensureTransferClearingAccount(orgId, enc, dec);`,
+      `await supabase.from('chart_of_accounts').insert(x);`,
+      `await supabase.from('wallets').update(x);`,
+    ]) {
+      expect(primaryReadBeforeWrites(`${early}\n${read}`)).toBe(false);
+      expect(primaryReadBeforeWrites(`${read}\n${early}`)).toBe(true);
+    }
   });
 });
